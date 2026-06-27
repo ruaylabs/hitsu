@@ -1,0 +1,5 @@
+[tools]
+node = "24.16.0"
+pnpm = "11.5.2"
+rust = "1.94"
+rust-analyzer = "2026-06-08"
