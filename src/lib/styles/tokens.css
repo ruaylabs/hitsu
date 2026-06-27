@@ -1,0 +1,61 @@
+:root {
+  /* Surfaces — light mode */
+  --surface-0: #efede5;
+  --surface-1: #f7f6f3;
+  --surface-2: #ffffff;
+
+  /* Text */
+  --text-primary: #1a1915;
+  --text-secondary: #6b6a64;
+  --text-muted: #a1a09a;
+  --text-accent: #185fa5;
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Accent (used for selection, links) */
+  --bg-accent: #e6f1fb;
+  --accent: #378add;
+
+  /* Semantic */
+  --success: #1d9e75;
+  --warning: #ba7517;
+  --danger: #e24b4a;
+
+  /* Tag swatches */
+  --tag-work: #378add;
+  --tag-personal: #1d9e75;
+  --tag-critical: #d85a30;
+  --tag-homelab: #7f77dd;
+
+  /* Sizing */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-card: 12px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Layout — wireframe-derived */
+  --sidebar-width: 168px;
+  --list-width: 224px;
+  --titlebar-height: 38px;
+  --statusbar-height: 26px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-0: #1e1e1e;
+    --surface-1: #252525;
+    --surface-2: #2c2c2c;
+    --text-primary: #f0ede5;
+    --text-secondary: #a0a098;
+    --text-muted: #6a6a64;
+    --text-accent: #85b7eb;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --bg-accent: #0c447c;
+  }
+}

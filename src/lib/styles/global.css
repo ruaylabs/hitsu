@@ -1,0 +1,21 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabler icons base sizing */
+.ti {
+  font-size: 15px;
+  vertical-align: middle;
+}
+
+/* Selection highlighting */
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
