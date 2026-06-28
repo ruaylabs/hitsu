@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' asset: https://asset.localhost data: blob:; connect-src 'self' ipc: https://tauri.localhost; media-src 'self'"
     }
   },
   "bundle": {
