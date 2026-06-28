@@ -2,6 +2,7 @@
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
 
@@ -72,7 +73,11 @@
         </button>
       </div>
     {/if}
-    <span>{itemCount} items</span>
+    {#if clipboard.active}
+      <span class="countdown">Clears in {Math.ceil(clipboard.remainingMs / 1000)}s</span>
+    {:else}
+      <span>{itemCount} items</span>
+    {/if}
     {#if vault.meta}
       <button
         class="add-btn"

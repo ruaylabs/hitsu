@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { clipboard } from "$lib/stores/clipboard.svelte";
+
   let {
     label,
     password,
@@ -23,7 +25,7 @@
   }
 
   function copy() {
-    navigator.clipboard.writeText(password);
+    clipboard.copy(password);
   }
 </script>
 

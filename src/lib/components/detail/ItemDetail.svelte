@@ -1,6 +1,7 @@
 <script lang="ts">
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import DetailHeader from "./DetailHeader.svelte";
   import FieldGroup from "./FieldGroup.svelte";
@@ -267,7 +268,7 @@
           <Field
             label="Username"
             value={entry.username}
-            onCopy={() => navigator.clipboard.writeText(entry.username!)}
+            onCopy={() => clipboard.copyPlain(entry.username!)}
           />
         {/if}
         {#if entry.password}
@@ -278,7 +279,7 @@
             label="URL"
             value={entry.url}
             mono={false}
-            onCopy={() => navigator.clipboard.writeText(entry.url!)}
+            onCopy={() => clipboard.copyPlain(entry.url!)}
           />
         {/if}
       </FieldGroup>
@@ -296,14 +297,14 @@
           <Field
             label="Email"
             value={entry.identity.email}
-            onCopy={() => navigator.clipboard.writeText(entry.identity!.email!)}
+            onCopy={() => clipboard.copyPlain(entry.identity!.email!)}
           />
         {/if}
         {#if entry.identity.phone}
           <Field
             label="Phone"
             value={entry.identity.phone}
-            onCopy={() => navigator.clipboard.writeText(entry.identity!.phone!)}
+            onCopy={() => clipboard.copyPlain(entry.identity!.phone!)}
           />
         {/if}
         {#if entry.identity.address}
@@ -324,7 +325,7 @@
           <Field
             label="Number"
             value={entry.card.number}
-            onCopy={() => navigator.clipboard.writeText(entry.card!.number!)}
+            onCopy={() => clipboard.copyPlain(entry.card!.number!)}
           />
         {/if}
         {#if entry.card.expMonth && entry.card.expYear}

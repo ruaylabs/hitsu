@@ -67,6 +67,9 @@ pub fn run() {
             commands::entries::entry_get,
             commands::entries::entry_create,
             commands::entries::entry_update,
+            commands::clipboard::clipboard_copy,
+            commands::clipboard::clipboard_copy_with_timeout,
+            commands::clipboard::clipboard_clear,
             commands::entries::entry_delete,
         ])
         .run(tauri::generate_context!())
