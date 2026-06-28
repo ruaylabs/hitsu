@@ -14,6 +14,12 @@
   import PasswordDialog from "$lib/components/ui/PasswordDialog.svelte";
 
   function onkeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      if (app.view === "settings") {
+        app.view = "main";
+        return;
+      }
+    }
     if ((e.metaKey || e.ctrlKey) && e.key === ",") {
       e.preventDefault();
       app.toggleSettings();
