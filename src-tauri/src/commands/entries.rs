@@ -1,5 +1,4 @@
 use keepass::db::{Entry as KdbxEntry, Value};
-use std::fs::File;
 use tauri::State;
 
 use crate::error::{KagiError, KagiResult};
@@ -191,8 +190,10 @@ fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
 fn save_vault(vault: &OpenVault) -> KagiResult<()> {
     let password = String::from_utf8_lossy(&vault.master_key);
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut file = File::create(&vault.path)?;
-    vault.db.save(&mut file, key)?;
+    let mut buf = std::io::Cursor::new(Vec::new());
+    vault.db.save(&mut buf, key)?;
+    let bytes = buf.into_inner();
+    crate::vault::atomic_write(&vault.path, &bytes)?;
     Ok(())
 }
 

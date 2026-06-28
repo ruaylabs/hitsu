@@ -6,6 +6,7 @@ mod error;
 mod models;
 mod prefs;
 mod state;
+mod vault;
 
 use state::AppState;
 

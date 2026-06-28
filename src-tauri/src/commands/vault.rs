@@ -100,15 +100,18 @@ pub async fn vault_create(
     let mut db = keepass::Database::new(Default::default());
     db.meta.database_name = Some(vault_name.clone());
 
+    // Serialise to buffer first, then atomic-write — never truncate the
+    // target directly; a crash mid-save leaves the original file intact.
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut file = File::create(&path)?;
-    db.save(&mut file, key)?;
+    let mut buf = std::io::Cursor::new(Vec::new());
+    db.save(&mut buf, key)?;
+    let bytes = buf.into_inner();
+    crate::vault::atomic_write(&path, &bytes)?;
 
-    // Re-open to verify and store
-    let mut file = File::open(&path)?;
+    // Re-open from buffer to verify and obtain the in-memory DB
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let db =
-        keepass::Database::open(&mut file, key).map_err(|e| KagiError::Vault(e.to_string()))?;
+    let db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)
+        .map_err(|e| KagiError::Vault(e.to_string()))?;
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
@@ -164,8 +167,10 @@ pub async fn vault_change_password(
     }
 
     let new_key = keepass::DatabaseKey::new().with_password(&new_password);
-    let mut file = File::create(&vault.path)?;
-    vault.db.save(&mut file, new_key)?;
+    let mut buf = std::io::Cursor::new(Vec::new());
+    vault.db.save(&mut buf, new_key)?;
+    let bytes = buf.into_inner();
+    crate::vault::atomic_write(&vault.path, &bytes)?;
 
     // Swap the String with an empty one via DerefMut, then convert to bytes.
     // The Zeroizing<String> (now holding "") drops harmlessly later.
