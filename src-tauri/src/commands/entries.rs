@@ -36,7 +36,8 @@ fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
     let item_type = read_item_type(entry);
     let icon_hint = read_icon_hint(entry);
     let favorite = read_favorite(entry);
-    let totp = entry.get_raw_otp_value().map(str::to_string);
+    let totp = read_custom_data_string(entry, "otp")
+        .or_else(|| entry.get_raw_otp_value().map(str::to_string));
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -107,42 +108,35 @@ fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
     }
 }
 
-fn read_item_type(entry: &keepass::db::Entry) -> ItemType {
+fn value_to_string(v: &keepass::db::Value) -> String {
+    match v {
+        keepass::db::Value::Unprotected(s) => s.clone(),
+        keepass::db::Value::Protected(p) => String::from_utf8_lossy(p.unsecure()).to_string(),
+        keepass::db::Value::Bytes(b) => String::from_utf8_lossy(b).to_string(),
+    }
+}
+
+fn read_custom_data_string(entry: &keepass::db::Entry, key: &str) -> Option<String> {
     entry
         .custom_data
         .items
-        .get("kagi.itemType")
+        .get(key)
         .and_then(|item| item.value.as_ref())
-        .map(|v| match v {
-            keepass::db::Value::Unprotected(s) => ItemType::from_db_value(s),
-            _ => ItemType::Login,
-        })
+        .map(value_to_string)
+}
+
+fn read_item_type(entry: &keepass::db::Entry) -> ItemType {
+    read_custom_data_string(entry, "kagi.itemType")
+        .map(|v| ItemType::from_db_value(&v))
         .unwrap_or(ItemType::Login)
 }
 
 fn read_icon_hint(entry: &keepass::db::Entry) -> Option<String> {
-    entry
-        .custom_data
-        .items
-        .get("kagi.iconHint")
-        .and_then(|item| {
-            item.value.as_ref().map(|v| match v {
-                keepass::db::Value::Unprotected(s) => s.clone(),
-                keepass::db::Value::Protected(p) => {
-                    String::from_utf8_lossy(p.unsecure()).to_string()
-                }
-                keepass::db::Value::Bytes(b) => String::from_utf8_lossy(b).to_string(),
-            })
-        })
+    read_custom_data_string(entry, "kagi.iconHint")
 }
 
 fn read_favorite(entry: &keepass::db::Entry) -> bool {
-    entry
-        .custom_data
-        .items
-        .get("kagi.favorite")
-        .and_then(|item| item.value.as_ref())
-        .is_some_and(|v| matches!(v, keepass::db::Value::Unprotected(s) if s == "true"))
+    read_custom_data_string(entry, "kagi.favorite").is_some_and(|v| v == "true")
 }
 
 fn find_entry_ref<'a>(db: &'a keepass::Database, id: &str) -> Option<&'a keepass::db::Entry> {
