@@ -35,6 +35,11 @@
       const btn = document.querySelector('[aria-label="Delete"]');
       if (btn) (btn as HTMLButtonElement).click();
     }
+    if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+      e.preventDefault();
+      const input = document.querySelector(".search-input") as HTMLInputElement | null;
+      if (input) input.focus();
+    }
   }
 
   let startupDialog: "password" | null = $state(null);
