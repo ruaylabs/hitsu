@@ -36,8 +36,7 @@ fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
     let item_type = read_item_type(entry);
     let icon_hint = read_icon_hint(entry);
     let favorite = read_favorite(entry);
-    let totp = read_custom_data_string(entry, "otp")
-        .or_else(|| entry.get_raw_otp_value().map(str::to_string));
+    let totp = read_totp_seed(entry);
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -283,7 +282,7 @@ pub async fn entry_create(
     set_kdbx_field(&mut entry, "Notes", draft.notes.as_deref());
 
     if let Some(t) = &draft.totp {
-        set_custom_data(&mut entry, "otp", Some(t));
+        write_totp_seed(&mut entry, t);
     }
 
     set_custom_data(&mut entry, "kagi.itemType", Some(&item_type));
@@ -354,6 +353,62 @@ pub async fn entry_update(
     ))
 }
 
+fn parse_otpauth_params(uri: &str) -> Option<(String, u64, u64)> {
+    // Extract secret, period, digits from otpauth:// URI
+    let params: Vec<&str> = uri.split('?').collect();
+    let query = params.get(1)?;
+    let mut secret = None;
+    let mut period = None;
+    let mut digits = None;
+    for part in query.split('&') {
+        let kv: Vec<&str> = part.splitn(2, '=').collect();
+        if kv.len() != 2 {
+            continue;
+        }
+        match kv[0] {
+            "secret" => secret = Some(kv[1].to_string()),
+            "period" => period = Some(kv[1]),
+            "digits" => digits = Some(kv[1]),
+            _ => {}
+        }
+    }
+    let secret = secret?;
+    let period = period.and_then(|s| s.parse::<u64>().ok()).unwrap_or(30);
+    let digits = digits.and_then(|s| s.parse::<u64>().ok()).unwrap_or(6);
+    Some((secret, period, digits))
+}
+
+fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
+    let seed = entry.get("TOTP Seed")?;
+    let settings = entry.get("TOTP Settings").unwrap_or("30;6");
+    let mut parts = settings.split(';');
+    let period = parts
+        .next()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(30);
+    let digits = parts
+        .next()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(6);
+    Some(format!(
+        "otpauth://totp/entry?secret={}&period={}&digits={}",
+        seed, period, digits
+    ))
+}
+
+fn write_totp_seed(entry: &mut KdbxEntry, uri: &str) {
+    if let Some((secret, period, digits)) = parse_otpauth_params(uri) {
+        entry.fields.insert(
+            "TOTP Seed".to_string(),
+            Value::Protected(secret.into_bytes().into()),
+        );
+        entry.fields.insert(
+            "TOTP Settings".to_string(),
+            Value::Unprotected(format!("{};{}", period, digits)),
+        );
+    }
+}
+
 fn apply_patch(entry: &mut KdbxEntry, patch: &EntryPatch) {
     if let Some(ref v) = patch.title {
         set_kdbx_field(entry, "Title", Some(v));
@@ -371,7 +426,7 @@ fn apply_patch(entry: &mut KdbxEntry, patch: &EntryPatch) {
         set_kdbx_field(entry, "Notes", Some(v));
     }
     if let Some(ref v) = patch.totp {
-        set_custom_data(entry, "otp", Some(v));
+        write_totp_seed(entry, v);
     }
     if let Some(ref v) = patch.tags {
         entry.tags = v.clone();

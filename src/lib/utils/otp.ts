@@ -1,4 +1,8 @@
 // RFC 4648 Base32 decoding
+//
+// TOTP storage is KeepassXC-compatible: the Base32 secret is stored
+// as a protected field `TOTP Seed` and the period/digits as an
+// unprotected field `TOTP Settings` (e.g. `30;6`).
 const base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function base32Decode(s: string): Uint8Array {
