@@ -4,6 +4,41 @@ use super::item_type::ItemType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EntryDraft {
+    pub title: String,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+    pub totp: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryPatch {
+    pub title: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+    pub totp: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub favorite: Option<bool>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub address: Option<String>,
+    pub card_holder: Option<String>,
+    pub card_number: Option<String>,
+    pub card_type: Option<String>,
+    pub card_exp_month: Option<String>,
+    pub card_exp_year: Option<String>,
+    pub card_cvv: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
     #[serde(rename = "type")]
@@ -90,7 +125,8 @@ pub struct CardFields {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub brand: Option<String>,
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]

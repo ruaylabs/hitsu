@@ -3,6 +3,7 @@ import type { Entry } from "$lib/bridge/types";
 let vaultMeta = $state<{ path: string; name: string; itemCount: number } | null>(null);
 let entries = $state<Entry[]>([]);
 let locked = $state(false);
+let editingId = $state<string | null>(null);
 
 export const vault = {
   get entries() {
@@ -13,6 +14,12 @@ export const vault = {
   },
   get locked() {
     return locked;
+  },
+  get editingId() {
+    return editingId;
+  },
+  setEditingId(id: string | null) {
+    editingId = id;
   },
   setMeta(m: { path: string; name: string; itemCount: number } | null) {
     vaultMeta = m;

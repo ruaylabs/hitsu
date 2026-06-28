@@ -18,6 +18,17 @@
       e.preventDefault();
       app.toggleSettings();
     }
+    if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+      e.preventDefault();
+      // Trigger add — find the add button in status bar
+      document.querySelector('[aria-label="Add entry"]')?.dispatchEvent(new MouseEvent("click"));
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
+      e.preventDefault();
+      // Delete selected entry via detail pane's delete
+      const btn = document.querySelector('[aria-label="Delete"]');
+      if (btn) (btn as HTMLButtonElement).click();
+    }
   }
 
   let startupDialog: "password" | null = $state(null);

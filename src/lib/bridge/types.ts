@@ -46,7 +46,7 @@ export interface IdentityFields {
 export interface CardFields {
   holder?: string;
   number?: string;
-  brand?: string;
+  type?: string;
   expMonth?: number;
   expYear?: number;
   cvv?: string;

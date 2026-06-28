@@ -65,6 +65,9 @@ pub fn run() {
             commands::prefs::prefs_set_last_vault,
             commands::entries::entries_list,
             commands::entries::entry_get,
+            commands::entries::entry_create,
+            commands::entries::entry_update,
+            commands::entries::entry_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
