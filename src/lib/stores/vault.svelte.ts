@@ -16,10 +16,7 @@ const mockEntries: Entry[] = [
     favorite: true,
     iconHint: "github",
     attachments: [{ id: "a1", name: "backup_codes.txt", sizeBytes: 1240 }],
-    customFields: [
-      { name: "API Token", value: "ghp_api_token_value", protected: true },
-      { name: "SSH Key Fingerprint", value: "SHA256:abc123def456", protected: false },
-    ],
+    customFields: [{ name: "API Token", value: "ghp_api_token_value", protected: true }],
     modifiedAt: "2026-06-25T14:30:00Z",
     createdAt: "2024-01-15T10:00:00Z",
     historyCount: 3,
@@ -55,10 +52,7 @@ const mockEntries: Entry[] = [
     favorite: false,
     iconHint: "anthropic",
     attachments: [],
-    customFields: [
-      { name: "API Key", value: "sk-ant-api-key-value", protected: true },
-      { name: "Organization ID", value: "org-abc123", protected: false },
-    ],
+    customFields: [{ name: "API Key", value: "sk-ant-api-key-value", protected: true }],
     modifiedAt: "2026-06-20T16:45:00Z",
     createdAt: "2024-05-10T12:00:00Z",
     historyCount: 2,
@@ -236,13 +230,23 @@ const mockEntries: Entry[] = [
   },
 ];
 
+let vaultMeta = $state<{ path: string; name: string; itemCount: number } | null>(null);
 let entries = $state<Entry[]>(mockEntries);
 
 export const vault = {
   get entries() {
     return entries;
   },
+  get meta() {
+    return vaultMeta;
+  },
+  setMeta(m: { path: string; name: string; itemCount: number } | null) {
+    vaultMeta = m;
+  },
   getEntry(id: string): Entry | undefined {
     return entries.find((e) => e.id === id);
+  },
+  setEntries(data: Entry[]) {
+    entries = data;
   },
 };

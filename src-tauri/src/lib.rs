@@ -1,10 +1,18 @@
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::Emitter;
 
+mod commands;
+mod error;
+mod models;
+mod state;
+
+use state::AppState;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let settings = tauri::menu::MenuItemBuilder::with_id("settings", "Settings…")
                 .accelerator("CmdOrCtrl,+")
@@ -47,7 +55,14 @@ pub fn run() {
                 let _ = app.emit("menu://settings", ());
             }
         })
-        .invoke_handler(tauri::generate_handler![])
+        .manage(AppState::new())
+        .invoke_handler(tauri::generate_handler![
+            commands::vault::vault_open,
+            commands::vault::vault_create,
+            commands::vault::vault_change_password,
+            commands::entries::entries_list,
+            commands::entries::entry_get,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

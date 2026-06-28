@@ -1,14 +1,126 @@
 <script lang="ts">
+  import { open, save } from "@tauri-apps/plugin-dialog";
   import { app } from "$lib/stores/app.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
+  import * as vaultBridge from "$lib/bridge/vault";
+  import * as entriesBridge from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
+  import PasswordDialog from "../ui/PasswordDialog.svelte";
 
-  // Mock recent vaults
-  let recentVaults = $state([
-    { path: "~/Dropbox/Apps/Kagi/Personal.kdbx", name: "Personal", itemCount: 24 },
-  ]);
+  let dialog:
+    | { kind: "open" }
+    | { kind: "create" }
+    | { kind: "change-password" }
+    | { kind: "new-password" }
+    | null = $state(null);
+
+  let statusMsg = $state("");
+
+  async function handleOpen() {
+    try {
+      const result = await open({
+        multiple: false,
+        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+      });
+      if (!result) return;
+      selectedPath = result;
+      dialog = { kind: "open" };
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
+
+  let selectedPath = $state("");
+
+  async function doOpen(password: string) {
+    dialog = null;
+    try {
+      const meta = await vaultBridge.vaultOpen(selectedPath, password);
+      vault.setMeta(meta);
+
+      const summaries = await entriesBridge.entriesList();
+      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
+      vault.setEntries(fullEntries);
+
+      app.view = "main";
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
+
+  async function handleCreate(password: string) {
+    dialog = null;
+    try {
+      const result = await save({
+        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+        defaultPath: "vault.kdbx",
+      });
+      if (!result) return;
+
+      const meta = await vaultBridge.vaultCreate(result, password, "");
+      vault.setMeta(meta);
+      vault.setEntries([]);
+      app.view = "main";
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
+
+  let pendingOldPw = $state("");
+
+  async function handleChangePassword(oldPassword: string) {
+    pendingOldPw = oldPassword;
+    dialog = { kind: "new-password" };
+  }
+
+  async function handleSetNewPassword(newPassword: string) {
+    dialog = null;
+    if (newPassword.length < 4) {
+      statusMsg = "New password must be at least 4 characters";
+      return;
+    }
+    try {
+      await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
+      statusMsg = "Password changed successfully";
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
 </script>
 
 <div class="settings-overlay" role="dialog" aria-label="Settings">
+  {#if dialog}
+    {#if dialog.kind === "open"}
+      <PasswordDialog
+        title="Open vault"
+        confirmLabel="Open"
+        onconfirm={doOpen}
+        oncancel={() => (dialog = null)}
+      />
+    {:else if dialog.kind === "create"}
+      <PasswordDialog
+        title="Create new vault"
+        confirmLabel="Create"
+        onconfirm={handleCreate}
+        oncancel={() => (dialog = null)}
+      />
+    {:else if dialog.kind === "change-password"}
+      <PasswordDialog
+        title="Current master password"
+        confirmLabel="Next"
+        onconfirm={handleChangePassword}
+        oncancel={() => (dialog = null)}
+      />
+    {:else if dialog.kind === "new-password"}
+      <PasswordDialog
+        title="New master password"
+        confirmLabel="Change"
+        onconfirm={handleSetNewPassword}
+        oncancel={() => (dialog = null)}
+      />
+    {/if}
+  {/if}
+
   <div class="settings-pane">
     <header class="settings-header">
       <h1 class="settings-title">Settings</h1>
@@ -23,52 +135,39 @@
 
         <div class="vault-info">
           <span class="vault-label">Current vault</span>
-          {#if recentVaults.length > 0}
-            <span class="vault-path"
-              >{recentVaults[0].name}
-              — {recentVaults[0].itemCount} items</span
-            >
-            <span class="vault-path-sub">{recentVaults[0].path}</span>
+          {#if vault.meta}
+            <span class="vault-path">{vault.meta.name} — {vault.meta.itemCount} items</span>
+            <span class="vault-path-sub">{vault.meta.path}</span>
           {:else}
             <span class="vault-none">No vault open</span>
           {/if}
         </div>
 
         <div class="settings-actions">
-          <button class="settings-btn" onclick={() => {}}>
+          <button class="settings-btn" onclick={handleOpen}>
             <Icon name="folder-open" size={14} />
             Open vault…
           </button>
-          <button class="settings-btn" onclick={() => {}}>
+          <button class="settings-btn" onclick={() => (dialog = { kind: "create" })}>
             <Icon name="plus" size={14} />
             Create new vault…
           </button>
-          {#if recentVaults.length > 0}
-            <button class="settings-btn" onclick={() => {}}>
+          {#if vault.meta}
+            <button class="settings-btn" onclick={() => (dialog = { kind: "change-password" })}>
               <Icon name="exchange" size={14} />
               Change master password…
             </button>
           {/if}
         </div>
+
+        {#if statusMsg}
+          <span class="status-msg">{statusMsg}</span>
+        {/if}
       </section>
 
       <section class="settings-section">
         <h2 class="section-heading">Recent vaults</h2>
-        {#if recentVaults.length > 0}
-          <div class="recent-list">
-            {#each recentVaults as rv}
-              <button class="recent-row" onclick={() => {}}>
-                <Icon name="database" size={14} />
-                <div class="recent-info">
-                  <span class="recent-name">{rv.name}</span>
-                  <span class="recent-path">{rv.path}</span>
-                </div>
-              </button>
-            {/each}
-          </div>
-        {:else}
-          <p class="empty-text">No recent vaults.</p>
-        {/if}
+        <p class="empty-text">No recent vaults.</p>
       </section>
 
       <section class="settings-section">
@@ -219,44 +318,10 @@
     background: var(--border);
   }
 
-  .recent-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .recent-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    width: 100%;
-    text-align: left;
-    color: var(--text-primary);
-  }
-
-  .recent-row:hover {
-    background: var(--bg-accent);
-  }
-
-  .recent-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .recent-name {
-    font-size: 13px;
-    color: var(--text-primary);
-  }
-
-  .recent-path {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .status-msg {
+    font-size: 12px;
+    color: var(--danger);
+    padding: 4px 0;
   }
 
   .empty-text {
