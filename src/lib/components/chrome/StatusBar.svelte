@@ -19,6 +19,15 @@
   }
 
   let showTypePicker = $state(false);
+
+  $effect(() => {
+    if (!showTypePicker) return;
+    const close = () => {
+      showTypePicker = false;
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  });
 </script>
 
 <footer class="statusbar">
@@ -67,7 +76,7 @@
     {#if vault.meta}
       <button
         class="add-btn"
-        onclick={() => (showTypePicker = !showTypePicker)}
+        onclick={(e) => { e.stopPropagation(); showTypePicker = !showTypePicker; }}
         aria-label="Add entry"
       >
         <Icon name="plus" size={12} />
