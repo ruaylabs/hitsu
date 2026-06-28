@@ -7,7 +7,7 @@
   import FieldGroup from "./FieldGroup.svelte";
   import Field from "./Field.svelte";
   import PasswordField from "./PasswordField.svelte";
-  import TotpField from "./TotpField.svelte";
+  import TOTPField from "./TOTPField.svelte";
   import NotesField from "./NotesField.svelte";
   import AttachmentList from "./AttachmentList.svelte";
   import DetailFooter from "./DetailFooter.svelte";
@@ -21,6 +21,7 @@
   let editUsername = $state("");
   let editPassword = $state("");
   let editUrl = $state("");
+  let editTotp = $state("");
   let editNotes = $state("");
   // Identity fields
   let editFirstName = $state("");
@@ -51,6 +52,7 @@
     editUsername = entry.username ?? "";
     editPassword = entry.password ?? "";
     editUrl = entry.url ?? "";
+    editTotp = entry.totp ?? "";
     editNotes = entry.notes ?? "";
     editFirstName = entry.identity?.firstName ?? "";
     editLastName = entry.identity?.lastName ?? "";
@@ -83,6 +85,7 @@
         username: editUsername || undefined,
         password: editPassword || undefined,
         url: editUrl || undefined,
+        totp: editTotp || undefined,
         notes: editNotes || undefined,
         firstName: editFirstName || undefined,
         lastName: editLastName || undefined,
@@ -181,6 +184,15 @@
             <span class="field-label">URL</span>
             <input class="edit-input" type="text" placeholder="URL" bind:value={editUrl} />
           </div>
+          <div class="field-row">
+            <span class="field-label">TOTP</span>
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="otpauth:// URI"
+              bind:value={editTotp}
+            />
+          </div>
         {:else if entry.type === "identity"}
           <div class="field-row">
             <span class="field-label">First name</span>
@@ -261,7 +273,7 @@
       </FieldGroup>
     {:else if entry.type === "login" || entry.type === "note"}
       {#if entry.totp}
-        <TotpField totpUri={entry.totp} />
+        <TOTPField totpUri={entry.totp} />
       {/if}
       <FieldGroup>
         {#if entry.username}

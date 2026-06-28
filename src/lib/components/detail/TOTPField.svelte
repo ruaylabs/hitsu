@@ -1,17 +1,59 @@
 <script lang="ts">
+  import { parseOtpauthUri, computeTotp, totpRemainingSeconds } from "$lib/utils/otp";
+
   let { totpUri }: { totpUri: string } = $props();
 
-  // Static dummy code for M1 mock — live TOTP in M4
-  let code = $state("482591");
-  let formattedCode = $derived(`${code.slice(0, 3)} ${code.slice(3)}`);
+  let params = $derived(parseOtpauthUri(totpUri));
+  let code = $state("------");
+  let remaining = $state(30);
+  let flash = $state(false);
 
-  // Static: ring at ~75% progress
-  const circumference = 2 * Math.PI * 8; // ~50.27
-  let dashoffset = $state(12.57); // 75% remaining
-  let secondsRemaining = $state(22);
+  let period = $derived(params?.period ?? 30);
+  let circumference = $derived(2 * Math.PI * 8); // r=8 → ~50.27
+  let dashoffset = $derived(circumference - (remaining / period) * circumference);
+
+  let prevCounter = $state(-1);
+
+  function tick() {
+    const nowCounter = Math.floor(Date.now() / 1000 / period);
+    if (nowCounter !== prevCounter) {
+      prevCounter = nowCounter;
+      flash = true;
+      setTimeout(() => (flash = false), 200);
+      computeCode();
+    }
+    remaining = totpRemainingSeconds(period);
+  }
+
+  async function computeCode() {
+    if (!params) return;
+    try {
+      code = await computeTotp(params);
+    } catch {
+      code = "------";
+    }
+  }
+
+  // Recompute periodically
+  let interval: ReturnType<typeof setInterval>;
+
+  $effect(() => {
+    if (!params) return;
+    computeCode();
+    remaining = totpRemainingSeconds(period);
+    prevCounter = Math.floor(Date.now() / 1000 / period);
+    interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  });
+
+  let formattedCode = $derived(code.length >= 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);
+
+  function copyCode() {
+    navigator.clipboard.writeText(code);
+  }
 </script>
 
-<div class="totp-field">
+<div class="totp-field" class:flash>
   <span class="totp-label">TOTP</span>
   <span class="totp-code">{formattedCode}</span>
   <div class="totp-ring-container">
@@ -30,9 +72,9 @@
         stroke-linecap="round"
       />
     </svg>
-    <span class="totp-seconds">{secondsRemaining}</span>
+    <span class="totp-seconds">{remaining}</span>
   </div>
-  <button class="totp-copy" aria-label="Copy TOTP code">
+  <button class="totp-copy" onclick={copyCode} aria-label="Copy TOTP code">
     <i class="ti ti-copy" style="font-size: 15px"></i>
   </button>
 </div>
@@ -47,6 +89,11 @@
     margin-bottom: 16px;
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
+    transition: border-color 0.15s;
+  }
+
+  .totp-field.flash {
+    border-color: var(--success);
   }
 
   .totp-label {
