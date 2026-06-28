@@ -2,11 +2,16 @@
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import { app } from "$lib/stores/app.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
+  import * as vaultBridge from "$lib/bridge/vault";
+  import * as entriesBridge from "$lib/bridge/entries";
+  import * as prefsBridge from "$lib/bridge/prefs";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
   import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
   import ItemList from "$lib/components/list/ItemList.svelte";
   import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
+  import PasswordDialog from "$lib/components/ui/PasswordDialog.svelte";
 
   function onkeydown(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === ",") {
@@ -15,19 +20,97 @@
     }
   }
 
+  let startupDialog: "password" | null = $state(null);
+  let startupPath = $state("");
+  let startupError = $state("");
+  let unlockError = $state("");
+  let startupChecked = $state(false);
+
   onMount(() => {
     const unlisten = listen("menu://settings", () => {
       app.toggleSettings();
     });
+    // Check for saved vault
+    prefsBridge
+      .prefsGet()
+      .then((prefs) => {
+        if (prefs.lastVault) {
+          startupPath = prefs.lastVault;
+          startupDialog = "password";
+        }
+        startupChecked = true;
+      })
+      .catch(() => {
+        startupChecked = true;
+      });
     return () => {
       unlisten.then((fn) => fn());
     };
   });
+
+  async function onStartupPassword(password: string) {
+    startupError = "";
+    try {
+      const meta = await vaultBridge.vaultOpen(startupPath, password);
+      vault.setMeta(meta);
+
+      const summaries = await entriesBridge.entriesList();
+      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
+      vault.setEntries(fullEntries);
+      startupDialog = null;
+    } catch (e) {
+      startupError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function onUnlock(password: string) {
+    unlockError = "";
+    try {
+      const meta = await vaultBridge.vaultOpen(vault.meta!.path, password);
+      vault.setMeta(meta);
+
+      const summaries = await entriesBridge.entriesList();
+      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
+      vault.setEntries(fullEntries);
+      vault.unlock();
+    } catch (e) {
+      unlockError = e instanceof Error ? e.message : String(e);
+    }
+  }
 </script>
 
 <svelte:window {onkeydown} />
 
-{#if app.view === "settings"}
+{#if startupDialog === "password"}
+  <PasswordDialog
+    title="Unlock vault"
+    confirmLabel="Unlock"
+    errorMessage={startupError}
+    transparentOverlay
+    onconfirm={onStartupPassword}
+    oncancel={() => {
+      startupDialog = null;
+      vault.setMeta(null);
+    }}
+  />
+{/if}
+
+{#if vault.locked && vault.meta}
+  <PasswordDialog
+    title="Locked"
+    confirmLabel="Unlock"
+    errorMessage={unlockError}
+    transparentOverlay
+    showCancel={false}
+    onconfirm={onUnlock}
+  />
+{/if}
+
+{#if startupDialog || (vault.locked && vault.meta)}
+<!-- Password dialogs rendered above, nothing else to show -->
+{:else if !startupChecked}
+<!-- Waiting for startup check — show blank -->
+{:else if app.view === "settings"}
   <SettingsView />
 {:else}
   <div class="app-window">

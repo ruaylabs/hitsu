@@ -4,6 +4,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as entriesBridge from "$lib/bridge/entries";
+  import * as prefsBridge from "$lib/bridge/prefs";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
@@ -42,6 +43,7 @@
       const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
       vault.setEntries(fullEntries);
 
+      prefsBridge.prefsSetLastVault(selectedPath);
       app.view = "main";
     } catch (e) {
       statusMsg = String(e);
@@ -60,6 +62,8 @@
       const meta = await vaultBridge.vaultCreate(result, password, "");
       vault.setMeta(meta);
       vault.setEntries([]);
+
+      prefsBridge.prefsSetLastVault(result);
       app.view = "main";
     } catch (e) {
       statusMsg = String(e);

@@ -13,6 +13,11 @@
   </div>
   <div class="statusbar-right">
     <span>{itemCount} items</span>
+    {#if vault.meta}
+      <button class="lock-btn" onclick={() => vault.lock()} aria-label="Lock vault">
+        <Icon name="lock" size={12} />
+      </button>
+    {/if}
     <button class="settings-gear" onclick={() => app.toggleSettings()} aria-label="Settings">
       <Icon name="settings" size={12} />
     </button>
@@ -52,6 +57,7 @@
     gap: 12px;
   }
 
+  .lock-btn,
   .settings-gear {
     display: flex;
     align-items: center;
@@ -62,6 +68,7 @@
     color: var(--text-muted);
   }
 
+  .lock-btn:hover,
   .settings-gear:hover {
     background: var(--border);
     color: var(--text-secondary);

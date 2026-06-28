@@ -5,25 +5,33 @@
     title = "Enter master password",
     confirmLabel = "Unlock",
     showConfirm = true,
+    showCancel = true,
+    errorMessage = "",
+    transparentOverlay = false,
     onconfirm,
     oncancel,
   }: {
     title?: string;
     confirmLabel?: string;
     showConfirm?: boolean;
+    showCancel?: boolean;
+    errorMessage?: string;
+    transparentOverlay?: boolean;
     onconfirm?: (password: string) => void;
     oncancel?: () => void;
   } = $props();
 
   let password = $state("");
-  let error = $state("");
+  let localError = $state("");
+
+  let displayError = $derived(localError || errorMessage);
 
   function submit() {
     if (!password) {
-      error = "Password is required";
+      localError = "Password is required";
       return;
     }
-    error = "";
+    localError = "";
     onconfirm?.(password);
   }
 
@@ -38,6 +46,7 @@
 
 <div
   class="dialog-overlay"
+  class:transparent={transparentOverlay}
   onclick={oncancel}
   onkeydown={onKeydown}
   role="dialog"
@@ -53,9 +62,11 @@
   >
     <header class="dialog-header">
       <h2 class="dialog-title">{title}</h2>
-      <button class="dialog-close" onclick={oncancel} aria-label="Cancel">
-        <Icon name="x" size={16} />
-      </button>
+      {#if showCancel}
+        <button class="dialog-close" onclick={oncancel} aria-label="Cancel">
+          <Icon name="x" size={16} />
+        </button>
+      {/if}
     </header>
 
     <div class="dialog-body">
@@ -69,17 +80,19 @@
           placeholder="Enter master password"
           autofocus
           bind:value={password}
-          oninput={() => (error = "")}
+          oninput={() => { localError = ""; }}
         />
-        {#if error}
-          <span class="input-error">{error}</span>
+        {#if displayError}
+          <span class="input-error">{displayError}</span>
         {/if}
       </div>
     </div>
 
     {#if showConfirm}
       <footer class="dialog-footer">
-        <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
+        {#if showCancel}
+          <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
+        {/if}
         <button class="btn btn-confirm" onclick={submit} disabled={!password}>
           {confirmLabel}
         </button>
@@ -97,6 +110,15 @@
     align-items: center;
     justify-content: center;
     z-index: 200;
+  }
+
+  .dialog-overlay.transparent {
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .dialog-overlay.transparent .dialog-pane {
+    pointer-events: auto;
   }
 
   .dialog-pane {

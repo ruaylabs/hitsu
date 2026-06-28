@@ -4,6 +4,7 @@ use tauri::Emitter;
 mod commands;
 mod error;
 mod models;
+mod prefs;
 mod state;
 
 use state::AppState;
@@ -60,6 +61,8 @@ pub fn run() {
             commands::vault::vault_open,
             commands::vault::vault_create,
             commands::vault::vault_change_password,
+            commands::prefs::prefs_get,
+            commands::prefs::prefs_set_last_vault,
             commands::entries::entries_list,
             commands::entries::entry_get,
         ])

@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
-use crate::state::{AppState, OpenVault};
+use crate::state::{AppState, OpenVault, VaultId};
 
 fn detect_sync_provider(path: &Path) -> String {
     let path_str = path.to_string_lossy();
@@ -133,8 +133,6 @@ pub async fn vault_change_password(
     old_password: String,
     new_password: String,
 ) -> KagiResult<()> {
-    use crate::state::VaultId;
-
     let mut vaults = state
         .vaults
         .lock()
