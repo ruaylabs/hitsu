@@ -14,10 +14,12 @@
   import EmptyDetail from "./EmptyDetail.svelte";
   import Icon from "../ui/Icon.svelte";
   import TagInput from "../ui/TagInput.svelte";
+  import GeneratorPanel from "../generator/GeneratorPanel.svelte";
 
   let entry = $derived(selection.selectedId ? vault.getEntry(selection.selectedId) : undefined);
 
   let editing = $state(false);
+  let showGenerator = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
   let editPassword = $state("");
@@ -124,6 +126,13 @@
   }
 </script>
 
+{#if showGenerator}
+  <GeneratorPanel
+    onUse={(pw) => { editPassword = pw; showGenerator = false; }}
+    oncancel={() => (showGenerator = false)}
+  />
+{/if}
+
 {#if entry}
   <div class="detail-pane">
     <div class="detail-toolbar">
@@ -177,12 +186,21 @@
           </div>
           <div class="field-row">
             <span class="field-label">Password</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="Password"
-              bind:value={editPassword}
-            />
+            <div class="password-edit-row">
+              <input
+                class="edit-input"
+                type="text"
+                placeholder="Password"
+                bind:value={editPassword}
+              />
+              <button
+                class="generate-btn"
+                onclick={() => (showGenerator = true)}
+                aria-label="Generate password"
+              >
+                <Icon name="bolt" size={14} />
+              </button>
+            </div>
           </div>
           <div class="field-row">
             <span class="field-label">URL</span>
@@ -499,6 +517,34 @@
     color: var(--text-muted);
     width: 70px;
     flex-shrink: 0;
+  }
+
+  .password-edit-row {
+    display: flex;
+    flex: 1;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .password-edit-row .edit-input {
+    flex: 1;
+  }
+
+  .generate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+
+  .generate-btn:hover {
+    background: var(--bg-accent);
   }
 
   .edit-notes {

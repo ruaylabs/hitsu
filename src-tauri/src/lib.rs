@@ -70,6 +70,7 @@ pub fn run() {
             commands::clipboard::clipboard_copy,
             commands::clipboard::clipboard_copy_with_timeout,
             commands::clipboard::clipboard_clear,
+            commands::generator::generate_password,
             commands::entries::entry_delete,
         ])
         .run(tauri::generate_context!())
