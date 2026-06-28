@@ -242,3 +242,46 @@ fn test_totp_stored_in_fields_not_custom_data() {
         "TOTP Settings should be in fields"
     );
 }
+
+#[test]
+fn test_tags_roundtrip() {
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Tagged".into()),
+    );
+    e.tags = vec!["work".into(), "dev".into()];
+
+    let bytes = make_db_bytes("p", vec![e]);
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+
+    assert_eq!(entry.tags, vec!["work", "dev"]);
+}
+
+#[test]
+fn test_tags_empty() {
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Untagged".into()),
+    );
+
+    let bytes = make_db_bytes("p", vec![e]);
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+
+    assert!(entry.tags.is_empty());
+}

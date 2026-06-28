@@ -12,7 +12,11 @@
     } else if (selection.filter === "trash") {
       items = [];
     } else if (selection.filter !== "all") {
-      items = items.filter((e) => e.type === selection.filter);
+      const typeFilter = selection.filter;
+      const isTypeFilter = ["login", "note", "identity", "card"].includes(typeFilter);
+      items = items.filter((e) =>
+        isTypeFilter ? e.type === typeFilter : e.tags.includes(typeFilter),
+      );
     }
     if (selection.search) {
       const q = selection.search.toLowerCase();

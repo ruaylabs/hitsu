@@ -13,6 +13,7 @@
   import DetailFooter from "./DetailFooter.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
   import Icon from "../ui/Icon.svelte";
+  import TagInput from "../ui/TagInput.svelte";
 
   let entry = $derived(selection.selectedId ? vault.getEntry(selection.selectedId) : undefined);
 
@@ -23,6 +24,7 @@
   let editUrl = $state("");
   let editTotp = $state("");
   let editNotes = $state("");
+  let editTags = $state<string[]>([]);
   // Identity fields
   let editFirstName = $state("");
   let editLastName = $state("");
@@ -53,6 +55,7 @@
     editPassword = entry.password ?? "";
     editUrl = entry.url ?? "";
     editTotp = entry.totp ?? "";
+    editTags = [...entry.tags];
     editNotes = entry.notes ?? "";
     editFirstName = entry.identity?.firstName ?? "";
     editLastName = entry.identity?.lastName ?? "";
@@ -87,6 +90,7 @@
         url: editUrl || undefined,
         totp: editTotp || undefined,
         notes: editNotes || undefined,
+        tags: editTags.length > 0 ? editTags : undefined,
         firstName: editFirstName || undefined,
         lastName: editLastName || undefined,
         email: editEmail || undefined,
@@ -353,12 +357,25 @@
     {/if}
 
     {#if editing}
+      <div class="edit-tags">
+        <span class="notes-label">Tags</span>
+        <TagInput initialTags={editTags} onupdate={(t) => (editTags = t)} />
+      </div>
       <div class="edit-notes">
         <span class="notes-label">Notes</span>
         <textarea class="edit-textarea" placeholder="Notes" bind:value={editNotes}></textarea>
       </div>
-    {:else if entry.notes}
-      <NotesField notes={entry.notes} />
+    {:else}
+      {#if entry.tags.length > 0}
+        <div class="tags-display">
+          {#each entry.tags as tag}
+            <span class="tag-badge">{tag}</span>
+          {/each}
+        </div>
+      {/if}
+      {#if entry.notes}
+        <NotesField notes={entry.notes} />
+      {/if}
     {/if}
 
     {#if !editing}
@@ -511,5 +528,26 @@
   .edit-textarea:focus {
     border-color: var(--accent);
     outline: none;
+  }
+
+  .edit-tags {
+    margin-bottom: 12px;
+  }
+
+  .tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .tag-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--surface-1);
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
   }
 </style>
