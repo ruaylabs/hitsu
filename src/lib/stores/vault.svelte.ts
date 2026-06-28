@@ -1,4 +1,6 @@
 import type { Entry } from "$lib/bridge/types";
+import * as vaultBridge from "$lib/bridge/vault";
+import { clipboard } from "$lib/stores/clipboard.svelte";
 
 let vaultMeta = $state<{ path: string; name: string; itemCount: number } | null>(null);
 let entries = $state<Entry[]>([]);
@@ -30,7 +32,15 @@ export const vault = {
   setEntries(data: Entry[]) {
     entries = data;
   },
-  lock() {
+  async lock() {
+    // Drop decrypted vault from the Rust backend (zeroizes master key in memory)
+    try {
+      await vaultBridge.vaultLock();
+    } catch (e) {
+      console.error("Failed to lock vault in backend", e);
+    }
+    // Clear any pending clipboard auto-clear timer
+    clipboard.cancel();
     locked = true;
     entries = [];
   },

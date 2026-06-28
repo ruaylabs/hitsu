@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use tauri::State;
+use zeroize::Zeroizing;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
@@ -57,9 +58,8 @@ pub async fn vault_open(
         id,
         OpenVault {
             db,
-            _path: path.clone(),
-            _name: name.clone(),
-            _master_key: password.into_bytes(),
+            path: path.clone(),
+            master_key: Zeroizing::new(password.into_bytes()),
         },
     );
 
@@ -113,9 +113,8 @@ pub async fn vault_create(
         id,
         OpenVault {
             db,
-            _path: path.clone(),
-            _name: vault_name.clone(),
-            _master_key: password.into_bytes(),
+            path: path.clone(),
+            master_key: Zeroizing::new(password.into_bytes()),
         },
     );
 
@@ -143,15 +142,29 @@ pub async fn vault_change_password(
         vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
     // Verify old password matches stored key
-    let stored_key = String::from_utf8_lossy(&vault._master_key);
+    let stored_key = String::from_utf8_lossy(&vault.master_key);
     if stored_key != old_password {
         return Err(KagiError::Custom("Wrong password".to_string()));
     }
 
     let new_key = keepass::DatabaseKey::new().with_password(&new_password);
-    let mut file = File::create(&vault._path)?;
+    let mut file = File::create(&vault.path)?;
     vault.db.save(&mut file, new_key)?;
 
-    vault._master_key = new_password.into_bytes();
+    vault.master_key = Zeroizing::new(new_password.into_bytes());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
+    let mut vaults = state
+        .vaults
+        .lock()
+        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+
+    // Clear all open vaults — this drops each OpenVault, which zeroizes
+    // the master-key buffer via Zeroizing's Drop impl.
+    vaults.clear();
+
     Ok(())
 }

@@ -189,9 +189,9 @@ fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
 }
 
 fn save_vault(vault: &OpenVault) -> KagiResult<()> {
-    let password = String::from_utf8_lossy(&vault._master_key);
+    let password = String::from_utf8_lossy(&vault.master_key);
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut file = File::create(&vault._path)?;
+    let mut file = File::create(&vault.path)?;
     vault.db.save(&mut file, key)?;
     Ok(())
 }

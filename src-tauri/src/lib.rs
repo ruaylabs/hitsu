@@ -61,6 +61,7 @@ pub fn run() {
             commands::vault::vault_open,
             commands::vault::vault_create,
             commands::vault::vault_change_password,
+            commands::vault::vault_lock,
             commands::prefs::prefs_get,
             commands::prefs::prefs_set_last_vault,
             commands::entries::entries_list,

@@ -16,3 +16,7 @@ export async function vaultCreate(
 export async function vaultChangePassword(oldPassword: string, newPassword: string): Promise<void> {
   return invoke<void>("vault_change_password", { oldPassword, newPassword });
 }
+
+export async function vaultLock(): Promise<void> {
+  return invoke<void>("vault_lock");
+}
