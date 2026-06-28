@@ -51,7 +51,7 @@ jobs:
           components: clippy, rustfmt
           cache: true
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             src-tauri/target
