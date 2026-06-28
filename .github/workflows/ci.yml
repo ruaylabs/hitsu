@@ -63,3 +63,7 @@ jobs:
         run: cargo build
         working-directory: src-tauri
 
+      - name: Test
+        run: cargo test
+        working-directory: src-tauri
+
