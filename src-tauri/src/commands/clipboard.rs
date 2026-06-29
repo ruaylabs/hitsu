@@ -16,9 +16,6 @@ pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> Ka
     let mut cb = arboard::Clipboard::new()
         .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
 
-    // Save previous clipboard content
-    let previous = cb.get_text().ok();
-
     cb.set_text(&value)
         .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
     drop(cb);
@@ -26,9 +23,11 @@ pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> Ka
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(timeout_secs)).await;
         if let Ok(mut cb) = arboard::Clipboard::new() {
-            if let Some(ref prev) = previous {
-                let _ = cb.set_text(prev);
-            } else {
+            // Only clear if the clipboard still contains our secret.
+            // If the user copied something else in the meantime, leave it alone
+            // so we don't clobber their later copy.
+            let current = cb.get_text().ok();
+            if current.as_deref() == Some(&value) {
                 let _ = cb.clear();
             }
         }
