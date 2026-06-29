@@ -410,24 +410,30 @@ fn write_totp_seed(entry: &mut KdbxEntry, uri: &str) {
     }
 }
 
+/// Apply an optional string field: `Some("")` clears the field (removes from KDBX),
+/// `Some("value")` sets it, `None` leaves it unchanged.
+fn apply_opt(entry: &mut KdbxEntry, key: &str, value: &Option<String>) {
+    match value {
+        Some(v) if v.is_empty() => set_kdbx_field(entry, key, None),
+        Some(v) => set_kdbx_field(entry, key, Some(v)),
+        None => {}
+    }
+}
+
 fn apply_patch(entry: &mut KdbxEntry, patch: &EntryPatch) {
-    if let Some(ref v) = patch.title {
-        set_kdbx_field(entry, "Title", Some(v));
-    }
-    if let Some(ref v) = patch.username {
-        set_kdbx_field(entry, "UserName", Some(v));
-    }
-    if let Some(ref v) = patch.password {
-        set_kdbx_field(entry, "Password", Some(v));
-    }
-    if let Some(ref v) = patch.url {
-        set_kdbx_field(entry, "URL", Some(v));
-    }
-    if let Some(ref v) = patch.notes {
-        set_kdbx_field(entry, "Notes", Some(v));
-    }
+    apply_opt(entry, "Title", &patch.title);
+    apply_opt(entry, "UserName", &patch.username);
+    apply_opt(entry, "Password", &patch.password);
+    apply_opt(entry, "URL", &patch.url);
+    apply_opt(entry, "Notes", &patch.notes);
+
     if let Some(ref v) = patch.totp {
-        write_totp_seed(entry, v);
+        if v.is_empty() {
+            entry.fields.remove("TOTP Seed");
+            entry.fields.remove("TOTP Settings");
+        } else {
+            write_totp_seed(entry, v);
+        }
     }
     if let Some(ref v) = patch.tags {
         entry.tags = v.clone();
@@ -439,39 +445,18 @@ fn apply_patch(entry: &mut KdbxEntry, patch: &EntryPatch) {
             Some(if v { "true" } else { "false" }),
         );
     }
-    if let Some(ref v) = patch.first_name {
-        set_kdbx_field(entry, "identity.firstName", Some(v));
-    }
-    if let Some(ref v) = patch.last_name {
-        set_kdbx_field(entry, "identity.lastName", Some(v));
-    }
-    if let Some(ref v) = patch.email {
-        set_kdbx_field(entry, "identity.email", Some(v));
-    }
-    if let Some(ref v) = patch.phone {
-        set_kdbx_field(entry, "identity.phone", Some(v));
-    }
-    if let Some(ref v) = patch.address {
-        set_kdbx_field(entry, "identity.address", Some(v));
-    }
-    if let Some(ref v) = patch.card_holder {
-        set_kdbx_field(entry, "card.holder", Some(v));
-    }
-    if let Some(ref v) = patch.card_number {
-        set_kdbx_field(entry, "card.number", Some(v));
-    }
-    if let Some(ref v) = patch.card_type {
-        set_kdbx_field(entry, "card.type", Some(v));
-    }
-    if let Some(ref v) = patch.card_exp_month {
-        set_kdbx_field(entry, "card.expMonth", Some(v));
-    }
-    if let Some(ref v) = patch.card_exp_year {
-        set_kdbx_field(entry, "card.expYear", Some(v));
-    }
-    if let Some(ref v) = patch.card_cvv {
-        set_kdbx_field(entry, "card.cvv", Some(v));
-    }
+
+    apply_opt(entry, "identity.firstName", &patch.first_name);
+    apply_opt(entry, "identity.lastName", &patch.last_name);
+    apply_opt(entry, "identity.email", &patch.email);
+    apply_opt(entry, "identity.phone", &patch.phone);
+    apply_opt(entry, "identity.address", &patch.address);
+    apply_opt(entry, "card.holder", &patch.card_holder);
+    apply_opt(entry, "card.number", &patch.card_number);
+    apply_opt(entry, "card.type", &patch.card_type);
+    apply_opt(entry, "card.expMonth", &patch.card_exp_month);
+    apply_opt(entry, "card.expYear", &patch.card_exp_year);
+    apply_opt(entry, "card.cvv", &patch.card_cvv);
 }
 
 #[tauri::command]

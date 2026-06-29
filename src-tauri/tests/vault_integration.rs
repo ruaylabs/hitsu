@@ -483,6 +483,128 @@ fn test_card_type_roundtrip() {
     assert_eq!(item_type, Some("card"));
 }
 
+// ── Field clearing tests ────────────────────────────────────────────────────
+
+#[test]
+fn test_clearing_field_removes_it_from_kdbx() {
+    // Create an entry with optional fields
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Test Entry".into()),
+    );
+    e.fields.insert(
+        "URL".into(),
+        keepass::db::Value::Unprotected("https://example.com".into()),
+    );
+    e.fields.insert(
+        "Notes".into(),
+        keepass::db::Value::Unprotected("Some notes".into()),
+    );
+
+    // Save, reopen, verify fields are present
+    let bytes = make_db_bytes("p", vec![e]);
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+    assert!(entry.get("URL").is_some(), "URL should be present");
+    assert!(entry.get("Notes").is_some(), "Notes should be present");
+
+    // Now reopen as mutable, remove the fields (simulating what apply_patch does
+    // when it routes Some("") → set_kdbx_field(..., None))
+    let mut cursor = Cursor::new(make_db_bytes("p", vec![]));
+    let mut db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+    // Re-insert the entry then remove fields
+    let mut e2 = KdbxEntry::new();
+    e2.uuid = uuid::Uuid::new_v4();
+    e2.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Test Entry".into()),
+    );
+    e2.fields.insert(
+        "URL".into(),
+        keepass::db::Value::Unprotected("https://example.com".into()),
+    );
+    e2.fields.insert(
+        "Notes".into(),
+        keepass::db::Value::Unprotected("Some notes".into()),
+    );
+    db.root.add_child(e2);
+
+    // Simulate clearing: remove fields (this is what set_kdbx_field(..., None) does)
+    if let Some(Node::Entry(ref mut entry)) = db.root.children.first_mut() {
+        entry.fields.remove("URL");
+        entry.fields.remove("Notes");
+    }
+
+    // Save and reopen — cleared fields should be gone
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let mut cursor = Cursor::new(buf.into_inner());
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+    assert_eq!(entry.get_title(), Some("Test Entry"), "Title should remain");
+    assert!(entry.get("URL").is_none(), "URL should be removed");
+    assert!(entry.get("Notes").is_none(), "Notes should be removed");
+}
+
+#[test]
+fn test_clearing_identity_fields_roundtrip() {
+    // Identity fields use the identity.* namespace — test that removing them
+    // via field.remove() survives a save/reopen cycle.
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields
+        .insert("Title".into(), keepass::db::Value::Unprotected("ID".into()));
+    e.fields.insert(
+        "identity.firstName".into(),
+        keepass::db::Value::Unprotected("Alice".into()),
+    );
+    e.fields.insert(
+        "identity.email".into(),
+        keepass::db::Value::Unprotected("alice@test.com".into()),
+    );
+
+    let bytes = make_db_bytes("p", vec![e]);
+    let mut cursor = Cursor::new(bytes);
+    let mut db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    // Clear identity fields (simulating apply_patch with Some(""))
+    if let Some(Node::Entry(ref mut entry)) = db.root.children.first_mut() {
+        entry.fields.remove("identity.firstName");
+        entry.fields.remove("identity.email");
+    }
+
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let mut cursor = Cursor::new(buf.into_inner());
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+    assert_eq!(entry.get_title(), Some("ID"), "Title should remain");
+    assert!(
+        entry.get("identity.firstName").is_none(),
+        "identity.firstName should be removed"
+    );
+    assert!(
+        entry.get("identity.email").is_none(),
+        "identity.email should be removed"
+    );
+}
+
 #[test]
 fn test_vault_lock_clears_state() {
     // Test that clearing the vault HashMap (the core of vault_lock)
