@@ -30,7 +30,7 @@
   </div>
   {#if entry.favorite}
     <span style="color: var(--warning); flex-shrink: 0; display: flex;">
-      <Icon name="star-filled" size={12} />
+      <Icon name="star" size={12} />
     </span>
   {/if}
 </button>

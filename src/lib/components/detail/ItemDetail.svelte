@@ -72,6 +72,18 @@
     editCardCvv = entry.card?.cvv ?? "";
   }
 
+  async function toggleFavorite() {
+    if (!entry) return;
+    try {
+      const updated = await entriesBridge.entryUpdate(entry.id, {
+        favorite: !entry.favorite,
+      });
+      vault.setEntries(vault.entries.map((e) => (e.id === updated.id ? updated : e)));
+    } catch (e) {
+      console.error("Failed to toggle favorite", e);
+    }
+  }
+
   function startEdit() {
     if (!entry) return;
     populateEdit();
@@ -168,7 +180,7 @@
         />
       </div>
     {:else}
-      <DetailHeader {entry} />
+      <DetailHeader {entry} onFavorite={toggleFavorite} onEdit={startEdit} />
     {/if}
 
     {#if editing}

@@ -3,7 +3,15 @@
   import EntryIcon from "../list/EntryIcon.svelte";
   import Icon from "../ui/Icon.svelte";
 
-  let { entry }: { entry: Entry } = $props();
+  let {
+    entry,
+    onFavorite,
+    onEdit,
+  }: {
+    entry: Entry;
+    onFavorite?: () => void;
+    onEdit?: () => void;
+  } = $props();
 </script>
 
 <div class="detail-header">
@@ -24,10 +32,15 @@
     </div>
   </div>
   <div class="detail-header-actions">
-    <button class="action-btn" aria-label={entry.favorite ? "Unfavorite" : "Favorite"}>
-      <Icon name={entry.favorite ? "star-filled" : "star"} size={14} />
+    <button
+      class="action-btn"
+      class:favorited={entry.favorite}
+      onclick={onFavorite}
+      aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
+    >
+      <Icon name="star" size={14} />
     </button>
-    <button class="action-btn" aria-label="Edit entry">
+    <button class="action-btn" onclick={onEdit} aria-label="Edit entry">
       <Icon name="pencil" size={14} />
     </button>
   </div>
@@ -97,5 +110,9 @@
 
   .action-btn:hover {
     background: var(--border);
+  }
+
+  .action-btn.favorited {
+    color: var(--warning);
   }
 </style>
