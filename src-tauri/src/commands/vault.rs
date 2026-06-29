@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::Zeroizing;
 
@@ -160,9 +161,9 @@ pub async fn vault_change_password(
     let (_id, vault): (&VaultId, &mut OpenVault) =
         vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    // Verify old password matches stored key
+    // Verify old password matches stored key (constant-time comparison)
     let stored_key = String::from_utf8_lossy(&vault.master_key);
-    if stored_key != *old_password {
+    if !bool::from(stored_key.as_bytes().ct_eq(old_password.as_bytes())) {
         return Err(KagiError::Custom("Wrong password".to_string()));
     }
 
