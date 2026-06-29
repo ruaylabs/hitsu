@@ -286,6 +286,203 @@ fn test_tags_empty() {
     assert!(entry.tags.is_empty());
 }
 
+/// ── Entry type round-trip tests ──────────────────────────────────────────────
+
+fn make_db_with_entry(password: &str, entry: KdbxEntry) -> Database {
+    let bytes = make_db_bytes(password, vec![entry]);
+    let mut cursor = Cursor::new(bytes);
+    Database::open(&mut cursor, DatabaseKey::new().with_password(password)).unwrap()
+}
+
+#[test]
+fn test_note_type_roundtrip() {
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Shopping List".into()),
+    );
+    e.fields.insert(
+        "Notes".into(),
+        keepass::db::Value::Unprotected("Milk\nEggs\nBread".into()),
+    );
+    // Set the custom data marker that Kagi uses to identify the type
+    let item = keepass::db::CustomDataItem {
+        value: Some(keepass::db::Value::Unprotected("note".into())),
+        last_modification_time: None,
+    };
+    e.custom_data.items.insert("kagi.itemType".into(), item);
+
+    let db = make_db_with_entry("secret", e);
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+
+    assert_eq!(entry.get_title(), Some("Shopping List"));
+    assert_eq!(entry.get("Notes"), Some("Milk\nEggs\nBread"));
+
+    // Verify the custom data marker survived
+    let item_type = entry
+        .custom_data
+        .items
+        .get("kagi.itemType")
+        .and_then(|i| i.value.as_ref())
+        .and_then(|v| {
+            if let keepass::db::Value::Unprotected(s) = v {
+                Some(s.as_str())
+            } else {
+                None
+            }
+        });
+    assert_eq!(item_type, Some("note"));
+}
+
+#[test]
+fn test_identity_type_roundtrip() {
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("My Identity".into()),
+    );
+    e.fields.insert(
+        "identity.firstName".into(),
+        keepass::db::Value::Unprotected("Alice".into()),
+    );
+    e.fields.insert(
+        "identity.lastName".into(),
+        keepass::db::Value::Unprotected("Smith".into()),
+    );
+    e.fields.insert(
+        "identity.email".into(),
+        keepass::db::Value::Unprotected("alice@example.com".into()),
+    );
+    e.fields.insert(
+        "identity.phone".into(),
+        keepass::db::Value::Unprotected("+1-555-0100".into()),
+    );
+
+    let item = keepass::db::CustomDataItem {
+        value: Some(keepass::db::Value::Unprotected("identity".into())),
+        last_modification_time: None,
+    };
+    e.custom_data.items.insert("kagi.itemType".into(), item);
+
+    let db = make_db_with_entry("secret", e);
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+
+    assert_eq!(entry.get_title(), Some("My Identity"));
+    assert_eq!(entry.get("identity.firstName"), Some("Alice"));
+    assert_eq!(entry.get("identity.lastName"), Some("Smith"));
+    assert_eq!(entry.get("identity.email"), Some("alice@example.com"));
+    assert_eq!(entry.get("identity.phone"), Some("+1-555-0100"));
+
+    // Also verify Kagi type marker
+    let item_type = entry
+        .custom_data
+        .items
+        .get("kagi.itemType")
+        .and_then(|i| i.value.as_ref())
+        .and_then(|v| {
+            if let keepass::db::Value::Unprotected(s) = v {
+                Some(s.as_str())
+            } else {
+                None
+            }
+        });
+    assert_eq!(item_type, Some("identity"));
+}
+
+#[test]
+fn test_card_type_roundtrip() {
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Visa Platinum".into()),
+    );
+    e.fields.insert(
+        "card.holder".into(),
+        keepass::db::Value::Unprotected("Bob Johnson".into()),
+    );
+    // Card number is a protected field in KDBX
+    e.fields.insert(
+        "card.number".into(),
+        keepass::db::Value::Protected(b"4111111111111111".as_slice().into()),
+    );
+    e.fields.insert(
+        "card.cvv".into(),
+        keepass::db::Value::Protected(b"123".as_slice().into()),
+    );
+    e.fields.insert(
+        "card.expMonth".into(),
+        keepass::db::Value::Unprotected("12".into()),
+    );
+    e.fields.insert(
+        "card.expYear".into(),
+        keepass::db::Value::Unprotected("2028".into()),
+    );
+    e.fields.insert(
+        "card.pin".into(),
+        keepass::db::Value::Protected(b"9876".as_slice().into()),
+    );
+
+    let item = keepass::db::CustomDataItem {
+        value: Some(keepass::db::Value::Unprotected("card".into())),
+        last_modification_time: None,
+    };
+    e.custom_data.items.insert("kagi.itemType".into(), item);
+
+    let db = make_db_with_entry("secret", e);
+    let entry = match &db.root.children[0] {
+        Node::Entry(e) => e,
+        _ => panic!("expected entry"),
+    };
+
+    assert_eq!(entry.get_title(), Some("Visa Platinum"));
+    assert_eq!(entry.get("card.holder"), Some("Bob Johnson"));
+
+    // Protected fields — read through the Value enum
+    let number = entry.fields.get("card.number").and_then(|v| {
+        if let keepass::db::Value::Protected(p) = v {
+            Some(String::from_utf8_lossy(p.unsecure()).to_string())
+        } else {
+            None
+        }
+    });
+    assert_eq!(number.as_deref(), Some("4111111111111111"));
+
+    let cvv = entry.fields.get("card.cvv").and_then(|v| {
+        if let keepass::db::Value::Protected(p) = v {
+            Some(String::from_utf8_lossy(p.unsecure()).to_string())
+        } else {
+            None
+        }
+    });
+    assert_eq!(cvv.as_deref(), Some("123"));
+
+    assert_eq!(entry.get("card.expMonth"), Some("12"));
+    assert_eq!(entry.get("card.expYear"), Some("2028"));
+
+    let item_type = entry
+        .custom_data
+        .items
+        .get("kagi.itemType")
+        .and_then(|i| i.value.as_ref())
+        .and_then(|v| {
+            if let keepass::db::Value::Unprotected(s) = v {
+                Some(s.as_str())
+            } else {
+                None
+            }
+        });
+    assert_eq!(item_type, Some("card"));
+}
+
 #[test]
 fn test_vault_lock_clears_state() {
     // Test that clearing the vault HashMap (the core of vault_lock)
