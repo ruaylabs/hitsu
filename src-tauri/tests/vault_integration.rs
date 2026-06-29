@@ -605,6 +605,126 @@ fn test_clearing_identity_fields_roundtrip() {
     );
 }
 
+// ── Onboarding / vault-open flow tests ──────────────────────────────────────
+
+#[test]
+fn test_create_and_open_vault_from_disk() {
+    // Simulates the full "open existing vault" onboarding path:
+    // create a real file on disk → open it → verify entries survive.
+    use std::fs;
+    use std::io::{Cursor, Read};
+
+    let dir = std::env::temp_dir().join("kagi-onboard-test");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let vault_path = dir.join("test.kdbx");
+
+    // 1. Create a database with one entry and save to disk
+    let mut e = KdbxEntry::new();
+    e.uuid = uuid::Uuid::new_v4();
+    e.fields.insert(
+        "Title".into(),
+        keepass::db::Value::Unprotected("Onboard Entry".into()),
+    );
+    e.fields.insert(
+        "UserName".into(),
+        keepass::db::Value::Unprotected("user".into()),
+    );
+    {
+        let mut db = Database::new(Default::default());
+        db.root.add_child(e);
+        let mut file = fs::File::create(&vault_path).unwrap();
+        db.save(&mut file, DatabaseKey::new().with_password("demopass"))
+            .unwrap();
+    }
+
+    // 2. Verify the file exists and has content
+    assert!(vault_path.exists(), "vault file should exist");
+    let metadata = fs::metadata(&vault_path).unwrap();
+    assert!(metadata.len() > 0, "vault file should not be empty");
+
+    // 3. Re-open from disk (same path the onboarding's vaultOpen command uses)
+    let mut file = fs::File::open(&vault_path).unwrap();
+    let mut content = Vec::new();
+    file.read_to_end(&mut content).unwrap();
+    let mut cursor = Cursor::new(content);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("demopass")).unwrap();
+
+    let titles: Vec<String> = db
+        .root
+        .children
+        .iter()
+        .filter_map(|n| {
+            if let Node::Entry(e) = n {
+                e.get_title().map(str::to_string)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(titles, vec!["Onboard Entry"]);
+
+    // 4. Clean up
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn test_open_vault_wrong_password_from_disk() {
+    use std::fs;
+
+    let dir = std::env::temp_dir().join("kagi-onboard-wrong-pw");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let vault_path = dir.join("secret.kdbx");
+
+    {
+        let db = Database::new(Default::default());
+        let mut file = fs::File::create(&vault_path).unwrap();
+        db.save(&mut file, DatabaseKey::new().with_password("correct-horse"))
+            .unwrap();
+    }
+
+    // Opening with wrong password must fail
+    let mut file = fs::File::open(&vault_path).unwrap();
+    let result = Database::open(&mut file, DatabaseKey::new().with_password("wrong"));
+    assert!(result.is_err(), "wrong password should fail to open vault");
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn test_create_vault_file_exists() {
+    // The onboarding "create" flow should produce a valid file that
+    // can be re-opened immediately
+    use std::fs;
+
+    let dir = std::env::temp_dir().join("kagi-onboard-create");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let vault_path = dir.join("new-vault.kdbx");
+
+    // Create
+    {
+        let db = Database::new(Default::default());
+        let mut file = fs::File::create(&vault_path).unwrap();
+        db.save(&mut file, DatabaseKey::new().with_password("newpass"))
+            .unwrap();
+    }
+
+    // Re-open
+    {
+        let mut file = fs::File::open(&vault_path).unwrap();
+        let db = Database::open(&mut file, DatabaseKey::new().with_password("newpass")).unwrap();
+        assert_eq!(
+            db.root.children.len(),
+            0,
+            "new vault should have no entries"
+        );
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
 // ── Preferences / security settings tests ────────────────────────────────────
 
 #[test]

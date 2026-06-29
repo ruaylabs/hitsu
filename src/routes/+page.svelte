@@ -13,6 +13,7 @@
   import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
   import PasswordDialog from "$lib/components/ui/PasswordDialog.svelte";
+  import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
 
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
@@ -147,6 +148,8 @@
 <!-- Waiting for startup check — show blank -->
 {:else if app.view === "settings"}
   <SettingsView />
+{:else if !vault.meta}
+  <OnboardingView />
 {:else}
   <div class="app-window">
     <div class="main-grid">
