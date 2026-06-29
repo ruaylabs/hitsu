@@ -3,11 +3,36 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
     pub last_vault: Option<String>,
     pub recent_vaults: Vec<String>,
+    /// Idle lock timeout in minutes (0 = never). Default: 5.
+    #[serde(default = "default_idle_lock")]
+    pub idle_lock_minutes: u32,
+    /// Clipboard auto-clear timeout in seconds. Default: 15.
+    #[serde(default = "default_clipboard_clear")]
+    pub clipboard_clear_seconds: u32,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            last_vault: None,
+            recent_vaults: Vec::new(),
+            idle_lock_minutes: default_idle_lock(),
+            clipboard_clear_seconds: default_clipboard_clear(),
+        }
+    }
+}
+
+fn default_idle_lock() -> u32 {
+    5
+}
+
+fn default_clipboard_clear() -> u32 {
+    15
 }
 
 impl Preferences {

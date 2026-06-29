@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as entriesBridge from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -15,6 +17,8 @@
     | { kind: "new-password" }
     | null = $state(null);
 
+  let idleLockMins = $state(5);
+  let clipboardSecs = $state(15);
   let statusMsg = $state("");
 
   async function handleOpen() {
@@ -32,6 +36,40 @@
   }
 
   let selectedPath = $state("");
+
+  onMount(() => {
+    loadSecurityPrefs();
+  });
+
+  async function loadSecurityPrefs() {
+    try {
+      const prefs = await prefsBridge.prefsGet();
+      idleLockMins = prefs.idleLockMinutes ?? 5;
+      clipboardSecs = prefs.clipboardClearSeconds ?? 15;
+    } catch {
+      /* use defaults */
+    }
+  }
+
+  async function saveSecurity() {
+    try {
+      await prefsBridge.prefsSetSecurity(idleLockMins, clipboardSecs);
+      clipboard.defaultTimeoutSecs = clipboardSecs;
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
+
+  function onIdleChange(e: Event) {
+    idleLockMins = parseInt((e.target as HTMLSelectElement).value, 10);
+    saveSecurity();
+  }
+
+  function onClipboardChange(e: Event) {
+    clipboardSecs = parseInt((e.target as HTMLSelectElement).value, 10);
+    clipboard.defaultTimeoutSecs = clipboardSecs;
+    saveSecurity();
+  }
 
   async function doOpen(password: string) {
     dialog = null;
@@ -178,11 +216,34 @@
         <h2 class="section-heading">Security</h2>
         <div class="setting-row">
           <span class="setting-label">Lock on idle</span>
-          <span class="setting-value">5 minutes</span>
+          <select class="setting-select" onchange={onIdleChange}>
+            {#each [
+              { value: 0, label: "Never" },
+              { value: 1, label: "1 minute" },
+              { value: 2, label: "2 minutes" },
+              { value: 5, label: "5 minutes" },
+              { value: 10, label: "10 minutes" },
+              { value: 30, label: "30 minutes" },
+              { value: 60, label: "1 hour" },
+            ] as opt}
+              <option value={opt.value} selected={idleLockMins === opt.value}>{opt.label}</option>
+            {/each}
+          </select>
         </div>
         <div class="setting-row">
           <span class="setting-label">Clipboard clear</span>
-          <span class="setting-value">15 seconds</span>
+          <select class="setting-select" onchange={onClipboardChange}>
+            {#each [
+              { value: 5, label: "5 seconds" },
+              { value: 10, label: "10 seconds" },
+              { value: 15, label: "15 seconds" },
+              { value: 30, label: "30 seconds" },
+              { value: 60, label: "1 minute" },
+              { value: 0, label: "Never" },
+            ] as opt}
+              <option value={opt.value} selected={clipboardSecs === opt.value}>{opt.label}</option>
+            {/each}
+          </select>
         </div>
       </section>
     </div>
@@ -349,6 +410,31 @@
   .setting-value {
     font-size: 13px;
     color: var(--text-muted);
+  }
+
+  .setting-select {
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-1);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 28px 5px 10px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a09a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    min-width: 120px;
+  }
+
+  .setting-select:hover {
+    background-color: var(--border);
+  }
+
+  .setting-select:focus {
+    border-color: var(--accent);
+    outline: none;
   }
 
   .settings-footer {

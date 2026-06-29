@@ -1,6 +1,6 @@
 import { vault } from "$lib/stores/vault.svelte";
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
 const SLEEP_GAP_MS = 30 * 1000; // lock if page was hidden longer than this
 
 let lastActivity = Date.now();
@@ -11,8 +11,9 @@ function resetActivity() {
   lastActivity = Date.now();
 }
 
-/** Start the idle + sleep lock monitors. Stops any previous run first. */
-export function startIdleTimer() {
+/** Start the idle + sleep lock monitors. Stops any previous run first.
+ *  @param idleTimeoutMs — idle timeout in ms. Pass 0 to never idle-lock. */
+export function startIdleTimer(idleTimeoutMs = DEFAULT_IDLE_MS) {
   stopIdleTimer();
 
   lastActivity = Date.now();
@@ -40,7 +41,7 @@ export function startIdleTimer() {
 
   // Poll every second for idle timeout
   timer = setInterval(() => {
-    if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+    if (idleTimeoutMs > 0 && Date.now() - lastActivity >= idleTimeoutMs) {
       vault.lock();
     }
   }, 1000);

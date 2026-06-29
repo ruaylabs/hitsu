@@ -43,10 +43,13 @@
     }
   }
 
+  // Idle timeout loaded from prefs (default 5 min, 0 = never)
+  let idleTimeoutMs = $state(5 * 60 * 1000);
+
   // Start idle/sleep lock monitors when the vault is unlocked, stop when locked
   $effect(() => {
     if (!vault.locked && vault.meta) {
-      startIdleTimer();
+      startIdleTimer(idleTimeoutMs);
       return stopIdleTimer;
     }
   });
@@ -61,10 +64,11 @@
     const unlisten = listen("menu://settings", () => {
       app.toggleSettings();
     });
-    // Check for saved vault
+    // Load preferences — both startup vault and security settings
     prefsBridge
       .prefsGet()
       .then((prefs) => {
+        idleTimeoutMs = (prefs.idleLockMinutes ?? 5) * 60 * 1000;
         if (prefs.lastVault) {
           startupPath = prefs.lastVault;
           startupDialog = "password";

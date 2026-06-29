@@ -1,12 +1,12 @@
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::Emitter;
 
+pub mod prefs;
 pub mod state;
 
 mod commands;
 mod error;
 mod models;
-mod prefs;
 mod vault;
 
 use state::AppState;
@@ -66,6 +66,7 @@ pub fn run() {
             commands::vault::vault_lock,
             commands::prefs::prefs_get,
             commands::prefs::prefs_set_last_vault,
+            commands::prefs::prefs_set_security,
             commands::entries::entries_list,
             commands::entries::entry_get,
             commands::entries::entry_create,

@@ -605,6 +605,78 @@ fn test_clearing_identity_fields_roundtrip() {
     );
 }
 
+// ── Preferences / security settings tests ────────────────────────────────────
+
+#[test]
+fn test_preferences_security_defaults() {
+    use kagi_lib::prefs::Preferences;
+
+    let prefs = Preferences::default();
+    assert_eq!(
+        prefs.idle_lock_minutes, 5,
+        "default idle lock should be 5 min"
+    );
+    assert_eq!(
+        prefs.clipboard_clear_seconds, 15,
+        "default clipboard clear should be 15 s"
+    );
+}
+
+#[test]
+fn test_preferences_security_roundtrip() {
+    use kagi_lib::prefs::Preferences;
+
+    let mut prefs = Preferences::default();
+    prefs.idle_lock_minutes = 10;
+    prefs.clipboard_clear_seconds = 30;
+    prefs.last_vault = Some("/tmp/test.kdbx".into());
+
+    // Serialise to JSON and back (same path the file-based prefs use internally)
+    let json = serde_json::to_string_pretty(&prefs).unwrap();
+    let loaded: Preferences = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(loaded.last_vault, Some("/tmp/test.kdbx".into()));
+    assert_eq!(loaded.idle_lock_minutes, 10);
+    assert_eq!(loaded.clipboard_clear_seconds, 30);
+}
+
+#[test]
+fn test_preferences_security_serde_missing_fields_default() {
+    // Old prefs.json files won't have the new fields — serde should use defaults
+    use kagi_lib::prefs::Preferences;
+
+    let old_json = r#"{
+        "lastVault": null,
+        "recentVaults": []
+    }"#;
+    let prefs: Preferences = serde_json::from_str(old_json).unwrap();
+    assert_eq!(
+        prefs.idle_lock_minutes, 5,
+        "missing field should default to 5"
+    );
+    assert_eq!(
+        prefs.clipboard_clear_seconds, 15,
+        "missing field should default to 15"
+    );
+    assert!(prefs.last_vault.is_none());
+}
+
+#[test]
+fn test_preferences_security_zero_values_roundtrip() {
+    // "Never" options store 0 — verify they survive save/load
+    use kagi_lib::prefs::Preferences;
+
+    let mut prefs = Preferences::default();
+    prefs.idle_lock_minutes = 0;
+    prefs.clipboard_clear_seconds = 0;
+
+    let json = serde_json::to_string_pretty(&prefs).unwrap();
+    let loaded: Preferences = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(loaded.idle_lock_minutes, 0);
+    assert_eq!(loaded.clipboard_clear_seconds, 0);
+}
+
 #[test]
 fn test_vault_lock_clears_state() {
     // Test that clearing the vault HashMap (the core of vault_lock)
