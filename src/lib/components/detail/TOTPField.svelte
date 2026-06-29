@@ -1,5 +1,6 @@
 <script lang="ts">
   import { parseOtpauthUri, computeTotp, totpRemainingSeconds } from "$lib/utils/otp";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
 
   let { totpUri }: { totpUri: string } = $props();
 
@@ -49,7 +50,7 @@
   let formattedCode = $derived(code.length >= 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);
 
   function copyCode() {
-    navigator.clipboard.writeText(code);
+    clipboard.copy(code);
   }
 </script>
 
