@@ -3,6 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as entriesBridge from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -41,6 +42,14 @@
       if (input) input.focus();
     }
   }
+
+  // Start idle/sleep lock monitors when the vault is unlocked, stop when locked
+  $effect(() => {
+    if (!vault.locked && vault.meta) {
+      startIdleTimer();
+      return stopIdleTimer;
+    }
+  });
 
   let startupDialog: "password" | null = $state(null);
   let startupPath = $state("");

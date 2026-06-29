@@ -285,3 +285,48 @@ fn test_tags_empty() {
 
     assert!(entry.tags.is_empty());
 }
+
+#[test]
+fn test_vault_lock_clears_state() {
+    // Test that clearing the vault HashMap (the core of vault_lock)
+    // properly removes OpenVault and its contents.
+    use kagi_lib::state::{AppState, OpenVault};
+    use zeroize::Zeroizing;
+
+    let state = AppState::new();
+    let mut vaults = state.vaults.lock().unwrap();
+
+    // Insert a vault with a real in-memory database
+    let db = keepass::Database::new(Default::default());
+    let id = uuid::Uuid::new_v4();
+    vaults.insert(
+        id,
+        OpenVault {
+            db,
+            path: "/tmp/test.kdbx".into(),
+            master_key: Zeroizing::new(b"test-password".to_vec()),
+        },
+    );
+
+    assert_eq!(vaults.len(), 1, "vault should be present");
+
+    // Simulate vault_lock — clear the HashMap
+    vaults.clear();
+    assert_eq!(vaults.len(), 0, "vault should be cleared");
+    // Clearing drops each OpenVault; the master_key is zeroized via
+    // Zeroizing's Drop impl, and the Database (with decrypted entries)
+    // is dropped.
+}
+
+#[test]
+fn test_vault_lock_with_no_vault_is_noop() {
+    use kagi_lib::state::AppState;
+
+    let state = AppState::new();
+    let mut vaults = state.vaults.lock().unwrap();
+    assert_eq!(vaults.len(), 0);
+
+    // Clearing an already-empty HashMap is a no-op
+    vaults.clear();
+    assert_eq!(vaults.len(), 0);
+}

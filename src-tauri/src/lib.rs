@@ -1,11 +1,12 @@
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::Emitter;
 
+pub mod state;
+
 mod commands;
 mod error;
 mod models;
 mod prefs;
-mod state;
 mod vault;
 
 use state::AppState;

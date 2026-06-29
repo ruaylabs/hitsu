@@ -26,10 +26,16 @@ pub struct AppState {
     pub vaults: Mutex<HashMap<VaultId, OpenVault>>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
+impl Default for AppState {
+    fn default() -> Self {
         Self {
             vaults: Mutex::new(HashMap::new()),
         }
+    }
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
