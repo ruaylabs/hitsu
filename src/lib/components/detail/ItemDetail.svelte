@@ -41,6 +41,19 @@
   let editCardExpYear = $state("");
   let editCardCvv = $state("");
 
+  // Validation errors for card fields
+  let cardNumberError = $state("");
+  let cardExpMonthError = $state("");
+  let cardExpYearError = $state("");
+  let cardCvvError = $state("");
+
+  function clearCardErrors() {
+    cardNumberError = "";
+    cardExpMonthError = "";
+    cardExpYearError = "";
+    cardCvvError = "";
+  }
+
   // Auto-enter edit mode when a new entry is created
   $effect(() => {
     if (entry && vault.editingId === entry.id) {
@@ -70,6 +83,7 @@
     editCardExpMonth = entry.card?.expMonth?.toString() ?? "";
     editCardExpYear = entry.card?.expYear?.toString() ?? "";
     editCardCvv = entry.card?.cvv ?? "";
+    clearCardErrors();
   }
 
   async function toggleFavorite() {
@@ -92,10 +106,53 @@
 
   function cancelEdit() {
     editing = false;
+    clearCardErrors();
+  }
+
+  function validateCardFields(): boolean {
+    let valid = true;
+    // Card number: digits only, 13-19 chars (standard card lengths)
+    if (editCardNumber && editCardNumber.length > 0 && editCardNumber.length < 13) {
+      cardNumberError = "Card number too short";
+      valid = false;
+    } else {
+      cardNumberError = "";
+    }
+    // Exp month: 2 digits, 01-12
+    if (editCardExpMonth && editCardExpMonth.length !== 2) {
+      cardExpMonthError = "Must be 2 digits (01-12)";
+      valid = false;
+    } else if (editCardExpMonth) {
+      const m = Number.parseInt(editCardExpMonth, 10);
+      if (m < 1 || m > 12) {
+        cardExpMonthError = "Must be 01-12";
+        valid = false;
+      } else {
+        cardExpMonthError = "";
+      }
+    } else {
+      cardExpMonthError = "";
+    }
+    // Exp year: 4 digits
+    if (editCardExpYear && editCardExpYear.length !== 4) {
+      cardExpYearError = "Year must be 4 digits";
+      valid = false;
+    } else {
+      cardExpYearError = "";
+    }
+    // CVV: 3 or 4 digits
+    if (editCardCvv && editCardCvv.length !== 3 && editCardCvv.length !== 4) {
+      cardCvvError = "CVV must be 3 or 4 digits";
+      valid = false;
+    } else {
+      cardCvvError = "";
+    }
+    return valid;
   }
 
   async function saveEdit() {
     if (!entry) return;
+    if (!validateCardFields()) return;
     try {
       await entriesBridge.entryUpdate(entry.id, {
         title: editTitle,
@@ -120,6 +177,7 @@
       const updated = await entriesBridge.entryGet(entry.id);
       vault.setEntries(vault.entries.map((e) => (e.id === updated.id ? updated : e)));
       editing = false;
+      clearCardErrors();
     } catch (e) {
       console.error("Failed to save", e);
     }
@@ -333,18 +391,26 @@
               bind:value={editCardHolder}
             />
           </div>
-          <div class="field-row">
+          <div class="field-row card-field-row">
             <span class="field-label">Number</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="Card number"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editCardNumber}
-            />
+            <div class="card-input-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="Card number"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editCardNumber}
+                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardNumber = el.value; }}
+              />
+              {#if cardNumberError}
+                <span class="field-error">{cardNumberError}</span>
+              {/if}
+            </div>
           </div>
           <div class="field-row">
             <span class="field-label">Type</span>
@@ -360,44 +426,71 @@
               <option value="Maestro">Maestro</option>
             </select>
           </div>
-          <div class="field-row">
+          <div class="field-row card-field-row">
             <span class="field-label">Exp month</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="MM"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editCardExpMonth}
-            />
+            <div class="card-input-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="MM"
+                maxlength="2"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editCardExpMonth}
+                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); editCardExpMonth = el.value; }}
+              />
+              {#if cardExpMonthError}
+                <span class="field-error">{cardExpMonthError}</span>
+              {/if}
+            </div>
           </div>
-          <div class="field-row">
+          <div class="field-row card-field-row">
             <span class="field-label">Exp year</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="YYYY"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editCardExpYear}
-            />
+            <div class="card-input-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="YYYY"
+                maxlength="4"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editCardExpYear}
+                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardExpYear = el.value; }}
+              />
+              {#if cardExpYearError}
+                <span class="field-error">{cardExpYearError}</span>
+              {/if}
+            </div>
           </div>
-          <div class="field-row">
+          <div class="field-row card-field-row">
             <span class="field-label">CVV</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="CVV"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editCardCvv}
-            />
+            <div class="card-input-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="CVV"
+                maxlength="4"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editCardCvv}
+                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 4); editCardCvv = el.value; }}
+              />
+              {#if cardCvvError}
+                <span class="field-error">{cardCvvError}</span>
+              {/if}
+            </div>
           </div>
         {/if}
       </FieldGroup>
@@ -592,6 +685,27 @@
     border-radius: var(--radius-sm);
     font-size: 13.5px;
     color: var(--text-primary);
+  }
+
+  .card-field-row {
+    align-items: flex-start;
+  }
+
+  .card-input-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .card-input-wrap .edit-input {
+    width: 100%;
+  }
+
+  .field-error {
+    font-size: 11px;
+    color: var(--danger);
+    line-height: 1.3;
   }
 
   .edit-input:focus,
