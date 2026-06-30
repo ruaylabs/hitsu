@@ -79,6 +79,10 @@
           class="password-input"
           placeholder="Enter master password"
           autofocus
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
           bind:value={password}
           oninput={() => { localError = ""; }}
         />

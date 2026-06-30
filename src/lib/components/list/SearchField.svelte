@@ -25,6 +25,10 @@
       type="text"
       class="search-input"
       placeholder="Search..."
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
       value={search}
       oninput={onInput}
       onkeydown={onKeydown}

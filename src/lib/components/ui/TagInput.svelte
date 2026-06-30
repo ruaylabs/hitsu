@@ -102,6 +102,10 @@
     class="tag-input"
     type="text"
     placeholder="comma, separated"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
+    spellcheck="false"
     value={inputValue}
     {oninput}
     onkeydown={onKeydown}

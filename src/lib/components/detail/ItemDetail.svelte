@@ -172,10 +172,15 @@
 
     {#if editing}
       <div class="edit-title">
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           class="edit-input edit-title-input"
           type="text"
           placeholder="Title"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
           bind:value={editTitle}
         />
       </div>
@@ -193,6 +198,10 @@
               class="edit-input"
               type="text"
               placeholder="Username"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editUsername}
             />
           </div>
@@ -203,6 +212,10 @@
                 class="edit-input"
                 type="text"
                 placeholder="Password"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 bind:value={editPassword}
               />
               <button
@@ -216,7 +229,16 @@
           </div>
           <div class="field-row">
             <span class="field-label">URL</span>
-            <input class="edit-input" type="text" placeholder="URL" bind:value={editUrl} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="URL"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editUrl}
+            />
           </div>
           <div class="field-row">
             <span class="field-label">TOTP</span>
@@ -224,6 +246,10 @@
               class="edit-input"
               type="text"
               placeholder="otpauth:// URI"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editTotp}
             />
           </div>
@@ -234,6 +260,10 @@
               class="edit-input"
               type="text"
               placeholder="First name"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editFirstName}
             />
           </div>
@@ -243,20 +273,51 @@
               class="edit-input"
               type="text"
               placeholder="Last name"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editLastName}
             />
           </div>
           <div class="field-row">
             <span class="field-label">Email</span>
-            <input class="edit-input" type="text" placeholder="Email" bind:value={editEmail} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="Email"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editEmail}
+            />
           </div>
           <div class="field-row">
             <span class="field-label">Phone</span>
-            <input class="edit-input" type="text" placeholder="Phone" bind:value={editPhone} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="Phone"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editPhone}
+            />
           </div>
           <div class="field-row">
             <span class="field-label">Address</span>
-            <input class="edit-input" type="text" placeholder="Address" bind:value={editAddress} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="Address"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editAddress}
+            />
           </div>
         {:else if entry.type === "card"}
           <div class="field-row">
@@ -265,6 +326,10 @@
               class="edit-input"
               type="text"
               placeholder="Card holder"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editCardHolder}
             />
           </div>
@@ -274,6 +339,10 @@
               class="edit-input"
               type="text"
               placeholder="Card number"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               bind:value={editCardNumber}
             />
           </div>
@@ -293,15 +362,42 @@
           </div>
           <div class="field-row">
             <span class="field-label">Exp month</span>
-            <input class="edit-input" type="text" placeholder="MM" bind:value={editCardExpMonth} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="MM"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editCardExpMonth}
+            />
           </div>
           <div class="field-row">
             <span class="field-label">Exp year</span>
-            <input class="edit-input" type="text" placeholder="YYYY" bind:value={editCardExpYear} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="YYYY"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editCardExpYear}
+            />
           </div>
           <div class="field-row">
             <span class="field-label">CVV</span>
-            <input class="edit-input" type="text" placeholder="CVV" bind:value={editCardCvv} />
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="CVV"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editCardCvv}
+            />
           </div>
         {/if}
       </FieldGroup>
@@ -393,7 +489,13 @@
       </div>
       <div class="edit-notes">
         <span class="notes-label">Notes</span>
-        <textarea class="edit-textarea" placeholder="Notes" bind:value={editNotes}></textarea>
+        <textarea
+          class="edit-textarea"
+          placeholder="Notes"
+          autocomplete="off"
+          spellcheck="false"
+          bind:value={editNotes}
+        ></textarea>
       </div>
     {:else}
       {#if entry.tags.length > 0}
