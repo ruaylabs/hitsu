@@ -19,14 +19,14 @@ fn detect_sync_provider(path: &Path) -> String {
     }
 }
 
+/// Ensure the database uses KDBX4.1 format so saving works.
+/// keepass 0.13's dump_kdbx4 requires exactly `KDB4(1)`.
+fn ensure_kdbx4(db: &mut keepass::Database) {
+    db.config.version = keepass::config::DatabaseVersion::KDB4(1);
+}
+
 fn count_entries(db: &keepass::Database) -> usize {
-    let mut count = 0;
-    for node in &db.root {
-        if matches!(node, keepass::db::NodeRef::Entry(_)) {
-            count += 1;
-        }
-    }
-    count
+    db.iter_all_entries().count()
 }
 
 #[tauri::command]
@@ -47,8 +47,11 @@ pub async fn vault_open(
 
     let mut file = File::open(&path)?;
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let db =
+    let mut db =
         keepass::Database::open(&mut file, key).map_err(|e| KagiError::Vault(e.to_string()))?;
+
+    // keepass 0.13 only supports saving KDBX4 — upgrade if needed
+    ensure_kdbx4(&mut db);
 
     let entry_count = count_entries(&db);
     let id = uuid::Uuid::new_v4();
@@ -98,7 +101,7 @@ pub async fn vault_create(
         name
     };
 
-    let mut db = keepass::Database::new(Default::default());
+    let mut db = keepass::Database::new();
     db.meta.database_name = Some(vault_name.clone());
 
     // Serialise to buffer first, then atomic-write — never truncate the
@@ -111,8 +114,11 @@ pub async fn vault_create(
 
     // Re-open from buffer to verify and obtain the in-memory DB
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)
+    let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)
         .map_err(|e| KagiError::Vault(e.to_string()))?;
+
+    // keepass 0.13 only supports saving KDBX4 — upgrade if needed
+    ensure_kdbx4(&mut db);
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();

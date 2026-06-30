@@ -1,4 +1,4 @@
-use keepass::db::{Entry as KdbxEntry, Value};
+use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
 use tauri::State;
 
 use crate::error::{KagiError, KagiResult};
@@ -7,15 +7,23 @@ use crate::models::{
 };
 use crate::state::{AppState, OpenVault};
 
-fn map_entry_to_summary(entry: &keepass::db::Entry) -> EntrySummary {
-    let title = entry.get_title().unwrap_or("").to_string();
-    let username = entry.get_username().unwrap_or("").to_string();
-    let item_type = read_item_type(entry);
-    let icon_hint = read_icon_hint(entry);
-    let favorite = read_favorite(entry);
+/// Which KDBX standard field names should be stored as Protected values.
+fn is_protected_key(key: &str) -> bool {
+    matches!(
+        key,
+        fields::PASSWORD | "card.cvv" | "card.pin" | "card.number"
+    )
+}
+
+fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
+    let title = entry_ref.get_title().unwrap_or("").to_string();
+    let username = entry_ref.get_username().unwrap_or("").to_string();
+    let item_type = read_item_type(entry_ref);
+    let icon_hint = read_icon_hint(entry_ref);
+    let favorite = read_favorite(entry_ref);
 
     EntrySummary {
-        id: entry.uuid.to_string(),
+        id: entry_ref.id().uuid().to_string(),
         item_type,
         title,
         subtitle: username,
@@ -24,41 +32,41 @@ fn map_entry_to_summary(entry: &keepass::db::Entry) -> EntrySummary {
     }
 }
 
-fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
-    let id = entry.uuid.to_string();
-    let title = entry.get_title().unwrap_or("").to_string();
-    let username = entry.get_username().unwrap_or("").to_string();
-    let password = entry.get_password().unwrap_or("").to_string();
-    let url = entry.get_url().map(str::to_string);
-    let notes = entry.get("Notes").map(str::to_string);
-    let tags = entry.tags.clone();
-    let item_type = read_item_type(entry);
-    let icon_hint = read_icon_hint(entry);
-    let favorite = read_favorite(entry);
-    let totp = read_totp_seed(entry);
+fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
+    let id = entry_ref.id().uuid().to_string();
+    let title = entry_ref.get_title().unwrap_or("").to_string();
+    let username = entry_ref.get_username().unwrap_or("").to_string();
+    let password = entry_ref.get_password().unwrap_or("").to_string();
+    let url = entry_ref.get_url().map(str::to_string);
+    let notes = entry_ref.get(fields::NOTES).map(str::to_string);
+    let tags = entry_ref.tags.clone();
+    let item_type = read_item_type(entry_ref);
+    let icon_hint = read_icon_hint(entry_ref);
+    let favorite = read_favorite(entry_ref);
+    let totp = read_totp_seed(entry_ref);
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    let modified_at = entry
+    let modified_at = entry_ref
         .times
-        .get_last_modification()
-        .map(|d: &chrono::NaiveDateTime| d.and_utc().to_rfc3339())
+        .last_modification
+        .map(|d: chrono::NaiveDateTime| d.and_utc().to_rfc3339())
         .unwrap_or_else(|| now.clone());
 
-    let created_at = entry
+    let created_at = entry_ref
         .times
-        .get_creation()
-        .map(|d: &chrono::NaiveDateTime| d.and_utc().to_rfc3339())
+        .creation
+        .map(|d: chrono::NaiveDateTime| d.and_utc().to_rfc3339())
         .unwrap_or_else(|| now.clone());
 
     let identity = if item_type == ItemType::Identity {
         Some(IdentityFields {
-            first_name: entry.get("identity.firstName").map(str::to_string),
-            last_name: entry.get("identity.lastName").map(str::to_string),
-            email: entry.get("identity.email").map(str::to_string),
-            phone: entry.get("identity.phone").map(str::to_string),
-            address: entry.get("identity.address").map(str::to_string),
-            dob: entry.get("identity.dob").map(str::to_string),
+            first_name: entry_ref.get("identity.firstName").map(str::to_string),
+            last_name: entry_ref.get("identity.lastName").map(str::to_string),
+            email: entry_ref.get("identity.email").map(str::to_string),
+            phone: entry_ref.get("identity.phone").map(str::to_string),
+            address: entry_ref.get("identity.address").map(str::to_string),
+            dob: entry_ref.get("identity.dob").map(str::to_string),
         })
     } else {
         None
@@ -66,15 +74,17 @@ fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
 
     let card = if item_type == ItemType::Card {
         Some(CardFields {
-            holder: entry.get("card.holder").map(str::to_string),
-            number: entry.get("card.number").map(str::to_string),
-            card_type: entry.get("card.type").map(str::to_string),
-            exp_month: entry
+            holder: entry_ref.get("card.holder").map(str::to_string),
+            number: entry_ref.get("card.number").map(str::to_string),
+            card_type: entry_ref.get("card.type").map(str::to_string),
+            exp_month: entry_ref
                 .get("card.expMonth")
                 .and_then(|v: &str| v.parse().ok()),
-            exp_year: entry.get("card.expYear").and_then(|v: &str| v.parse().ok()),
-            cvv: entry.get("card.cvv").map(str::to_string),
-            pin: entry.get("card.pin").map(str::to_string),
+            exp_year: entry_ref
+                .get("card.expYear")
+                .and_then(|v: &str| v.parse().ok()),
+            cvv: entry_ref.get("card.cvv").map(str::to_string),
+            pin: entry_ref.get("card.pin").map(str::to_string),
         })
     } else {
         None
@@ -99,28 +109,32 @@ fn map_entry_to_full(entry: &keepass::db::Entry) -> Entry {
         custom_fields: Vec::new(),
         modified_at,
         created_at,
-        history_count: entry
+        history_count: entry_ref
             .history
             .as_ref()
             .map_or(0, |h: &keepass::db::History| h.get_entries().len() as u32),
     }
 }
 
-fn value_to_string(v: &keepass::db::Value) -> String {
-    match v {
-        keepass::db::Value::Unprotected(s) => s.clone(),
-        keepass::db::Value::Protected(p) => String::from_utf8_lossy(p.unsecure()).to_string(),
-        keepass::db::Value::Bytes(b) => String::from_utf8_lossy(b).to_string(),
-    }
-}
-
 fn read_custom_data_string(entry: &keepass::db::Entry, key: &str) -> Option<String> {
-    entry
-        .custom_data
-        .items
-        .get(key)
-        .and_then(|item| item.value.as_ref())
-        .map(value_to_string)
+    entry.custom_data.get(key).and_then(|item| {
+        item.value.as_ref().map(|cv| match cv {
+            CustomDataValue::String(s) => s.clone(),
+            CustomDataValue::Binary(b) => {
+                // New-style storage (intentional Binary): value is valid UTF-8.
+                if let Ok(s) = String::from_utf8(b.clone()) {
+                    s
+                } else {
+                    // Old-style storage: the value was originally written as a plain string
+                    // but keepass 0.13's XML deserialiser accidentally base64-decoded it
+                    // because the string happened to be valid base64 (e.g. "note", "card",
+                    // "true"). Recovery: base64-encode the binary back to the original string.
+                    use base64::Engine;
+                    base64::engine::general_purpose::STANDARD.encode(b)
+                }
+            }
+        })
+    })
 }
 
 fn read_item_type(entry: &keepass::db::Entry) -> ItemType {
@@ -137,53 +151,20 @@ fn read_favorite(entry: &keepass::db::Entry) -> bool {
     read_custom_data_string(entry, "kagi.favorite").is_some_and(|v| v == "true")
 }
 
-fn find_entry_ref<'a>(db: &'a keepass::Database, id: &str) -> Option<&'a keepass::db::Entry> {
+/// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
+fn find_entry_ref<'a>(db: &'a keepass::Database, id: &str) -> Option<keepass::db::EntryRef<'a>> {
     let uuid = uuid::Uuid::parse_str(id).ok()?;
-    for node in &db.root {
-        if let keepass::db::NodeRef::Entry(e) = node {
-            if e.uuid == uuid {
-                return Some(e);
-            }
-        }
-    }
-    None
+    db.entry(EntryId::from_uuid(uuid))
 }
 
-fn find_entry_mut<'a>(
-    db: &'a mut keepass::Database,
-    id: &str,
-) -> Option<&'a mut keepass::db::Entry> {
-    let uuid = uuid::Uuid::parse_str(id).ok()?;
-    for node in &mut db.root.children {
-        if let keepass::db::Node::Entry(ref mut e) = node {
-            if e.uuid == uuid {
-                return Some(e);
-            }
-        }
-    }
-    None
-}
-
-fn all_entries(db: &keepass::Database) -> Vec<&keepass::db::Entry> {
-    let mut entries = Vec::new();
-    for node in &db.root {
-        if let keepass::db::NodeRef::Entry(e) = node {
-            entries.push(e);
-        }
-    }
-    entries
-}
-
+/// Remove an entry by UUID string.
 fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
     let uuid = uuid::Uuid::parse_str(id).map_err(|_| KagiError::EntryNotFound(id.to_string()))?;
-    let len_before = db.root.children.len();
-    db.root.children.retain(|node| match node {
-        keepass::db::Node::Entry(e) => e.uuid != uuid,
-        _ => true,
-    });
-    if db.root.children.len() == len_before {
-        return Err(KagiError::EntryNotFound(id.to_string()));
-    }
+    let entry_id = EntryId::from_uuid(uuid);
+    let em = db
+        .entry_mut(entry_id)
+        .ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+    em.remove();
     Ok(())
 }
 
@@ -197,17 +178,13 @@ fn save_vault(vault: &OpenVault) -> KagiResult<()> {
     Ok(())
 }
 
-fn set_kdbx_field(entry: &mut KdbxEntry, key: &str, value: Option<&str>) {
+fn set_kdbx_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
     match value {
         Some(v) => {
-            if key == "Password" || key == "card.cvv" || key == "card.pin" {
-                entry
-                    .fields
-                    .insert(key.to_string(), Value::Protected(v.as_bytes().into()));
+            if is_protected_key(key) {
+                entry.set_protected(key, v);
             } else {
-                entry
-                    .fields
-                    .insert(key.to_string(), Value::Unprotected(v.to_string()));
+                entry.set_unprotected(key, v);
             }
         }
         None => {
@@ -216,17 +193,21 @@ fn set_kdbx_field(entry: &mut KdbxEntry, key: &str, value: Option<&str>) {
     }
 }
 
-fn set_custom_data(entry: &mut KdbxEntry, key: &str, value: Option<&str>) {
+fn set_custom_data(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
     match value {
         Some(v) => {
-            let item = keepass::db::CustomDataItem {
-                value: Some(Value::Unprotected(v.to_string())),
+            // Use Binary variant so the library base64-encodes on serialisation.
+            // CustomDataValue::String is unreliable: the library's XML deserialiser
+            // tries base64 decode first, so plain strings like "note", "login",
+            // "true" are accidentally decoded as binary data.
+            let item = CustomDataItem {
+                value: Some(CustomDataValue::Binary(v.as_bytes().to_vec())),
                 last_modification_time: None,
             };
-            entry.custom_data.items.insert(key.to_string(), item);
+            entry.custom_data.insert(key.to_string(), item);
         }
         None => {
-            entry.custom_data.items.remove(key);
+            entry.custom_data.remove(key);
         }
     }
 }
@@ -240,9 +221,10 @@ pub async fn entries_list(state: State<'_, AppState>) -> KagiResult<Vec<EntrySum
 
     let (_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
-    Ok(all_entries(&vault.db)
-        .into_iter()
-        .map(map_entry_to_summary)
+    Ok(vault
+        .db
+        .iter_all_entries()
+        .map(|e| map_entry_to_summary(&e))
         .collect())
 }
 
@@ -255,8 +237,9 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
 
     let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
-    let entry = find_entry_ref(&vault.db, &id).ok_or(KagiError::EntryNotFound(id))?;
-    Ok(map_entry_to_full(entry))
+    let entry_ref =
+        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+    Ok(map_entry_to_full(&entry_ref))
 }
 
 #[tauri::command]
@@ -272,35 +255,46 @@ pub async fn entry_create(
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    let id = uuid::Uuid::new_v4().to_string();
-    let mut entry = KdbxEntry::new();
-    entry.uuid = uuid::Uuid::parse_str(&id).unwrap();
+    let entry_id = EntryId::from_uuid(uuid::Uuid::new_v4());
+    let id = entry_id.uuid().to_string();
 
-    set_kdbx_field(&mut entry, "Title", Some(&draft.title));
-    set_kdbx_field(&mut entry, "UserName", draft.username.as_deref());
-    set_kdbx_field(&mut entry, "Password", draft.password.as_deref());
-    set_kdbx_field(&mut entry, "URL", draft.url.as_deref());
-    set_kdbx_field(&mut entry, "Notes", draft.notes.as_deref());
+    {
+        let mut root = vault.db.root_mut();
+        let mut em = root
+            .add_entry_with_id(entry_id)
+            .map_err(|_| KagiError::Custom("Duplicate entry ID (should not happen)".into()))?;
 
-    if let Some(t) = &draft.totp {
-        write_totp_seed(&mut entry, t);
+        em.set_unprotected(fields::TITLE, &draft.title);
+        if let Some(ref u) = draft.username {
+            em.set_unprotected(fields::USERNAME, u);
+        }
+        if let Some(ref p) = draft.password {
+            em.set_protected(fields::PASSWORD, p);
+        }
+        if let Some(ref u) = draft.url {
+            em.set_unprotected(fields::URL, u);
+        }
+        if let Some(ref n) = draft.notes {
+            em.set_unprotected(fields::NOTES, n);
+        }
+
+        if let Some(ref t) = draft.totp {
+            write_totp_seed(&mut em, t);
+        }
+
+        set_custom_data(&mut em, "kagi.itemType", Some(&item_type));
+        set_custom_data(&mut em, "kagi.favorite", Some("false"));
+
+        let now = chrono::Utc::now().naive_utc();
+        em.times.creation = Some(now);
+        em.times.last_modification = Some(now);
     }
-
-    set_custom_data(&mut entry, "kagi.itemType", Some(&item_type));
-    set_custom_data(&mut entry, "kagi.favorite", Some("false"));
-
-    let now = chrono::Utc::now();
-    let naive = now.naive_utc();
-    entry.times.set_creation(naive);
-    entry.times.set_last_modification(naive);
-
-    vault.db.root.add_child(entry);
 
     save_vault(vault)?;
 
     let item_type_enum = ItemType::from_db_value(&item_type);
     let subtitle = draft.username.clone().unwrap_or_default();
-    let now_rfc = now.to_rfc3339();
+    let now_rfc = chrono::Utc::now().to_rfc3339();
 
     Ok(Entry {
         id,
@@ -338,48 +332,48 @@ pub async fn entry_update(
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    let entry =
-        find_entry_mut(&mut vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+    let entry_id = EntryId::from_uuid(
+        uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+    );
 
-    entry.update_history();
-    apply_patch(entry, &patch);
+    {
+        let mut em = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
 
-    let now = chrono::Utc::now().naive_utc();
-    entry.times.set_last_modification(now);
+        // Use edit_tracking to automatically push the prior state into history
+        em.edit_tracking(|tracked| {
+            apply_patch(&mut *tracked, &patch);
+        });
+        // edit_tracking doesn't touch last_modification (apply_patch goes through
+        // DerefMut → Entry::set_unprotected, not EntryTrack's tracked setters)
+        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+    }
 
     save_vault(vault)?;
 
-    Ok(map_entry_to_full(
-        find_entry_ref(&vault.db, &id).ok_or(KagiError::EntryNotFound(id))?,
-    ))
+    let entry_ref = vault
+        .db
+        .entry(entry_id)
+        .ok_or(KagiError::EntryNotFound(id))?;
+    Ok(map_entry_to_full(&entry_ref))
 }
 
-fn parse_otpauth_params(uri: &str) -> Option<(String, u64, u64)> {
-    // Extract secret, period, digits from otpauth:// URI
-    let params: Vec<&str> = uri.split('?').collect();
-    let query = params.get(1)?;
-    let mut secret = None;
-    let mut period = None;
-    let mut digits = None;
-    for part in query.split('&') {
-        let kv: Vec<&str> = part.splitn(2, '=').collect();
-        if kv.len() != 2 {
-            continue;
-        }
-        match kv[0] {
-            "secret" => secret = Some(kv[1].to_string()),
-            "period" => period = Some(kv[1]),
-            "digits" => digits = Some(kv[1]),
-            _ => {}
+/// Read the TOTP seed from an entry.
+///
+/// Tries the KeePassXC standard `otp` field first (an `otpauth://` URI),
+/// then falls back to the legacy `TOTP Seed` + `TOTP Settings` fields.
+fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
+    // 1. Try the modern `otp` field (full otpauth:// URI — KeePassXC convention)
+    if let Some(otp_uri) = entry.get_raw_otp_value() {
+        // Validate that it parses as a valid TOTP URI
+        if otp_uri.parse::<keepass::db::TOTP>().is_ok() {
+            return Some(otp_uri.to_string());
         }
     }
-    let secret = secret?;
-    let period = period.and_then(|s| s.parse::<u64>().ok()).unwrap_or(30);
-    let digits = digits.and_then(|s| s.parse::<u64>().ok()).unwrap_or(6);
-    Some((secret, period, digits))
-}
 
-fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
+    // 2. Fall back to legacy TOTP Seed + Settings fields
     let seed = entry.get("TOTP Seed")?;
     let settings = entry.get("TOTP Settings").unwrap_or("30;6");
     let mut parts = settings.split(';');
@@ -397,22 +391,16 @@ fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
     ))
 }
 
-fn write_totp_seed(entry: &mut KdbxEntry, uri: &str) {
-    if let Some((secret, period, digits)) = parse_otpauth_params(uri) {
-        entry.fields.insert(
-            "TOTP Seed".to_string(),
-            Value::Protected(secret.into_bytes().into()),
-        );
-        entry.fields.insert(
-            "TOTP Settings".to_string(),
-            Value::Unprotected(format!("{};{}", period, digits)),
-        );
-    }
+/// Write the TOTP seed to an entry (KeePassXC-compatible `otp` field).
+fn write_totp_seed(entry: &mut keepass::db::Entry, uri: &str) {
+    entry
+        .fields
+        .insert(fields::OTP.to_string(), Value::unprotected(uri.to_string()));
 }
 
 /// Apply an optional string field: `Some("")` clears the field (removes from KDBX),
 /// `Some("value")` sets it, `None` leaves it unchanged.
-fn apply_opt(entry: &mut KdbxEntry, key: &str, value: &Option<String>) {
+fn apply_opt(entry: &mut keepass::db::Entry, key: &str, value: &Option<String>) {
     match value {
         Some(v) if v.is_empty() => set_kdbx_field(entry, key, None),
         Some(v) => set_kdbx_field(entry, key, Some(v)),
@@ -420,15 +408,16 @@ fn apply_opt(entry: &mut KdbxEntry, key: &str, value: &Option<String>) {
     }
 }
 
-fn apply_patch(entry: &mut KdbxEntry, patch: &EntryPatch) {
-    apply_opt(entry, "Title", &patch.title);
-    apply_opt(entry, "UserName", &patch.username);
-    apply_opt(entry, "Password", &patch.password);
-    apply_opt(entry, "URL", &patch.url);
-    apply_opt(entry, "Notes", &patch.notes);
+fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
+    apply_opt(entry, fields::TITLE, &patch.title);
+    apply_opt(entry, fields::USERNAME, &patch.username);
+    apply_opt(entry, fields::PASSWORD, &patch.password);
+    apply_opt(entry, fields::URL, &patch.url);
+    apply_opt(entry, fields::NOTES, &patch.notes);
 
     if let Some(ref v) = patch.totp {
         if v.is_empty() {
+            entry.fields.remove(fields::OTP);
             entry.fields.remove("TOTP Seed");
             entry.fields.remove("TOTP Settings");
         } else {
