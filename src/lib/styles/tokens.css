@@ -35,8 +35,8 @@
   --radius-card: 12px;
 
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Layout — wireframe-derived */
   --sidebar-width: 168px;
