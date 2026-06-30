@@ -230,11 +230,11 @@
 
     {#if editing}
       <div class="edit-title">
-        <!-- svelte-ignore a11y_autofocus -->
         <input
           class="edit-input edit-title-input"
           type="text"
           placeholder="Title"
+          autofocus
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
