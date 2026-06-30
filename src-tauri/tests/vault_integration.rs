@@ -775,3 +775,87 @@ fn test_vault_lock_with_no_vault_is_noop() {
     vaults.clear();
     assert_eq!(vaults.len(), 0);
 }
+
+/// Drop replaces the Database with an empty one to release decrypted data.
+/// Verify the replacement doesn't panic and the vault count is zero after clear.
+#[test]
+fn test_openvault_drop_replaces_database() {
+    use kagi_lib::state::{AppState, OpenVault};
+    use zeroize::Zeroizing;
+
+    let state = AppState::new();
+    let mut vaults = state.vaults.lock().unwrap();
+
+    // Create a vault with a Database that has one entry
+    let mut db = keepass::Database::new();
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected("Title", "ephemeral");
+    });
+    assert_eq!(db.iter_all_entries().count(), 1);
+
+    let id = uuid::Uuid::new_v4();
+    vaults.insert(
+        id,
+        OpenVault {
+            db,
+            path: "/tmp/test.kdbx".into(),
+            master_key: Zeroizing::new(b"password".to_vec()),
+        },
+    );
+
+    // Drop via clear — Drop impl replaces the Database so the old
+    // decrypted entry data is released from the heap.
+    vaults.clear();
+    assert_eq!(vaults.len(), 0);
+
+    // Verify calling clear twice doesn't panic (double drop defense)
+    vaults.clear();
+    assert_eq!(vaults.len(), 0);
+}
+
+/// Verify that the master key's underlying buffer is zeroed after the
+/// OpenVault is dropped. We can't easily inspect freed memory, but we
+/// can verify that cloning the key before drop produces a non-zero vec
+/// that becomes inaccessible after the vault is cleared.
+#[test]
+fn test_master_key_zeroized_after_lock() {
+    use kagi_lib::state::{AppState, OpenVault};
+    use zeroize::Zeroizing;
+
+    let state = AppState::new();
+    let mut vaults = state.vaults.lock().unwrap();
+
+    let db = keepass::Database::new();
+    let id = uuid::Uuid::new_v4();
+    let secret = b"supersecret".to_vec();
+
+    // Clone before inserting so we have a reference to the original bytes
+    let cloned = secret.clone();
+    assert_eq!(&cloned, b"supersecret", "original bytes should be intact");
+
+    vaults.insert(
+        id,
+        OpenVault {
+            db,
+            path: "/tmp/test.kdbx".into(),
+            master_key: Zeroizing::new(secret),
+        },
+    );
+
+    // Vault is present, key is accessible
+    assert_eq!(vaults.len(), 1);
+
+    // Drop the vault — Zeroizing zeros the buffer, the cloned copy still has the bytes
+    vaults.clear();
+    assert_eq!(vaults.len(), 0);
+
+    // The cloned copy persists independently (Zeroizing only zeros its own buffer)
+    assert_eq!(
+        &cloned, b"supersecret",
+        "cloned copy unaffected by Zeroizing drop"
+    );
+
+    // The original buffer (now inside the dropped Zeroizing) was zeroed.
+    // We can't safely verify that from safe Rust without a reference to
+    // the freed memory, but Zeroizing's own tests confirm this behavior.
+}

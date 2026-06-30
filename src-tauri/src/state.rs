@@ -16,9 +16,13 @@ pub struct OpenVault {
 // Zeroize sensitive key material when the vault is dropped (lock, close, …)
 impl Drop for OpenVault {
     fn drop(&mut self) {
-        // Zeroizing<Vec<u8>> zeros itself on drop via its own Drop impl.
-        // The Database (which holds decrypted entries in heap memory) is dropped
-        // automatically; heap contents aren't explicitly scrubbed here.
+        // Zeroizing<Vec<u8>> zeros the master key buffer via its own Drop impl.
+        // Replace the Database with an empty one so decrypted entry data is
+        // released from the heap. Note: the allocator may not immediately
+        // overwrite the freed pages — a proper scrub would require the keepass
+        // crate to implement Zeroize internally.
+        self.db = keepass::Database::new();
+        // Path is not sensitive; no need to scrub.
     }
 }
 
