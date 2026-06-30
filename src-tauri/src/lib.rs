@@ -71,11 +71,12 @@ pub fn run() {
             commands::entries::entry_get,
             commands::entries::entry_create,
             commands::entries::entry_update,
+            commands::entries::entry_delete,
             commands::clipboard::clipboard_copy,
             commands::clipboard::clipboard_copy_with_timeout,
             commands::clipboard::clipboard_clear,
             commands::generator::generate_password,
-            commands::entries::entry_delete,
+            commands::totp::totp_compute,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

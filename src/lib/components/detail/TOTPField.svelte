@@ -1,15 +1,14 @@
 <script lang="ts">
-  import { parseOtpauthUri, computeTotp, totpRemainingSeconds } from "$lib/utils/otp";
+  import * as totpBridge from "$lib/bridge/totp";
   import { clipboard } from "$lib/stores/clipboard.svelte";
 
   let { totpUri }: { totpUri: string } = $props();
 
-  let params = $derived(parseOtpauthUri(totpUri));
   let code = $state("------");
+  let period = $state(30);
   let remaining = $state(30);
   let flash = $state(false);
 
-  let period = $derived(params?.period ?? 30);
   let circumference = $derived(2 * Math.PI * 8); // r=8 → ~50.27
   let dashoffset = $derived(circumference - (remaining / period) * circumference);
 
@@ -23,13 +22,15 @@
       setTimeout(() => (flash = false), 200);
       computeCode();
     }
-    remaining = totpRemainingSeconds(period);
+    remaining = period - (Math.floor(Date.now() / 1000) % period);
   }
 
   async function computeCode() {
-    if (!params) return;
     try {
-      code = await computeTotp(params);
+      const result = await totpBridge.totpCompute(totpUri);
+      code = result.code;
+      remaining = result.remaining;
+      period = result.period;
     } catch {
       code = "------";
     }
@@ -39,9 +40,8 @@
   let interval: ReturnType<typeof setInterval>;
 
   $effect(() => {
-    if (!params) return;
     computeCode();
-    remaining = totpRemainingSeconds(period);
+    remaining = period - (Math.floor(Date.now() / 1000) % period);
     prevCounter = Math.floor(Date.now() / 1000 / period);
     interval = setInterval(tick, 250);
     return () => clearInterval(interval);
