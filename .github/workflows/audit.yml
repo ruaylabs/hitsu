@@ -1,0 +1,24 @@
+---
+name: Audit
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - name: Audit (cargo audit)
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+        working-directory: src-tauri
+
