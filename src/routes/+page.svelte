@@ -3,8 +3,10 @@
   import { listen } from "@tauri-apps/api/event";
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { selection } from "$lib/stores/selection.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
+  import type { SidebarFilter } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
@@ -13,10 +15,30 @@
   import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
   import PasswordDialog from "$lib/components/ui/PasswordDialog.svelte";
+  import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
+
+  let showCommandPalette = $state(false);
+
+  async function onCreateEntry(type: string) {
+    showCommandPalette = false;
+    try {
+      const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
+      vault.setEntries([...vault.entries, entry]);
+      selection.filter = type as SidebarFilter;
+      selection.selectedId = entry.id;
+      vault.setEditingId(entry.id);
+    } catch (e) {
+      console.error("Failed to create entry", e);
+    }
+  }
 
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
+      if (showCommandPalette) {
+        showCommandPalette = false;
+        return;
+      }
       if (app.view === "settings") {
         app.view = "main";
         return;
@@ -28,8 +50,7 @@
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "n") {
       e.preventDefault();
-      // Trigger add — find the add button in status bar
-      document.querySelector('[aria-label="Add entry"]')?.dispatchEvent(new MouseEvent("click"));
+      showCommandPalette = true;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
       e.preventDefault();
@@ -159,6 +180,10 @@
     </div>
     <StatusBar />
   </div>
+{/if}
+
+{#if showCommandPalette}
+  <CommandPalette onSelect={onCreateEntry} onClose={() => (showCommandPalette = false)} />
 {/if}
 
 <style>
