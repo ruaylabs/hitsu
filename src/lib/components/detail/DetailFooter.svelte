@@ -2,12 +2,20 @@
   import { timeAgo } from "$lib/utils/format";
   import Icon from "../ui/Icon.svelte";
 
-  let { modifiedAt, historyCount }: { modifiedAt: string; historyCount: number } = $props();
+  let {
+    modifiedAt,
+    historyCount,
+    onclick,
+  }: {
+    modifiedAt: string;
+    historyCount: number;
+    onclick?: () => void;
+  } = $props();
 </script>
 
 <div class="detail-footer">
   <span>Modified {timeAgo(modifiedAt)}</span>
-  <button class="history-btn" aria-label="View history">
+  <button class="history-btn" aria-label="View history" {onclick}>
     <Icon name="history" size={12} />
     <span>{historyCount} revisions</span>
   </button>

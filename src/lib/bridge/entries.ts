@@ -90,6 +90,20 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
   });
 }
 
+export interface HistoryEntrySummary {
+  version: number;
+  modifiedAt: string;
+  title: string;
+}
+
+export async function entryHistoryList(id: string): Promise<HistoryEntrySummary[]> {
+  return invoke<HistoryEntrySummary[]>("entry_history_list", { id });
+}
+
+export async function entryHistoryGet(id: string, version: number): Promise<Entry> {
+  return invoke<Entry>("entry_history_get", { id, version });
+}
+
 export async function entryDelete(id: string): Promise<void> {
   return invoke<void>("entry_delete", { id });
 }

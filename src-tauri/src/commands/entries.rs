@@ -3,7 +3,8 @@ use tauri::State;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
-    CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, IdentityFields, ItemType,
+    CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, HistoryEntrySummary, IdentityFields,
+    ItemType,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -460,4 +461,77 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
     remove_entry(&mut vault.db, &id)?;
     save_vault(vault)?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn entry_history_list(
+    state: State<'_, AppState>,
+    id: String,
+) -> KagiResult<Vec<HistoryEntrySummary>> {
+    let vaults = state
+        .vaults
+        .lock()
+        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+
+    let entry_ref =
+        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+
+    let history = entry_ref
+        .history
+        .as_ref()
+        .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    Ok(history
+        .get_entries()
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let title = e.get_title().unwrap_or("").to_string();
+            let modified_at = e
+                .times
+                .last_modification
+                .map(|d: chrono::NaiveDateTime| d.and_utc().to_rfc3339())
+                .unwrap_or_else(|| now.clone());
+            HistoryEntrySummary {
+                version: i as u32,
+                modified_at,
+                title,
+            }
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn entry_history_get(
+    state: State<'_, AppState>,
+    id: String,
+    version: u32,
+) -> KagiResult<Entry> {
+    let vaults = state
+        .vaults
+        .lock()
+        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+
+    let entry_ref =
+        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+
+    let history = entry_ref
+        .history
+        .as_ref()
+        .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+
+    let history_entry = history
+        .get_entries()
+        .get(version as usize)
+        .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", version)))?;
+
+    let mut result = map_entry_to_full(history_entry);
+    result.id = id;
+    Ok(result)
 }

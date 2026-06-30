@@ -11,6 +11,7 @@
   import NotesField from "./NotesField.svelte";
   import AttachmentList from "./AttachmentList.svelte";
   import DetailFooter from "./DetailFooter.svelte";
+  import HistoryDialog from "./HistoryDialog.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
   import Icon from "../ui/Icon.svelte";
   import TagInput from "../ui/TagInput.svelte";
@@ -19,6 +20,7 @@
   let entry = $derived(selection.selectedId ? vault.getEntry(selection.selectedId) : undefined);
 
   let editing = $state(false);
+  let showHistory = $state(false);
   let showGenerator = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
@@ -605,11 +607,19 @@
 
     {#if !editing}
       <AttachmentList attachments={entry.attachments} />
-      <DetailFooter modifiedAt={entry.modifiedAt} historyCount={entry.historyCount} />
+      <DetailFooter
+        modifiedAt={entry.modifiedAt}
+        historyCount={entry.historyCount}
+        onclick={() => (showHistory = true)}
+      />
     {/if}
   </div>
 {:else}
   <EmptyDetail />
+{/if}
+
+{#if showHistory && entry}
+  <HistoryDialog entryId={entry.id} onclose={() => (showHistory = false)} />
 {/if}
 
 <style>

@@ -72,6 +72,14 @@ pub struct Entry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct HistoryEntrySummary {
+    pub version: u32,
+    pub modified_at: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EntrySummary {
     pub id: String,
     #[serde(rename = "type")]

@@ -72,6 +72,8 @@ pub fn run() {
             commands::entries::entry_create,
             commands::entries::entry_update,
             commands::entries::entry_delete,
+            commands::entries::entry_history_list,
+            commands::entries::entry_history_get,
             commands::clipboard::clipboard_copy,
             commands::clipboard::clipboard_copy_with_timeout,
             commands::clipboard::clipboard_clear,
