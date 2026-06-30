@@ -57,6 +57,7 @@ jobs:
             src-tauri/target
             ~/.cargo/registry/cache
             ~/.cargo/git
+            ~/.cargo/bin/cargo-audit
           key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -75,5 +76,11 @@ jobs:
 
       - name: Test
         run: cargo test
+        working-directory: src-tauri
+
+      - name: Audit (cargo audit)
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
         working-directory: src-tauri
 
