@@ -3,6 +3,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import type { SidebarFilter } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
 
@@ -12,6 +13,8 @@
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
       vault.setEntries([...vault.entries, entry]);
+      // Switch filter so the new entry is visible and gets focused
+      selection.filter = type as SidebarFilter;
       selection.selectedId = entry.id;
       vault.setEditingId(entry.id);
     } catch (e) {
