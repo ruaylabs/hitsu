@@ -463,6 +463,202 @@ fn test_create_vault_file_exists() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+// ── Round-trip lossless test ──────────────────────────────────────────────
+
+#[test]
+fn test_round_trip_lossless() {
+    // Simulates the full KeePassXC round-trip: create a database with all
+    // supported features → save to disk → reopen → modify → save → reopen
+    // → verify nothing was lost.
+    use std::fs;
+    use std::io::{Cursor, Read};
+
+    let dir = std::env::temp_dir().join("kagi-roundtrip-test");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let vault_path = dir.join("roundtrip.kdbx");
+
+    // 1. Create a database with entries of all types
+    let mut db = Database::new();
+    db.meta.database_name = Some("Kagi round-trip test".into());
+
+    // Login entry
+    let login_id = db
+        .root_mut()
+        .add_entry_with_id(EntryId::from_uuid(uuid::uuid!(
+            "11111111-1111-1111-1111-111111111111"
+        )))
+        .unwrap()
+        .edit(|e| {
+            e.set_unprotected(fields::TITLE, "GitHub");
+            e.set_unprotected(fields::USERNAME, "user");
+            e.set_protected(fields::PASSWORD, "ghp_secret");
+            e.set_unprotected(fields::URL, "https://github.com");
+            e.set_unprotected(fields::NOTES, "personal account");
+            e.tags = vec!["work".into(), "dev".into()];
+            e.custom_data.insert(
+                "kagi.itemType".into(),
+                CustomDataItem {
+                    value: Some(CustomDataValue::Binary("login".as_bytes().to_vec())),
+                    last_modification_time: None,
+                },
+            );
+            e.custom_data.insert(
+                "kagi.favorite".into(),
+                CustomDataItem {
+                    value: Some(CustomDataValue::Binary("true".as_bytes().to_vec())),
+                    last_modification_time: None,
+                },
+            );
+        })
+        .id();
+
+    // Note entry
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "Shopping List");
+        e.set_unprotected(fields::NOTES, "Milk\nEggs\nBread");
+        e.custom_data.insert(
+            "kagi.itemType".into(),
+            CustomDataItem {
+                value: Some(CustomDataValue::Binary("note".as_bytes().to_vec())),
+                last_modification_time: None,
+            },
+        );
+    });
+
+    // Identity entry
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "My Identity");
+        e.set_unprotected("identity.firstName", "Alice");
+        e.set_unprotected("identity.lastName", "Smith");
+        e.set_unprotected("identity.email", "alice@example.com");
+        e.custom_data.insert(
+            "kagi.itemType".into(),
+            CustomDataItem {
+                value: Some(CustomDataValue::Binary("identity".as_bytes().to_vec())),
+                last_modification_time: None,
+            },
+        );
+    });
+
+    // Card entry with TOTP
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "Visa Platinum");
+        e.set_unprotected("card.holder", "Bob");
+        e.set_protected("card.number", "4111111111111111");
+        e.set_protected("card.cvv", "123");
+        e.fields.insert(
+            fields::OTP.to_string(),
+            Value::unprotected("otpauth://totp/Bob?secret=JBSWY3DPEHPK3PXP&period=30&digits=6"),
+        );
+        e.custom_data.insert(
+            "kagi.itemType".into(),
+            CustomDataItem {
+                value: Some(CustomDataValue::Binary("card".as_bytes().to_vec())),
+                last_modification_time: None,
+            },
+        );
+    });
+
+    // 2. Save to disk
+    {
+        let mut file = fs::File::create(&vault_path).unwrap();
+        db.save(&mut file, DatabaseKey::new().with_password("correct-horse"))
+            .unwrap();
+    }
+    assert!(vault_path.exists());
+
+    // 3. Reopen and verify all data
+    {
+        let mut file = fs::File::open(&vault_path).unwrap();
+        let mut content = Vec::new();
+        file.read_to_end(&mut content).unwrap();
+        let mut cursor = Cursor::new(content);
+        let db = Database::open(
+            &mut cursor,
+            DatabaseKey::new().with_password("correct-horse"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            db.meta.database_name.as_deref(),
+            Some("Kagi round-trip test")
+        );
+        assert_eq!(db.iter_all_entries().count(), 4);
+
+        // Check login entry
+        let login = db.entry(login_id).unwrap();
+        assert_eq!(login.get_title(), Some("GitHub"));
+        assert_eq!(login.get_username(), Some("user"));
+        assert_eq!(login.get_password(), Some("ghp_secret"));
+        assert_eq!(login.get_url(), Some("https://github.com"));
+        assert_eq!(login.get(fields::NOTES), Some("personal account"));
+        assert_eq!(login.tags, vec!["work", "dev"]);
+    }
+
+    // 4. Modify an entry and save again
+    {
+        let mut file = fs::File::open(&vault_path).unwrap();
+        let mut content = Vec::new();
+        file.read_to_end(&mut content).unwrap();
+        let mut cursor = Cursor::new(content);
+        let mut db = Database::open(
+            &mut cursor,
+            DatabaseKey::new().with_password("correct-horse"),
+        )
+        .unwrap();
+
+        let mut em = db.entry_mut(login_id).unwrap();
+        em.edit_tracking(|e| {
+            e.set_unprotected(fields::PASSWORD, "new_secret");
+        });
+        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        drop(em);
+
+        let mut file = fs::File::create(&vault_path).unwrap();
+        db.save(&mut file, DatabaseKey::new().with_password("correct-horse"))
+            .unwrap();
+    }
+
+    // 5. Reopen and verify edit survived + history exists
+    {
+        let mut file = fs::File::open(&vault_path).unwrap();
+        let mut content = Vec::new();
+        file.read_to_end(&mut content).unwrap();
+        let mut cursor = Cursor::new(content);
+        let db = Database::open(
+            &mut cursor,
+            DatabaseKey::new().with_password("correct-horse"),
+        )
+        .unwrap();
+
+        assert_eq!(db.iter_all_entries().count(), 4);
+
+        let login = db.entry(login_id).unwrap();
+        assert_eq!(
+            login.get_password(),
+            Some("new_secret"),
+            "password should be updated"
+        );
+        assert_eq!(
+            login.history.as_ref().map(|h| h.get_entries().len()),
+            Some(1),
+            "history should have 1 entry"
+        );
+
+        // Verify other entries untouched
+        let titles: Vec<String> = db
+            .iter_all_entries()
+            .filter_map(|e| e.get_title().map(str::to_string))
+            .collect();
+        assert!(titles.contains(&"Shopping List".to_string()));
+        assert!(titles.contains(&"My Identity".to_string()));
+        assert!(titles.contains(&"Visa Platinum".to_string()));
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
 // ── Preferences / security settings tests ────────────────────────────────────
 
 #[test]
