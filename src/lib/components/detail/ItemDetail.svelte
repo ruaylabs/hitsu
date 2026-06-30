@@ -616,6 +616,7 @@
   .detail-pane {
     padding: 22px 24px;
     min-width: 0;
+    min-height: 0;
     overflow-y: auto;
     background: var(--surface-2);
   }
