@@ -1,5 +1,9 @@
 <script lang="ts">
+  import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import type { SidebarFilter } from "$lib/bridge/types";
+  import * as entriesBridge from "$lib/bridge/entries";
+  import { toSummary } from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
 
   let search = $state(selection.search);
@@ -16,6 +20,29 @@
       selection.search = "";
     }
   }
+
+  async function createEntry(type: string) {
+    try {
+      const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
+      vault.setEntries([...vault.entries, toSummary(entry)]);
+      selection.filter = type as SidebarFilter;
+      selection.selectedId = entry.id;
+      vault.setEditingId(entry.id);
+    } catch (e) {
+      console.error("Failed to create entry", e);
+    }
+  }
+
+  let showTypePicker = $state(false);
+
+  $effect(() => {
+    if (!showTypePicker) return;
+    const close = () => {
+      showTypePicker = false;
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  });
 </script>
 
 <div class="search-wrapper">
@@ -42,6 +69,52 @@
         <Icon name="x" size={12} />
       </button>
     {/if}
+    <div class="search-divider"></div>
+    <div class="search-actions">
+      {#if showTypePicker}
+        <div class="type-picker" role="menu">
+          <button
+            class="type-item"
+            onclick={() => { showTypePicker = false; createEntry("login"); }}
+            role="menuitem"
+          >
+            <Icon name="key" size={12} />
+            Login
+          </button>
+          <button
+            class="type-item"
+            onclick={() => { showTypePicker = false; createEntry("note"); }}
+            role="menuitem"
+          >
+            <Icon name="notes" size={12} />
+            Note
+          </button>
+          <button
+            class="type-item"
+            onclick={() => { showTypePicker = false; createEntry("identity"); }}
+            role="menuitem"
+          >
+            <Icon name="user" size={12} />
+            Identity
+          </button>
+          <button
+            class="type-item"
+            onclick={() => { showTypePicker = false; createEntry("card"); }}
+            role="menuitem"
+          >
+            <Icon name="credit-card" size={12} />
+            Card
+          </button>
+        </div>
+      {/if}
+      <button
+        class="add-btn"
+        onclick={(e) => { e.stopPropagation(); showTypePicker = !showTypePicker; }}
+        aria-label="Add entry"
+      >
+        <Icon name="plus" size={14} />
+      </button>
+    </div>
   </div>
 </div>
 
@@ -59,6 +132,7 @@
     padding: 7px 10px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
+    isolation: isolate;
   }
 
   .search-input {
@@ -76,13 +150,74 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     border-radius: 3px;
     color: var(--text-muted);
+    flex-shrink: 0;
   }
 
   .search-clear:hover {
     background: var(--border);
+  }
+
+  .search-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .search-actions {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .add-btn:hover {
+    background: var(--border);
+    color: var(--text-secondary);
+  }
+
+  .type-picker {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--surface-2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    z-index: 100;
+  }
+
+  .type-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-primary);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .type-item:hover {
+    background: var(--bg-accent);
   }
 </style>
