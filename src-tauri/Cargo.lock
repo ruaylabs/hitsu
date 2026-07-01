@@ -2130,6 +2130,7 @@ dependencies = [
  "chrono",
  "keepass",
  "rand",
+ "rust-argon2",
  "serde",
  "serde_json",
  "subtle",

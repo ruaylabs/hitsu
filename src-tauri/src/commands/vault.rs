@@ -1,3 +1,4 @@
+use keepass::config::KdfConfig;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use subtle::ConstantTimeEq;
@@ -29,6 +30,125 @@ fn count_entries(db: &keepass::Database) -> usize {
     db.iter_all_entries().count()
 }
 
+fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
+    match kdf {
+        KdfConfig::Argon2 {
+            memory,
+            iterations,
+            parallelism,
+            ..
+        }
+        | KdfConfig::Argon2id {
+            memory,
+            iterations,
+            parallelism,
+            ..
+        } => {
+            if *memory < 64 * 1024 * 1024 {
+                return Err(KagiError::Custom("KDF memory menor a 64 MiB".to_string()));
+            }
+            if *iterations < 2 {
+                return Err(KagiError::Custom("KDF iterations menor a 2".to_string()));
+            }
+            if *parallelism < 1 {
+                return Err(KagiError::Custom("KDF parallelism inválido".to_string()));
+            }
+            Ok(())
+        }
+        KdfConfig::Aes { .. } => Err(KagiError::Custom(
+            "AES-KDF no aceptado, usar Argon2id".to_string(),
+        )),
+        _ => Err(KagiError::Custom("KDF no soportado".to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_kdf_rejects_aes() {
+        let kdf = KdfConfig::Aes { rounds: 6000 };
+        let result = validate_kdf(&kdf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("AES-KDF"));
+    }
+
+    #[test]
+    fn test_validate_kdf_rejects_argon2_low_memory() {
+        let kdf = KdfConfig::Argon2 {
+            memory: 1024 * 1024,
+            iterations: 50,
+            parallelism: 4,
+            version: argon2::Version::Version13,
+        };
+        let result = validate_kdf(&kdf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("64 MiB"));
+    }
+
+    #[test]
+    fn test_validate_kdf_rejects_argon2id_low_memory() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 1024 * 1024,
+            iterations: 50,
+            parallelism: 4,
+            version: argon2::Version::Version13,
+        };
+        let result = validate_kdf(&kdf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("64 MiB"));
+    }
+
+    #[test]
+    fn test_validate_kdf_rejects_low_iterations() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 64 * 1024 * 1024,
+            iterations: 1,
+            parallelism: 4,
+            version: argon2::Version::Version13,
+        };
+        let result = validate_kdf(&kdf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("iterations"));
+    }
+
+    #[test]
+    fn test_validate_kdf_rejects_low_parallelism() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 64 * 1024 * 1024,
+            iterations: 2,
+            parallelism: 0,
+            version: argon2::Version::Version13,
+        };
+        let result = validate_kdf(&kdf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("parallelism"));
+    }
+
+    #[test]
+    fn test_validate_kdf_accepts_argon2id_valid() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 64 * 1024 * 1024,
+            iterations: 2,
+            parallelism: 1,
+            version: argon2::Version::Version13,
+        };
+        assert!(validate_kdf(&kdf).is_ok());
+    }
+
+    #[test]
+    fn test_validate_kdf_accepts_argon2_valid() {
+        let kdf = KdfConfig::Argon2 {
+            memory: 64 * 1024 * 1024,
+            iterations: 2,
+            parallelism: 1,
+            version: argon2::Version::Version13,
+        };
+        assert!(validate_kdf(&kdf).is_ok());
+    }
+}
+
 #[tauri::command]
 pub async fn vault_open(
     state: State<'_, AppState>,
@@ -49,6 +169,8 @@ pub async fn vault_open(
     let key = keepass::DatabaseKey::new().with_password(&password);
     let mut db =
         keepass::Database::open(&mut file, key).map_err(|e| KagiError::Vault(e.to_string()))?;
+
+    validate_kdf(&db.config.kdf_config)?;
 
     // keepass 0.13 only supports saving KDBX4 — upgrade if needed
     ensure_kdbx4(&mut db);
