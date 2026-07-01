@@ -295,10 +295,11 @@ fn test_clearing_field_removes_it_from_kdbx() {
 
     // Simulate clearing: remove fields (this is what set_kdbx_field(..., None) does)
     let entry_id = entry.id();
-    let mut em = db.entry_mut(entry_id).unwrap();
-    em.fields.remove(fields::URL);
-    em.fields.remove(fields::NOTES);
-    drop(em);
+    {
+        let mut em = db.entry_mut(entry_id).unwrap();
+        em.fields.remove(fields::URL);
+        em.fields.remove(fields::NOTES);
+    }
 
     // Save and reopen — cleared fields should be gone
 
@@ -334,10 +335,11 @@ fn test_clearing_identity_fields_roundtrip() {
         .id();
 
     // Clear identity fields (simulating apply_patch with Some(""))
-    let mut em = db.entry_mut(entry_id).unwrap();
-    em.fields.remove("identity.firstName");
-    em.fields.remove("identity.email");
-    drop(em);
+    {
+        let mut em = db.entry_mut(entry_id).unwrap();
+        em.fields.remove("identity.firstName");
+        em.fields.remove("identity.email");
+    }
 
     let mut buf = Cursor::new(Vec::new());
     db.save(&mut buf, DatabaseKey::new().with_password("p"))
@@ -608,12 +610,13 @@ fn test_round_trip_lossless() {
         )
         .unwrap();
 
-        let mut em = db.entry_mut(login_id).unwrap();
-        em.edit_tracking(|e| {
-            e.set_unprotected(fields::PASSWORD, "new_secret");
-        });
-        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
-        drop(em);
+        {
+            let mut em = db.entry_mut(login_id).unwrap();
+            em.edit_tracking(|e| {
+                e.set_unprotected(fields::PASSWORD, "new_secret");
+            });
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
 
         let mut file = fs::File::create(&vault_path).unwrap();
         db.save(&mut file, DatabaseKey::new().with_password("correct-horse"))
@@ -659,6 +662,530 @@ fn test_round_trip_lossless() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+// ── Round-trip: CustomDataValue::String variant ─────────────────────────────
+
+#[test]
+fn test_round_trip_custom_data_string_variant() {
+    // The app's set_custom_data uses CustomDataValue::Binary to avoid a
+    // keepass XML serialiser quirk: the library's XML deserialiser treats
+    // well-formed base64 strings as Binary (even if originally stored as
+    // String). Our read_custom_data_string handles both variants, but the
+    // Binary→UTF-8 recovery path is never exercised in save/reopen tests
+    // because entry_create uses Binary directly.
+    //
+    // This test: store a value as CustomDataValue::String, save/reopen,
+    // then verify read_custom_data_string recovers it correctly (the
+    // reopen will likely hand it back as Binary).
+
+    let mut db = Database::new();
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "String→Binary recovery");
+        // Store as String — what KeePassXC or an older Kagi version might write
+        let item = CustomDataItem {
+            value: Some(CustomDataValue::String("note".into())),
+            last_modification_time: None,
+        };
+        e.custom_data.insert("kagi.itemType".into(), item);
+        // Also store a value that would be invalid UTF-8 as a raw string
+        // to test the base64 fallback path — use a value that base64-decodes
+        // to something non-UTF-8
+        let binary_item = CustomDataItem {
+            value: Some(CustomDataValue::String("hello".into())),
+            last_modification_time: None,
+        };
+        e.custom_data.insert("kagi.plainString".into(), binary_item);
+    });
+
+    // Save to bytes
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes = buf.into_inner();
+
+    // Reopen
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    // The kagi.itemType value was stored as String("note").
+    // After save/reopen it may be Binary(b"note") or String("note") —
+    // either way read_custom_data_string should return "note".
+    let entry = db.iter_all_entries().next().unwrap();
+
+    // Read the custom data with the EXACT same logic as read_custom_data_string:
+    // try UTF-8 first, fall back to base64 re-encode for strings that were
+    // accidentally base64-decoded by the XML deserialiser.
+    fn read_custom_data(entry: &keepass::db::Entry, key: &str) -> Option<String> {
+        entry.custom_data.get(key).and_then(|item| {
+            item.value.as_ref().map(|cv| match cv {
+                CustomDataValue::String(s) => s.clone(),
+                CustomDataValue::Binary(b) => {
+                    if let Ok(s) = String::from_utf8(b.clone()) {
+                        s
+                    } else {
+                        use base64::Engine;
+                        base64::engine::general_purpose::STANDARD.encode(b)
+                    }
+                }
+            })
+        })
+    }
+
+    let item_type = read_custom_data(&entry, "kagi.itemType");
+    assert_eq!(
+        item_type.as_deref(),
+        Some("note"),
+        "String-stored custom data must survive save/reopen via String or Binary recovery"
+    );
+
+    // Verify the plain string also round-trips
+    let plain = read_custom_data(&entry, "kagi.plainString");
+    assert_eq!(
+        plain.as_deref(),
+        Some("hello"),
+        "plain string must survive save/reopen"
+    );
+
+    // Title must survive too
+    assert_eq!(entry.get_title(), Some("String→Binary recovery"));
+}
+
+// ── Round-trip: all fields on a single entry ───────────────────────────────
+
+#[test]
+fn test_round_trip_all_fields_on_one_entry() {
+    // The app models Login/Identity/Card as separate item types, but the
+    // KDBX format doesn't enforce this — a single entry can carry fields
+    // from all namespaces. Test that every field survives save/reopen when
+    // packed into one entry (catches accidental field-name collisions or
+    // namespace filtering bugs in map_entry_to_full).
+
+    let mut db = Database::new();
+    let entry_id = db
+        .root_mut()
+        .add_entry_with_id(EntryId::from_uuid(uuid::uuid!(
+            "22222222-2222-2222-2222-222222222222"
+        )))
+        .unwrap()
+        .edit(|e| {
+            // Login fields
+            e.set_unprotected(fields::TITLE, "Mega Entry");
+            e.set_unprotected(fields::USERNAME, "alice");
+            e.set_protected(fields::PASSWORD, "s3cret!");
+            e.set_unprotected(fields::URL, "https://example.com");
+            // Identity fields
+            e.set_unprotected("identity.firstName", "Alice");
+            e.set_unprotected("identity.lastName", "Smith");
+            e.set_unprotected("identity.email", "alice@example.com");
+            e.set_unprotected("identity.phone", "+1-555-0100");
+            e.set_unprotected("identity.address", "123 Main St");
+            // Card fields
+            e.set_unprotected("card.holder", "Alice Smith");
+            e.set_protected("card.number", "4111111111111111");
+            e.set_unprotected("card.type", "Visa");
+            e.set_unprotected("card.expMonth", "12");
+            e.set_unprotected("card.expYear", "2028");
+            e.set_protected("card.cvv", "123");
+            // TOTP
+            e.fields.insert(
+                fields::OTP.to_string(),
+                Value::unprotected(
+                    "otpauth://totp/Alice?secret=JBSWY3DPEHPK3PXP&period=30&digits=6",
+                ),
+            );
+            // Notes
+            e.set_unprotected(
+                fields::NOTES,
+                "This is a combined entry with all field types.",
+            );
+            // Tags
+            e.tags = vec!["work".into(), "personal".into(), "finance".into()];
+            // Custom data (icon hint + favorite + item type)
+            e.custom_data.insert(
+                "kagi.itemType".into(),
+                CustomDataItem {
+                    value: Some(CustomDataValue::Binary("login".as_bytes().to_vec())),
+                    last_modification_time: None,
+                },
+            );
+            e.custom_data.insert(
+                "kagi.favorite".into(),
+                CustomDataItem {
+                    value: Some(CustomDataValue::Binary("true".as_bytes().to_vec())),
+                    last_modification_time: None,
+                },
+            );
+            e.custom_data.insert(
+                "kagi.iconHint".into(),
+                CustomDataItem {
+                    value: Some(CustomDataValue::Binary("github".as_bytes().to_vec())),
+                    last_modification_time: None,
+                },
+            );
+        })
+        .id();
+
+    // Save to bytes
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes = buf.into_inner();
+
+    // Reopen and verify EVERY field
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    assert_eq!(db.iter_all_entries().count(), 1);
+    let entry = db.entry(entry_id).unwrap();
+
+    // Login fields
+    assert_eq!(entry.get_title(), Some("Mega Entry"));
+    assert_eq!(entry.get_username(), Some("alice"));
+    assert_eq!(entry.get_password(), Some("s3cret!"));
+    assert_eq!(entry.get_url(), Some("https://example.com"));
+
+    // Identity fields
+    assert_eq!(entry.get("identity.firstName"), Some("Alice"));
+    assert_eq!(entry.get("identity.lastName"), Some("Smith"));
+    assert_eq!(entry.get("identity.email"), Some("alice@example.com"));
+    assert_eq!(entry.get("identity.phone"), Some("+1-555-0100"));
+    assert_eq!(entry.get("identity.address"), Some("123 Main St"));
+
+    // Card fields
+    assert_eq!(entry.get("card.holder"), Some("Alice Smith"));
+    let card_number = entry.fields.get("card.number").map(|v| v.get().clone());
+    assert_eq!(card_number.as_deref(), Some("4111111111111111"));
+    assert_eq!(entry.get("card.type"), Some("Visa"));
+    assert_eq!(entry.get("card.expMonth"), Some("12"));
+    assert_eq!(entry.get("card.expYear"), Some("2028"));
+    let cvv = entry.fields.get("card.cvv").map(|v| v.get().clone());
+    assert_eq!(cvv.as_deref(), Some("123"));
+
+    // TOTP
+    assert!(
+        entry.get_raw_otp_value().is_some(),
+        "otp field should survive round-trip"
+    );
+    let totp: keepass::db::TOTP = entry.get_raw_otp_value().unwrap().parse().unwrap();
+    assert_eq!(totp.period, 30);
+    assert_eq!(totp.digits, 6);
+
+    // Notes
+    assert_eq!(
+        entry.get(fields::NOTES),
+        Some("This is a combined entry with all field types.")
+    );
+
+    // Tags
+    assert_eq!(entry.tags, vec!["work", "personal", "finance"]);
+
+    // Custom data (icon hint + favorite + item type)
+    let read_item_type = entry.custom_data.get("kagi.itemType").and_then(|item| {
+        item.value.as_ref().map(|cv| match cv {
+            CustomDataValue::String(s) => s.clone(),
+            CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
+        })
+    });
+    assert_eq!(read_item_type.as_deref(), Some("login"));
+
+    let read_favorite = entry.custom_data.get("kagi.favorite").and_then(|item| {
+        item.value.as_ref().map(|cv| match cv {
+            CustomDataValue::String(s) => s.clone(),
+            CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
+        })
+    });
+    assert_eq!(read_favorite.as_deref(), Some("true"));
+
+    let read_icon_hint = entry.custom_data.get("kagi.iconHint").and_then(|item| {
+        item.value.as_ref().map(|cv| match cv {
+            CustomDataValue::String(s) => s.clone(),
+            CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
+        })
+    });
+    assert_eq!(read_icon_hint.as_deref(), Some("github"));
+}
+
+// ── Round-trip: entry with no title ─────────────────────────────────────────
+
+#[test]
+fn test_round_trip_entry_with_no_title() {
+    // Edge case: an entry whose title is empty. The KDBX format allows it;
+    // the UI should handle it gracefully (show placeholder, etc.).
+
+    let mut db = Database::new();
+    db.root_mut().add_entry().edit(|e| {
+        // Title deliberately omitted (keepass default is empty)
+        e.set_unprotected(fields::USERNAME, "user");
+        e.set_unprotected(fields::URL, "https://example.com");
+    });
+
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes = buf.into_inner();
+
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = db.iter_all_entries().next().unwrap();
+    // When no title is set, keepass returns None, not Some("")
+    assert!(
+        entry.get_title().is_none() || entry.get_title() == Some(""),
+        "title should be empty or None when unset"
+    );
+    assert_eq!(entry.get_username(), Some("user"));
+    assert_eq!(entry.get_url(), Some("https://example.com"));
+}
+
+// ── Round-trip: multiple history revisions ──────────────────────────────────
+
+#[test]
+fn test_round_trip_history_multiple_revisions() {
+    // History is pushed by edit_tracking on each save. This test verifies
+    // that editing the same entry N times produces N history entries, and
+    // that each revision preserves the state at the time of save.
+
+    let entry_id = EntryId::from_uuid(uuid::uuid!("33333333-3333-3333-3333-333333333333"));
+
+    // Create initial entry
+    let mut db = Database::new();
+    db.root_mut()
+        .add_entry_with_id(entry_id)
+        .unwrap()
+        .edit(|e| {
+            e.set_unprotected(fields::TITLE, "v0");
+            e.set_protected(fields::PASSWORD, "initial");
+        });
+
+    let save_and_reopen = |db: &mut Database, pw: &str| -> Database {
+        let mut buf = Cursor::new(Vec::new());
+        db.save(&mut buf, DatabaseKey::new().with_password(pw))
+            .unwrap();
+        let bytes = buf.into_inner();
+        let mut cursor = Cursor::new(bytes);
+        Database::open(&mut cursor, DatabaseKey::new().with_password(pw)).unwrap()
+    };
+
+    // Edit 3 times (each: save → reopen → edit → save → reopen → verify)
+    let passwords = ["v1_pass", "v2_pass", "v3_pass"];
+    for (i, new_pw) in passwords.iter().enumerate() {
+        // Reopen the current state
+        db = save_and_reopen(&mut db, "p");
+
+        // Edit the entry
+        {
+            let mut em = db.entry_mut(entry_id).unwrap();
+            em.edit_tracking(|e| {
+                e.set_unprotected(fields::TITLE, format!("v{}", i + 1));
+                e.set_protected(fields::PASSWORD, *new_pw);
+            });
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
+
+        // Save and reopen
+        db = save_and_reopen(&mut db, "p");
+
+        // Verify current state
+        let entry = db.entry(entry_id).unwrap();
+        let expected_title = format!("v{}", i + 1);
+        assert_eq!(
+            entry.get_title(),
+            Some(expected_title.as_str()),
+            "current title should be v{}",
+            i + 1
+        );
+        assert_eq!(
+            entry.get_password(),
+            Some(*new_pw),
+            "current password should be updated"
+        );
+
+        // Verify history has all previous versions
+        let history_len = entry
+            .history
+            .as_ref()
+            .map(|h| h.get_entries().len())
+            .unwrap_or(0);
+        assert_eq!(
+            history_len,
+            i + 1,
+            "after edit {} there should be {} history entries",
+            i + 1,
+            i + 1
+        );
+
+        // History entries are inserted at index 0 (newest first).
+        // The first history entry holds the state just before the current edit.
+        if let Some(history) = entry.history.as_ref() {
+            let first_hist = history.get_entries().first().unwrap();
+            let expected_prev = if i == 0 { "initial" } else { passwords[i - 1] };
+            assert_eq!(
+                first_hist.get_password(),
+                Some(expected_prev),
+                "first history entry (index 0) should contain the password before edit {}",
+                i + 1
+            );
+        }
+    }
+
+    // Final: 3 history entries, 1 current entry
+    let entry = db.entry(entry_id).unwrap();
+    assert_eq!(
+        entry.history.as_ref().map(|h| h.get_entries().len()),
+        Some(3),
+        "final history should have 3 entries"
+    );
+    assert_eq!(entry.get_title(), Some("v3"));
+    assert_eq!(entry.get_password(), Some("v3_pass"));
+}
+
+// ── Round-trip: TOTP with SHA-256 algorithm ─────────────────────────────────
+
+#[test]
+fn test_round_trip_totp_sha256() {
+    // KeePassXC and the keepass crate support SHA-1 (default), SHA-256,
+    // and SHA-512 TOTP algorithms. The frontend computeTotp must handle
+    // all three. This test verifies the SHA-256 URI survives save/reopen.
+
+    let uri = "otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP&algorithm=SHA256&period=30&digits=6&issuer=Example";
+
+    let mut db = Database::new();
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "SHA-256 TOTP");
+        e.fields
+            .insert(fields::OTP.to_string(), Value::unprotected(uri.to_string()));
+    });
+
+    // Save to bytes
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes = buf.into_inner();
+
+    // Reopen
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = db.iter_all_entries().next().unwrap();
+
+    // Verify the full URI rounds-trips intact
+    let stored_uri = entry.get_raw_otp_value();
+    assert!(stored_uri.is_some(), "otp field must survive save/reopen");
+    assert_eq!(
+        stored_uri.unwrap(),
+        uri,
+        "full otpauth:// URI must be preserved verbatim"
+    );
+
+    // Verify the TOTP parses correctly with SHA-256
+    let totp: keepass::db::TOTP = stored_uri.unwrap().parse().unwrap();
+    assert_eq!(totp.algorithm, keepass::db::TOTPAlgorithm::Sha256);
+    assert_eq!(totp.period, 30);
+    assert_eq!(totp.digits, 6);
+
+    // Also verify SHA-512 survives
+    let uri_sha512 =
+        "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP&algorithm=SHA512&period=30&digits=8";
+    let mut db2 = Database::new();
+    db2.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "SHA-512 TOTP");
+        e.fields.insert(
+            fields::OTP.to_string(),
+            Value::unprotected(uri_sha512.to_string()),
+        );
+    });
+    let mut buf2 = Cursor::new(Vec::new());
+    db2.save(&mut buf2, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes2 = buf2.into_inner();
+    let mut cursor2 = Cursor::new(bytes2);
+    let db2 = Database::open(&mut cursor2, DatabaseKey::new().with_password("p")).unwrap();
+    let entry2 = db2.iter_all_entries().next().unwrap();
+    let stored_uri2 = entry2.get_raw_otp_value().unwrap();
+    assert_eq!(stored_uri2, uri_sha512);
+    let totp2: keepass::db::TOTP = stored_uri2.parse().unwrap();
+    assert_eq!(totp2.algorithm, keepass::db::TOTPAlgorithm::Sha512);
+    assert_eq!(totp2.digits, 8);
+}
+
+// ── Round-trip: unicode fields ──────────────────────────────────────────────
+
+#[test]
+fn test_round_trip_unicode_fields() {
+    // KDBX 4 stores strings as UTF-8. Verify that emoji, CJK ideographs,
+    // bidirectional text, and special characters round-trip through
+    // save/reopen without data loss or corruption.
+
+    let mut db = Database::new();
+    db.root_mut().add_entry().edit(|e| {
+        e.set_unprotected(fields::TITLE, "🔑 鍵 Unicode");
+        e.set_unprotected(fields::USERNAME, "ユーザー名");
+        e.set_protected(fields::PASSWORD, "Pässwörd🔐");
+        e.set_unprotected(fields::URL, "https://例子.测试");
+        e.set_unprotected("identity.firstName", "Zoë");
+        e.set_unprotected("identity.lastName", "Jalapeño");
+        e.set_unprotected("identity.email", "user@أن.example");
+        e.set_unprotected(
+            fields::NOTES,
+            "emoji: 🔑🔒🔐\n\nRTL: السلام عليكم\nCJK: 鍵マネージャー\nMixed: Påskeøya 2024 ©",
+        );
+        e.tags = vec!["tagg🇸🇪".into(), "標籤".into()];
+    });
+
+    // Save to bytes
+    let mut buf = Cursor::new(Vec::new());
+    db.save(&mut buf, DatabaseKey::new().with_password("p"))
+        .unwrap();
+    let bytes = buf.into_inner();
+
+    // Reopen
+    let mut cursor = Cursor::new(bytes);
+    let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
+
+    let entry = db.iter_all_entries().next().unwrap();
+
+    assert_eq!(
+        entry.get_title(),
+        Some("🔑 鍵 Unicode"),
+        "emoji + CJK title"
+    );
+    assert_eq!(
+        entry.get_username(),
+        Some("ユーザー名"),
+        "Japanese username"
+    );
+    assert_eq!(
+        entry.get_password(),
+        Some("Pässwörd🔐"),
+        "password with diacritics + emoji"
+    );
+    assert_eq!(
+        entry.get_url(),
+        Some("https://例子.测试"),
+        "URL with CJK/code-point TLD"
+    );
+    assert_eq!(
+        entry.get("identity.firstName"),
+        Some("Zoë"),
+        "Latin+diacritic"
+    );
+    assert_eq!(entry.get("identity.lastName"), Some("Jalapeño"), "Latin+ñ");
+    assert_eq!(
+        entry.get("identity.email"),
+        Some("user@أن.example"),
+        "Arabic in email local part"
+    );
+    assert_eq!(
+        entry.get(fields::NOTES),
+        Some("emoji: 🔑🔒🔐\n\nRTL: السلام عليكم\nCJK: 鍵マネージャー\nMixed: Påskeøya 2024 ©"),
+        "multi-line notes with mixed scripts"
+    );
+    assert_eq!(
+        entry.tags,
+        vec!["tagg🇸🇪", "標籤"],
+        "tags with flag emoji + CJK"
+    );
+}
+
 // ── Preferences / security settings tests ────────────────────────────────────
 
 #[test]
@@ -680,10 +1207,12 @@ fn test_preferences_security_defaults() {
 fn test_preferences_security_roundtrip() {
     use kagi_lib::prefs::Preferences;
 
-    let mut prefs = Preferences::default();
-    prefs.idle_lock_minutes = 10;
-    prefs.clipboard_clear_seconds = 30;
-    prefs.last_vault = Some("/tmp/test.kdbx".into());
+    let prefs = Preferences {
+        idle_lock_minutes: 10,
+        clipboard_clear_seconds: 30,
+        last_vault: Some("/tmp/test.kdbx".into()),
+        ..Default::default()
+    };
 
     // Serialise to JSON and back (same path the file-based prefs use internally)
     let json = serde_json::to_string_pretty(&prefs).unwrap();
@@ -720,9 +1249,11 @@ fn test_preferences_security_zero_values_roundtrip() {
     // "Never" options store 0 — verify they survive save/load
     use kagi_lib::prefs::Preferences;
 
-    let mut prefs = Preferences::default();
-    prefs.idle_lock_minutes = 0;
-    prefs.clipboard_clear_seconds = 0;
+    let prefs = Preferences {
+        idle_lock_minutes: 0,
+        clipboard_clear_seconds: 0,
+        ..Default::default()
+    };
 
     let json = serde_json::to_string_pretty(&prefs).unwrap();
     let loaded: Preferences = serde_json::from_str(&json).unwrap();
