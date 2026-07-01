@@ -3,6 +3,8 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
+  import { toSummary } from "$lib/bridge/entries";
+  import type { Entry } from "$lib/bridge/types";
   import DetailHeader from "./DetailHeader.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import Field from "./Field.svelte";
@@ -17,7 +19,39 @@
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
 
-  let entry = $derived(selection.selectedId ? vault.getEntry(selection.selectedId) : undefined);
+  let _entry = $state<Entry | undefined>(undefined);
+  let entryLoading = $state(false);
+  let entryError = $state("");
+
+  let fetchId = 0;
+
+  // Fetch the full entry whenever selection changes
+  $effect(() => {
+    const id = selection.selectedId;
+    if (!id) {
+      _entry = undefined;
+      entryLoading = false;
+      entryError = "";
+      return;
+    }
+    const thisFetch = ++fetchId;
+    entryLoading = true;
+    entryError = "";
+    entriesBridge
+      .entryGet(id)
+      .then((e) => {
+        if (thisFetch === fetchId) {
+          _entry = e;
+          entryLoading = false;
+        }
+      })
+      .catch((err) => {
+        if (thisFetch === fetchId) {
+          entryError = err instanceof Error ? err.message : String(err);
+          entryLoading = false;
+        }
+      });
+  });
 
   let editing = $state(false);
   let showHistory = $state(false);
@@ -58,7 +92,7 @@
 
   // Auto-enter edit mode when a new entry is created
   $effect(() => {
-    if (entry && vault.editingId === entry.id) {
+    if (_entry && vault.editingId === _entry.id) {
       populateEdit();
       editing = true;
       vault.setEditingId(null);
@@ -66,42 +100,43 @@
   });
 
   function populateEdit() {
-    if (!entry) return;
-    editTitle = entry.title;
-    editUsername = entry.username ?? "";
-    editPassword = entry.password ?? "";
-    editUrl = entry.url ?? "";
-    editTotp = entry.totp ?? "";
-    editTags = [...entry.tags];
-    editNotes = entry.notes ?? "";
-    editFirstName = entry.identity?.firstName ?? "";
-    editLastName = entry.identity?.lastName ?? "";
-    editEmail = entry.identity?.email ?? "";
-    editPhone = entry.identity?.phone ?? "";
-    editAddress = entry.identity?.address ?? "";
-    editCardHolder = entry.card?.holder ?? "";
-    editCardNumber = entry.card?.number ?? "";
-    editCardType = entry.card?.type ?? "";
-    editCardExpMonth = entry.card?.expMonth?.toString() ?? "";
-    editCardExpYear = entry.card?.expYear?.toString() ?? "";
-    editCardCvv = entry.card?.cvv ?? "";
+    if (!_entry) return;
+    editTitle = _entry.title;
+    editUsername = _entry.username ?? "";
+    editPassword = _entry.password ?? "";
+    editUrl = _entry.url ?? "";
+    editTotp = _entry.totp ?? "";
+    editTags = [..._entry.tags];
+    editNotes = _entry.notes ?? "";
+    editFirstName = _entry.identity?.firstName ?? "";
+    editLastName = _entry.identity?.lastName ?? "";
+    editEmail = _entry.identity?.email ?? "";
+    editPhone = _entry.identity?.phone ?? "";
+    editAddress = _entry.identity?.address ?? "";
+    editCardHolder = _entry.card?.holder ?? "";
+    editCardNumber = _entry.card?.number ?? "";
+    editCardType = _entry.card?.type ?? "";
+    editCardExpMonth = _entry.card?.expMonth?.toString() ?? "";
+    editCardExpYear = _entry.card?.expYear?.toString() ?? "";
+    editCardCvv = _entry.card?.cvv ?? "";
     clearCardErrors();
   }
 
   async function toggleFavorite() {
-    if (!entry) return;
+    if (!_entry) return;
     try {
-      const updated = await entriesBridge.entryUpdate(entry.id, {
-        favorite: !entry.favorite,
+      const updated = await entriesBridge.entryUpdate(_entry.id, {
+        favorite: !_entry.favorite,
       });
-      vault.setEntries(vault.entries.map((e) => (e.id === updated.id ? updated : e)));
+      _entry = updated;
+      vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
     } catch (e) {
       console.error("Failed to toggle favorite", e);
     }
   }
 
   function startEdit() {
-    if (!entry) return;
+    if (!_entry) return;
     populateEdit();
     editing = true;
   }
@@ -153,10 +188,10 @@
   }
 
   async function saveEdit() {
-    if (!entry) return;
+    if (!_entry) return;
     if (!validateCardFields()) return;
     try {
-      await entriesBridge.entryUpdate(entry.id, {
+      const updated = await entriesBridge.entryUpdate(_entry.id, {
         title: editTitle,
         username: editUsername,
         password: editPassword,
@@ -176,8 +211,8 @@
         cardExpYear: editCardExpYear,
         cardCvv: editCardCvv,
       });
-      const updated = await entriesBridge.entryGet(entry.id);
-      vault.setEntries(vault.entries.map((e) => (e.id === updated.id ? updated : e)));
+      _entry = updated;
+      vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
       editing = false;
       clearCardErrors();
     } catch (e) {
@@ -186,11 +221,13 @@
   }
 
   async function deleteEntry() {
-    if (!entry) return;
-    if (!confirm(`Delete "${entry.title}"?`)) return;
+    if (!_entry) return;
+    if (!confirm(`Delete "${_entry.title}"?`)) return;
+    const id = _entry.id;
     try {
-      await entriesBridge.entryDelete(entry.id);
-      vault.setEntries(vault.entries.filter((e) => e.id !== entry.id));
+      await entriesBridge.entryDelete(id);
+      vault.setEntries(vault.entries.filter((s) => s.id !== id));
+      _entry = undefined;
       selection.selectedId = null;
     } catch (e) {
       console.error("Failed to delete", e);
@@ -205,7 +242,20 @@
   />
 {/if}
 
-{#if entry}
+{#if entryLoading}
+  <div class="detail-pane">
+    <div class="empty-detail">
+      <p>Loading…</p>
+    </div>
+  </div>
+{:else if entryError}
+  <div class="detail-pane">
+    <div class="empty-detail">
+      <p class="error-msg">{entryError}</p>
+    </div>
+  </div>
+{:else if _entry}
+  {@const entry = _entry}
   <div class="detail-pane">
     <div class="detail-toolbar">
       <button
@@ -618,8 +668,8 @@
   <EmptyDetail />
 {/if}
 
-{#if showHistory && entry}
-  <HistoryDialog entryId={entry.id} onclose={() => (showHistory = false)} />
+{#if showHistory && _entry}
+  <HistoryDialog entryId={_entry.id} onclose={() => (showHistory = false)} />
 {/if}
 
 <style>
@@ -834,5 +884,10 @@
     border-radius: 4px;
     font-size: 11.5px;
     color: var(--text-secondary);
+  }
+
+  .error-msg {
+    color: var(--danger);
+    font-size: 13px;
   }
 </style>

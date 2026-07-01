@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Entry } from "$lib/bridge/types";
+  import type { EntrySummary } from "$lib/bridge/types";
   import EntryIcon from "./EntryIcon.svelte";
   import Icon from "../ui/Icon.svelte";
 
@@ -8,25 +8,17 @@
     selected = false,
     onclick,
   }: {
-    entry: Entry;
+    entry: EntrySummary;
     selected?: boolean;
     onclick?: () => void;
   } = $props();
-
-  let subtitle = $derived.by(() => {
-    if (entry.type === "card" && entry.card?.number) {
-      const num = entry.card.number;
-      return `${num.slice(0, 4)} •••• ${num.slice(-4)}`;
-    }
-    return entry.subtitle;
-  });
 </script>
 
 <button class="list-row" class:selected {onclick} role="option" aria-selected={selected}>
   <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={30} />
   <div class="list-row-text">
     <div class="list-row-title">{entry.title}</div>
-    <div class="list-row-subtitle">{subtitle}</div>
+    <div class="list-row-subtitle">{entry.subtitle}</div>
   </div>
   {#if entry.favorite}
     <span style="color: var(--warning); flex-shrink: 0; display: flex;">

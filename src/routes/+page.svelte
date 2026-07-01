@@ -9,6 +9,7 @@
   import * as vaultBridge from "$lib/bridge/vault";
   import type { SidebarFilter } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
+  import { toSummary } from "$lib/bridge/entries";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
   import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
   import ItemList from "$lib/components/list/ItemList.svelte";
@@ -24,7 +25,7 @@
     showCommandPalette = false;
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
-      vault.setEntries([...vault.entries, entry]);
+      vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = type as SidebarFilter;
       selection.selectedId = entry.id;
       vault.setEditingId(entry.id);
@@ -108,8 +109,7 @@
       vault.setMeta(meta);
 
       const summaries = await entriesBridge.entriesList();
-      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
-      vault.setEntries(fullEntries);
+      vault.setEntries(summaries);
       startupDialog = null;
     } catch (e) {
       startupError = e instanceof Error ? e.message : String(e);
@@ -123,8 +123,7 @@
       vault.setMeta(meta);
 
       const summaries = await entriesBridge.entriesList();
-      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
-      vault.setEntries(fullEntries);
+      vault.setEntries(summaries);
       vault.unlock();
     } catch (e) {
       unlockError = e instanceof Error ? e.message : String(e);

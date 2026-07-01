@@ -23,11 +23,27 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
     let icon_hint = read_icon_hint(entry_ref);
     let favorite = read_favorite(entry_ref);
 
+    let url = entry_ref.get_url().map(str::to_string);
+
+    // For card entries, show a masked card number as subtitle instead of username.
+    let subtitle = if item_type == ItemType::Card {
+        entry_ref
+            .get("card.number")
+            .filter(|n: &&str| n.len() >= 4)
+            .map(|num: &str| format!("{} •••• {}", &num[..4], &num[num.len() - 4..]))
+            .unwrap_or(username.clone())
+    } else {
+        username.clone()
+    };
+
     EntrySummary {
         id: entry_ref.id().uuid().to_string(),
         item_type,
         title,
-        subtitle: username,
+        subtitle,
+        url,
+        username: Some(username),
+        tags: entry_ref.tags.clone(),
         favorite,
         icon_hint,
     }

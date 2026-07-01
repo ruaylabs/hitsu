@@ -1,6 +1,5 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
-  import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as entriesBridge from "$lib/bridge/entries";
@@ -38,8 +37,7 @@
       vault.setMeta(meta);
 
       const summaries = await entriesBridge.entriesList();
-      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
-      vault.setEntries(fullEntries);
+      vault.setEntries(summaries);
 
       prefsBridge.prefsSetLastVault(pendingPath);
     } catch (e) {

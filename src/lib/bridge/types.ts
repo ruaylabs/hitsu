@@ -53,6 +53,18 @@ export interface CardFields {
   pin?: string;
 }
 
+export interface EntrySummary {
+  id: string;
+  type: ItemType;
+  title: string;
+  subtitle: string;
+  url?: string;
+  username?: string;
+  tags: string[];
+  favorite: boolean;
+  iconHint?: string;
+}
+
 export interface VaultMeta {
   path: string;
   name: string;

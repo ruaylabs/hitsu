@@ -1,13 +1,19 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Entry } from "./types";
+import type { Entry, EntrySummary } from "./types";
 
-export interface EntrySummary {
-  id: string;
-  type: "login" | "note" | "identity" | "card";
-  title: string;
-  subtitle: string;
-  favorite: boolean;
-  iconHint?: string;
+/** Convert a full Entry to its safe summary (for the list store). */
+export function toSummary(entry: Entry): EntrySummary {
+  return {
+    id: entry.id,
+    type: entry.type,
+    title: entry.title,
+    subtitle: entry.subtitle,
+    url: entry.url,
+    username: entry.username,
+    tags: entry.tags,
+    favorite: entry.favorite,
+    iconHint: entry.iconHint,
+  };
 }
 
 export async function entriesList(): Promise<EntrySummary[]> {

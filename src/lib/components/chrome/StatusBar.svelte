@@ -5,6 +5,7 @@
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import type { SidebarFilter } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
+  import { toSummary } from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
 
   let itemCount = $derived(vault.entries.length);
@@ -12,7 +13,7 @@
   async function createEntry(type: string) {
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
-      vault.setEntries([...vault.entries, entry]);
+      vault.setEntries([...vault.entries, toSummary(entry)]);
       // Switch filter so the new entry is visible and gets focused
       selection.filter = type as SidebarFilter;
       selection.selectedId = entry.id;

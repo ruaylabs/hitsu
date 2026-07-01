@@ -86,6 +86,11 @@ pub struct EntrySummary {
     pub item_type: ItemType,
     pub title: String,
     pub subtitle: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    pub tags: Vec<String>,
     pub favorite: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,

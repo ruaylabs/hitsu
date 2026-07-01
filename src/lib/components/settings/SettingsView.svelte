@@ -57,8 +57,7 @@
       vault.setMeta(meta);
 
       const summaries = await entriesBridge.entriesList();
-      const fullEntries = await Promise.all(summaries.map((s) => entriesBridge.entryGet(s.id)));
-      vault.setEntries(fullEntries);
+      vault.setEntries(summaries);
 
       prefsBridge.prefsSetLastVault(selectedPath);
       app.view = "main";
@@ -388,11 +387,6 @@
   .setting-label {
     font-size: 13px;
     color: var(--text-primary);
-  }
-
-  .setting-value {
-    font-size: 13px;
-    color: var(--text-muted);
   }
 
   .setting-select {
