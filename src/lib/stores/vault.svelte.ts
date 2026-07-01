@@ -33,6 +33,7 @@ export const vault = {
     entries = data;
   },
   async lock() {
+    if (locked) return;
     // Drop decrypted vault from the Rust backend (zeroizes master key in memory)
     try {
       await vaultBridge.vaultLock();

@@ -4,11 +4,11 @@
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { security } from "$lib/stores/security.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import type { SidebarFilter } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
-  import * as prefsBridge from "$lib/bridge/prefs";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
   import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
   import ItemList from "$lib/components/list/ItemList.svelte";
@@ -65,13 +65,10 @@
     }
   }
 
-  // Idle timeout loaded from prefs (default 5 min, 0 = never)
-  let idleTimeoutMs = $state(5 * 60 * 1000);
-
   // Start idle/sleep lock monitors when the vault is unlocked, stop when locked
   $effect(() => {
     if (!vault.locked && vault.meta) {
-      startIdleTimer(idleTimeoutMs);
+      startIdleTimer(security.idleLockMs);
       return stopIdleTimer;
     }
   });
@@ -87,10 +84,9 @@
       app.toggleSettings();
     });
     // Load preferences — both startup vault and security settings
-    prefsBridge
-      .prefsGet()
+    security
+      .load()
       .then((prefs) => {
-        idleTimeoutMs = (prefs.idleLockMinutes ?? 5) * 60 * 1000;
         if (prefs.lastVault) {
           startupPath = prefs.lastVault;
           startupDialog = "password";

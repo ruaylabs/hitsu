@@ -4,6 +4,7 @@
   import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { security } from "$lib/stores/security.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as entriesBridge from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -17,8 +18,6 @@
     | { kind: "new-password" }
     | null = $state(null);
 
-  let idleLockMins = $state(5);
-  let clipboardSecs = $state(15);
   let statusMsg = $state("");
 
   async function handleOpen() {
@@ -38,37 +37,17 @@
   let selectedPath = $state("");
 
   onMount(() => {
-    loadSecurityPrefs();
+    security.load();
   });
 
-  async function loadSecurityPrefs() {
-    try {
-      const prefs = await prefsBridge.prefsGet();
-      idleLockMins = prefs.idleLockMinutes ?? 5;
-      clipboardSecs = prefs.clipboardClearSeconds ?? 15;
-    } catch {
-      /* use defaults */
-    }
-  }
-
-  async function saveSecurity() {
-    try {
-      await prefsBridge.prefsSetSecurity(idleLockMins, clipboardSecs);
-      clipboard.defaultTimeoutSecs = clipboardSecs;
-    } catch (e) {
-      statusMsg = String(e);
-    }
-  }
-
   function onIdleChange(e: Event) {
-    idleLockMins = parseInt((e.target as HTMLSelectElement).value, 10);
-    saveSecurity();
+    const mins = parseInt((e.target as HTMLSelectElement).value, 10);
+    security.save(mins, security.clipboardClearSeconds);
   }
 
   function onClipboardChange(e: Event) {
-    clipboardSecs = parseInt((e.target as HTMLSelectElement).value, 10);
-    clipboard.defaultTimeoutSecs = clipboardSecs;
-    saveSecurity();
+    const secs = parseInt((e.target as HTMLSelectElement).value, 10);
+    security.save(security.idleLockMinutes, secs);
   }
 
   async function doOpen(password: string) {
@@ -226,7 +205,9 @@
               { value: 30, label: "30 minutes" },
               { value: 60, label: "1 hour" },
             ] as opt}
-              <option value={opt.value} selected={idleLockMins === opt.value}>{opt.label}</option>
+              <option value={opt.value} selected={security.idleLockMinutes === opt.value}>
+                {opt.label}
+              </option>
             {/each}
           </select>
         </div>
@@ -241,7 +222,9 @@
               { value: 60, label: "1 minute" },
               { value: 0, label: "Never" },
             ] as opt}
-              <option value={opt.value} selected={clipboardSecs === opt.value}>{opt.label}</option>
+              <option value={opt.value} selected={security.clipboardClearSeconds === opt.value}>
+                {opt.label}
+              </option>
             {/each}
           </select>
         </div>

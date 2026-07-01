@@ -30,19 +30,19 @@ export function startIdleTimer(idleTimeoutMs = DEFAULT_IDLE_MS) {
   // lock if the user has been gone longer than SLEEP_GAP_MS.
   document.addEventListener(
     "visibilitychange",
-    () => {
+    async () => {
       if (document.hidden) return;
       if (Date.now() - lastActivity > SLEEP_GAP_MS) {
-        vault.lock();
+        await vault.lock();
       }
     },
     opts,
   );
 
   // Poll every second for idle timeout
-  timer = setInterval(() => {
+  timer = setInterval(async () => {
     if (idleTimeoutMs > 0 && Date.now() - lastActivity >= idleTimeoutMs) {
-      vault.lock();
+      await vault.lock();
     }
   }, 1000);
 }
