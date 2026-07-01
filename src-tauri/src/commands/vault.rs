@@ -30,6 +30,17 @@ fn count_entries(db: &keepass::Database) -> usize {
     db.iter_all_entries().count()
 }
 
+/// Check whether the KDF is below the recommended 64 MiB threshold.
+/// Returns `true` if the vault should be upgraded.
+fn needs_kdf_upgrade(kdf: &KdfConfig) -> bool {
+    match kdf {
+        KdfConfig::Argon2 { memory, .. } | KdfConfig::Argon2id { memory, .. } => {
+            *memory < 64 * 1024 * 1024
+        }
+        _ => true, // AES or unknown → needs upgrade
+    }
+}
+
 fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
     match kdf {
         KdfConfig::Argon2 {
@@ -44,8 +55,8 @@ fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
             parallelism,
             ..
         } => {
-            if *memory < 64 * 1024 * 1024 {
-                return Err(KagiError::Custom("KDF memory menor a 64 MiB".to_string()));
+            if *memory < 1024 * 1024 {
+                return Err(KagiError::Custom("KDF memory menor a 1 MiB".to_string()));
             }
             if *iterations < 2 {
                 return Err(KagiError::Custom("KDF iterations menor a 2".to_string()));
@@ -77,27 +88,27 @@ mod tests {
     #[test]
     fn test_validate_kdf_rejects_argon2_low_memory() {
         let kdf = KdfConfig::Argon2 {
-            memory: 1024 * 1024,
+            memory: 512 * 1024,
             iterations: 50,
             parallelism: 4,
             version: argon2::Version::Version13,
         };
         let result = validate_kdf(&kdf);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("64 MiB"));
+        assert!(result.unwrap_err().to_string().contains("1 MiB"));
     }
 
     #[test]
     fn test_validate_kdf_rejects_argon2id_low_memory() {
         let kdf = KdfConfig::Argon2id {
-            memory: 1024 * 1024,
+            memory: 512 * 1024,
             iterations: 50,
             parallelism: 4,
             version: argon2::Version::Version13,
         };
         let result = validate_kdf(&kdf);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("64 MiB"));
+        assert!(result.unwrap_err().to_string().contains("1 MiB"));
     }
 
     #[test]
@@ -147,6 +158,34 @@ mod tests {
         };
         assert!(validate_kdf(&kdf).is_ok());
     }
+
+    #[test]
+    fn test_needs_kdf_upgrade_below_64_mib() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 1024 * 1024,
+            iterations: 2,
+            parallelism: 1,
+            version: argon2::Version::Version13,
+        };
+        assert!(needs_kdf_upgrade(&kdf));
+    }
+
+    #[test]
+    fn test_needs_kdf_upgrade_at_64_mib() {
+        let kdf = KdfConfig::Argon2id {
+            memory: 64 * 1024 * 1024,
+            iterations: 2,
+            parallelism: 1,
+            version: argon2::Version::Version13,
+        };
+        assert!(!needs_kdf_upgrade(&kdf));
+    }
+
+    #[test]
+    fn test_needs_kdf_upgrade_aes() {
+        let kdf = KdfConfig::Aes { rounds: 6000 };
+        assert!(needs_kdf_upgrade(&kdf));
+    }
 }
 
 #[tauri::command]
@@ -185,6 +224,8 @@ pub async fn vault_open(
 
     // Swap the String with an empty one via DerefMut, then convert to bytes.
     // The Zeroizing<String> (now holding "") drops harmlessly later.
+    let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
+
     let pw_str = std::mem::take(&mut *password);
     vaults.insert(
         id,
@@ -200,7 +241,40 @@ pub async fn vault_open(
         name,
         item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
+        kdf_needs_upgrade,
     })
+}
+
+#[tauri::command]
+pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
+    let mut vaults = state
+        .vaults
+        .lock()
+        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+
+    let (_id, vault): (&VaultId, &mut OpenVault) =
+        vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+    // Upgrade KDF to Argon2id with 64 MiB
+    vault.db.config.kdf_config = KdfConfig::Argon2id {
+        memory: 64 * 1024 * 1024,
+        iterations: 2,
+        parallelism: 4,
+        version: argon2::Version::Version13,
+    };
+
+    // Re-save with current master key
+    let pw = String::from_utf8_lossy(&vault.master_key);
+    let key = keepass::DatabaseKey::new().with_password(&pw);
+    let mut buf = std::io::Cursor::new(Vec::new());
+    vault
+        .db
+        .save(&mut buf, key)
+        .map_err(|e| KagiError::Vault(e.to_string()))?;
+    let bytes = buf.into_inner();
+    crate::vault::atomic_write(&vault.path, &bytes)?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -267,6 +341,7 @@ pub async fn vault_create(
         name: vault_name,
         item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
+        kdf_needs_upgrade: false,
     })
 }
 

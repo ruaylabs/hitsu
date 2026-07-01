@@ -1,8 +1,8 @@
-import type { EntrySummary } from "$lib/bridge/types";
+import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 
-let vaultMeta = $state<{ path: string; name: string; itemCount: number } | null>(null);
+let vaultMeta = $state<VaultMeta | null>(null);
 let entries = $state<EntrySummary[]>([]);
 let locked = $state(false);
 let editingId = $state<string | null>(null);
@@ -23,7 +23,7 @@ export const vault = {
   setEditingId(id: string | null) {
     editingId = id;
   },
-  setMeta(m: { path: string; name: string; itemCount: number } | null) {
+  setMeta(m: VaultMeta | null) {
     vaultMeta = m;
   },
   setEntries(data: EntrySummary[]) {

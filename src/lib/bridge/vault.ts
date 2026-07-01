@@ -20,3 +20,7 @@ export async function vaultChangePassword(oldPassword: string, newPassword: stri
 export async function vaultLock(): Promise<void> {
   return invoke<void>("vault_lock");
 }
+
+export async function vaultUpgradeKdf(): Promise<void> {
+  return invoke<void>("vault_upgrade_kdf");
+}

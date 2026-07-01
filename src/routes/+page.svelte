@@ -74,10 +74,18 @@
     }
   });
 
+  $effect(() => {
+    if (vault.meta?.kdfNeedsUpgrade && !vault.locked && !kdfUpgradeDismissed) {
+      showKdfUpgrade = true;
+    }
+  });
+
   let startupDialog: "password" | null = $state(null);
   let startupPath = $state("");
   let startupError = $state("");
   let unlockError = $state("");
+  let showKdfUpgrade = $state(false);
+  let kdfUpgradeDismissed = $state(false);
   let startupChecked = $state(false);
 
   onMount(() => {
@@ -177,6 +185,44 @@
   </div>
 {/if}
 
+{#if showKdfUpgrade}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="kdf-overlay" onclick={() => (showKdfUpgrade = false)}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="kdf-dialog" onclick={(e) => e.stopPropagation()}>
+      <h2>Upgrade vault security?</h2>
+      <p>
+        This vault uses a weak KDF configuration (less than 64 MiB memory). Upgrade to Argon2id with
+        64 MiB for better protection against brute-force attacks?
+      </p>
+      <div class="kdf-actions">
+        <button
+          class="btn"
+          onclick={() => {
+            showKdfUpgrade = false;
+            kdfUpgradeDismissed = true;
+          }}
+        >
+          Later
+        </button>
+        <button
+          class="btn btn-primary"
+          onclick={async () => {
+            try {
+              await vaultBridge.vaultUpgradeKdf();
+              showKdfUpgrade = false;
+            } catch (e) {
+              console.error("KDF upgrade failed", e);
+            }
+          }}
+        >
+          Upgrade
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 {#if showCommandPalette}
   <CommandPalette onSelect={onCreateEntry} onClose={() => (showCommandPalette = false)} />
 {/if}
@@ -196,5 +242,54 @@
     flex: 1;
     min-height: 480px;
     overflow: hidden;
+  }
+
+  .kdf-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .kdf-dialog {
+    background: var(--surface-0);
+    border-radius: 12px;
+    padding: 24px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .kdf-dialog h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.2rem;
+  }
+
+  .kdf-dialog p {
+    margin: 0 0 20px 0;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  .kdf-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .kdf-actions .btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .kdf-actions .btn-primary {
+    background: var(--accent);
+    color: white;
   }
 </style>

@@ -157,4 +157,6 @@ pub struct VaultMeta {
     pub name: String,
     pub item_count: usize,
     pub sync_provider: String,
+    #[serde(default)]
+    pub kdf_needs_upgrade: bool,
 }
