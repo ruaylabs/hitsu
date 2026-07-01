@@ -1,0 +1,194 @@
+---
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-diff:
+    runs-on: ubuntu-24.04
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      sha: ${{ steps.check.outputs.sha }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for changes since last nightly
+        id: check
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          VERSION="0.1.0-nightly.${SHA_SHORT}"
+          echo "sha=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "::group::Nightly diff check"
+          NIGHTLY_SHA=$(git ls-remote --tags origin refs/tags/nightly | cut -f1)
+          echo "HEAD: ${HEAD_SHA}"
+          echo "nightly tag: ${NIGHTLY_SHA:-none}"
+
+          if [ -n "$NIGHTLY_SHA" ] && [ "$NIGHTLY_SHA" = "$HEAD_SHA" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "No changes since last nightly build. Skipping."
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "Changes detected (or first build). Proceeding."
+          echo "::endgroup::"
+
+  build-macos:
+    needs: check-diff
+    if: needs.check-diff.outputs.should_build == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set nightly version
+        run: |
+          VERSION="${{ needs.check-diff.outputs.version }}"
+          sed -i '' 's/"version": "[^"]*"/"version": "'"${VERSION}"'"/' src-tauri/tauri.conf.json
+          sed -i '' 's/^version = ".*"/version = "'"${VERSION}"'"/' src-tauri/Cargo.toml
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm tauri build
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/dmg/*.dmg artifacts/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: artifacts/*
+
+  build-linux:
+    needs: check-diff
+    if: needs.check-diff.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Set nightly version
+        run: |
+          VERSION="${{ needs.check-diff.outputs.version }}"
+          sed -i 's/"version": "[^"]*"/"version": "'"${VERSION}"'"/' src-tauri/tauri.conf.json
+          sed -i 's/^version = ".*"/version = "'"${VERSION}"'"/' src-tauri/Cargo.toml
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm tauri build
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/deb/*.deb artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/appimage/*.AppImage artifacts/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: artifacts/*
+
+  publish:
+    runs-on: ubuntu-24.04
+    needs: [check-diff, build-macos, build-linux]
+    if: needs.check-diff.outputs.should_build == 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos
+          path: macos/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux
+          path: linux/
+
+      - name: Publish nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ needs.check-diff.outputs.sha }}"
+          DATE="$(date +%Y-%m-%d)"
+
+          # Delete old nightly release (if any)
+          gh release delete nightly --yes 2>/dev/null || true
+
+          # Delete old tag from remote
+          git push origin :refs/tags/nightly 2>/dev/null || true
+
+          # Create and push new tag at HEAD
+          git tag -f nightly
+          git push origin refs/tags/nightly
+
+          # Collect asset paths
+          ASSETS=()
+          for f in macos/*.dmg linux/*.deb linux/*.AppImage; do
+            [ -f "$f" ] && ASSETS+=("$f")
+          done
+
+          if [ ${#ASSETS[@]} -eq 0 ]; then
+            echo "No build artifacts found. Aborting publish."
+            exit 1
+          fi
+
+          gh release create nightly \
+            --prerelease \
+            --title "Nightly — ${DATE}" \
+            --notes "Commit: \`${SHA}\`" \
+            "${ASSETS[@]}"
