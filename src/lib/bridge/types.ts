@@ -81,6 +81,11 @@ export interface Toast {
   durationMs: number;
 }
 
-export type SidebarFilter = "all" | "favorites" | "trash" | ItemType;
+export type SidebarFilter =
+  | { kind: "all" }
+  | { kind: "favorites" }
+  | { kind: "trash" }
+  | { kind: "type"; type: ItemType }
+  | { kind: "tag"; tag: string };
 
 export type AppView = "unlock" | "main" | "settings";

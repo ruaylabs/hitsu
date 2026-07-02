@@ -7,7 +7,7 @@
   import { security } from "$lib/stores/security.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
-  import type { SidebarFilter } from "$lib/bridge/types";
+  import type { ItemType } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
@@ -26,7 +26,7 @@
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
       vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = type as SidebarFilter;
+      selection.filter = { kind: "type", type: type as ItemType };
       selection.selectedId = entry.id;
       vault.setEditingId(entry.id);
     } catch (e) {

@@ -28,6 +28,17 @@
   function selectFilter(filter: typeof selection.filter) {
     selection.filter = filter;
   }
+
+  function isSelected(kind: "all" | "favorites" | "trash"): boolean;
+  function isSelected(kind: "type", type: ItemType): boolean;
+  function isSelected(kind: "tag", tag: string): boolean;
+  function isSelected(kind: string, value?: string): boolean {
+    const f = selection.filter;
+    if (!value) return f.kind === kind;
+    if (kind === "type") return f.kind === "type" && f.type === value;
+    if (kind === "tag") return f.kind === "tag" && f.tag === value;
+    return false;
+  }
 </script>
 
 <aside class="sidebar">
@@ -36,15 +47,15 @@
       label="All items"
       icon="layout-list"
       count={allCount}
-      selected={selection.filter === "all"}
-      onclick={() => selectFilter("all")}
+      selected={isSelected("all")}
+      onclick={() => selectFilter({ kind: "all" })}
     />
     <SidebarItem
       label="Favorites"
       icon="star"
       count={favoritesCount}
-      selected={selection.filter === "favorites"}
-      onclick={() => selectFilter("favorites")}
+      selected={isSelected("favorites")}
+      onclick={() => selectFilter({ kind: "favorites" })}
     />
   </SidebarSection>
 
@@ -53,29 +64,29 @@
       label="Logins"
       icon="key"
       count={loginCount}
-      selected={selection.filter === "login"}
-      onclick={() => selectFilter("login") as void}
+      selected={isSelected("type", "login")}
+      onclick={() => selectFilter({ kind: "type", type: "login" })}
     />
     <SidebarItem
       label="Notes"
       icon="notes"
       count={noteCount}
-      selected={selection.filter === "note"}
-      onclick={() => selectFilter("note") as void}
+      selected={isSelected("type", "note")}
+      onclick={() => selectFilter({ kind: "type", type: "note" })}
     />
     <SidebarItem
       label="Identities"
       icon="user"
       count={identityCount}
-      selected={selection.filter === "identity"}
-      onclick={() => selectFilter("identity") as void}
+      selected={isSelected("type", "identity")}
+      onclick={() => selectFilter({ kind: "type", type: "identity" })}
     />
     <SidebarItem
       label="Cards"
       icon="credit-card"
       count={cardCount}
-      selected={selection.filter === "card"}
-      onclick={() => selectFilter("card") as void}
+      selected={isSelected("type", "card")}
+      onclick={() => selectFilter({ kind: "type", type: "card" })}
     />
   </SidebarSection>
 
@@ -85,8 +96,8 @@
         <SidebarItem
           label={tag}
           tagColor={tagColor(tag)}
-          onclick={() => selectFilter(tag as ItemType)}
-          selected={selection.filter === tag}
+          onclick={() => selectFilter({ kind: "tag", tag })}
+          selected={isSelected("tag", tag)}
         />
       {/each}
     </SidebarSection>

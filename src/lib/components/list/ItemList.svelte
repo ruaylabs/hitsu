@@ -7,16 +7,15 @@
 
   let filtered = $derived.by(() => {
     let items = vault.entries;
-    if (selection.filter === "favorites") {
+    const f = selection.filter;
+    if (f.kind === "favorites") {
       items = items.filter((e) => e.favorite);
-    } else if (selection.filter === "trash") {
+    } else if (f.kind === "trash") {
       items = [];
-    } else if (selection.filter !== "all") {
-      const typeFilter = selection.filter;
-      const isTypeFilter = ["login", "note", "identity", "card"].includes(typeFilter);
-      items = items.filter((e) =>
-        isTypeFilter ? e.type === typeFilter : e.tags.includes(typeFilter),
-      );
+    } else if (f.kind === "type") {
+      items = items.filter((e) => e.type === f.type);
+    } else if (f.kind === "tag") {
+      items = items.filter((e) => e.tags.includes(f.tag));
     }
     if (selection.search) {
       const q = selection.search.toLowerCase();

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
-  import type { SidebarFilter } from "$lib/bridge/types";
+  import type { ItemType } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import Icon from "../ui/Icon.svelte";
@@ -25,7 +25,7 @@
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
       vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = type as SidebarFilter;
+      selection.filter = { kind: "type", type: type as ItemType };
       selection.selectedId = entry.id;
       vault.setEditingId(entry.id);
     } catch (e) {

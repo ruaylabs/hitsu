@@ -1,7 +1,7 @@
 import type { SidebarFilter } from "$lib/bridge/types";
 
 let selectedId = $state<string | null>(null);
-let filter = $state<SidebarFilter>("all");
+let filter = $state<SidebarFilter>({ kind: "all" });
 let search = $state("");
 
 export const selection = {
