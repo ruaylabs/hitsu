@@ -20,3 +20,38 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * Format a credit card number for display.
+ *
+ * - American Express (cardType === "amex" or starts with 34/37): 4-6-5 pattern
+ *   e.g. 3782 822463 10005
+ * - All other cards: grouped by 4 digits from the left
+ *   e.g. 4111 1111 1111 1111
+ *
+ * @param raw     Raw card number (digits only, or with separators).
+ * @param cardType Optional card type ("amex", "visa", etc.) to pick format.
+ */
+export function formatCardNumber(raw: string, cardType?: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+
+  const type = cardType?.toLowerCase() ?? "";
+  const isAmex = type === "amex" || type === "american express" || /^3[47]/.test(digits);
+
+  if (isAmex) {
+    // Amex: 4-6-5
+    const parts: string[] = [];
+    if (digits.length > 0) parts.push(digits.slice(0, 4));
+    if (digits.length > 4) parts.push(digits.slice(4, 10));
+    if (digits.length > 10) parts.push(digits.slice(10, 15));
+    return parts.join(" ");
+  }
+
+  // Others: groups of 4
+  const groups: string[] = [];
+  for (let i = 0; i < digits.length; i += 4) {
+    groups.push(digits.slice(i, i + 4));
+  }
+  return groups.join(" ");
+}

@@ -18,6 +18,7 @@
   import Icon from "../ui/Icon.svelte";
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
+  import { formatCardNumber } from "$lib/utils/format";
 
   let _entry = $state<Entry | undefined>(undefined);
   let entryLoading = $state(false);
@@ -611,7 +612,8 @@
         {#if entry.card.number}
           <Field
             label="Number"
-            value={entry.card.number}
+            value={formatCardNumber(entry.card.number, entry.card.type)}
+            mono
             onCopy={() => clipboard.copyPlain(entry.card!.number!)}
           />
         {/if}
