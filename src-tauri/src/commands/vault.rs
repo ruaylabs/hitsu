@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use keepass::config::KdfConfig;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -8,6 +10,54 @@ use zeroize::Zeroizing;
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
 use crate::state::{AppState, OpenVault, VaultId};
+
+/// KDBX file format constants
+const KDBX_MAGIC: [u8; 4] = [0x03, 0xd9, 0xa2, 0x9a];
+const KEEPASS_2_ID: u32 = 0xb54bfb66;
+const KEEPASS_LATEST_ID: u32 = 0xb54bfb67;
+
+/// Validate the KDBX file header (magic bytes + version).
+///
+/// Reads the first 12 bytes of the file and checks:
+/// - Magic bytes match `03 D9 A2 9A` (KDBX signature)
+/// - Version identifier is `0xb54bfb66` (pre-release) or `0xb54bfb67` (KDBX 3/4)
+/// - Major version is 3 or 4
+///
+/// This provides early rejection of non-KeePass files before the
+/// `keepass` crate attempts to parse and decrypt.
+pub fn validate_header(path: &Path) -> KagiResult<()> {
+    let mut file = File::open(path)?;
+    let mut buf = [0u8; 12];
+    file.read_exact(&mut buf)?;
+    drop(file);
+
+    // Magic bytes: 03 D9 A2 9A
+    if buf[0..4] != KDBX_MAGIC {
+        return Err(KagiError::Custom(
+            "Invalid KDBX identifier — not a KeePass file".to_string(),
+        ));
+    }
+
+    // Version ID (bytes 4-7, little-endian u32)
+    let version_id = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
+    if version_id != KEEPASS_2_ID && version_id != KEEPASS_LATEST_ID {
+        return Err(KagiError::Custom(format!(
+            "Unsupported KDBX version identifier: {:#010x}",
+            version_id
+        )));
+    }
+
+    // Major version (bytes 10-11, little-endian u16)
+    let major = u16::from_le_bytes([buf[10], buf[11]]);
+    if major != 3 && major != 4 {
+        return Err(KagiError::Custom(format!(
+            "Unsupported KDBX major version: {} (only 3 and 4 are supported)",
+            major
+        )));
+    }
+
+    Ok(())
+}
 
 fn detect_sync_provider(path: &Path) -> String {
     let path_str = path.to_string_lossy();
@@ -76,6 +126,111 @@ fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── validate_header tests ────────────────────────────────────────────
+
+    /// Helper: return the raw 12-byte header from a freshly created KDBX4.1 file.
+    fn kdbx4_header_bytes() -> Vec<u8> {
+        use std::io::Cursor;
+        let db = keepass::Database::new();
+        let mut buf = Cursor::new(Vec::new());
+        db.save(&mut buf, keepass::DatabaseKey::new().with_password("t"))
+            .unwrap();
+        let bytes = buf.into_inner();
+        bytes[..12].to_vec()
+    }
+
+    /// Write `data` to a temp file and return its path + parent guard.
+    fn write_temp_file(data: &[u8]) -> (PathBuf, std::fs::File) {
+        let dir = std::env::temp_dir().join(format!("kagi-hdr-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("test.kdbx");
+        let mut f = File::create(&path).unwrap();
+        use std::io::Write;
+        f.write_all(data).unwrap();
+        (path, f)
+    }
+
+    #[test]
+    fn test_validate_header_accepts_kdbx4() {
+        let header = kdbx4_header_bytes();
+        let (path, _f) = write_temp_file(&header);
+        let result = validate_header(&path);
+        assert!(
+            result.is_ok(),
+            "real KDBX4 header should pass: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_validate_header_accepts_kdbx3() {
+        // KDBX3 has the same magic + latest version ID, but major = 3
+        let header: [u8; 12] = [
+            0x03, 0xd9, 0xa2, 0x9a, // magic
+            0x67, 0xfb, 0x4b, 0xb5, // KEEPASS_LATEST_ID (LE)
+            0x01, 0x00, // minor = 1
+            0x03, 0x00, // major = 3
+        ];
+        let (path, _f) = write_temp_file(&header);
+        let result = validate_header(&path);
+        assert!(result.is_ok(), "KDBX3 header should pass: {:?}", result);
+    }
+
+    #[test]
+    fn test_validate_header_rejects_bad_magic() {
+        let header = [0u8; 12];
+        let (path, _f) = write_temp_file(&header);
+        let result = validate_header(&path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("KDBX identifier"));
+    }
+
+    #[test]
+    fn test_validate_header_rejects_unknown_version_id() {
+        let mut header = kdbx4_header_bytes();
+        header[4..8].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+        let (path, _f) = write_temp_file(&header);
+        let result = validate_header(&path);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("version identifier"));
+    }
+
+    #[test]
+    fn test_validate_header_rejects_unsupported_major_version() {
+        // Magic OK, version ID OK, but major = 5
+        let header: [u8; 12] = [
+            0x03, 0xd9, 0xa2, 0x9a, // magic
+            0x67, 0xfb, 0x4b, 0xb5, // KEEPASS_LATEST_ID
+            0x00, 0x00, // minor = 0
+            0x05, 0x00, // major = 5 (unsupported)
+        ];
+        let (path, _f) = write_temp_file(&header);
+        let result = validate_header(&path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("major version"));
+    }
+
+    #[test]
+    fn test_validate_header_rejects_truncated() {
+        // Only 8 bytes — read_exact will fail with unexpected EOF
+        let data = [0x03, 0xd9, 0xa2, 0x9a, 0x67, 0xfb, 0x4b, 0xb5];
+        let (path, _f) = write_temp_file(&data);
+        let result = validate_header(&path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_header_file_not_found() {
+        let path = PathBuf::from("/tmp/does-not-exist-123456.kdbx");
+        let result = validate_header(&path);
+        assert!(result.is_err());
+    }
+
+    // ── validate_kdf tests ───────────────────────────────────────────────
 
     #[test]
     fn test_validate_kdf_rejects_aes() {
@@ -198,6 +353,9 @@ pub async fn vault_open(
     let mut password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
+
+    // Validate header early before passing to keepass
+    validate_header(&path)?;
     let name = path
         .file_stem()
         .and_then(|s| s.to_str())
