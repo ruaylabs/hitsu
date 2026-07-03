@@ -1,98 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { listen } from "@tauri-apps/api/event";
-  import { app } from "$lib/stores/app.svelte";
   import { vault } from "$lib/stores/vault.svelte";
-  import { selection } from "$lib/stores/selection.svelte";
   import { security } from "$lib/stores/security.svelte";
-  import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
-  import * as vaultBridge from "$lib/bridge/vault";
-  import type { ItemType } from "$lib/bridge/types";
-  import * as entriesBridge from "$lib/bridge/entries";
-  import { toSummary } from "$lib/bridge/entries";
-  import StatusBar from "$lib/components/chrome/StatusBar.svelte";
-  import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
-  import ItemList from "$lib/components/list/ItemList.svelte";
-  import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
-  import SettingsView from "$lib/components/settings/SettingsView.svelte";
-  import PasswordDialog from "$lib/components/ui/PasswordDialog.svelte";
-  import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+  import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
   import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
-
-  let showCommandPalette = $state(false);
-
-  async function onCreateEntry(type: string) {
-    showCommandPalette = false;
-    try {
-      const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
-      vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = { kind: "type", type: type as ItemType };
-      selection.selectedId = entry.id;
-      vault.setEditingId(entry.id);
-    } catch (e) {
-      console.error("Failed to create entry", e);
-    }
-  }
-
-  function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      if (showCommandPalette) {
-        showCommandPalette = false;
-        return;
-      }
-      if (app.view === "settings") {
-        app.view = "main";
-        return;
-      }
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === ",") {
-      e.preventDefault();
-      app.toggleSettings();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === "n") {
-      e.preventDefault();
-      showCommandPalette = true;
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
-      e.preventDefault();
-      // Delete selected entry via detail pane's delete
-      const btn = document.querySelector('[aria-label="Delete"]');
-      if (btn) (btn as HTMLButtonElement).click();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-      e.preventDefault();
-      const input = document.querySelector(".search-input") as HTMLInputElement | null;
-      if (input) input.focus();
-    }
-  }
-
-  // Start idle/sleep lock monitors when the vault is unlocked, stop when locked
-  $effect(() => {
-    if (!vault.locked && vault.meta) {
-      startIdleTimer(security.idleLockMs);
-      return stopIdleTimer;
-    }
-  });
-
-  $effect(() => {
-    if (vault.meta?.kdfNeedsUpgrade && !vault.locked && !kdfUpgradeDismissed) {
-      showKdfUpgrade = true;
-    }
-  });
+  import MainApp from "$lib/components/MainApp.svelte";
 
   let startupDialog: "password" | null = $state(null);
   let startupPath = $state("");
-  let startupError = $state("");
-  let unlockError = $state("");
-  let showKdfUpgrade = $state(false);
-  let kdfUpgradeDismissed = $state(false);
   let startupChecked = $state(false);
 
   onMount(() => {
-    const unlisten = listen("menu://settings", () => {
-      app.toggleSettings();
-    });
-    // Load preferences — both startup vault and security settings
+    // Load preferences — startup vault and security settings
     security
       .load()
       .then((prefs) => {
@@ -105,191 +24,32 @@
       .catch(() => {
         startupChecked = true;
       });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
   });
-
-  async function onStartupPassword(password: string) {
-    startupError = "";
-    try {
-      const meta = await vaultBridge.vaultOpen(startupPath, password);
-      vault.setMeta(meta);
-
-      const summaries = await entriesBridge.entriesList();
-      vault.setEntries(summaries);
-      startupDialog = null;
-    } catch (e) {
-      startupError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
-  async function onUnlock(password: string) {
-    unlockError = "";
-    try {
-      const meta = await vaultBridge.vaultOpen(vault.meta!.path, password);
-      vault.setMeta(meta);
-
-      const summaries = await entriesBridge.entriesList();
-      vault.setEntries(summaries);
-      vault.unlock();
-    } catch (e) {
-      unlockError = e instanceof Error ? e.message : String(e);
-    }
-  }
 </script>
 
-<svelte:window {onkeydown} />
-
 {#if startupDialog === "password"}
-  <PasswordDialog
+  <UnlockScreen
+    path={startupPath}
     title="Unlock vault"
     confirmLabel="Unlock"
-    errorMessage={startupError}
-    transparentOverlay
-    onconfirm={onStartupPassword}
+    onunlock={() => (startupDialog = null)}
     oncancel={() => {
       startupDialog = null;
       vault.setMeta(null);
     }}
   />
-{/if}
-
-{#if vault.locked && vault.meta}
-  <PasswordDialog
+{:else if vault.locked && vault.meta}
+  <UnlockScreen
+    path={vault.meta!.path}
     title="Locked"
     confirmLabel="Unlock"
-    errorMessage={unlockError}
-    transparentOverlay
     showCancel={false}
-    onconfirm={onUnlock}
+    onunlock={() => vault.unlock()}
   />
-{/if}
-
-{#if startupDialog || (vault.locked && vault.meta)}
-<!-- Password dialogs rendered above, nothing else to show -->
 {:else if !startupChecked}
 <!-- Waiting for startup check — show blank -->
-{:else if app.view === "settings"}
-  <SettingsView />
 {:else if !vault.meta}
   <OnboardingView />
 {:else}
-  <div class="app-window">
-    <div class="main-grid">
-      <Sidebar />
-      <ItemList />
-      <ItemDetail />
-    </div>
-    <StatusBar />
-  </div>
+  <MainApp />
 {/if}
-
-{#if showKdfUpgrade}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="kdf-overlay" onclick={() => (showKdfUpgrade = false)}>
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="kdf-dialog" onclick={(e) => e.stopPropagation()}>
-      <h2>Upgrade vault security?</h2>
-      <p>
-        This vault uses a weak KDF configuration (less than 64 MiB memory). Upgrade to Argon2id with
-        64 MiB for better protection against brute-force attacks?
-      </p>
-      <div class="kdf-actions">
-        <button
-          class="btn"
-          onclick={() => {
-            showKdfUpgrade = false;
-            kdfUpgradeDismissed = true;
-          }}
-        >
-          Later
-        </button>
-        <button
-          class="btn btn-primary"
-          onclick={async () => {
-            try {
-              await vaultBridge.vaultUpgradeKdf();
-              showKdfUpgrade = false;
-            } catch (e) {
-              console.error("KDF upgrade failed", e);
-            }
-          }}
-        >
-          Upgrade
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if showCommandPalette}
-  <CommandPalette onSelect={onCreateEntry} onClose={() => (showCommandPalette = false)} />
-{/if}
-
-<style>
-  .app-window {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--surface-2);
-  }
-
-  .main-grid {
-    display: grid;
-    grid-template-columns: var(--sidebar-width) var(--list-width) minmax(0, 1fr);
-    flex: 1;
-    min-height: 480px;
-    overflow: hidden;
-  }
-
-  .kdf-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  .kdf-dialog {
-    background: var(--surface-0);
-    border-radius: 12px;
-    padding: 24px;
-    width: 400px;
-    max-width: 90vw;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  .kdf-dialog h2 {
-    margin: 0 0 12px 0;
-    font-size: 1.2rem;
-  }
-
-  .kdf-dialog p {
-    margin: 0 0 20px 0;
-    color: var(--text-2);
-    line-height: 1.5;
-  }
-
-  .kdf-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-
-  .kdf-actions .btn {
-    padding: 8px 20px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-
-  .kdf-actions .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
-</style>
