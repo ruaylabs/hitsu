@@ -53,7 +53,6 @@
 <div
   class="palette-overlay"
   onclick={onClose}
-  onkeydown={onKeydown}
   role="dialog"
   aria-label="Command palette"
   tabindex="-1"
