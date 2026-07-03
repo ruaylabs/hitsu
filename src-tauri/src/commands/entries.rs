@@ -186,8 +186,7 @@ fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
 }
 
 fn save_vault(vault: &OpenVault) -> KagiResult<()> {
-    let password = String::from_utf8_lossy(&vault.master_key);
-    let key = keepass::DatabaseKey::new().with_password(&password);
+    let key = vault.db_key.clone();
     let mut buf = std::io::Cursor::new(Vec::new());
     vault.db.save(&mut buf, key)?;
     let bytes = buf.into_inner();

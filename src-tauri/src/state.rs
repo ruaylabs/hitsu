@@ -1,22 +1,22 @@
-use keepass::Database;
+use keepass::{Database, DatabaseKey};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use uuid::Uuid;
-use zeroize::Zeroizing;
 
 pub type VaultId = Uuid;
 
 pub struct OpenVault {
     pub db: Database,
     pub path: PathBuf,
-    pub master_key: Zeroizing<Vec<u8>>,
+    pub db_key: DatabaseKey,
 }
 
 // Zeroize sensitive key material when the vault is dropped (lock, close, …)
 impl Drop for OpenVault {
     fn drop(&mut self) {
-        // Zeroizing<Vec<u8>> zeros the master key buffer via its own Drop impl.
+        // DatabaseKey implements ZeroizeOnDrop — its password field is zeroized
+        // automatically when the struct is dropped.
         // Replace the Database with an empty one so decrypted entry data is
         // released from the heap. Note: the allocator may not immediately
         // overwrite the freed pages — a proper scrub would require the keepass

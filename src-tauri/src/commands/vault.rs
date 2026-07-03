@@ -3,7 +3,6 @@ use std::io::Read;
 use keepass::config::KdfConfig;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::Zeroizing;
 
@@ -350,7 +349,7 @@ pub async fn vault_open(
     password: String,
 ) -> KagiResult<VaultMeta> {
     // Wrap immediately so the string buffer is zeroized on any early return
-    let mut password = Zeroizing::new(password);
+    let password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
 
@@ -380,17 +379,17 @@ pub async fn vault_open(
         .lock()
         .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
 
-    // Swap the String with an empty one via DerefMut, then convert to bytes.
-    // The Zeroizing<String> (now holding "") drops harmlessly later.
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
-    let pw_str = std::mem::take(&mut *password);
+    // Build the DatabaseKey once; the Zeroizing<String> will zeroize the
+    // original password buffer when it drops at function exit.
+    let db_key = keepass::DatabaseKey::new().with_password(&password);
     vaults.insert(
         id,
         OpenVault {
             db,
             path: path.clone(),
-            master_key: Zeroizing::new(pw_str.into_bytes()),
+            db_key,
         },
     );
 
@@ -421,9 +420,8 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
         version: argon2::Version::Version13,
     };
 
-    // Re-save with current master key
-    let pw = String::from_utf8_lossy(&vault.master_key);
-    let key = keepass::DatabaseKey::new().with_password(&pw);
+    // Re-save with the stored DatabaseKey (no raw password in memory)
+    let key = vault.db_key.clone();
     let mut buf = std::io::Cursor::new(Vec::new());
     vault
         .db
@@ -443,7 +441,7 @@ pub async fn vault_create(
     name: String,
 ) -> KagiResult<VaultMeta> {
     // Wrap immediately so the string buffer is zeroized on any early return
-    let mut password = Zeroizing::new(password);
+    let password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
     let vault_name = if name.is_empty() {
@@ -482,15 +480,15 @@ pub async fn vault_create(
         .lock()
         .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
 
-    // Swap the String with an empty one via DerefMut, then convert to bytes.
-    // The Zeroizing<String> (now holding "") drops harmlessly later.
-    let pw_str = std::mem::take(&mut *password);
+    // Build the DatabaseKey once; the Zeroizing<String> will zeroize the
+    // original password buffer when it drops at function exit.
+    let db_key = keepass::DatabaseKey::new().with_password(&password);
     vaults.insert(
         id,
         OpenVault {
             db,
             path: path.clone(),
-            master_key: Zeroizing::new(pw_str.into_bytes()),
+            db_key,
         },
     );
 
@@ -511,7 +509,7 @@ pub async fn vault_change_password(
 ) -> KagiResult<()> {
     // Wrap both immediately so they're zeroized on any early return
     let old_password = Zeroizing::new(old_password);
-    let mut new_password = Zeroizing::new(new_password);
+    let new_password = Zeroizing::new(new_password);
 
     let mut vaults = state
         .vaults
@@ -522,9 +520,8 @@ pub async fn vault_change_password(
     let (_id, vault): (&VaultId, &mut OpenVault) =
         vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    // Verify old password matches stored key (constant-time comparison)
-    let stored_key = String::from_utf8_lossy(&vault.master_key);
-    if !bool::from(stored_key.as_bytes().ct_eq(old_password.as_bytes())) {
+    // Verify old password matches the stored key
+    if vault.db_key != keepass::DatabaseKey::new().with_password(&old_password) {
         return Err(KagiError::Custom("Wrong password".to_string()));
     }
 
@@ -534,10 +531,8 @@ pub async fn vault_change_password(
     let bytes = buf.into_inner();
     crate::vault::atomic_write(&vault.path, &bytes)?;
 
-    // Swap the String with an empty one via DerefMut, then convert to bytes.
-    // The Zeroizing<String> (now holding "") drops harmlessly later.
-    let pw_str = std::mem::take(&mut *new_password);
-    vault.master_key = Zeroizing::new(pw_str.into_bytes());
+    // Store the new DatabaseKey (Zeroizing<String> zeroizes on drop)
+    vault.db_key = keepass::DatabaseKey::new().with_password(&new_password);
     Ok(())
 }
 

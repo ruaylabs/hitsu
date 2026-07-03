@@ -2133,7 +2133,6 @@ dependencies = [
  "rust-argon2",
  "serde",
  "serde_json",
- "subtle",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

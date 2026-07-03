@@ -1267,7 +1267,6 @@ fn test_vault_lock_clears_state() {
     // Test that clearing the vault HashMap (the core of vault_lock)
     // properly removes OpenVault and its contents.
     use kagi_lib::state::{AppState, OpenVault};
-    use zeroize::Zeroizing;
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock().unwrap();
@@ -1280,7 +1279,7 @@ fn test_vault_lock_clears_state() {
         OpenVault {
             db,
             path: "/tmp/test.kdbx".into(),
-            master_key: Zeroizing::new(b"test-password".to_vec()),
+            db_key: DatabaseKey::new().with_password("test-password"),
         },
     );
 
@@ -1289,9 +1288,9 @@ fn test_vault_lock_clears_state() {
     // Simulate vault_lock — clear the HashMap
     vaults.clear();
     assert_eq!(vaults.len(), 0, "vault should be cleared");
-    // Clearing drops each OpenVault; the master_key is zeroized via
-    // Zeroizing's Drop impl, and the Database (with decrypted entries)
-    // is dropped.
+    // Clearing drops each OpenVault; the DatabaseKey's password field is
+    // zeroized automatically via ZeroizeOnDrop, and the Database (with
+    // decrypted entries) is dropped.
 }
 
 #[test]
@@ -1312,7 +1311,6 @@ fn test_vault_lock_with_no_vault_is_noop() {
 #[test]
 fn test_openvault_drop_replaces_database() {
     use kagi_lib::state::{AppState, OpenVault};
-    use zeroize::Zeroizing;
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock().unwrap();
@@ -1330,7 +1328,7 @@ fn test_openvault_drop_replaces_database() {
         OpenVault {
             db,
             path: "/tmp/test.kdbx".into(),
-            master_key: Zeroizing::new(b"password".to_vec()),
+            db_key: DatabaseKey::new().with_password("password"),
         },
     );
 
@@ -1344,49 +1342,50 @@ fn test_openvault_drop_replaces_database() {
     assert_eq!(vaults.len(), 0);
 }
 
-/// Verify that the master key's underlying buffer is zeroed after the
-/// OpenVault is dropped. We can't easily inspect freed memory, but we
-/// can verify that cloning the key before drop produces a non-zero vec
-/// that becomes inaccessible after the vault is cleared.
+/// Verify that the DatabaseKey inside OpenVault is zeroized on drop.
+/// DatabaseKey implements ZeroizeOnDrop, so its password field is
+/// automatically scrubbed when the struct is dropped.
 #[test]
-fn test_master_key_zeroized_after_lock() {
+fn test_db_key_zeroized_after_lock() {
     use kagi_lib::state::{AppState, OpenVault};
-    use zeroize::Zeroizing;
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock().unwrap();
 
     let db = keepass::Database::new();
     let id = uuid::Uuid::new_v4();
-    let secret = b"supersecret".to_vec();
+    let db_key = DatabaseKey::new().with_password("supersecret");
 
-    // Clone before inserting so we have a reference to the original bytes
-    let cloned = secret.clone();
-    assert_eq!(&cloned, b"supersecret", "original bytes should be intact");
+    // Clone before inserting so we have an independent copy
+    let cloned_key = db_key.clone();
+    assert!(
+        !cloned_key.is_empty(),
+        "key should have a password component"
+    );
 
     vaults.insert(
         id,
         OpenVault {
             db,
             path: "/tmp/test.kdbx".into(),
-            master_key: Zeroizing::new(secret),
+            db_key,
         },
     );
 
-    // Vault is present, key is accessible
     assert_eq!(vaults.len(), 1);
 
-    // Drop the vault — Zeroizing zeros the buffer, the cloned copy still has the bytes
+    // Drop the vault — DatabaseKey is zeroized via ZeroizeOnDrop
     vaults.clear();
     assert_eq!(vaults.len(), 0);
 
-    // The cloned copy persists independently (Zeroizing only zeros its own buffer)
-    assert_eq!(
-        &cloned, b"supersecret",
-        "cloned copy unaffected by Zeroizing drop"
+    // The cloned copy persists independently (DatabaseKey::clone copies the
+    // password; drop on the original zeroizes only its own memory)
+    assert!(
+        !cloned_key.is_empty(),
+        "cloned copy should still have a password component"
     );
 
-    // The original buffer (now inside the dropped Zeroizing) was zeroed.
-    // We can't safely verify that from safe Rust without a reference to
-    // the freed memory, but Zeroizing's own tests confirm this behavior.
+    // We can't safely verify the zeroized password from safe Rust without
+    // a reference to the freed memory, but DatabaseKey's own ZeroizeOnDrop
+    // implementation (tested upstream) guarantees it.
 }
