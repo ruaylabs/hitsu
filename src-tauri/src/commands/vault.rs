@@ -10,6 +10,12 @@ use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
 use crate::state::{AppState, OpenVault, VaultId};
 
+// Compile-time assertion: confirm the rust-argon2 re-export resolves
+// and argon2::Version::Version13 has the expected value (0x13).
+// If rust-argon2 changes its API or the argon2 alias breaks, this will
+// fail at compile time with a clear message.
+const _: () = assert!(argon2::Version::Version13 as u32 == 0x13);
+
 /// KDBX file format constants
 const KDBX_MAGIC: [u8; 4] = [0x03, 0xd9, 0xa2, 0x9a];
 const KEEPASS_2_ID: u32 = 0xb54bfb66;
@@ -339,6 +345,15 @@ mod tests {
     fn test_needs_kdf_upgrade_aes() {
         let kdf = KdfConfig::Aes { rounds: 6000 };
         assert!(needs_kdf_upgrade(&kdf));
+    }
+
+    /// Confirm argon2::Version::Version13 resolves to 0x13.
+    /// If rust-argon2 changes its version scheme or the re-export breaks,
+    /// this test catches it early.
+    #[test]
+    fn test_argon2_version_constant() {
+        assert_eq!(argon2::Version::Version13 as u32, 0x13);
+        assert_eq!(argon2::Version::default(), argon2::Version::Version13);
     }
 }
 
