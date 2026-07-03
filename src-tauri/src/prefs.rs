@@ -3,6 +3,8 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
+use crate::vault::atomic_write;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -59,7 +61,7 @@ impl Preferences {
             let _ = fs::create_dir_all(parent);
         }
         if let Ok(content) = serde_json::to_string_pretty(self) {
-            let _ = fs::write(&path, content);
+            let _ = atomic_write(&path, content.as_bytes());
         }
     }
 }
