@@ -26,6 +26,7 @@
   let entryError = $state("");
 
   let fetchId = 0;
+  let loadingTimer: ReturnType<typeof setTimeout> | undefined;
 
   // Fetch the full entry whenever selection changes
   $effect(() => {
@@ -37,18 +38,27 @@
       return;
     }
     const thisFetch = ++fetchId;
-    entryLoading = true;
+    // Keep previous entry visible during refetch; only show "Loading…" after a
+    // short delay and only when we have no prior data to display.
+    if (loadingTimer) clearTimeout(loadingTimer);
+    if (!_entry) {
+      loadingTimer = setTimeout(() => {
+        if (thisFetch === fetchId) entryLoading = true;
+      }, 120);
+    }
     entryError = "";
     entriesBridge
       .entryGet(id)
       .then((e) => {
         if (thisFetch === fetchId) {
+          if (loadingTimer) clearTimeout(loadingTimer);
           _entry = e;
           entryLoading = false;
         }
       })
       .catch((err) => {
         if (thisFetch === fetchId) {
+          if (loadingTimer) clearTimeout(loadingTimer);
           entryError = err instanceof Error ? err.message : String(err);
           entryLoading = false;
         }
@@ -250,7 +260,7 @@
   />
 {/if}
 
-{#if entryLoading}
+{#if entryLoading && !_entry}
   <div class="detail-pane">
     <div class="empty-detail">
       <p>Loading…</p>
