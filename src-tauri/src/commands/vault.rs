@@ -4,7 +4,7 @@ use keepass::config::KdfConfig;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use tauri::State;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
@@ -348,8 +348,8 @@ pub async fn vault_open(
     path: String,
     password: String,
 ) -> KagiResult<VaultMeta> {
-    // Wrap immediately so the string buffer is zeroized on any early return
-    let password = Zeroizing::new(password);
+    // Wrap immediately so the buffer is zeroized on any early return
+    let mut password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
 
@@ -381,9 +381,10 @@ pub async fn vault_open(
 
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
-    // Build the DatabaseKey once; the Zeroizing<String> will zeroize the
-    // original password buffer when it drops at function exit.
+    // Build the DatabaseKey; then early-zeroize the source password String
+    // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
+    password.zeroize();
     vaults.insert(
         id,
         OpenVault {
@@ -440,8 +441,8 @@ pub async fn vault_create(
     password: String,
     name: String,
 ) -> KagiResult<VaultMeta> {
-    // Wrap immediately so the string buffer is zeroized on any early return
-    let password = Zeroizing::new(password);
+    // Wrap immediately so the buffer is zeroized on any early return
+    let mut password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
     let vault_name = if name.is_empty() {
@@ -480,9 +481,10 @@ pub async fn vault_create(
         .lock()
         .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
 
-    // Build the DatabaseKey once; the Zeroizing<String> will zeroize the
-    // original password buffer when it drops at function exit.
+    // Build the DatabaseKey; then early-zeroize the source password String
+    // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
+    password.zeroize();
     vaults.insert(
         id,
         OpenVault {
@@ -508,8 +510,8 @@ pub async fn vault_change_password(
     new_password: String,
 ) -> KagiResult<()> {
     // Wrap both immediately so they're zeroized on any early return
-    let old_password = Zeroizing::new(old_password);
-    let new_password = Zeroizing::new(new_password);
+    let mut old_password = Zeroizing::new(old_password);
+    let mut new_password = Zeroizing::new(new_password);
 
     let mut vaults = state
         .vaults
@@ -531,8 +533,10 @@ pub async fn vault_change_password(
     let bytes = buf.into_inner();
     crate::vault::atomic_write(&vault.path, &bytes)?;
 
-    // Store the new DatabaseKey (Zeroizing<String> zeroizes on drop)
+    // Store the new DatabaseKey; early-zeroize both source buffers
     vault.db_key = keepass::DatabaseKey::new().with_password(&new_password);
+    old_password.zeroize();
+    new_password.zeroize();
     Ok(())
 }
 
