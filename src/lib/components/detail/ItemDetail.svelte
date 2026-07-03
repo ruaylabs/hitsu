@@ -18,6 +18,7 @@
   import Icon from "../ui/Icon.svelte";
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
+  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import { formatCardNumber } from "$lib/utils/format";
 
   let _entry = $state<Entry | undefined>(undefined);
@@ -57,6 +58,7 @@
   let editing = $state(false);
   let showHistory = $state(false);
   let showGenerator = $state(false);
+  let showDeleteConfirm = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
   let editPassword = $state("");
@@ -221,12 +223,17 @@
     }
   }
 
+  function confirmDelete() {
+    showDeleteConfirm = true;
+  }
+
   async function deleteEntry() {
     if (!_entry) return;
-    if (!confirm(`Delete "${_entry.title}"?`)) return;
+    showDeleteConfirm = false;
     const id = _entry.id;
     try {
       await entriesBridge.entryDelete(id);
+      editing = false;
       vault.setEntries(vault.entries.filter((s) => s.id !== id));
       _entry = undefined;
       selection.selectedId = null;
@@ -259,22 +266,16 @@
   {@const entry = _entry}
   <div class="detail-pane">
     <div class="detail-toolbar">
-      <button
-        class="toolbar-btn"
-        onclick={editing ? cancelEdit : startEdit}
-        aria-label={editing ? "Cancel" : "Edit"}
-      >
-        <Icon name={editing ? "x" : "pencil"} size={14} />
-        <span>{editing ? "Cancel" : "Edit"}</span>
-      </button>
       {#if editing}
+        <button class="toolbar-btn" onclick={cancelEdit} aria-label="Cancel">
+          <Icon name="x" size={14} />
+          <span>Cancel</span>
+        </button>
         <button class="toolbar-btn toolbar-save" onclick={saveEdit} aria-label="Save">
           <Icon name="check" size={14} />
           <span>Save</span>
         </button>
-      {/if}
-      {#if !editing}
-        <button class="toolbar-btn toolbar-delete" onclick={deleteEntry} aria-label="Delete">
+        <button class="toolbar-btn toolbar-delete" onclick={confirmDelete} aria-label="Delete">
           <Icon name="trash" size={14} />
           <span>Delete</span>
         </button>
@@ -672,6 +673,17 @@
 
 {#if showHistory && _entry}
   <HistoryDialog entryId={_entry.id} onclose={() => (showHistory = false)} />
+{/if}
+
+{#if showDeleteConfirm && _entry}
+  <ConfirmDialog
+    title="Delete entry?"
+    message={`Are you sure you want to delete "${_entry.title}"?`}
+    confirmLabel="Delete"
+    danger={true}
+    onconfirm={deleteEntry}
+    oncancel={() => (showDeleteConfirm = false)}
+  />
 {/if}
 
 <style>
