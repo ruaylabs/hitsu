@@ -50,7 +50,7 @@
   <div class="panel">
     <header class="panel-header">
       <h2 class="panel-title">Password generator</h2>
-      <button class="close-btn" onclick={oncancel} aria-label="Close">
+      <button class="close-btn" onclick={oncancel} aria-label="Close" title="Close">
         <Icon name="x" size={16} />
       </button>
     </header>
@@ -58,7 +58,12 @@
     <div class="panel-body">
       <div class="password-display">
         <code class="generated-pw">{password}</code>
-        <button class="regenerate-btn" onclick={generate} aria-label="Regenerate">
+        <button
+          class="regenerate-btn"
+          onclick={generate}
+          aria-label="Regenerate"
+          title="Regenerate"
+        >
           <Icon name="refresh" size={16} />
         </button>
       </div>

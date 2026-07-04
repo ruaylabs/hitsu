@@ -37,10 +37,11 @@
       class:favorited={entry.favorite}
       onclick={onFavorite}
       aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
+      title={entry.favorite ? "Unfavorite" : "Favorite"}
     >
       <Icon name="star" size={14} />
     </button>
-    <button class="action-btn" onclick={onEdit} aria-label="Edit entry">
+    <button class="action-btn" onclick={onEdit} aria-label="Edit entry" title="Edit entry">
       <Icon name="pencil" size={14} />
     </button>
   </div>

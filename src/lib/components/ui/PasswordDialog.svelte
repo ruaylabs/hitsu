@@ -63,7 +63,7 @@
     <header class="dialog-header">
       <h2 class="dialog-title">{title}</h2>
       {#if showCancel}
-        <button class="dialog-close" onclick={oncancel} aria-label="Cancel">
+        <button class="dialog-close" onclick={oncancel} aria-label="Cancel" title="Close">
           <Icon name="x" size={16} />
         </button>
       {/if}

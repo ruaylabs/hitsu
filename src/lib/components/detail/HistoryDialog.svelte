@@ -83,7 +83,7 @@
         <Icon name="history" size={16} />
         Revision history
       </h2>
-      <button class="close-btn" onclick={onclose} aria-label="Close">
+      <button class="close-btn" onclick={onclose} aria-label="Close" title="Close">
         <Icon name="x" size={16} />
       </button>
     </div>

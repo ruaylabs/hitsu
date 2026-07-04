@@ -65,6 +65,7 @@
         class="search-clear"
         onclick={() => { search = ""; selection.search = ""; }}
         aria-label="Clear search"
+        title="Clear search"
       >
         <Icon name="x" size={12} />
       </button>
@@ -111,6 +112,7 @@
         class="add-btn"
         onclick={(e) => { e.stopPropagation(); showTypePicker = !showTypePicker; }}
         aria-label="Add entry"
+        title="Add entry"
       >
         <Icon name="plus" size={14} />
       </button>

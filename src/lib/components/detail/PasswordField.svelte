@@ -39,13 +39,14 @@
   <span class="field-label">{label}</span>
   <span class="field-value mono">{revealed ? password : "•".repeat(14)}</span>
   <div class="field-actions">
-    <button class="field-action" onclick={copy} aria-label="Copy password">
+    <button class="field-action" onclick={copy} aria-label="Copy password" title="Copy password">
       <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
     </button>
     <button
       class="field-action"
       onclick={toggleReveal}
       aria-label={revealed ? "Hide password" : "Reveal password"}
+      title={revealed ? "Hide password" : "Reveal password"}
     >
       <i class="ti ti-{revealed ? 'eye-off' : 'eye'}" style="font-size: 15px"></i>
     </button>

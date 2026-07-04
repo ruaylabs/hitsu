@@ -44,11 +44,21 @@
     </div>
   {:else if onCopy}
     <div class="field-actions">
-      <button class="field-action" onclick={handleCopy} aria-label="Copy {label}">
+      <button
+        class="field-action"
+        onclick={handleCopy}
+        aria-label="Copy {label}"
+        title="Copy {label}"
+      >
         <Icon name={copied ? "check" : "copy"} size={15} />
       </button>
       {#if label.toLowerCase().includes("password") && onReveal}
-        <button class="field-action" onclick={onReveal} aria-label="Reveal {label}">
+        <button
+          class="field-action"
+          onclick={onReveal}
+          aria-label="Reveal {label}"
+          title="Reveal {label}"
+        >
           <Icon name={reveal ? "eye-off" : "eye"} size={15} />
         </button>
       {/if}

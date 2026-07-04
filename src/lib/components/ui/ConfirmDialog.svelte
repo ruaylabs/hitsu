@@ -36,7 +36,7 @@
   <div class="dialog-pane" onclick={(e) => e.stopPropagation()}>
     <header class="dialog-header">
       <h2 class="dialog-title">{title}</h2>
-      <button class="dialog-close" onclick={oncancel} aria-label="Cancel">
+      <button class="dialog-close" onclick={oncancel} aria-label="Cancel" title="Close">
         <Icon name="x" size={16} />
       </button>
     </header>

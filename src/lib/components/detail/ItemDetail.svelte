@@ -356,7 +356,12 @@
           <Icon name="check" size={14} />
           <span>Save</span>
         </button>
-        <button class="toolbar-btn toolbar-delete" onclick={confirmDelete} aria-label="Delete">
+        <button
+          class="toolbar-btn toolbar-delete"
+          onclick={confirmDelete}
+          aria-label="Delete"
+          title="Delete"
+        >
           <Icon name="trash" size={14} />
           <span>Delete</span>
         </button>
@@ -415,6 +420,7 @@
                 class="generate-btn"
                 onclick={() => (showGenerator = true)}
                 aria-label="Generate password"
+                title="Generate password"
               >
                 <Icon name="bolt" size={14} />
               </button>

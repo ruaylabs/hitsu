@@ -15,7 +15,7 @@
 
 <div class="detail-footer">
   <span>Modified {timeAgo(modifiedAt)}</span>
-  <button class="history-btn" aria-label="View history" {onclick}>
+  <button class="history-btn" aria-label="View history" title="View history" {onclick}>
     <Icon name="history" size={12} />
     <span>{historyCount} revisions</span>
   </button>

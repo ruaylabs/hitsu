@@ -19,11 +19,21 @@
       <span>{itemCount} items</span>
     {/if}
     {#if vault.meta}
-      <button class="lock-btn" onclick={() => vault.lock()} aria-label="Lock vault">
+      <button
+        class="lock-btn"
+        onclick={() => vault.lock()}
+        aria-label="Lock vault"
+        title="Lock vault"
+      >
         <Icon name="lock" size={12} />
       </button>
     {/if}
-    <button class="settings-gear" onclick={() => app.toggleSettings()} aria-label="Settings">
+    <button
+      class="settings-gear"
+      onclick={() => app.toggleSettings()}
+      aria-label="Settings"
+      title="Settings"
+    >
       <Icon name="settings" size={12} />
     </button>
   </div>

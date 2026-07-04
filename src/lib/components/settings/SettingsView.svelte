@@ -147,7 +147,12 @@
   <div class="settings-pane">
     <header class="settings-header">
       <h1 class="settings-title">Settings</h1>
-      <button class="close-btn" onclick={() => (app.view = "main")} aria-label="Close settings">
+      <button
+        class="close-btn"
+        onclick={() => (app.view = "main")}
+        aria-label="Close settings"
+        title="Close settings"
+      >
         <Icon name="x" size={16} />
       </button>
     </header>

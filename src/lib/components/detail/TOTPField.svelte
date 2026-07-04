@@ -80,7 +80,7 @@
     </svg>
     <span class="totp-seconds">{remaining}</span>
   </div>
-  <button class="totp-copy" onclick={copyCode} aria-label="Copy TOTP code">
+  <button class="totp-copy" onclick={copyCode} aria-label="Copy TOTP code" title="Copy TOTP code">
     <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
   </button>
 </div>

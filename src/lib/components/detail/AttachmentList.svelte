@@ -17,7 +17,11 @@
             <span class="attachment-name">{att.name}</span>
             <span class="attachment-size">{formatFileSize(att.sizeBytes)}</span>
           </div>
-          <button class="attachment-download" aria-label="Download {att.name}">
+          <button
+            class="attachment-download"
+            aria-label="Download {att.name}"
+            title="Download {att.name}"
+          >
             <Icon name="download" size={15} />
           </button>
         </div>
