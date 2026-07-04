@@ -19,6 +19,7 @@
     | null = $state(null);
 
   let statusMsg = $state("");
+  let recentVaults = $state<string[]>([]);
 
   async function handleOpen() {
     try {
@@ -36,8 +37,10 @@
 
   let selectedPath = $state("");
 
-  onMount(() => {
-    security.load();
+  onMount(async () => {
+    await security.load();
+    const prefs = await prefsBridge.prefsGet();
+    recentVaults = prefs.recentVaults ?? [];
   });
 
   function onIdleChange(e: Event) {
@@ -187,7 +190,30 @@
 
       <section class="settings-section">
         <h2 class="section-heading">Recent vaults</h2>
-        <p class="empty-text">No recent vaults.</p>
+        {#if recentVaults.length === 0}
+          <p class="empty-text">No recent vaults.</p>
+        {:else}
+          <ul class="recent-list">
+            {#each recentVaults as path}
+              {@const active = vault.meta?.path === path}
+              <li class="recent-item">
+                <button
+                  class="recent-btn"
+                  class:active
+                  disabled={active}
+                  title={active ? "Currently open" : "Open vault"}
+                  onclick={async () => {
+                    selectedPath = path;
+                    dialog = { kind: "open" };
+                  }}
+                >
+                  <Icon name={active ? "check" : "database"} size={14} />
+                  <span class="recent-path">{path}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </section>
 
       <section class="settings-section">
@@ -375,6 +401,61 @@
     font-size: 13px;
     color: var(--text-muted);
     font-style: italic;
+  }
+
+  .recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .recent-item {
+    margin: 0;
+    padding: 0;
+  }
+
+  .recent-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 13px;
+    text-align: left;
+    transition: background 0.1s;
+  }
+
+  .recent-btn:hover {
+    background: var(--border);
+  }
+
+  .recent-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .recent-btn.active {
+    background: var(--surface-2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .recent-btn.active .recent-path {
+    color: var(--text-primary);
+  }
+
+  .recent-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
   }
 
   .setting-row {
