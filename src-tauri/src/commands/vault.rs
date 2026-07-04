@@ -400,6 +400,11 @@ pub async fn vault_open(
     // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
     password.zeroize();
+    // Single-vault app: every read uses vaults.iter().next(), so opening a
+    // new vault must replace any previously open one — otherwise stale
+    // entries from the old vault leak through and can shadow the new one
+    // (entries_list returned the wrong vault's items).
+    vaults.clear();
     vaults.insert(
         id,
         OpenVault {
@@ -500,6 +505,8 @@ pub async fn vault_create(
     // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
     password.zeroize();
+    // Single-vault app: replace any previously open vault (see vault_open).
+    vaults.clear();
     vaults.insert(
         id,
         OpenVault {
