@@ -7,6 +7,7 @@
   import PasswordField from "./PasswordField.svelte";
   import NotesField from "./NotesField.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import type { HistoryEntrySummary } from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
 
@@ -37,19 +38,24 @@
   $effect(() => {
     if (selectedVersion !== null) {
       const thisFetch = ++fetchId;
-      loadingDetail = true;
-      detailEntry = null;
+      // Keep the previous revision's data visible during refetch (mirrors
+      // ItemDetail) so switching revisions doesn't flash the fields off/on.
+      // Only show "Loading…" when we have no prior data to display.
+      if (!detailEntry) loadingDetail = true;
       error = "";
       entriesBridge
         .entryHistoryGet(entryId, selectedVersion)
         .then((e) => {
-          if (thisFetch === fetchId) detailEntry = e;
+          if (thisFetch === fetchId) {
+            detailEntry = e;
+            loadingDetail = false;
+          }
         })
         .catch((e) => {
-          if (thisFetch === fetchId) error = e instanceof Error ? e.message : String(e);
-        })
-        .finally(() => {
-          if (thisFetch === fetchId) loadingDetail = false;
+          if (thisFetch === fetchId) {
+            error = e instanceof Error ? e.message : String(e);
+            loadingDetail = false;
+          }
         });
     }
   });
@@ -126,13 +132,21 @@
                 {#if detailEntry.username || detailEntry.password || detailEntry.url}
                   <FieldGroup>
                     {#if detailEntry.username}
-                      <Field label="Username" value={detailEntry.username} />
+                      <Field
+                        label="Username"
+                        value={detailEntry.username}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.username!)}
+                      />
                     {/if}
                     {#if detailEntry.password}
                       <PasswordField label="Password" password={detailEntry.password} />
                     {/if}
                     {#if detailEntry.url}
-                      <Field label="URL" value={detailEntry.url} />
+                      <Field
+                        label="URL"
+                        value={detailEntry.url}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.url!)}
+                      />
                     {/if}
                   </FieldGroup>
                 {/if}
@@ -140,19 +154,39 @@
                 {#if detailEntry.identity}
                   <FieldGroup>
                     {#if detailEntry.identity.firstName}
-                      <Field label="First name" value={detailEntry.identity.firstName} />
+                      <Field
+                        label="First name"
+                        value={detailEntry.identity.firstName}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.firstName!)}
+                      />
                     {/if}
                     {#if detailEntry.identity.lastName}
-                      <Field label="Last name" value={detailEntry.identity.lastName} />
+                      <Field
+                        label="Last name"
+                        value={detailEntry.identity.lastName}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.lastName!)}
+                      />
                     {/if}
                     {#if detailEntry.identity.email}
-                      <Field label="Email" value={detailEntry.identity.email} />
+                      <Field
+                        label="Email"
+                        value={detailEntry.identity.email}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.email!)}
+                      />
                     {/if}
                     {#if detailEntry.identity.phone}
-                      <Field label="Phone" value={detailEntry.identity.phone} />
+                      <Field
+                        label="Phone"
+                        value={detailEntry.identity.phone}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.phone!)}
+                      />
                     {/if}
                     {#if detailEntry.identity.address}
-                      <Field label="Address" value={detailEntry.identity.address} />
+                      <Field
+                        label="Address"
+                        value={detailEntry.identity.address}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.address!)}
+                      />
                     {/if}
                   </FieldGroup>
                 {/if}
@@ -163,10 +197,19 @@
                       <Field label="Type" value={cardBrandName(detailEntry.card.type)} />
                     {/if}
                     {#if detailEntry.card.holder}
-                      <Field label="Holder" value={detailEntry.card.holder} />
+                      <Field
+                        label="Holder"
+                        value={detailEntry.card.holder}
+                        onCopy={() => clipboard.copyPlain(detailEntry!.card!.holder!)}
+                      />
                     {/if}
                     {#if detailEntry.card.number}
-                      <Field label="Number" value={detailEntry.card.number} />
+                      <Field
+                        label="Number"
+                        value={detailEntry.card.number}
+                        mono
+                        onCopy={() => clipboard.copy(detailEntry!.card!.number!)}
+                      />
                     {/if}
                     {#if detailEntry.card.expMonth && detailEntry.card.expYear}
                       <Field
