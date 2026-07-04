@@ -27,6 +27,10 @@
       vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = { kind: "type", type: type as ItemType };
       selection.selectedId = entry.id;
+      // Mark as a brand-new entry so ItemDetail auto-discards it if the
+      // user navigates away (or cancels) without saving. Must match the
+      // command-palette / ⌘N path, which sets both ids.
+      vault.setCreatingId(entry.id);
       vault.setEditingId(entry.id);
     } catch (e) {
       console.error("Failed to create entry", e);
