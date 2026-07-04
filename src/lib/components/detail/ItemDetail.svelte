@@ -21,6 +21,7 @@
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { formatCardNumber, cardBrandName, CARD_BRANDS } from "$lib/utils/format";
 
   let _entry = $state<Entry | undefined>(undefined);
@@ -297,6 +298,20 @@
       selection.selectedId = null;
     } catch (e) {
       console.error("Failed to delete", e);
+    }
+  }
+
+  function openEntryUrl(rawUrl: string): void {
+    const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        openUrl(url);
+      } else {
+        console.warn("Blocked opening URL with disallowed scheme:", parsed.protocol);
+      }
+    } catch {
+      console.warn("Blocked opening invalid URL:", url);
     }
   }
 
@@ -654,7 +669,7 @@
             label="URL"
             value={entry.url}
             mono={false}
-            href={entry.url.includes("://") ? entry.url : `https://${entry.url}`}
+            onOpenUrl={() => openEntryUrl(entry.url!)}
             onCopy={() => clipboard.copyPlain(entry.url!)}
           />
         {/if}

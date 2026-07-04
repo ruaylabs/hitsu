@@ -2,6 +2,21 @@
   import type { Entry } from "$lib/bridge/types";
   import EntryIcon from "../list/EntryIcon.svelte";
   import Icon from "../ui/Icon.svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+
+  function openEntryUrl(rawUrl: string): void {
+    const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        openUrl(url);
+      } else {
+        console.warn("Blocked opening URL with disallowed scheme:", parsed.protocol);
+      }
+    } catch {
+      console.warn("Blocked opening invalid URL:", url);
+    }
+  }
 
   let {
     entry,
@@ -20,14 +35,9 @@
     <div class="detail-header-text">
       <h1 class="detail-title">{entry.title}</h1>
       {#if entry.url}
-        <a
-          class="detail-url"
-          href={entry.url.includes("://") ? entry.url : `https://${entry.url}`}
-          target="_blank"
-          rel="noreferrer"
-        >
+        <button class="detail-url" onclick={() => openEntryUrl(entry.url!)} title={entry.url}>
           {entry.url}
-        </a>
+        </button>
       {/if}
     </div>
   </div>
@@ -85,6 +95,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    width: 100%;
   }
 
   .detail-url:hover {
