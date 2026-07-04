@@ -105,14 +105,13 @@
         <div class="revision-layout">
           <div class="revision-list">
             <div class="list-label">Revisions</div>
-            {#each revisions as rev}
+            {#each revisions as rev (rev.version)}
               <button
                 class="revision-row"
                 class:selected={selectedVersion === rev.version}
                 onclick={() => (selectedVersion = rev.version)}
               >
                 <div class="rev-meta">
-                  <span class="rev-version">v{revisions.length - rev.version}</span>
                   <span class="rev-date" title={formatDate(rev.modifiedAt)}>
                     {timeAgo(rev.modifiedAt)}
                   </span>
@@ -363,10 +362,6 @@
     background: var(--bg-accent);
   }
 
-  .revision-row.selected .rev-version {
-    color: var(--text-accent);
-  }
-
   .revision-row.selected .rev-title {
     color: var(--text-primary);
   }
@@ -376,12 +371,6 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 2px;
-  }
-
-  .rev-version {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-secondary);
   }
 
   .rev-date {
