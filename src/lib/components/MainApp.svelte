@@ -17,8 +17,30 @@
   import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+  import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
 
   let showCommandPalette = $state(false);
+  let pendingDelete = $state<{ id: string; title: string } | null>(null);
+
+  async function deleteSelected() {
+    const id = selection.selectedId;
+    if (!id) return;
+    const summary = vault.entries.find((e) => e.id === id);
+    pendingDelete = { id, title: summary?.title ?? "this entry" };
+  }
+
+  async function confirmDeleteSelected() {
+    const id = pendingDelete?.id;
+    pendingDelete = null;
+    if (!id) return;
+    try {
+      await entriesBridge.entryDelete(id);
+      vault.setEntries(vault.entries.filter((e) => e.id !== id));
+      if (selection.selectedId === id) selection.selectedId = null;
+    } catch (e) {
+      console.error("Failed to delete entry", e);
+    }
+  }
 
   async function onCreateEntry(type: string) {
     showCommandPalette = false;
@@ -55,9 +77,7 @@
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
       e.preventDefault();
-      // Delete selected entry via detail pane's delete
-      const btn = document.querySelector('[aria-label="Delete"]');
-      if (btn) (btn as HTMLButtonElement).click();
+      deleteSelected();
     }
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
       e.preventDefault();
@@ -175,6 +195,17 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if pendingDelete}
+  <ConfirmDialog
+    title="Delete entry?"
+    message={`Are you sure you want to delete "${pendingDelete.title}"?`}
+    confirmLabel="Delete"
+    danger={true}
+    onconfirm={confirmDeleteSelected}
+    oncancel={() => (pendingDelete = null)}
+  />
 {/if}
 
 <style>
