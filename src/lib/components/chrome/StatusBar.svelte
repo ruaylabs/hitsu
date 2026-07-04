@@ -13,10 +13,10 @@
     <span>Changes saved</span>
   </div>
   <div class="statusbar-right">
+    <span>{itemCount} items</span>
     {#if clipboard.active}
+      <span class="sep">·</span>
       <span class="countdown">Clears in {Math.ceil(clipboard.remainingMs / 1000)}s</span>
-    {:else}
-      <span>{itemCount} items</span>
     {/if}
     {#if vault.meta}
       <button
@@ -70,6 +70,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .sep {
+    color: var(--text-muted);
   }
 
   .lock-btn,
