@@ -34,3 +34,18 @@ pub async fn prefs_set_security(
     prefs.save(&app);
     Ok(())
 }
+
+#[tauri::command]
+pub async fn prefs_set_kdf_dismissed(
+    app: AppHandle,
+    path: String,
+    dismissed: bool,
+) -> KagiResult<()> {
+    let mut prefs = Preferences::load(&app);
+    prefs.kdf_upgrade_dismissed_vaults.retain(|v| v != &path);
+    if dismissed {
+        prefs.kdf_upgrade_dismissed_vaults.push(path);
+    }
+    prefs.save(&app);
+    Ok(())
+}

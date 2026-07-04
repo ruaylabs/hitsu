@@ -5,6 +5,7 @@ export interface Preferences {
   recentVaults: string[];
   idleLockMinutes: number;
   clipboardClearSeconds: number;
+  kdfUpgradeDismissedVaults: string[];
 }
 
 export async function prefsGet(): Promise<Preferences> {
@@ -20,4 +21,8 @@ export async function prefsSetSecurity(
   clipboardClearSeconds: number,
 ): Promise<void> {
   return invoke<void>("prefs_set_security", { idleLockMinutes, clipboardClearSeconds });
+}
+
+export async function prefsSetKdfDismissed(path: string, dismissed: boolean): Promise<void> {
+  return invoke<void>("prefs_set_kdf_dismissed", { path, dismissed });
 }

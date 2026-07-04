@@ -16,6 +16,11 @@ pub struct Preferences {
     /// Clipboard auto-clear timeout in seconds. Default: 15.
     #[serde(default = "default_clipboard_clear")]
     pub clipboard_clear_seconds: u32,
+    /// Vault paths for which the user dismissed the KDF-upgrade prompt.
+    /// Per-vault so dismissing on one weak vault doesn't hide the prompt on
+    /// a different weak vault.
+    #[serde(default)]
+    pub kdf_upgrade_dismissed_vaults: Vec<String>,
 }
 
 impl Default for Preferences {
@@ -25,6 +30,7 @@ impl Default for Preferences {
             recent_vaults: Vec::new(),
             idle_lock_minutes: default_idle_lock(),
             clipboard_clear_seconds: default_clipboard_clear(),
+            kdf_upgrade_dismissed_vaults: Vec::new(),
         }
     }
 }

@@ -7,6 +7,7 @@
   import { security } from "$lib/stores/security.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
+  import * as prefsBridge from "$lib/bridge/prefs";
   import type { ItemType } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
@@ -81,10 +82,22 @@
   });
 
   let showKdfUpgrade = $state(false);
-  let kdfUpgradeDismissed = $state(false);
+  let kdfUpgradeDismissedVaults = $state<string[]>([]);
+
+  // Load persisted KDF-dismissals so a deliberate "Later" survives restarts.
+  onMount(async () => {
+    try {
+      const prefs = await prefsBridge.prefsGet();
+      kdfUpgradeDismissedVaults = prefs.kdfUpgradeDismissedVaults ?? [];
+    } catch {
+      // Non-fatal — worst case the upgrade prompt shows again.
+    }
+  });
 
   $effect(() => {
-    if (vault.meta?.kdfNeedsUpgrade && !vault.locked && !kdfUpgradeDismissed) {
+    const path = vault.meta?.path;
+    const dismissed = path ? kdfUpgradeDismissedVaults.includes(path) : false;
+    if (vault.meta?.kdfNeedsUpgrade && !vault.locked && !dismissed) {
       showKdfUpgrade = true;
     }
   });
@@ -131,9 +144,17 @@
       <div class="kdf-actions">
         <button
           class="btn"
-          onclick={() => {
+          onclick={async () => {
             showKdfUpgrade = false;
-            kdfUpgradeDismissed = true;
+            const path = vault.meta?.path;
+            if (path) {
+              kdfUpgradeDismissedVaults = [...kdfUpgradeDismissedVaults, path];
+              try {
+                await prefsBridge.prefsSetKdfDismissed(path, true);
+              } catch (e) {
+                console.error("Failed to persist KDF dismissal", e);
+              }
+            }
           }}
         >
           Later
