@@ -15,6 +15,31 @@ export function timeAgo(iso: string): string {
   return `${Math.floor(diffDay / 365)}y ago`;
 }
 
+/** Canonical card brand keys → display names. Stored keys are short and
+ *  stable (e.g. "amex"); the full brand name is only for display. Existing
+ *  vaults that stored the full name ("American Express") still render
+ *  correctly — `cardBrandName` accepts either form. */
+export const CARD_BRANDS: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners Club",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+  maestro: "Maestro",
+};
+
+/** Display name for a stored card type. Accepts either a canonical key
+ *  ("amex") or a legacy full name ("American Express"); unknown values are
+ *  returned unchanged so nothing is silently lost. */
+export function cardBrandName(key?: string | null): string {
+  if (!key) return "";
+  if (CARD_BRANDS[key]) return CARD_BRANDS[key];
+  // Legacy value stored as the full name — return as-is.
+  return key;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

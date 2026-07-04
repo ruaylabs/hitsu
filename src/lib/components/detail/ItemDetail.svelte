@@ -20,7 +20,7 @@
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
-  import { formatCardNumber } from "$lib/utils/format";
+  import { formatCardNumber, cardBrandName, CARD_BRANDS } from "$lib/utils/format";
 
   let _entry = $state<Entry | undefined>(undefined);
   let entryLoading = $state(false);
@@ -557,14 +557,9 @@
             <span class="field-label">Type</span>
             <select class="edit-select" bind:value={editCardType}>
               <option value="">Select brand</option>
-              <option value="Visa">Visa</option>
-              <option value="Mastercard">Mastercard</option>
-              <option value="American Express">American Express</option>
-              <option value="Discover">Discover</option>
-              <option value="Diners Club">Diners Club</option>
-              <option value="JCB">JCB</option>
-              <option value="UnionPay">UnionPay</option>
-              <option value="Maestro">Maestro</option>
+              {#each Object.entries(CARD_BRANDS) as [ key, name ]}
+                <option value={key}>{name}</option>
+              {/each}
             </select>
           </div>
           <div class="field-row card-field-row">
@@ -692,7 +687,7 @@
     {#if !editing && entry.type === "card" && entry.card}
       <FieldGroup>
         {#if entry.card.type}
-          <Field label="Type" value={entry.card.type} />
+          <Field label="Type" value={cardBrandName(entry.card.type)} />
         {/if}
         {#if entry.card.holder}
           <Field label="Holder" value={entry.card.holder} />

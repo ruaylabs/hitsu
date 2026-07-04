@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { timeAgo } from "$lib/utils/format";
+  import { timeAgo, cardBrandName } from "$lib/utils/format";
   import Icon from "../ui/Icon.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import Field from "./Field.svelte";
@@ -160,7 +160,7 @@
                 {#if detailEntry.card}
                   <FieldGroup>
                     {#if detailEntry.card.type}
-                      <Field label="Type" value={detailEntry.card.type} />
+                      <Field label="Type" value={cardBrandName(detailEntry.card.type)} />
                     {/if}
                     {#if detailEntry.card.holder}
                       <Field label="Holder" value={detailEntry.card.holder} />
