@@ -4,11 +4,7 @@
 
 <div class="notes-section">
   <span class="notes-label">Notes</span>
-  <div class="notes-content">
-    {#each notes.split("\n") as line}
-      {line}<br />
-    {/each}
-  </div>
+  <div class="notes-content">{notes}</div>
 </div>
 
 <style>
