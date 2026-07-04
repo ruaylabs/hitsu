@@ -124,6 +124,7 @@
       <PasswordDialog
         title="Create new vault"
         confirmLabel="Create"
+        confirm={true}
         onconfirm={handleCreate}
         oncancel={() => (dialog = null)}
       />
@@ -138,6 +139,7 @@
       <PasswordDialog
         title="New master password"
         confirmLabel="Change"
+        confirm={true}
         onconfirm={handleSetNewPassword}
         oncancel={() => (dialog = null)}
       />

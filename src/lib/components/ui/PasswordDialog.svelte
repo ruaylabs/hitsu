@@ -8,6 +8,8 @@
     showCancel = true,
     errorMessage = "",
     transparentOverlay = false,
+    confirm = false,
+    confirmLabel2 = "Confirm password",
     onconfirm,
     oncancel,
   }: {
@@ -17,18 +19,27 @@
     showCancel?: boolean;
     errorMessage?: string;
     transparentOverlay?: boolean;
+    /** Show a second "confirm password" field that must match before submit. */
+    confirm?: boolean;
+    confirmLabel2?: string;
     onconfirm?: (password: string) => void;
     oncancel?: () => void;
   } = $props();
 
   let password = $state("");
+  let confirmPassword = $state("");
   let localError = $state("");
 
   let displayError = $derived(localError || errorMessage);
+  let canSubmit = $derived(password.length > 0 && (!confirm || confirmPassword.length > 0));
 
   function submit() {
     if (!password) {
       localError = "Password is required";
+      return;
+    }
+    if (confirm && confirmPassword !== password) {
+      localError = "Passwords do not match";
       return;
     }
     localError = "";
@@ -89,6 +100,22 @@
         {#if displayError}
           <span class="input-error">{displayError}</span>
         {/if}
+
+        {#if confirm}
+          <label class="input-label" for="master-pw-confirm">{confirmLabel2}</label>
+          <input
+            id="master-pw-confirm"
+            type="password"
+            class="password-input"
+            placeholder="Re-enter password"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            bind:value={confirmPassword}
+            oninput={() => { localError = ""; }}
+          />
+        {/if}
       </div>
     </div>
 
@@ -97,7 +124,7 @@
         {#if showCancel}
           <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
         {/if}
-        <button class="btn btn-confirm" onclick={submit} disabled={!password}>
+        <button class="btn btn-confirm" onclick={submit} disabled={!canSubmit}>
           {confirmLabel}
         </button>
       </footer>

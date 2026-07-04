@@ -90,6 +90,7 @@
   <PasswordDialog
     title="Create new vault"
     confirmLabel="Create"
+    confirm={true}
     onconfirm={doCreate}
     oncancel={() => (dialog = null)}
   />
