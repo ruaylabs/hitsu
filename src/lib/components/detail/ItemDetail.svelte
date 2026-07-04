@@ -298,7 +298,26 @@
       console.error("Failed to delete", e);
     }
   }
+
+  // Edit-mode shortcuts: ⌘S saves, Esc cancels. Skipped when a child dialog
+  // (generator / delete-confirm / history) is open — those own Escape — and
+  // when not editing. Bound at the window level so it works regardless of
+  // where focus sits in the detail pane.
+  function onEditKeydown(e: KeyboardEvent) {
+    if (!editing) return;
+    if (showGenerator || showDeleteConfirm || showHistory) return;
+
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelEdit();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onEditKeydown} />
 
 {#if showGenerator}
   <GeneratorPanel
@@ -324,11 +343,16 @@
   <div class="detail-pane">
     <div class="detail-toolbar">
       {#if editing}
-        <button class="toolbar-btn" onclick={cancelEdit} aria-label="Cancel">
+        <button class="toolbar-btn" onclick={cancelEdit} aria-label="Cancel" title="Cancel (Esc)">
           <Icon name="x" size={14} />
           <span>Cancel</span>
         </button>
-        <button class="toolbar-btn toolbar-save" onclick={saveEdit} aria-label="Save">
+        <button
+          class="toolbar-btn toolbar-save"
+          onclick={saveEdit}
+          aria-label="Save"
+          title="Save (⌘S)"
+        >
           <Icon name="check" size={14} />
           <span>Save</span>
         </button>
