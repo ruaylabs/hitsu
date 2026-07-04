@@ -69,21 +69,32 @@
     }
   }
 
-  async function handleCreate(password: string) {
+  async function doCreate(password: string) {
     dialog = null;
+    try {
+      const meta = await vaultBridge.vaultCreate(selectedPath, password, "");
+      vault.setMeta(meta);
+      vault.setEntries([]);
+
+      prefsBridge.prefsSetLastVault(selectedPath);
+      app.view = "main";
+    } catch (e) {
+      statusMsg = String(e);
+    }
+  }
+
+  /** Pick the destination path first, then open the password dialog —
+   *  mirrors the open-vault flow so the user isn't asked for a password
+   *  before choosing where the vault will live. */
+  async function handleCreate() {
     try {
       const result = await save({
         filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
         defaultPath: "vault.kdbx",
       });
       if (!result) return;
-
-      const meta = await vaultBridge.vaultCreate(result, password, "");
-      vault.setMeta(meta);
-      vault.setEntries([]);
-
-      prefsBridge.prefsSetLastVault(result);
-      app.view = "main";
+      selectedPath = result;
+      dialog = { kind: "create" };
     } catch (e) {
       statusMsg = String(e);
     }
@@ -126,7 +137,7 @@
         confirmLabel="Create"
         confirm={true}
         showStrength={true}
-        onconfirm={handleCreate}
+        onconfirm={doCreate}
         oncancel={() => (dialog = null)}
       />
     {:else if dialog.kind === "change-password"}
@@ -180,7 +191,7 @@
             <Icon name="folder-open" size={14} />
             Open vault…
           </button>
-          <button class="settings-btn" onclick={() => (dialog = { kind: "create" })}>
+          <button class="settings-btn" onclick={handleCreate}>
             <Icon name="plus" size={14} />
             Create new vault…
           </button>
