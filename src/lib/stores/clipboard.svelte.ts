@@ -24,16 +24,14 @@ export const clipboard = {
     defaultTimeoutSecs = v;
   },
   /** Copy a protected value (password, CVV) with auto-clear countdown.
-   *  Pass timeoutSecs=0 or "Never" to skip auto-clear entirely. */
+   *  Pass timeoutSecs=0 or "Never" to skip auto-clear entirely.
+   *  Does NOT fall back to the WebView clipboard API — if the Rust command
+   *  fails the error is surfaced and the copy does not proceed silently. */
   async copy(value: string, timeoutSecs?: number) {
     const secs = timeoutSecs ?? defaultTimeoutSecs;
     stop();
     if (secs > 0) {
-      try {
-        await clipboardBridge.clipboardCopyWithTimeout(value, secs);
-      } catch {
-        await navigator.clipboard.writeText(value);
-      }
+      await clipboardBridge.clipboardCopyWithTimeout(value, secs);
       remainingMs = secs * 1000;
       timer = setInterval(() => {
         remainingMs = Math.max(0, remainingMs - 1000);
@@ -42,22 +40,15 @@ export const clipboard = {
         }
       }, 1000);
     } else {
-      // No auto-clear — just copy directly
-      try {
-        await clipboardBridge.clipboardCopy(value);
-      } catch {
-        await navigator.clipboard.writeText(value);
-      }
+      await clipboardBridge.clipboardCopy(value);
     }
   },
-  /** Copy a plain value (username, URL) without auto-clear */
+  /** Copy a plain value (username, URL) without auto-clear.
+   *  Does NOT fall back to the WebView clipboard API — if the Rust command
+   *  fails the error is surfaced and the copy does not proceed silently. */
   async copyPlain(value: string) {
     stop();
-    try {
-      await clipboardBridge.clipboardCopy(value);
-    } catch {
-      await navigator.clipboard.writeText(value);
-    }
+    await clipboardBridge.clipboardCopy(value);
   },
   cancel() {
     stop();
