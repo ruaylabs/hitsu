@@ -12,6 +12,9 @@
   let revealed = $state(false);
   let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
+  let copied = $state(false);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
   function toggleReveal() {
     if (revealed) {
       revealed = false;
@@ -26,6 +29,9 @@
 
   function copy() {
     clipboard.copy(password);
+    if (copyTimer) clearTimeout(copyTimer);
+    copied = true;
+    copyTimer = setTimeout(() => (copied = false), 1000);
   }
 </script>
 
@@ -34,7 +40,7 @@
   <span class="field-value mono">{revealed ? password : "•".repeat(14)}</span>
   <div class="field-actions">
     <button class="field-action" onclick={copy} aria-label="Copy password">
-      <i class="ti ti-copy" style="font-size: 15px"></i>
+      <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
     </button>
     <button
       class="field-action"

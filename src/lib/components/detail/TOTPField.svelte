@@ -8,6 +8,8 @@
   let period = $state(30);
   let remaining = $state(30);
   let flash = $state(false);
+  let copied = $state(false);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
   let circumference = $derived(2 * Math.PI * 8); // r=8 → ~50.27
   let dashoffset = $derived(circumference - (remaining / period) * circumference);
@@ -51,6 +53,9 @@
 
   function copyCode() {
     clipboard.copy(code);
+    if (copyTimer) clearTimeout(copyTimer);
+    copied = true;
+    copyTimer = setTimeout(() => (copied = false), 1000);
   }
 </script>
 
@@ -76,7 +81,7 @@
     <span class="totp-seconds">{remaining}</span>
   </div>
   <button class="totp-copy" onclick={copyCode} aria-label="Copy TOTP code">
-    <i class="ti ti-copy" style="font-size: 15px"></i>
+    <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
   </button>
 </div>
 

@@ -23,6 +23,16 @@
   let displayValue = $derived(
     label.toLowerCase().includes("password") && !reveal ? "•".repeat(14) : visibleValue,
   );
+
+  let copied = $state(false);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function handleCopy() {
+    onCopy?.();
+    if (copyTimer) clearTimeout(copyTimer);
+    copied = true;
+    copyTimer = setTimeout(() => (copied = false), 1000);
+  }
 </script>
 
 <div class="field-row">
@@ -34,8 +44,8 @@
     </div>
   {:else if onCopy}
     <div class="field-actions">
-      <button class="field-action" onclick={onCopy} aria-label="Copy {label}">
-        <Icon name="copy" size={15} />
+      <button class="field-action" onclick={handleCopy} aria-label="Copy {label}">
+        <Icon name={copied ? "check" : "copy"} size={15} />
       </button>
       {#if label.toLowerCase().includes("password") && onReveal}
         <button class="field-action" onclick={onReveal} aria-label="Reveal {label}">
