@@ -622,6 +622,10 @@ pub async fn vault_change_password(
 
 #[tauri::command]
 pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
+    // Clear the clipboard of any previously copied secrets (password, CVV, …)
+    // so they don't linger after the vault is locked.
+    super::clipboard::clear_clipboard_sync();
+
     let mut vaults = state
         .vaults
         .lock()
