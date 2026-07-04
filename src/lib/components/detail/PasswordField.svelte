@@ -1,12 +1,17 @@
 <script lang="ts">
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
 
   let {
     label,
     password,
+    showStrength = false,
   }: {
     label: string;
     password: string;
+    /** Show a strength meter under the value. Only meaningful for actual
+     *  passwords — CVV/pin are always short and would always read "weak". */
+    showStrength?: boolean;
   } = $props();
 
   let revealed = $state(false);
@@ -37,19 +42,24 @@
 
 <div class="field-row">
   <span class="field-label">{label}</span>
-  <span class="field-value mono">{revealed ? password : "•".repeat(14)}</span>
-  <div class="field-actions">
-    <button class="field-action" onclick={copy} aria-label="Copy password" title="Copy password">
-      <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
-    </button>
-    <button
-      class="field-action"
-      onclick={toggleReveal}
-      aria-label={revealed ? "Hide password" : "Reveal password"}
-      title={revealed ? "Hide password" : "Reveal password"}
-    >
-      <i class="ti ti-{revealed ? 'eye-off' : 'eye'}" style="font-size: 15px"></i>
-    </button>
+  <div class="field-main">
+    <span class="field-value mono">{revealed ? password : "•".repeat(14)}</span>
+    <div class="field-actions">
+      <button class="field-action" onclick={copy} aria-label="Copy password" title="Copy password">
+        <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
+      </button>
+      <button
+        class="field-action"
+        onclick={toggleReveal}
+        aria-label={revealed ? "Hide password" : "Reveal password"}
+        title={revealed ? "Hide password" : "Reveal password"}
+      >
+        <i class="ti ti-{revealed ? 'eye-off' : 'eye'}" style="font-size: 15px"></i>
+      </button>
+    </div>
+    {#if showStrength}
+      <PasswordStrengthMeter {password} />
+    {/if}
   </div>
 </div>
 
@@ -82,6 +92,15 @@
 
   .field-value.mono {
     font-family: var(--font-mono);
+  }
+
+  .field-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
   .field-actions {

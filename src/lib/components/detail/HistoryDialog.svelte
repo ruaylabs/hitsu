@@ -139,7 +139,11 @@
                       />
                     {/if}
                     {#if detailEntry.password}
-                      <PasswordField label="Password" password={detailEntry.password} />
+                      <PasswordField
+                        label="Password"
+                        password={detailEntry.password}
+                        showStrength
+                      />
                     {/if}
                     {#if detailEntry.url}
                       <Field

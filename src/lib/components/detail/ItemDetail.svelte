@@ -19,6 +19,7 @@
   import Icon from "../ui/Icon.svelte";
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
+  import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import { formatCardNumber, cardBrandName, CARD_BRANDS } from "$lib/utils/format";
 
@@ -405,25 +406,28 @@
           </div>
           <div class="field-row">
             <span class="field-label">Password</span>
-            <div class="password-edit-row">
-              <input
-                class="edit-input"
-                type="text"
-                placeholder="Password"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editPassword}
-              />
-              <button
-                class="generate-btn"
-                onclick={() => (showGenerator = true)}
-                aria-label="Generate password"
-                title="Generate password"
-              >
-                <Icon name="bolt" size={14} />
-              </button>
+            <div class="password-edit-col">
+              <div class="password-edit-row">
+                <input
+                  class="edit-input"
+                  type="text"
+                  placeholder="Password"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  bind:value={editPassword}
+                />
+                <button
+                  class="generate-btn"
+                  onclick={() => (showGenerator = true)}
+                  aria-label="Generate password"
+                  title="Generate password"
+                >
+                  <Icon name="bolt" size={14} />
+                </button>
+              </div>
+              <PasswordStrengthMeter password={editPassword} showWhenEmpty />
             </div>
           </div>
           <div class="field-row">
@@ -643,7 +647,7 @@
           />
         {/if}
         {#if entry.password}
-          <PasswordField label="Password" password={entry.password} />
+          <PasswordField label="Password" password={entry.password} showStrength />
         {/if}
         {#if entry.url}
           <Field
@@ -902,6 +906,14 @@
     color: var(--text-muted);
     width: 70px;
     flex-shrink: 0;
+  }
+
+  .password-edit-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
   }
 
   .password-edit-row {

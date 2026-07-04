@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import PasswordStrengthMeter from "./PasswordStrengthMeter.svelte";
 
   let {
     title = "Enter master password",
@@ -10,6 +11,7 @@
     transparentOverlay = false,
     confirm = false,
     confirmLabel2 = "Confirm password",
+    showStrength = false,
     onconfirm,
     oncancel,
   }: {
@@ -22,6 +24,8 @@
     /** Show a second "confirm password" field that must match before submit. */
     confirm?: boolean;
     confirmLabel2?: string;
+    /** Show a strength meter under the password field. */
+    showStrength?: boolean;
     onconfirm?: (password: string) => void;
     oncancel?: () => void;
   } = $props();
@@ -99,6 +103,10 @@
         />
         {#if displayError}
           <span class="input-error">{displayError}</span>
+        {/if}
+
+        {#if showStrength}
+          <PasswordStrengthMeter {password} showWhenEmpty />
         {/if}
 
         {#if confirm}

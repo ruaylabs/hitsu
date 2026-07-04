@@ -91,6 +91,7 @@
     title="Create new vault"
     confirmLabel="Create"
     confirm={true}
+    showStrength={true}
     onconfirm={doCreate}
     oncancel={() => (dialog = null)}
   />
