@@ -113,3 +113,8 @@ export async function entryHistoryGet(id: string, version: number): Promise<Entr
 export async function entryDelete(id: string): Promise<void> {
   return invoke<void>("entry_delete", { id });
 }
+
+/** Drop a brand-new, never-persisted entry from memory without touching disk. */
+export async function entryDiscard(id: string): Promise<void> {
+  return invoke<void>("entry_discard", { id });
+}

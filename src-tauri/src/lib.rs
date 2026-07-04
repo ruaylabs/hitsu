@@ -4,9 +4,9 @@ use tauri::Emitter;
 pub mod prefs;
 pub mod state;
 
-mod commands;
+pub mod commands;
 mod error;
-mod models;
+pub mod models;
 mod vault;
 
 use state::AppState;
@@ -73,6 +73,7 @@ pub fn run() {
             commands::entries::entry_create,
             commands::entries::entry_update,
             commands::entries::entry_delete,
+            commands::entries::entry_discard,
             commands::entries::entry_history_list,
             commands::entries::entry_history_get,
             commands::clipboard::clipboard_copy,

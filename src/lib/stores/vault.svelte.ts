@@ -6,6 +6,7 @@ let vaultMeta = $state<VaultMeta | null>(null);
 let entries = $state<EntrySummary[]>([]);
 let locked = $state(false);
 let editingId = $state<string | null>(null);
+let creatingId = $state<string | null>(null);
 
 export const vault = {
   get entries() {
@@ -22,6 +23,12 @@ export const vault = {
   },
   setEditingId(id: string | null) {
     editingId = id;
+  },
+  get creatingId() {
+    return creatingId;
+  },
+  setCreatingId(id: string | null) {
+    creatingId = id;
   },
   setMeta(m: VaultMeta | null) {
     vaultMeta = m;

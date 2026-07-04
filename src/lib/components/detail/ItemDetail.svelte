@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
@@ -66,6 +67,7 @@
   });
 
   let editing = $state(false);
+  let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
   let showGenerator = $state(false);
   let showDeleteConfirm = $state(false);
@@ -106,9 +108,36 @@
   // Auto-enter edit mode when a new entry is created
   $effect(() => {
     if (_entry && vault.editingId === _entry.id) {
+      if (vault.creatingId === _entry.id) newEntryId = _entry.id;
+      vault.setCreatingId(null);
       populateEdit();
       editing = true;
       vault.setEditingId(null);
+    }
+  });
+
+  // Auto-discard an unsaved new entry when the user navigates away from it
+  // without saving. The stub lives only in the in-memory db; an unrelated
+  // save later in the session (entry_update/entry_delete on another entry,
+  // change_password, upgrade_kdf) would otherwise persist the whole db and
+  // leak the stub to disk. Dropping it from memory here prevents that.
+  $effect(() => {
+    const selectedId = selection.selectedId;
+    if (newEntryId && selectedId !== newEntryId) {
+      const id = newEntryId;
+      newEntryId = null;
+      // Exit edit mode immediately so the unsaved entry's edit form
+      // disappears while the new selection loads (or the pane goes empty).
+      editing = false;
+      if (selectedId !== _entry?.id) {
+        // Clear the discarded stub from the pane until the next entry loads.
+        _entry = undefined;
+      }
+      clearCardErrors();
+      entriesBridge.entryDiscard(id).catch((e) => console.error("Failed to discard new entry", e));
+      untrack(() => {
+        vault.setEntries(vault.entries.filter((s) => s.id !== id));
+      });
     }
   });
 
@@ -150,11 +179,27 @@
 
   function startEdit() {
     if (!_entry) return;
+    newEntryId = null;
     populateEdit();
     editing = true;
   }
 
-  function cancelEdit() {
+  async function cancelEdit() {
+    // Only discard when the entry on screen is the brand-new one we just
+    // created. Tracking the id (not a boolean) prevents accidentally
+    // discarding a real entry after the user navigated away mid-creation.
+    if (newEntryId && _entry && _entry.id === newEntryId) {
+      const id = _entry.id;
+      try {
+        await entriesBridge.entryDiscard(id);
+      } catch (e) {
+        console.error("Failed to discard new entry", e);
+      }
+      vault.setEntries(vault.entries.filter((s) => s.id !== id));
+      _entry = undefined;
+      selection.selectedId = null;
+      newEntryId = null;
+    }
     editing = false;
     clearCardErrors();
   }
@@ -227,6 +272,7 @@
       _entry = updated;
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
       editing = false;
+      newEntryId = null;
       clearCardErrors();
     } catch (e) {
       console.error("Failed to save", e);
@@ -244,6 +290,7 @@
     try {
       await entriesBridge.entryDelete(id);
       editing = false;
+      newEntryId = null;
       vault.setEntries(vault.entries.filter((s) => s.id !== id));
       _entry = undefined;
       selection.selectedId = null;

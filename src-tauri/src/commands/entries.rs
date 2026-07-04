@@ -306,7 +306,9 @@ pub async fn entry_create(
         em.times.last_modification = Some(now);
     }
 
-    save_vault(vault)?;
+    // NOTE: do NOT save here. The new entry lives only in memory until the
+    // first `entry_update` (Save) persists it. If the user cancels, the stub
+    // is dropped from memory via `entry_discard` without ever touching disk.
 
     let item_type_enum = ItemType::from_db_value(&item_type);
     let subtitle = draft.username.clone().unwrap_or_default();
@@ -475,6 +477,23 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
 
     remove_entry(&mut vault.db, &id)?;
     save_vault(vault)?;
+    Ok(())
+}
+
+/// Drop a brand-new, never-persisted entry from the in-memory database
+/// without writing to disk. Used when the user cancels creation of an entry
+/// that `entry_create` added to memory but never saved.
+#[tauri::command]
+pub async fn entry_discard(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+    let mut vaults = state
+        .vaults
+        .lock()
+        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+
+    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+    remove_entry(&mut vault.db, &id)?;
+    // Intentionally no save_vault(): the entry was never on disk.
     Ok(())
 }
 

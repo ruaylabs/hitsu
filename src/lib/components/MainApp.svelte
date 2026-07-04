@@ -26,6 +26,7 @@
       vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = { kind: "type", type: type as ItemType };
       selection.selectedId = entry.id;
+      vault.setCreatingId(entry.id);
       vault.setEditingId(entry.id);
     } catch (e) {
       console.error("Failed to create entry", e);
