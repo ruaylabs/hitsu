@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import SearchField from "./SearchField.svelte";
@@ -41,7 +42,56 @@
       selection.selectedId = filtered[0].id;
     }
   });
+
+  // Keyboard navigation: ↑/↓ move selection, Home/End jump to ends.
+  // Roving tabindex keeps the selected row Tab-reachable; arrow keys move
+  // both selection and DOM focus within the listbox.
+  //
+  // Bound at the window level (not the listbox) so navigation works even
+  // before the user clicks a row — on launch the first entry is auto-selected
+  // but not focused, so a div-scoped handler would never fire. We bail out
+  // when focus is in a text-editable element so search/caret editing is
+  // unaffected, and when a modifier key is held (letting ⌘F etc. through).
+  function isTextEditable(el: Element | null): boolean {
+    if (!(el instanceof HTMLElement)) return false;
+    const tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    return el.isContentEditable;
+  }
+
+  async function onListKeydown(e: KeyboardEvent) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (isTextEditable(document.activeElement)) return;
+    if (filtered.length === 0) return;
+    const current = filtered.findIndex((item) => item.id === selection.selectedId);
+    let next = current;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      next = current < 0 ? 0 : Math.min(current + 1, filtered.length - 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      next = current < 0 ? 0 : Math.max(current - 1, 0);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      next = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      next = filtered.length - 1;
+    } else {
+      return;
+    }
+
+    if (next !== current && filtered[next]) {
+      selection.selectedId = filtered[next].id;
+      // Focus the newly selected row so subsequent arrow keys keep working.
+      await tick();
+      document.querySelector<HTMLButtonElement>(`[data-entry-id="${filtered[next].id}"]`)?.focus();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onListKeydown} />
 
 <div class="item-list">
   <SearchField />

@@ -14,7 +14,15 @@
   } = $props();
 </script>
 
-<button class="list-row" class:selected {onclick} role="option" aria-selected={selected}>
+<button
+  class="list-row"
+  class:selected
+  {onclick}
+  role="option"
+  aria-selected={selected}
+  tabindex={selected ? 0 : -1}
+  data-entry-id={entry.id}
+>
   <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={30} />
   <div class="list-row-text">
     <div class="list-row-title">{entry.title}</div>
