@@ -75,6 +75,22 @@ fn detect_sync_provider(path: &Path) -> String {
     }
 }
 
+/// Minimum master-password length enforced by the backend.
+/// Frontend also gates on the strength meter, but this is the hard floor.
+const MIN_MASTER_PASSWORD_LEN: usize = 8;
+
+/// Validate a master-password candidate on the backend side.
+/// Rejects anything too short regardless of what the frontend allows.
+pub fn validate_master_password(password: &str) -> KagiResult<()> {
+    if password.len() < MIN_MASTER_PASSWORD_LEN {
+        return Err(KagiError::Custom(format!(
+            "Master password must be at least {} characters",
+            MIN_MASTER_PASSWORD_LEN
+        )));
+    }
+    Ok(())
+}
+
 /// Ensure the database uses KDBX4.1 format so saving works.
 /// keepass 0.13's dump_kdbx4 requires exactly `KDB4(1)`.
 fn ensure_kdbx4(db: &mut keepass::Database) {
@@ -355,6 +371,42 @@ mod tests {
         assert_eq!(argon2::Version::Version13 as u32, 0x13);
         assert_eq!(argon2::Version::default(), argon2::Version::Version13);
     }
+
+    // ── validate_master_password tests ────────────────────────────────────
+
+    #[test]
+    fn test_validate_master_password_rejects_empty() {
+        assert!(validate_master_password("").is_err());
+    }
+
+    #[test]
+    fn test_validate_master_password_rejects_short() {
+        for len in 1..MIN_MASTER_PASSWORD_LEN {
+            let pw = "a".repeat(len);
+            let result = validate_master_password(&pw);
+            assert!(result.is_err(), "expected error for len={}", len);
+        }
+    }
+
+    #[test]
+    fn test_validate_master_password_accepts_minimum() {
+        let pw = "a".repeat(MIN_MASTER_PASSWORD_LEN);
+        assert!(validate_master_password(&pw).is_ok());
+    }
+
+    #[test]
+    fn test_validate_master_password_accepts_longer() {
+        let pw = "a".repeat(MIN_MASTER_PASSWORD_LEN + 10);
+        assert!(validate_master_password(&pw).is_ok());
+    }
+
+    #[test]
+    fn test_validate_master_password_error_message() {
+        let result = validate_master_password("short");
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("at least"));
+        assert!(msg.contains("8"));
+    }
 }
 
 #[tauri::command]
@@ -464,6 +516,9 @@ pub async fn vault_create(
     // Wrap immediately so the buffer is zeroized on any early return
     let mut password = Zeroizing::new(password);
 
+    // Backend-enforced minimum: reject weak passwords before any I/O
+    validate_master_password(&password)?;
+
     let path = PathBuf::from(&path);
     let vault_name = if name.is_empty() {
         path.file_stem()
@@ -534,6 +589,9 @@ pub async fn vault_change_password(
     // Wrap both immediately so they're zeroized on any early return
     let mut old_password = Zeroizing::new(old_password);
     let mut new_password = Zeroizing::new(new_password);
+
+    // Backend-enforced minimum: reject weak new passwords
+    validate_master_password(&new_password)?;
 
     let mut vaults = state
         .vaults

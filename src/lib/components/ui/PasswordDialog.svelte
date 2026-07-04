@@ -2,6 +2,8 @@
   import Icon from "./Icon.svelte";
   import PasswordStrengthMeter from "./PasswordStrengthMeter.svelte";
 
+  import { estimateStrength } from "$lib/utils/passwordStrength";
+
   let {
     title = "Enter master password",
     confirmLabel = "Unlock",
@@ -12,6 +14,9 @@
     confirm = false,
     confirmLabel2 = "Confirm password",
     showStrength = false,
+    /** Minimum strength level (0–4) required to enable the confirm button.
+     *  Only applies when `showStrength` is true. See passwordStrength.ts levels. */
+    minStrength = 1,
     onconfirm,
     oncancel,
   }: {
@@ -26,6 +31,9 @@
     confirmLabel2?: string;
     /** Show a strength meter under the password field. */
     showStrength?: boolean;
+    /** Minimum strength level (0–4) required to enable the confirm button.
+     *  Only applies when `showStrength` is true. See passwordStrength.ts levels. */
+    minStrength?: number;
     onconfirm?: (password: string) => void;
     oncancel?: () => void;
   } = $props();
@@ -35,7 +43,10 @@
   let localError = $state("");
 
   let displayError = $derived(localError || errorMessage);
-  let canSubmit = $derived(password.length > 0 && (!confirm || confirmPassword.length > 0));
+  let strengthOk = $derived(!showStrength || estimateStrength(password).level >= minStrength);
+  let canSubmit = $derived(
+    password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
+  );
 
   function submit() {
     if (!password) {

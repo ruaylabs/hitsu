@@ -109,10 +109,6 @@
 
   async function handleSetNewPassword(newPassword: string) {
     dialog = null;
-    if (newPassword.length < 4) {
-      statusMsg = "New password must be at least 4 characters";
-      return;
-    }
     try {
       await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
       statusMsg = "Password changed successfully";
@@ -137,6 +133,7 @@
         confirmLabel="Create"
         confirm={true}
         showStrength={true}
+        minStrength={1}
         onconfirm={doCreate}
         oncancel={() => (dialog = null)}
       />
@@ -153,6 +150,7 @@
         confirmLabel="Change"
         confirm={true}
         showStrength={true}
+        minStrength={1}
         onconfirm={handleSetNewPassword}
         oncancel={() => (dialog = null)}
       />

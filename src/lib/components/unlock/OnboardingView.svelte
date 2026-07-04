@@ -92,6 +92,7 @@
     confirmLabel="Create"
     confirm={true}
     showStrength={true}
+    minStrength={1}
     onconfirm={doCreate}
     oncancel={() => (dialog = null)}
   />
