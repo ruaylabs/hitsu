@@ -6,6 +6,7 @@
     value,
     reveal = false,
     mono = false,
+    href,
     onCopy,
     onReveal,
     children,
@@ -14,6 +15,8 @@
     value: string;
     reveal?: boolean;
     mono?: boolean;
+    /** When set, the value renders as a clickable link to this URL. */
+    href?: string;
     onCopy?: () => void;
     onReveal?: () => void;
     children?: import("svelte").Snippet;
@@ -37,7 +40,19 @@
 
 <div class="field-row">
   <span class="field-label">{label}</span>
-  <span class="field-value" class:mono>{displayValue}</span>
+  {#if href}
+    <a
+      class="field-value field-link"
+      class:mono
+      {href}
+      target="_blank"
+      rel="noreferrer"
+      title={value}
+      >{displayValue}</a
+    >
+  {:else}
+    <span class="field-value" class:mono>{displayValue}</span>
+  {/if}
   {#if children}
     <div class="field-actions">
       {@render children()}
@@ -95,6 +110,15 @@
 
   .field-value.mono {
     font-family: var(--font-mono);
+  }
+
+  .field-link {
+    color: var(--text-accent);
+    text-decoration: none;
+  }
+
+  .field-link:hover {
+    text-decoration: underline;
   }
 
   .field-actions {

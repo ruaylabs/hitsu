@@ -654,6 +654,7 @@
             label="URL"
             value={entry.url}
             mono={false}
+            href={entry.url.includes("://") ? entry.url : `https://${entry.url}`}
             onCopy={() => clipboard.copyPlain(entry.url!)}
           />
         {/if}
