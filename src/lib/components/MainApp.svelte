@@ -68,7 +68,7 @@
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "f") {
       e.preventDefault();
-      const input = document.querySelector(".search-input") as HTMLInputElement | null;
+      const input = document.querySelector(".entry-search-input") as HTMLInputElement | null;
       if (input) input.focus();
     }
   }

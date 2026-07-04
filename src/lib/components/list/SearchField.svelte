@@ -54,7 +54,7 @@
     <Icon name="search" size={13} />
     <input
       type="text"
-      class="search-input"
+      class="entry-search-input"
       placeholder="Search..."
       autocomplete="off"
       autocorrect="off"
@@ -141,14 +141,14 @@
     isolation: isolate;
   }
 
-  .search-input {
+  .entry-search-input {
     flex: 1;
     font-size: 13px;
     color: var(--text-primary);
     min-width: 0;
   }
 
-  .search-input::placeholder {
+  .entry-search-input::placeholder {
     color: var(--text-muted);
   }
 
