@@ -5,6 +5,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { security } from "$lib/stores/security.svelte";
+  import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -20,26 +21,9 @@
   import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
 
   let showCommandPalette = $state(false);
-  let pendingDelete = $state<{ id: string; title: string } | null>(null);
 
-  async function deleteSelected() {
-    const id = selection.selectedId;
-    if (!id) return;
-    const summary = vault.entries.find((e) => e.id === id);
-    pendingDelete = { id, title: summary?.title ?? "this entry" };
-  }
-
-  async function confirmDeleteSelected() {
-    const id = pendingDelete?.id;
-    pendingDelete = null;
-    if (!id) return;
-    try {
-      await entriesBridge.entryDelete(id);
-      vault.setEntries(vault.entries.filter((e) => e.id !== id));
-      if (selection.selectedId === id) selection.selectedId = null;
-    } catch (e) {
-      console.error("Failed to delete entry", e);
-    }
+  function deleteSelected() {
+    if (selection.selectedId) entryDeletion.request(selection.selectedId);
   }
 
   async function onCreateEntry(type: string) {
@@ -197,14 +181,14 @@
   </div>
 {/if}
 
-{#if pendingDelete}
+{#if entryDeletion.pending}
   <ConfirmDialog
     title="Delete entry?"
-    message={`Are you sure you want to delete "${pendingDelete.title}"?`}
+    message={`Are you sure you want to delete "${entryDeletion.pending.title}"?`}
     confirmLabel="Delete"
     danger={true}
-    onconfirm={confirmDeleteSelected}
-    oncancel={() => (pendingDelete = null)}
+    onconfirm={() => entryDeletion.confirm()}
+    oncancel={() => entryDeletion.cancel()}
   />
 {/if}
 

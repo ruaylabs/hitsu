@@ -3,6 +3,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
@@ -20,7 +21,6 @@
   import TagInput from "../ui/TagInput.svelte";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
-  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { formatCardNumber, cardBrandName, CARD_BRANDS } from "$lib/utils/format";
 
@@ -100,7 +100,6 @@
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
   let showGenerator = $state(false);
-  let showDeleteConfirm = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
   let editPassword = $state("");
@@ -343,23 +342,15 @@
   }
 
   function confirmDelete() {
-    showDeleteConfirm = true;
-  }
-
-  async function deleteEntry() {
     if (!_entry) return;
-    showDeleteConfirm = false;
-    const id = _entry.id;
-    try {
-      await entriesBridge.entryDelete(id);
+    // The shared flow removes the entry and clears the selection; the
+    // callback resets local state so the auto-discard effect doesn't try
+    // to discard an entry that was just deleted.
+    entryDeletion.request(_entry.id, _entry.title, () => {
       editing = false;
       newEntryId = null;
-      vault.setEntries(vault.entries.filter((s) => s.id !== id));
       _entry = undefined;
-      selection.selectedId = null;
-    } catch (e) {
-      console.error("Failed to delete", e);
-    }
+    });
   }
 
   function openEntryUrl(rawUrl: string): void {
@@ -382,7 +373,7 @@
   // where focus sits in the detail pane.
   function onEditKeydown(e: KeyboardEvent) {
     if (!editing) return;
-    if (showGenerator || showDeleteConfirm || showHistory) return;
+    if (showGenerator || entryDeletion.pending || showHistory) return;
 
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
@@ -876,17 +867,6 @@
 
 {#if showHistory && _entry}
   <HistoryDialog entryId={_entry.id} onclose={() => (showHistory = false)} />
-{/if}
-
-{#if showDeleteConfirm && _entry}
-  <ConfirmDialog
-    title="Delete entry?"
-    message={`Are you sure you want to delete "${_entry.title}"?`}
-    confirmLabel="Delete"
-    danger={true}
-    onconfirm={deleteEntry}
-    oncancel={() => (showDeleteConfirm = false)}
-  />
 {/if}
 
 <style>
