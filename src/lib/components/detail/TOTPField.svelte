@@ -52,6 +52,8 @@
   });
 
   let formattedCode = $derived(code.length >= 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);
+  let expiring = $derived(remaining <= 10);
+  let fillColor = $derived(expiring ? "var(--danger)" : "var(--success)");
 
   function copyCode() {
     clipboard.copy(code);
@@ -61,9 +63,9 @@
   }
 </script>
 
-<div class="totp-field" class:flash>
+<div class="totp-field" class:flash class:expiring>
   <span class="totp-label">TOTP</span>
-  <span class="totp-code">{formattedCode}</span>
+  <span class="totp-code" class:expiring>{formattedCode}</span>
   <div class="totp-ring-container">
     <svg width="20" height="20" viewBox="0 0 20 20">
       <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border-strong)" stroke-width="1.5" />
@@ -72,7 +74,7 @@
         cy="10"
         r="8"
         fill="none"
-        stroke="var(--success)"
+        stroke={fillColor}
         stroke-width="1.5"
         stroke-dasharray={circumference}
         stroke-dashoffset={dashoffset}
@@ -104,6 +106,14 @@
     border-color: var(--success);
   }
 
+  .totp-field.expiring {
+    border-color: var(--danger);
+  }
+
+  .totp-field.flash.expiring {
+    border-color: var(--danger);
+  }
+
   .totp-label {
     font-size: 11px;
     color: var(--text-muted);
@@ -118,6 +128,11 @@
     letter-spacing: 2px;
     font-weight: 500;
     color: var(--text-primary);
+    transition: color 0.3s;
+  }
+
+  .totp-code.expiring {
+    color: var(--danger);
   }
 
   .totp-ring-container {
