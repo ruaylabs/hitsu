@@ -20,6 +20,13 @@ pub enum KagiError {
 }
 
 impl KagiError {
+    /// Map a failed `spawn_blocking` join (task panicked or the runtime is
+    /// shutting down) to a user-safe error, logging the detail locally.
+    pub fn from_join(err: impl std::fmt::Display) -> Self {
+        eprintln!("background task failed: {err}");
+        KagiError::Custom("An internal error occurred".to_string())
+    }
+
     /// Short, user-safe message for the UI.
     ///
     /// Raw library/OS errors can mention file paths or crate internals, so

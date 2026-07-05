@@ -419,26 +419,46 @@ pub async fn vault_open(
     password: String,
 ) -> KagiResult<VaultMeta> {
     // Wrap immediately so the buffer is zeroized on any early return
-    let mut password = Zeroizing::new(password);
+    let password = Zeroizing::new(password);
 
     let path = PathBuf::from(&path);
-
-    // Validate header early before passing to keepass
-    validate_header(&path)?;
     let name = path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("Unnamed")
         .to_string();
 
-    let mut file = File::open(&path)?;
-    let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut db = keepass::Database::open(&mut file, key)?;
+    // The Argon2 KDF inside Database::open takes hundreds of ms at 64 MiB —
+    // run it on a blocking thread so other commands stay responsive.
+    let open_path = path.clone();
+    let (db, db_key, password_hash) = tauri::async_runtime::spawn_blocking(
+        move || -> KagiResult<(keepass::Database, keepass::DatabaseKey, [u8; 32])> {
+            // Wrap in Zeroizing again inside the closure so the buffer is
+            // scrubbed when the task finishes, success or not.
+            let mut password = password;
 
-    validate_kdf(&db.config.kdf_config)?;
+            // Validate header early before passing to keepass
+            validate_header(&open_path)?;
 
-    // keepass 0.13 only supports saving KDBX4 — upgrade if needed
-    ensure_kdbx4(&mut db);
+            let mut file = File::open(&open_path)?;
+            let key = keepass::DatabaseKey::new().with_password(&password);
+            let mut db = keepass::Database::open(&mut file, key)?;
+
+            validate_kdf(&db.config.kdf_config)?;
+
+            // keepass 0.13 only supports saving KDBX4 — upgrade if needed
+            ensure_kdbx4(&mut db);
+
+            // Build the DatabaseKey; then early-zeroize the source password
+            // String since the DatabaseKey holds its own copy (zeroized on drop).
+            let db_key = keepass::DatabaseKey::new().with_password(&password);
+            let password_hash = Sha256::digest(password.as_bytes()).into();
+            password.zeroize();
+            Ok((db, db_key, password_hash))
+        },
+    )
+    .await
+    .map_err(KagiError::from_join)??;
 
     let entry_count = count_entries(&db);
     let id = uuid::Uuid::new_v4();
@@ -447,15 +467,9 @@ pub async fn vault_open(
     // so the frontend doesn't need a second entries_list round-trip.
     let entries = build_entry_summaries(&db);
 
-    let mut vaults = state.vaults.lock();
-
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
-    // Build the DatabaseKey; then early-zeroize the source password String
-    // since the DatabaseKey holds its own copy (zeroized on drop).
-    let db_key = keepass::DatabaseKey::new().with_password(&password);
-    let password_hash = Sha256::digest(password.as_bytes()).into();
-    password.zeroize();
+    let mut vaults = state.vaults.lock();
     // Single-vault app: every read uses vaults.iter().next(), so opening a
     // new vault must replace any previously open one — otherwise stale
     // entries from the old vault leak through and can shadow the new one
@@ -483,34 +497,46 @@ pub async fn vault_open(
 
 #[tauri::command]
 pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
-    let mut vaults = state.vaults.lock();
+    // Writer lock first (see AppState::save_lock ordering rules).
+    let _save_guard = state.save_lock.lock().await;
 
-    let (_id, vault): (&VaultId, &mut OpenVault) =
-        vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    // Mutate + snapshot under a brief vaults lock.
+    let (db, key, path) = {
+        let mut vaults = state.vaults.lock();
 
-    // Upgrade KDF to Argon2id with 64 MiB
-    vault.db.config.kdf_config = KdfConfig::Argon2id {
-        memory: 64 * 1024 * 1024,
-        iterations: 2,
-        parallelism: 4,
-        version: argon2::Version::Version13,
+        let (_id, vault): (&VaultId, &mut OpenVault) =
+            vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+        // Upgrade KDF to Argon2id with 64 MiB
+        vault.db.config.kdf_config = KdfConfig::Argon2id {
+            memory: 64 * 1024 * 1024,
+            iterations: 2,
+            parallelism: 4,
+            version: argon2::Version::Version13,
+        };
+
+        (vault.db.clone(), vault.db_key.clone(), vault.path.clone())
     };
 
-    // Re-save with the stored DatabaseKey (no raw password in memory)
-    let key = vault.db_key.clone();
-    let mut buf = std::io::Cursor::new(Vec::new());
-    vault.db.save(&mut buf, key.clone())?;
-    let bytes = buf.into_inner();
+    // KDF + write + verification re-open (a second KDF) off the runtime.
+    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+        // Re-save with the stored DatabaseKey (no raw password in memory)
+        let mut buf = std::io::Cursor::new(Vec::new());
+        db.save(&mut buf, key.clone())?;
+        let bytes = buf.into_inner();
 
-    crate::vault::backed_up_atomic_write(&vault.path, &bytes, |path| {
-        let mut file = File::open(path).map_err(|e| e.to_string())?;
-        keepass::Database::open(&mut file, key.clone())
-            .map(|_| ())
-            .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
+        crate::vault::backed_up_atomic_write(&path, &bytes, |path| {
+            let mut file = File::open(path).map_err(|e| e.to_string())?;
+            keepass::Database::open(&mut file, key.clone())
+                .map(|_| ())
+                .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
+        })
+        .map_err(KagiError::Custom)?;
+
+        Ok(())
     })
-    .map_err(KagiError::Custom)?;
-
-    Ok(())
+    .await
+    .map_err(KagiError::from_join)?
 }
 
 #[tauri::command]
@@ -521,7 +547,7 @@ pub async fn vault_create(
     name: String,
 ) -> KagiResult<VaultMeta> {
     // Wrap immediately so the buffer is zeroized on any early return
-    let mut password = Zeroizing::new(password);
+    let password = Zeroizing::new(password);
 
     // Backend-enforced minimum: reject weak passwords before any I/O
     validate_master_password(&password)?;
@@ -536,34 +562,47 @@ pub async fn vault_create(
         name
     };
 
-    let mut db = keepass::Database::new();
-    db.meta.database_name = Some(vault_name.clone());
+    // Save + verification re-open each run the Argon2 KDF — keep both off
+    // the async runtime.
+    let create_path = path.clone();
+    let create_name = vault_name.clone();
+    let (db, db_key, password_hash) = tauri::async_runtime::spawn_blocking(
+        move || -> KagiResult<(keepass::Database, keepass::DatabaseKey, [u8; 32])> {
+            let mut password = password;
 
-    // Serialise to buffer first, then atomic-write — never truncate the
-    // target directly; a crash mid-save leaves the original file intact.
-    let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut buf = std::io::Cursor::new(Vec::new());
-    db.save(&mut buf, key)?;
-    let bytes = buf.into_inner();
-    crate::vault::atomic_write(&path, &bytes)?;
+            let mut db = keepass::Database::new();
+            db.meta.database_name = Some(create_name);
 
-    // Re-open from buffer to verify and obtain the in-memory DB
-    let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
+            // Serialise to buffer first, then atomic-write — never truncate the
+            // target directly; a crash mid-save leaves the original file intact.
+            let key = keepass::DatabaseKey::new().with_password(&password);
+            let mut buf = std::io::Cursor::new(Vec::new());
+            db.save(&mut buf, key)?;
+            let bytes = buf.into_inner();
+            crate::vault::atomic_write(&create_path, &bytes)?;
 
-    // keepass 0.13 only supports saving KDBX4 — upgrade if needed
-    ensure_kdbx4(&mut db);
+            // Re-open from buffer to verify and obtain the in-memory DB
+            let key = keepass::DatabaseKey::new().with_password(&password);
+            let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
+
+            // keepass 0.13 only supports saving KDBX4 — upgrade if needed
+            ensure_kdbx4(&mut db);
+
+            // Build the DatabaseKey; then early-zeroize the source password
+            // String since the DatabaseKey holds its own copy (zeroized on drop).
+            let db_key = keepass::DatabaseKey::new().with_password(&password);
+            let password_hash = Sha256::digest(password.as_bytes()).into();
+            password.zeroize();
+            Ok((db, db_key, password_hash))
+        },
+    )
+    .await
+    .map_err(KagiError::from_join)??;
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
 
     let mut vaults = state.vaults.lock();
-
-    // Build the DatabaseKey; then early-zeroize the source password String
-    // since the DatabaseKey holds its own copy (zeroized on drop).
-    let db_key = keepass::DatabaseKey::new().with_password(&password);
-    let password_hash = Sha256::digest(password.as_bytes()).into();
-    password.zeroize();
     // Single-vault app: replace any previously open vault (see vault_open).
     vaults.clear();
     vaults.insert(
@@ -594,43 +633,71 @@ pub async fn vault_change_password(
 ) -> KagiResult<()> {
     // Wrap both immediately so they're zeroized on any early return
     let mut old_password = Zeroizing::new(old_password);
-    let mut new_password = Zeroizing::new(new_password);
+    let new_password = Zeroizing::new(new_password);
 
     // Backend-enforced minimum: reject weak new passwords
     validate_master_password(&new_password)?;
 
-    let mut vaults = state.vaults.lock();
+    // Writer lock first (see AppState::save_lock ordering rules).
+    let _save_guard = state.save_lock.lock().await;
 
-    // Find the single open vault
-    let (_id, vault): (&VaultId, &mut OpenVault) =
-        vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    // Verify the old password + snapshot under a brief vaults lock.
+    let (db, path) = {
+        let vaults = state.vaults.lock();
 
-    // Verify old password matches the stored hash (constant-time).
-    // Avoids timing side-channels from PartialEq on DatabaseKey.
-    let old_hash = Sha256::digest(old_password.as_bytes());
-    if vault.password_hash[..].ct_ne(&*old_hash).into() {
-        return Err(KagiError::Custom("Wrong password".to_string()));
-    }
+        // Find the single open vault
+        let (_id, vault): (&VaultId, &OpenVault) =
+            vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
-    let new_key = keepass::DatabaseKey::new().with_password(&new_password);
-    let mut buf = std::io::Cursor::new(Vec::new());
-    vault.db.save(&mut buf, new_key)?;
-    let bytes = buf.into_inner();
+        // Verify old password matches the stored hash (constant-time).
+        // Avoids timing side-channels from PartialEq on DatabaseKey.
+        let old_hash = Sha256::digest(old_password.as_bytes());
+        if vault.password_hash[..].ct_ne(&*old_hash).into() {
+            return Err(KagiError::Custom("Wrong password".to_string()));
+        }
 
-    crate::vault::backed_up_atomic_write(&vault.path, &bytes, |path| {
-        let mut file = File::open(path).map_err(|e| e.to_string())?;
-        let key = keepass::DatabaseKey::new().with_password(&new_password);
-        keepass::Database::open(&mut file, key)
-            .map(|_| ())
-            .map_err(|e| format!("Cannot re-open with new password: {}", e))
-    })
-    .map_err(KagiError::Custom)?;
-
-    // Store the new DatabaseKey and password hash; early-zeroize both source buffers
-    vault.db_key = keepass::DatabaseKey::new().with_password(&new_password);
-    vault.password_hash = Sha256::digest(new_password.as_bytes()).into();
+        (vault.db.clone(), vault.path.clone())
+    };
     old_password.zeroize();
-    new_password.zeroize();
+
+    // Derive the new key material before the password moves into the
+    // blocking task (the verification re-open needs the raw password).
+    let new_key = keepass::DatabaseKey::new().with_password(&new_password);
+    let new_hash: [u8; 32] = Sha256::digest(new_password.as_bytes()).into();
+
+    // Save + verification re-open each run the Argon2 KDF — off the runtime.
+    let save_key = new_key.clone();
+    let save_path = path.clone();
+    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+        // new_password (Zeroizing) is scrubbed when this closure drops it.
+        let mut buf = std::io::Cursor::new(Vec::new());
+        db.save(&mut buf, save_key)?;
+        let bytes = buf.into_inner();
+
+        crate::vault::backed_up_atomic_write(&save_path, &bytes, |path| {
+            let mut file = File::open(path).map_err(|e| e.to_string())?;
+            let key = keepass::DatabaseKey::new().with_password(&new_password);
+            keepass::Database::open(&mut file, key)
+                .map(|_| ())
+                .map_err(|e| format!("Cannot re-open with new password: {}", e))
+        })
+        .map_err(KagiError::Custom)?;
+
+        Ok(())
+    })
+    .await
+    .map_err(KagiError::from_join)??;
+
+    // Commit the new key material. The vault may have been locked (or swapped
+    // for another file) while the KDF ran; in that case there is nothing to
+    // update in memory — the file on disk already uses the new password.
+    let mut vaults = state.vaults.lock();
+    if let Some((_id, vault)) = vaults.iter_mut().next() {
+        if vault.path == path {
+            vault.db_key = new_key;
+            vault.password_hash = new_hash;
+        }
+    }
     Ok(())
 }
 

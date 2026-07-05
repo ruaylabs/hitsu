@@ -35,12 +35,22 @@ impl Drop for OpenVault {
 
 pub struct AppState {
     pub vaults: Mutex<HashMap<VaultId, OpenVault>>,
+    /// Serializes all vault-file writers (entry update/delete, password
+    /// change, KDF upgrade). Writers snapshot the database under a brief
+    /// `vaults` lock and run KDF + serialize + fsync on a blocking thread;
+    /// holding this lock across snapshot *and* write keeps saves from
+    /// hitting the disk out of order.
+    ///
+    /// Lock ordering: acquire `save_lock` BEFORE `vaults`, and never await
+    /// while holding `vaults` (it is a sync mutex).
+    pub save_lock: tokio::sync::Mutex<()>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             vaults: Mutex::new(HashMap::new()),
+            save_lock: tokio::sync::Mutex::new(()),
         }
     }
 }

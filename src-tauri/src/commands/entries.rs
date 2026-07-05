@@ -210,13 +210,33 @@ fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
     Ok(())
 }
 
-fn save_vault(vault: &OpenVault) -> KagiResult<()> {
-    let key = vault.db_key.clone();
-    let mut buf = std::io::Cursor::new(Vec::new());
-    vault.db.save(&mut buf, key)?;
-    let bytes = buf.into_inner();
-    crate::vault::atomic_write(&vault.path, &bytes)?;
-    Ok(())
+/// Cheap in-memory snapshot of everything a save needs, taken under the
+/// `vaults` lock so the KDF + write can run outside it.
+fn snapshot_for_save(
+    vault: &OpenVault,
+) -> (keepass::Database, keepass::DatabaseKey, std::path::PathBuf) {
+    (vault.db.clone(), vault.db_key.clone(), vault.path.clone())
+}
+
+/// Run KDF + serialize + atomic write on a blocking thread.
+///
+/// The caller must hold `AppState::save_lock` from before the in-memory
+/// mutation until this completes (so a later writer can't hit the disk
+/// first with a snapshot that supersedes ours), and must NOT hold the
+/// `vaults` mutex while awaiting.
+async fn save_snapshot(
+    db: keepass::Database,
+    key: keepass::DatabaseKey,
+    path: std::path::PathBuf,
+) -> KagiResult<()> {
+    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+        let mut buf = std::io::Cursor::new(Vec::new());
+        db.save(&mut buf, key)?;
+        crate::vault::atomic_write(&path, &buf.into_inner())?;
+        Ok(())
+    })
+    .await
+    .map_err(KagiError::from_join)?
 }
 
 fn set_kdbx_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
@@ -359,36 +379,45 @@ pub async fn entry_update(
     id: String,
     patch: EntryPatch,
 ) -> KagiResult<Entry> {
-    let mut vaults = state.vaults.lock();
+    // Take the writer lock before mutating so no other save can interleave
+    // between our in-memory commit and our disk write.
+    let _save_guard = state.save_lock.lock().await;
 
-    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    let (updated, db, key, path) = {
+        let mut vaults = state.vaults.lock();
 
-    let entry_id = EntryId::from_uuid(
-        uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-    );
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    {
-        let mut em = vault
+        let entry_id = EntryId::from_uuid(
+            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+        );
+
+        {
+            let mut em = vault
+                .db
+                .entry_mut(entry_id)
+                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+
+            // Use edit_tracking to automatically push the prior state into history
+            em.edit_tracking(|tracked| {
+                apply_patch(&mut *tracked, &patch);
+            });
+            // edit_tracking doesn't touch last_modification (apply_patch goes through
+            // DerefMut → Entry::set_unprotected, not EntryTrack's tracked setters)
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
+
+        let entry_ref = vault
             .db
-            .entry_mut(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .entry(entry_id)
+            .ok_or(KagiError::EntryNotFound(id))?;
+        let updated = map_entry_to_full(&entry_ref);
+        let (db, key, path) = snapshot_for_save(vault);
+        (updated, db, key, path)
+    }; // vaults lock released — KDF + fsync run outside it
 
-        // Use edit_tracking to automatically push the prior state into history
-        em.edit_tracking(|tracked| {
-            apply_patch(&mut *tracked, &patch);
-        });
-        // edit_tracking doesn't touch last_modification (apply_patch goes through
-        // DerefMut → Entry::set_unprotected, not EntryTrack's tracked setters)
-        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
-    }
-
-    save_vault(vault)?;
-
-    let entry_ref = vault
-        .db
-        .entry(entry_id)
-        .ok_or(KagiError::EntryNotFound(id))?;
-    Ok(map_entry_to_full(&entry_ref))
+    save_snapshot(db, key, path).await?;
+    Ok(updated)
 }
 
 /// Read the TOTP seed from an entry.
@@ -481,13 +510,18 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
 
 #[tauri::command]
 pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<()> {
-    let mut vaults = state.vaults.lock();
+    let _save_guard = state.save_lock.lock().await;
 
-    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    let (db, key, path) = {
+        let mut vaults = state.vaults.lock();
 
-    remove_entry(&mut vault.db, &id)?;
-    save_vault(vault)?;
-    Ok(())
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+        remove_entry(&mut vault.db, &id)?;
+        snapshot_for_save(vault)
+    };
+
+    save_snapshot(db, key, path).await
 }
 
 /// Drop a brand-new, never-persisted entry from the in-memory database
