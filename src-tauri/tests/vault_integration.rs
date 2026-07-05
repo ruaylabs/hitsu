@@ -1270,7 +1270,7 @@ fn test_vault_lock_clears_state() {
     use kagi_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
-    let mut vaults = state.vaults.lock().unwrap();
+    let mut vaults = state.vaults.lock();
 
     // Insert a vault with a real in-memory database
     let db = keepass::Database::new();
@@ -1300,7 +1300,7 @@ fn test_vault_lock_with_no_vault_is_noop() {
     use kagi_lib::state::AppState;
 
     let state = AppState::new();
-    let mut vaults = state.vaults.lock().unwrap();
+    let mut vaults = state.vaults.lock();
     assert_eq!(vaults.len(), 0);
 
     // Clearing an already-empty HashMap is a no-op
@@ -1315,7 +1315,7 @@ fn test_openvault_drop_replaces_database() {
     use kagi_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
-    let mut vaults = state.vaults.lock().unwrap();
+    let mut vaults = state.vaults.lock();
 
     // Create a vault with a Database that has one entry
     let mut db = keepass::Database::new();
@@ -1353,7 +1353,7 @@ fn test_db_key_zeroized_after_lock() {
     use kagi_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
-    let mut vaults = state.vaults.lock().unwrap();
+    let mut vaults = state.vaults.lock();
 
     let db = keepass::Database::new();
     let id = uuid::Uuid::new_v4();

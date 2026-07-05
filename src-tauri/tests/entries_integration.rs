@@ -105,7 +105,7 @@ fn setup() -> TestVault {
 
     {
         let state = app.state::<AppState>();
-        let mut vaults = state.vaults.lock().unwrap();
+        let mut vaults = state.vaults.lock();
         vaults.insert(uuid::Uuid::new_v4(), open_vault);
     }
 

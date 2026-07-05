@@ -132,7 +132,7 @@ async fn opening_a_second_vault_replaces_the_first() {
     );
 
     // Only one vault should be resident.
-    let vaults = state.vaults.lock().unwrap();
+    let vaults = state.vaults.lock();
     assert_eq!(
         vaults.len(),
         1,
@@ -175,7 +175,7 @@ async fn creating_a_vault_replaces_an_open_one() {
         "stale entry from the previous vault leaked into the new one"
     );
 
-    let vaults = state.vaults.lock().unwrap();
+    let vaults = state.vaults.lock();
     assert_eq!(
         vaults.len(),
         1,

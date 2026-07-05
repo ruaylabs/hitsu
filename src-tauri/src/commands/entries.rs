@@ -230,10 +230,7 @@ fn set_custom_data(entry: &mut keepass::db::Entry, key: &str, value: Option<&str
 
 #[tauri::command]
 pub async fn entries_list(state: State<'_, AppState>) -> KagiResult<Vec<EntrySummary>> {
-    let vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let vaults = state.vaults.lock();
 
     let (_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -246,10 +243,7 @@ pub async fn entries_list(state: State<'_, AppState>) -> KagiResult<Vec<EntrySum
 
 #[tauri::command]
 pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Entry> {
-    let vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -264,10 +258,7 @@ pub async fn entry_create(
     item_type: String,
     draft: EntryDraft,
 ) -> KagiResult<Entry> {
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -343,10 +334,7 @@ pub async fn entry_update(
     id: String,
     patch: EntryPatch,
 ) -> KagiResult<Entry> {
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -468,10 +456,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
 
 #[tauri::command]
 pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<()> {
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -485,10 +470,7 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
 /// that `entry_create` added to memory but never saved.
 #[tauri::command]
 pub async fn entry_discard(state: State<'_, AppState>, id: String) -> KagiResult<()> {
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -502,10 +484,7 @@ pub async fn entry_history_list(
     state: State<'_, AppState>,
     id: String,
 ) -> KagiResult<Vec<HistoryEntrySummary>> {
-    let vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
@@ -545,10 +524,7 @@ pub async fn entry_history_get(
     id: String,
     version: u32,
 ) -> KagiResult<Entry> {
-    let vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let vaults = state.vaults.lock();
 
     let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 

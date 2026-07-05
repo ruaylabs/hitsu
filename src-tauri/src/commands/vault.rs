@@ -432,8 +432,7 @@ pub async fn vault_open(
 
     let mut file = File::open(&path)?;
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut db =
-        keepass::Database::open(&mut file, key).map_err(|e| KagiError::Vault(e.to_string()))?;
+    let mut db = keepass::Database::open(&mut file, key)?;
 
     validate_kdf(&db.config.kdf_config)?;
 
@@ -443,10 +442,7 @@ pub async fn vault_open(
     let entry_count = count_entries(&db);
     let id = uuid::Uuid::new_v4();
 
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
@@ -481,10 +477,7 @@ pub async fn vault_open(
 
 #[tauri::command]
 pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     let (_id, vault): (&VaultId, &mut OpenVault) =
         vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
@@ -500,10 +493,7 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
     // Re-save with the stored DatabaseKey (no raw password in memory)
     let key = vault.db_key.clone();
     let mut buf = std::io::Cursor::new(Vec::new());
-    vault
-        .db
-        .save(&mut buf, key)
-        .map_err(|e| KagiError::Vault(e.to_string()))?;
+    vault.db.save(&mut buf, key)?;
     let bytes = buf.into_inner();
     crate::vault::atomic_write(&vault.path, &bytes)?;
 
@@ -546,8 +536,7 @@ pub async fn vault_create(
 
     // Re-open from buffer to verify and obtain the in-memory DB
     let key = keepass::DatabaseKey::new().with_password(&password);
-    let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)
-        .map_err(|e| KagiError::Vault(e.to_string()))?;
+    let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
 
     // keepass 0.13 only supports saving KDBX4 — upgrade if needed
     ensure_kdbx4(&mut db);
@@ -555,10 +544,7 @@ pub async fn vault_create(
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
 
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     // Build the DatabaseKey; then early-zeroize the source password String
     // since the DatabaseKey holds its own copy (zeroized on drop).
@@ -599,10 +585,7 @@ pub async fn vault_change_password(
     // Backend-enforced minimum: reject weak new passwords
     validate_master_password(&new_password)?;
 
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     // Find the single open vault
     let (_id, vault): (&VaultId, &mut OpenVault) =
@@ -635,10 +618,7 @@ pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
     // so they don't linger after the vault is locked.
     super::clipboard::clear_clipboard_sync();
 
-    let mut vaults = state
-        .vaults
-        .lock()
-        .map_err(|e| KagiError::Custom(format!("Lock error: {}", e)))?;
+    let mut vaults = state.vaults.lock();
 
     // Clear all open vaults — this drops each OpenVault, which zeroizes
     // the master-key buffer via Zeroizing's Drop impl.

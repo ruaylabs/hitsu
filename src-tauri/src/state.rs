@@ -1,7 +1,9 @@
 use keepass::{Database, DatabaseKey};
+// parking_lot::Mutex cannot be poisoned: a panic while holding the lock
+// simply releases it, so commands don't need per-call poison handling.
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use uuid::Uuid;
 
 pub type VaultId = Uuid;
