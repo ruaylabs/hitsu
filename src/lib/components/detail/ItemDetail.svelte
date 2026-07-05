@@ -121,18 +121,21 @@
   let editCardExpMonth = $state("");
   let editCardExpYear = $state("");
   let editCardCvv = $state("");
+  let editCardPin = $state("");
 
   // Validation errors for card fields
   let cardNumberError = $state("");
   let cardExpMonthError = $state("");
   let cardExpYearError = $state("");
   let cardCvvError = $state("");
+  let cardPinError = $state("");
 
   function clearCardErrors() {
     cardNumberError = "";
     cardExpMonthError = "";
     cardExpYearError = "";
     cardCvvError = "";
+    cardPinError = "";
   }
 
   // Auto-enter edit mode when a new entry is created
@@ -194,16 +197,18 @@
     editCardExpYear = e.card?.expYear?.toString() ?? "";
     // Secrets are not in the Entry DTO — fetch the ones that exist so the
     // form is prefilled and an untouched save round-trips them unchanged.
-    const [password, totp, cardNumber, cardCvv] = await Promise.all([
+    const [password, totp, cardNumber, cardCvv, cardPin] = await Promise.all([
       e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
       e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
       e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
       e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
+      e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
     ]);
     editPassword = password;
     editTotp = totp;
     editCardNumber = cardNumber;
     editCardCvv = cardCvv;
+    editCardPin = cardPin;
     clearCardErrors();
   }
 
@@ -292,6 +297,13 @@
     } else {
       cardCvvError = "";
     }
+    // PIN: 4-12 digits (ISO 9564 range)
+    if (editCardPin && (editCardPin.length < 4 || editCardPin.length > 12)) {
+      cardPinError = "PIN must be 4-12 digits";
+      valid = false;
+    } else {
+      cardPinError = "";
+    }
     return valid;
   }
 
@@ -318,6 +330,7 @@
         cardExpMonth: editCardExpMonth,
         cardExpYear: editCardExpYear,
         cardCvv: editCardCvv,
+        cardPin: editCardPin,
       });
       _entry = updated;
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
@@ -695,6 +708,28 @@
               {/if}
             </div>
           </div>
+          <div class="field-row card-field-row">
+            <span class="field-label">PIN</span>
+            <div class="card-input-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="PIN"
+                maxlength="12"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editCardPin}
+                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 12); editCardPin = el.value; }}
+              />
+              {#if cardPinError}
+                <span class="field-error">{cardPinError}</span>
+              {/if}
+            </div>
+          </div>
         {/if}
       </FieldGroup>
     {:else if entry.type === "login" || entry.type === "note"}
@@ -786,6 +821,13 @@
             label="CVV"
             reveal={() => entriesBridge.entryRevealField(entry.id, "cardCvv")}
             copy={() => clipboard.copySecretField(entry.id, "cardCvv")}
+          />
+        {/if}
+        {#if entry.card.hasPin}
+          <PasswordField
+            label="PIN"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "cardPin")}
+            copy={() => clipboard.copySecretField(entry.id, "cardPin")}
           />
         {/if}
       </FieldGroup>

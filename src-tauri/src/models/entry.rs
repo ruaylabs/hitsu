@@ -36,6 +36,7 @@ pub struct EntryPatch {
     pub card_exp_month: Option<String>,
     pub card_exp_year: Option<String>,
     pub card_cvv: Option<String>,
+    pub card_pin: Option<String>,
 }
 
 /// Detail view of an entry sent to the webview.

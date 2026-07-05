@@ -506,6 +506,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "card.expMonth", &patch.card_exp_month);
     apply_opt(entry, "card.expYear", &patch.card_exp_year);
     apply_opt(entry, "card.cvv", &patch.card_cvv);
+    apply_opt(entry, "card.pin", &patch.card_pin);
 }
 
 #[tauri::command]

@@ -94,6 +94,7 @@ export interface EntryPatch {
   cardExpMonth?: string | null;
   cardExpYear?: string | null;
   cardCvv?: string | null;
+  cardPin?: string | null;
 }
 
 export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry> {
@@ -119,6 +120,7 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
       cardExpMonth: patch.cardExpMonth ?? null,
       cardExpYear: patch.cardExpYear ?? null,
       cardCvv: patch.cardCvv ?? null,
+      cardPin: patch.cardPin ?? null,
     },
   });
 }

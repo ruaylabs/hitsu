@@ -452,3 +452,58 @@ async fn saved_password_is_protected_on_disk() {
         other => panic!("expected Protected password on disk, got {:?}", other),
     }
 }
+
+#[tokio::test]
+async fn card_pin_roundtrip() {
+    // card.pin must be writable via the patch, exposed only as a presence
+    // flag, revealable on demand, stored Protected on disk, and clearable.
+    let tv = setup();
+    let state = tv.state();
+
+    let entry = entry_create(state.clone(), "card".to_string(), draft("Debit card"))
+        .await
+        .unwrap();
+    entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| {
+            p.card_pin = Some("4321".to_string());
+        }),
+    )
+    .await
+    .unwrap();
+
+    let loaded = entry_get(state.clone(), entry.id.clone()).await.unwrap();
+    let card = loaded.card.as_ref().expect("card fields present");
+    assert!(card.has_pin);
+    let json = serde_json::to_string(&loaded).unwrap();
+    assert!(
+        !json.contains("4321"),
+        "entry_get JSON must not leak the PIN: {json}"
+    );
+    let revealed = entry_reveal_field(state.clone(), entry.id.clone(), SecretField::CardPin, None)
+        .await
+        .unwrap();
+    assert_eq!(revealed, "4321");
+
+    // Stored as a Protected value on disk.
+    let disk = tv.reload_disk();
+    let de = disk.iter_all_entries().next().unwrap();
+    match de.fields.get("card.pin") {
+        Some(Value::Protected(_)) => {}
+        other => panic!("expected Protected card.pin on disk, got {:?}", other),
+    }
+
+    // Some("") clears the field.
+    entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| {
+            p.card_pin = Some(String::new());
+        }),
+    )
+    .await
+    .unwrap();
+    let loaded = entry_get(state.clone(), entry.id.clone()).await.unwrap();
+    assert!(!loaded.card.as_ref().unwrap().has_pin);
+}
