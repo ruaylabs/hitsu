@@ -1,6 +1,7 @@
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
+import { selection } from "$lib/stores/selection.svelte";
 
 let vaultMeta = $state<VaultMeta | null>(null);
 let entries = $state<EntrySummary[]>([]);
@@ -46,6 +47,10 @@ export const vault = {
     }
     // Clear any pending clipboard auto-clear timer
     clipboard.cancel();
+    // Forget the selected entry and search query so nothing sensitive
+    // auto-loads or re-renders after unlock.
+    selection.selectedId = null;
+    selection.search = "";
     locked = true;
     entries = [];
   },
