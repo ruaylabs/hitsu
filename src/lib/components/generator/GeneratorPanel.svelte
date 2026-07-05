@@ -71,7 +71,7 @@
       <div class="options">
         <div class="option-row">
           <span class="option-label">Length</span>
-          <input type="range" min="8" max="128" bind:value={length} class="range-input" />
+          <input type="range" min="8" max="100" bind:value={length} class="range-input" />
           <span class="option-value">{length}</span>
         </div>
 

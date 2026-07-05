@@ -23,7 +23,7 @@ pub struct PasswordOptions {
 
 #[tauri::command]
 pub async fn generate_password(opts: PasswordOptions) -> KagiResult<String> {
-    let length = opts.length.clamp(8, 128) as usize;
+    let length = opts.length.clamp(8, 100) as usize;
 
     let mut classes: Vec<Vec<u8>> = Vec::new();
     if opts.uppercase {
@@ -109,7 +109,7 @@ mod tests {
         })
         .await
         .unwrap();
-        assert_eq!(pw.len(), 128);
+        assert_eq!(pw.len(), 100);
 
         let pw = generate_password(PasswordOptions {
             length: 1, // below min
