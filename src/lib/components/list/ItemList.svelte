@@ -26,7 +26,7 @@
           e.subtitle.toLowerCase().includes(q) ||
           e.url?.toLowerCase().includes(q) ||
           e.username?.toLowerCase().includes(q) ||
-          e.tags.some((t) => t.includes(q)),
+          e.tags.some((t) => t.toLowerCase().includes(q)),
       );
     }
     return items;
