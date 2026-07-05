@@ -179,4 +179,7 @@ pub struct VaultMeta {
     pub sync_provider: String,
     #[serde(default)]
     pub kdf_needs_upgrade: bool,
+    /// Entry summaries returned inline from vault_open so the frontend
+    /// doesn't need a second entries_list round-trip after unlock.
+    pub entries: Vec<EntrySummary>,
 }

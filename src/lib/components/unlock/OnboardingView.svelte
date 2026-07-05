@@ -2,7 +2,6 @@
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { vault } from "$lib/stores/vault.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
-  import * as entriesBridge from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -35,9 +34,7 @@
     try {
       const meta = await vaultBridge.vaultOpen(pendingPath, password);
       vault.setMeta(meta);
-
-      const summaries = await entriesBridge.entriesList();
-      vault.setEntries(summaries);
+      vault.setEntries(meta.entries);
 
       prefsBridge.prefsSetLastVault(pendingPath);
     } catch (e) {
@@ -69,7 +66,7 @@
     try {
       const meta = await vaultBridge.vaultCreate(pendingPath, password, "");
       vault.setMeta(meta);
-      vault.setEntries([]);
+      vault.setEntries(meta.entries);
 
       prefsBridge.prefsSetLastVault(pendingPath);
     } catch (e) {

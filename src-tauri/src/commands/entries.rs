@@ -48,6 +48,15 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
     }
 }
 
+/// Build entry summaries for every entry in the database.
+/// Exported for vault_open so the frontend doesn't need a second
+/// round-trip (entries_list) after unlock.
+pub(crate) fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary> {
+    db.iter_all_entries()
+        .map(|e| map_entry_to_summary(&e))
+        .collect()
+}
+
 /// Mask a card number for display: keep first/last 4 digits.
 /// Returns `None` for values too short to mask meaningfully.
 fn mask_card_number(num: &str) -> Option<String> {

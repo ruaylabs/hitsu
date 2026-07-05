@@ -1,7 +1,6 @@
 <script lang="ts">
   import { vault } from "$lib/stores/vault.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
-  import * as entriesBridge from "$lib/bridge/entries";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   let {
@@ -27,8 +26,7 @@
     try {
       const meta = await vaultBridge.vaultOpen(path, password);
       vault.setMeta(meta);
-      const summaries = await entriesBridge.entriesList();
-      vault.setEntries(summaries);
+      vault.setEntries(meta.entries);
       onunlock();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);

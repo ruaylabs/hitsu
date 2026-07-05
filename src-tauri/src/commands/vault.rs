@@ -8,6 +8,7 @@ use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
+use super::entries::build_entry_summaries;
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
 use crate::state::{AppState, OpenVault, VaultId};
@@ -442,6 +443,10 @@ pub async fn vault_open(
     let entry_count = count_entries(&db);
     let id = uuid::Uuid::new_v4();
 
+    // Build entry summaries while we have a reference to the db,
+    // so the frontend doesn't need a second entries_list round-trip.
+    let entries = build_entry_summaries(&db);
+
     let mut vaults = state.vaults.lock();
 
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
@@ -472,6 +477,7 @@ pub async fn vault_open(
         item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
+        entries,
     })
 }
 
@@ -576,6 +582,7 @@ pub async fn vault_create(
         item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade: false,
+        entries: Vec::new(),
     })
 }
 
