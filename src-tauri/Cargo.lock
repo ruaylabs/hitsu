@@ -2129,6 +2129,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "keepass",
+ "libc",
  "rand",
  "rust-argon2",
  "serde",
