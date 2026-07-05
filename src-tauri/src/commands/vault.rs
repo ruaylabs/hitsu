@@ -493,9 +493,16 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
     // Re-save with the stored DatabaseKey (no raw password in memory)
     let key = vault.db_key.clone();
     let mut buf = std::io::Cursor::new(Vec::new());
-    vault.db.save(&mut buf, key)?;
+    vault.db.save(&mut buf, key.clone())?;
     let bytes = buf.into_inner();
-    crate::vault::atomic_write(&vault.path, &bytes)?;
+
+    crate::vault::backed_up_atomic_write(&vault.path, &bytes, |path| {
+        let mut file = File::open(path).map_err(|e| e.to_string())?;
+        keepass::Database::open(&mut file, key.clone())
+            .map(|_| ())
+            .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
+    })
+    .map_err(KagiError::Custom)?;
 
     Ok(())
 }
@@ -602,7 +609,15 @@ pub async fn vault_change_password(
     let mut buf = std::io::Cursor::new(Vec::new());
     vault.db.save(&mut buf, new_key)?;
     let bytes = buf.into_inner();
-    crate::vault::atomic_write(&vault.path, &bytes)?;
+
+    crate::vault::backed_up_atomic_write(&vault.path, &bytes, |path| {
+        let mut file = File::open(path).map_err(|e| e.to_string())?;
+        let key = keepass::DatabaseKey::new().with_password(&new_password);
+        keepass::Database::open(&mut file, key)
+            .map(|_| ())
+            .map_err(|e| format!("Cannot re-open with new password: {}", e))
+    })
+    .map_err(KagiError::Custom)?;
 
     // Store the new DatabaseKey and password hash; early-zeroize both source buffers
     vault.db_key = keepass::DatabaseKey::new().with_password(&new_password);

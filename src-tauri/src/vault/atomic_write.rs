@@ -44,6 +44,62 @@ fn try_write(path: &Path, data: &[u8], tmp_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Write `new_bytes` to `path` atomically, with a timestamped sibling backup
+/// at `<path>.<iso_timestamp>.bak`. After writing, calls `verify` to check
+/// the new file is valid (e.g. can be re-opened with the new key).
+///
+/// On verification success the backup is deleted. On failure the original
+/// file is restored from the backup and the backup is removed.
+///
+/// The backup is a simple `fs::copy` — it does NOT use `atomic_write` itself.
+/// That's fine: we're writing TO the backup once, not doing a destructive
+/// rename over an existing file.
+pub fn backed_up_atomic_write(
+    path: &Path,
+    new_bytes: &[u8],
+    verify: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let ts = chrono::Utc::now().format("%Y%m%dT%H%M%S");
+    let backup_dir = path.parent().unwrap_or(Path::new("."));
+    let backup = backup_dir.join(format!(
+        "{}.{}.bak",
+        path.file_name().unwrap_or_default().to_string_lossy(),
+        ts
+    ));
+
+    // 1. Copy original to backup
+    fs::copy(path, &backup).map_err(|_| {
+        "Could not create a backup before writing. The original file is unchanged.".to_string()
+    })?;
+
+    // 2. Atomically write new data
+    atomic_write(path, new_bytes).map_err(|_| {
+        // Clean up backup on write failure — original is untouched
+        let _ = fs::remove_file(&backup);
+        "Could not save the vault. The original file is unchanged.".to_string()
+    })?;
+
+    // 3. Verify the new file is valid
+    match verify(path) {
+        Ok(()) => {
+            // 4. Clean up backup — everything succeeded
+            let _ = fs::remove_file(&backup);
+            Ok(())
+        }
+        Err(e) => {
+            // Log the real reason locally, but tell the user a safe message
+            eprintln!("vault verification failed: {}", e);
+            // 5. Restore original from backup and remove the backup
+            let _ = fs::copy(&backup, path);
+            let _ = fs::remove_file(&backup);
+            Err(
+                "Could not verify the saved vault. The original file has been restored."
+                    .to_string(),
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
