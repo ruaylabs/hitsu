@@ -24,43 +24,56 @@ pub struct PasswordOptions {
 #[tauri::command]
 pub async fn generate_password(opts: PasswordOptions) -> KagiResult<String> {
     let length = opts.length.clamp(8, 128) as usize;
-    let mut charset = Vec::new();
 
+    let mut classes: Vec<Vec<u8>> = Vec::new();
     if opts.uppercase {
-        charset.extend_from_slice(UPPERCASE);
+        classes.push(UPPERCASE.to_vec());
     }
     if opts.lowercase {
-        charset.extend_from_slice(LOWERCASE);
+        classes.push(LOWERCASE.to_vec());
     }
     if opts.digits {
-        charset.extend_from_slice(DIGITS);
+        classes.push(DIGITS.to_vec());
     }
     if opts.symbols {
-        charset.extend_from_slice(SYMBOLS);
+        classes.push(SYMBOLS.to_vec());
     }
 
-    if charset.is_empty() {
+    if classes.is_empty() {
         // Default: at least lowercase
-        charset.extend_from_slice(LOWERCASE);
+        classes.push(LOWERCASE.to_vec());
     }
 
     // Remove lookalikes if enabled
     if opts.exclude_lookalikes {
-        charset.retain(|c| !LOOKALIKES.contains(c));
+        for class in &mut classes {
+            class.retain(|c| !LOOKALIKES.contains(c));
+        }
+        classes.retain(|class| !class.is_empty());
     }
 
+    let charset: Vec<u8> = classes.concat();
     if charset.is_empty() {
         return Err(crate::error::KagiError::Custom(
             "No characters available after filtering".into(),
         ));
     }
 
+    // Guarantee every enabled class appears: pick one char from each class
+    // first (length is clamped to >= 8, so all 4 classes always fit), fill
+    // the rest uniformly from the merged set, then shuffle so the guaranteed
+    // chars don't sit at predictable positions. Same CSPRNG throughout.
     let mut rng = thread_rng();
-    let password: String = (0..length)
-        .map(|_| *charset.choose(&mut rng).unwrap() as char)
-        .collect();
+    let mut bytes: Vec<u8> = Vec::with_capacity(length);
+    for class in &classes {
+        bytes.push(*class.choose(&mut rng).unwrap());
+    }
+    while bytes.len() < length {
+        bytes.push(*charset.choose(&mut rng).unwrap());
+    }
+    bytes.shuffle(&mut rng);
 
-    Ok(password)
+    Ok(String::from_utf8(bytes).expect("charset is pure ASCII"))
 }
 
 #[cfg(test)]
@@ -131,6 +144,68 @@ mod tests {
             pw.chars().any(|c| "!@#$%^&*()-_=+[]{}|;:,.<>?".contains(c)),
             "no symbol"
         );
+    }
+
+    /// Coverage must hold deterministically, even at the minimum length
+    /// where uniform sampling would miss a class in most draws.
+    #[tokio::test]
+    async fn test_every_enabled_class_present_at_min_length() {
+        for _ in 0..200 {
+            let pw = generate_password(PasswordOptions {
+                length: 8,
+                uppercase: true,
+                lowercase: true,
+                digits: true,
+                symbols: true,
+                exclude_lookalikes: false,
+            })
+            .await
+            .unwrap();
+
+            assert!(
+                pw.chars().any(|c| c.is_ascii_uppercase()),
+                "no uppercase in {pw}"
+            );
+            assert!(
+                pw.chars().any(|c| c.is_ascii_lowercase()),
+                "no lowercase in {pw}"
+            );
+            assert!(pw.chars().any(|c| c.is_ascii_digit()), "no digit in {pw}");
+            assert!(
+                pw.bytes().any(|b| SYMBOLS.contains(&b)),
+                "no symbol in {pw}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_class_coverage_with_lookalikes_excluded() {
+        for _ in 0..200 {
+            let pw = generate_password(PasswordOptions {
+                length: 8,
+                uppercase: true,
+                lowercase: true,
+                digits: true,
+                symbols: false,
+                exclude_lookalikes: true,
+            })
+            .await
+            .unwrap();
+
+            assert!(
+                pw.chars().any(|c| c.is_ascii_uppercase()),
+                "no uppercase in {pw}"
+            );
+            assert!(
+                pw.chars().any(|c| c.is_ascii_lowercase()),
+                "no lowercase in {pw}"
+            );
+            assert!(pw.chars().any(|c| c.is_ascii_digit()), "no digit in {pw}");
+            assert!(
+                !pw.bytes().any(|b| LOOKALIKES.contains(&b)),
+                "lookalike in {pw}"
+            );
+        }
     }
 
     #[tokio::test]
