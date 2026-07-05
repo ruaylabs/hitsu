@@ -29,7 +29,7 @@ thiserror = "1"
 tokio = { version = "1", features = ["time"] }
 arboard = "3"
 rand = "0.8"
-zeroize = "1"
+zeroize = { version = "1", features = ["derive"] }
 argon2 = { package = "rust-argon2", version = "3.0" }
 base64 = "0.22"
 sha2 = "0.10"

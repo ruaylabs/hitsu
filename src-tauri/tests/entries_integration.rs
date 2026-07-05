@@ -23,6 +23,13 @@ use kagi_lib::commands::entries::{
 use kagi_lib::models::{EntryDraft, EntryPatch};
 use kagi_lib::state::{AppState, OpenVault};
 use keepass::db::Value;
+
+/// Construct an EntryPatch without struct-update syntax (Drop doesn't allow it).
+fn patch(build: impl FnOnce(&mut EntryPatch)) -> EntryPatch {
+    let mut p = EntryPatch::default();
+    build(&mut p);
+    p
+}
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Manager;
 
@@ -182,11 +189,10 @@ async fn update_persists_to_disk() {
     let saved = entry_update(
         state.clone(),
         entry.id.clone(),
-        EntryPatch {
-            title: Some("Saved title".to_string()),
-            username: Some("alice".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("Saved title".to_string());
+            p.username = Some("alice".to_string());
+        }),
     )
     .await
     .expect("update should succeed");
@@ -227,10 +233,9 @@ async fn delete_persists_removal_to_disk() {
     entry_update(
         state.clone(),
         entry.id.clone(),
-        EntryPatch {
-            title: Some("Saved".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("Saved".to_string());
+        }),
     )
     .await
     .unwrap();
@@ -265,10 +270,9 @@ async fn unsaved_stub_is_included_in_a_subsequent_save() {
     entry_update(
         state.clone(),
         other.id.clone(),
-        EntryPatch {
-            title: Some("Other saved".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("Other saved".to_string());
+        }),
     )
     .await
     .unwrap();
@@ -295,10 +299,9 @@ async fn discard_before_save_prevents_leak() {
     entry_update(
         state.clone(),
         other.id.clone(),
-        EntryPatch {
-            title: Some("Other saved".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("Other saved".to_string());
+        }),
     )
     .await
     .unwrap();
@@ -332,13 +335,12 @@ async fn full_create_save_get_delete_workflow() {
     let saved = entry_update(
         state.clone(),
         entry.id.clone(),
-        EntryPatch {
-            title: Some("My Login".to_string()),
-            username: Some("bob".to_string()),
-            password: Some("s3cret".to_string()),
-            url: Some("https://example.com".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("My Login".to_string());
+            p.username = Some("bob".to_string());
+            p.password = Some("s3cret".to_string());
+            p.url = Some("https://example.com".to_string());
+        }),
     )
     .await
     .unwrap();
@@ -376,10 +378,9 @@ async fn discard_after_save_still_on_disk() {
     entry_update(
         state.clone(),
         entry.id.clone(),
-        EntryPatch {
-            title: Some("Saved".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.title = Some("Saved".to_string());
+        }),
     )
     .await
     .unwrap();
@@ -417,10 +418,9 @@ async fn saved_password_is_protected_on_disk() {
     entry_update(
         state.clone(),
         entry.id.clone(),
-        EntryPatch {
-            password: Some("hunter2".to_string()),
-            ..Default::default()
-        },
+        patch(|p| {
+            p.password = Some("hunter2".to_string());
+        }),
     )
     .await
     .unwrap();

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::item_type::ItemType;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryDraft {
     pub title: String,
@@ -13,7 +14,7 @@ pub struct EntryDraft {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryPatch {
     pub title: Option<String>,
@@ -37,7 +38,7 @@ pub struct EntryPatch {
     pub card_cvv: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
@@ -96,7 +97,7 @@ pub struct EntrySummary {
     pub icon_hint: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomField {
     pub name: String,
@@ -105,7 +106,7 @@ pub struct CustomField {
     pub protected: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachmentMeta {
     pub id: String,
@@ -113,7 +114,7 @@ pub struct AttachmentMeta {
     pub size_bytes: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityFields {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -130,7 +131,7 @@ pub struct IdentityFields {
     pub dob: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct CardFields {
     #[serde(skip_serializing_if = "Option::is_none")]
