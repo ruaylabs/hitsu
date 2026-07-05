@@ -38,6 +38,13 @@ pub struct EntryPatch {
     pub card_cvv: Option<String>,
 }
 
+/// Detail view of an entry sent to the webview.
+///
+/// Deliberately carries **no secret material**: passwords, TOTP URIs, card
+/// numbers, CVVs and PINs stay in the Rust process. The frontend only learns
+/// *that* a secret exists (`has_password`, `has_totp`, `CardFields` flags)
+/// and fetches plaintext on demand via `entry_reveal_field`, or copies it
+/// without ever seeing it via `entry_copy_field`.
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
@@ -50,10 +57,8 @@ pub struct Entry {
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub totp: Option<String>,
+    pub has_password: bool,
+    pub has_totp: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     pub tags: Vec<String>,
@@ -131,13 +136,15 @@ pub struct IdentityFields {
     pub dob: Option<String>,
 }
 
+/// Card fields as shown in the detail view: the number is pre-masked and
+/// CVV/PIN are reduced to presence flags (see [`Entry`]).
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct CardFields {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub holder: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub number: Option<String>,
+    pub number_masked: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "type")]
     pub card_type: Option<String>,
@@ -145,10 +152,22 @@ pub struct CardFields {
     pub exp_month: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pin: Option<String>,
+    pub has_number: bool,
+    pub has_cvv: bool,
+    pub has_pin: bool,
+}
+
+/// A secret field that can be revealed or copied on demand.
+/// Deserialized from the camelCase strings the frontend sends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SecretField {
+    Password,
+    /// The full otpauth:// URI (for the edit form, not for code display).
+    Totp,
+    CardNumber,
+    CardCvv,
+    CardPin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,5 +1,11 @@
 export type ItemType = "login" | "note" | "identity" | "card";
 
+/**
+ * Detail view of an entry. Carries NO secret material: the backend reduces
+ * passwords, TOTP URIs, card numbers, CVVs and PINs to presence flags or
+ * masked values. Fetch plaintext on demand with `entryRevealField`, or copy
+ * it without ever seeing it via `entryCopyField`.
+ */
 export interface Entry {
   id: string;
   type: ItemType;
@@ -7,8 +13,8 @@ export interface Entry {
   subtitle: string;
   url?: string;
   username?: string;
-  password?: string;
-  totp?: string;
+  hasPassword: boolean;
+  hasTotp: boolean;
   notes?: string;
   tags: string[];
   favorite: boolean;
@@ -45,13 +51,18 @@ export interface IdentityFields {
 
 export interface CardFields {
   holder?: string;
-  number?: string;
+  /** Pre-masked by the backend, e.g. "4111 •••• 1111". */
+  numberMasked?: string;
   type?: string;
   expMonth?: number;
   expYear?: number;
-  cvv?: string;
-  pin?: string;
+  hasNumber: boolean;
+  hasCvv: boolean;
+  hasPin: boolean;
 }
+
+/** A secret field that can be revealed or copied on demand. */
+export type SecretField = "password" | "totp" | "cardNumber" | "cardCvv" | "cardPin";
 
 export interface EntrySummary {
   id: string;

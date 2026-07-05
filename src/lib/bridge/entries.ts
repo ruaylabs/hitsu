@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Entry, EntrySummary } from "./types";
+import type { Entry, EntrySummary, SecretField } from "./types";
 
 /** Convert a full Entry to its safe summary (for the list store). */
 export function toSummary(entry: Entry): EntrySummary {
@@ -22,6 +22,33 @@ export async function entriesList(): Promise<EntrySummary[]> {
 
 export async function entryGet(id: string): Promise<Entry> {
   return invoke<Entry>("entry_get", { id });
+}
+
+/**
+ * Fetch a secret field's plaintext. Only call on explicit user action
+ * (reveal button, populating the edit form) — never eagerly.
+ * Pass `version` to read from a history revision.
+ */
+export async function entryRevealField(
+  id: string,
+  field: SecretField,
+  version?: number,
+): Promise<string> {
+  return invoke<string>("entry_reveal_field", { id, field, version: version ?? null });
+}
+
+/**
+ * Copy a secret field to the clipboard entirely inside the Rust backend —
+ * the plaintext never reaches the webview. `timeoutSecs = 0` disables
+ * auto-clear. Pass `version` to copy from a history revision.
+ */
+export async function entryCopyField(
+  id: string,
+  field: SecretField,
+  timeoutSecs: number,
+  version?: number,
+): Promise<void> {
+  return invoke<void>("entry_copy_field", { id, field, timeoutSecs, version: version ?? null });
 }
 
 export interface EntryDraft {

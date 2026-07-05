@@ -18,9 +18,10 @@ use std::io::Cursor;
 use sha2::{Digest, Sha256};
 
 use kagi_lib::commands::entries::{
-    entries_list, entry_create, entry_delete, entry_discard, entry_get, entry_update,
+    entries_list, entry_create, entry_delete, entry_discard, entry_get, entry_reveal_field,
+    entry_update,
 };
-use kagi_lib::models::{EntryDraft, EntryPatch};
+use kagi_lib::models::{EntryDraft, EntryPatch, SecretField};
 use kagi_lib::state::{AppState, OpenVault};
 use keepass::db::Value;
 
@@ -347,12 +348,23 @@ async fn full_create_save_get_delete_workflow() {
     assert_eq!(saved.title, "My Login");
     assert_eq!(tv.disk_entry_count(), 1);
 
-    // 3. Get reflects saved values
+    // 3. Get reflects saved values; the password itself is not in the DTO
+    // (only a presence flag) and must be fetched via the reveal command.
     let loaded = entry_get(state.clone(), entry.id.clone()).await.unwrap();
     assert_eq!(loaded.title, "My Login");
     assert_eq!(loaded.username.as_deref(), Some("bob"));
-    assert_eq!(loaded.password.as_deref(), Some("s3cret"));
+    assert!(loaded.has_password);
     assert_eq!(loaded.url.as_deref(), Some("https://example.com"));
+    let revealed = entry_reveal_field(state.clone(), entry.id.clone(), SecretField::Password, None)
+        .await
+        .unwrap();
+    assert_eq!(revealed, "s3cret");
+    // The exact payload the webview receives must not contain the secret.
+    let json = serde_json::to_string(&loaded).unwrap();
+    assert!(
+        !json.contains("s3cret"),
+        "entry_get JSON must not leak the password: {json}"
+    );
 
     // 4. List shows one entry
     assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
@@ -426,7 +438,11 @@ async fn saved_password_is_protected_on_disk() {
     .unwrap();
 
     let loaded = entry_get(state.clone(), entry.id.clone()).await.unwrap();
-    assert_eq!(loaded.password.as_deref(), Some("hunter2"));
+    assert!(loaded.has_password);
+    let revealed = entry_reveal_field(state.clone(), entry.id.clone(), SecretField::Password, None)
+        .await
+        .unwrap();
+    assert_eq!(revealed, "hunter2");
 
     // And the raw on-disk field is the protected password value.
     let disk = tv.reload_disk();

@@ -43,8 +43,11 @@
     const thisFetch = ++fetchId;
     // Keep previous entry visible during refetch; only show "Loading…" after a
     // short delay and only when we have no prior data to display.
+    // untrack: this effect must depend only on the selected id — reading
+    // `_entry` tracked would make the `_entry = e` assignment below re-trigger
+    // the effect, refetching in a loop on every completion.
     if (loadingTimer) clearTimeout(loadingTimer);
-    if (!_entry) {
+    if (!untrack(() => _entry)) {
       loadingTimer = setTimeout(() => {
         if (thisFetch === fetchId) entryLoading = true;
       }, 120);
@@ -66,6 +69,31 @@
           entryLoading = false;
         }
       });
+  });
+
+  // Card numbers are shown in full by default (unlike password/CVV/PIN),
+  // so fetch the plaintext when a card entry is selected. Falls back to the
+  // backend-masked value until it arrives (or if the fetch fails).
+  let cardNumberPlain = $state("");
+  // Which entry id the fetched (or in-flight) number belongs to. Keyed on the
+  // id, not the `_entry` object: `_entry` is reassigned on refetches of the
+  // same entry (favorite toggle, save), and resetting/refetching then would
+  // flash the field back to the masked value.
+  let cardNumberEntryId: string | null = null;
+  $effect(() => {
+    const e = _entry;
+    const wantId = e?.type === "card" && e.card?.hasNumber ? e.id : null;
+    if (wantId === cardNumberEntryId) return;
+    cardNumberEntryId = wantId;
+    cardNumberPlain = "";
+    if (wantId) {
+      entriesBridge
+        .entryRevealField(wantId, "cardNumber")
+        .then((n) => {
+          if (cardNumberEntryId === wantId) cardNumberPlain = n;
+        })
+        .catch((err) => console.error("Failed to load card number", err));
+    }
   });
 
   let editing = $state(false);
@@ -112,9 +140,13 @@
     if (_entry && vault.editingId === _entry.id) {
       if (vault.creatingId === _entry.id) newEntryId = _entry.id;
       vault.setCreatingId(null);
-      populateEdit();
-      editing = true;
       vault.setEditingId(null);
+      // Edit mode is entered only after the buffers (including revealed
+      // secrets) are filled — saving a half-populated form would delete
+      // the missing fields (`Some("")` clears a field on the backend).
+      populateEdit()
+        .then(() => (editing = true))
+        .catch((e) => console.error("Failed to prepare edit form", e));
     }
   });
 
@@ -143,26 +175,35 @@
     }
   });
 
-  function populateEdit() {
+  async function populateEdit() {
     if (!_entry) return;
-    editTitle = _entry.title;
-    editUsername = _entry.username ?? "";
-    editPassword = _entry.password ?? "";
-    editUrl = _entry.url ?? "";
-    editTotp = _entry.totp ?? "";
-    editTags = [..._entry.tags];
-    editNotes = _entry.notes ?? "";
-    editFirstName = _entry.identity?.firstName ?? "";
-    editLastName = _entry.identity?.lastName ?? "";
-    editEmail = _entry.identity?.email ?? "";
-    editPhone = _entry.identity?.phone ?? "";
-    editAddress = _entry.identity?.address ?? "";
-    editCardHolder = _entry.card?.holder ?? "";
-    editCardNumber = _entry.card?.number ?? "";
-    editCardType = _entry.card?.type ?? "";
-    editCardExpMonth = _entry.card?.expMonth?.toString() ?? "";
-    editCardExpYear = _entry.card?.expYear?.toString() ?? "";
-    editCardCvv = _entry.card?.cvv ?? "";
+    const e = _entry;
+    editTitle = e.title;
+    editUsername = e.username ?? "";
+    editUrl = e.url ?? "";
+    editTags = [...e.tags];
+    editNotes = e.notes ?? "";
+    editFirstName = e.identity?.firstName ?? "";
+    editLastName = e.identity?.lastName ?? "";
+    editEmail = e.identity?.email ?? "";
+    editPhone = e.identity?.phone ?? "";
+    editAddress = e.identity?.address ?? "";
+    editCardHolder = e.card?.holder ?? "";
+    editCardType = e.card?.type ?? "";
+    editCardExpMonth = e.card?.expMonth?.toString() ?? "";
+    editCardExpYear = e.card?.expYear?.toString() ?? "";
+    // Secrets are not in the Entry DTO — fetch the ones that exist so the
+    // form is prefilled and an untouched save round-trips them unchanged.
+    const [password, totp, cardNumber, cardCvv] = await Promise.all([
+      e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
+      e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
+      e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
+      e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
+    ]);
+    editPassword = password;
+    editTotp = totp;
+    editCardNumber = cardNumber;
+    editCardCvv = cardCvv;
     clearCardErrors();
   }
 
@@ -179,10 +220,17 @@
     }
   }
 
-  function startEdit() {
+  async function startEdit() {
     if (!_entry) return;
     newEntryId = null;
-    populateEdit();
+    try {
+      await populateEdit();
+    } catch (e) {
+      // Don't enter edit mode with half-filled buffers: saving them would
+      // delete the fields that failed to load.
+      console.error("Failed to prepare edit form", e);
+      return;
+    }
     editing = true;
   }
 
@@ -650,8 +698,8 @@
         {/if}
       </FieldGroup>
     {:else if entry.type === "login" || entry.type === "note"}
-      {#if entry.totp}
-        <TOTPField totpUri={entry.totp} />
+      {#if entry.hasTotp}
+        <TOTPField entryId={entry.id} />
       {/if}
       <FieldGroup>
         {#if entry.username}
@@ -661,8 +709,13 @@
             onCopy={() => clipboard.copyPlain(entry.username!)}
           />
         {/if}
-        {#if entry.password}
-          <PasswordField label="Password" password={entry.password} showStrength />
+        {#if entry.hasPassword}
+          <PasswordField
+            label="Password"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
+            copy={() => clipboard.copySecretField(entry.id, "password")}
+            showStrength
+          />
         {/if}
         {#if entry.url}
           <Field
@@ -712,12 +765,14 @@
         {#if entry.card.holder}
           <Field label="Holder" value={entry.card.holder} />
         {/if}
-        {#if entry.card.number}
+        {#if entry.card.hasNumber}
           <Field
             label="Number"
-            value={formatCardNumber(entry.card.number, entry.card.type)}
+            value={cardNumberPlain
+              ? formatCardNumber(cardNumberPlain, entry.card.type)
+              : (entry.card.numberMasked ?? "")}
             mono
-            onCopy={() => clipboard.copyPlain(entry.card!.number!)}
+            onCopy={() => clipboard.copySecretField(entry.id, "cardNumber")}
           />
         {/if}
         {#if entry.card.expMonth && entry.card.expYear}
@@ -726,8 +781,12 @@
             value={`${String(entry.card.expMonth).padStart(2, "0")}/${entry.card.expYear}`}
           />
         {/if}
-        {#if entry.card.cvv}
-          <PasswordField label="CVV" password={entry.card.cvv} />
+        {#if entry.card.hasCvv}
+          <PasswordField
+            label="CVV"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "cardCvv")}
+            copy={() => clipboard.copySecretField(entry.id, "cardCvv")}
+          />
         {/if}
       </FieldGroup>
     {/if}

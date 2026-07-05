@@ -1,4 +1,6 @@
 import * as clipboardBridge from "$lib/bridge/clipboard";
+import * as entriesBridge from "$lib/bridge/entries";
+import type { SecretField } from "$lib/bridge/types";
 
 let remainingMs = $state(0);
 let defaultTimeoutSecs = $state(15);
@@ -41,6 +43,24 @@ export const clipboard = {
       }, 1000);
     } else {
       await clipboardBridge.clipboardCopy(value);
+    }
+  },
+  /** Copy an entry's secret field (password, CVV, card number, …) with the
+   *  auto-clear countdown. The plaintext is read and copied inside the Rust
+   *  backend — it never crosses IPC to the webview. Pass `version` to copy
+   *  from a history revision. */
+  async copySecretField(id: string, field: SecretField, version?: number) {
+    const secs = defaultTimeoutSecs;
+    stop();
+    await entriesBridge.entryCopyField(id, field, secs, version);
+    if (secs > 0) {
+      remainingMs = secs * 1000;
+      timer = setInterval(() => {
+        remainingMs = Math.max(0, remainingMs - 1000);
+        if (remainingMs <= 0) {
+          stop();
+        }
+      }, 1000);
     }
   },
   /** Copy a plain value (username, URL) without auto-clear.

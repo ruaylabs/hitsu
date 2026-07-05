@@ -2,7 +2,9 @@
   import * as totpBridge from "$lib/bridge/totp";
   import { clipboard } from "$lib/stores/clipboard.svelte";
 
-  let { totpUri }: { totpUri: string } = $props();
+  // Only the entry id: the backend reads the TOTP seed itself and returns
+  // just the ephemeral code, so the otpauth:// URI never enters the webview.
+  let { entryId }: { entryId: string } = $props();
 
   let code = $state("------");
   let period = $state(30);
@@ -29,7 +31,7 @@
 
   async function computeCode() {
     try {
-      const result = await totpBridge.totpCompute(totpUri);
+      const result = await totpBridge.totpCompute(entryId);
       code = result.code;
       remaining = result.remaining;
       period = result.period;

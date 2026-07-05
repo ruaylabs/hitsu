@@ -48,29 +48,34 @@ pub async fn clipboard_copy(value: String) -> KagiResult<()> {
     set_clipboard(&value)
 }
 
-#[tauri::command]
-pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> KagiResult<()> {
-    // Share the same exclusion-aware path
-    set_clipboard(&value)?;
+/// Copy a secret with exclusion hints and (when `timeout_secs > 0`) a
+/// spawned auto-clear task. Shared by the IPC command below and
+/// `entry_copy_field`, whose values are read backend-side and never cross IPC.
+pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> KagiResult<()> {
+    set_clipboard(&secret)?;
 
-    // Wrap the secret in Zeroizing so the tokio task zeroizes it when done
-    let secret = Zeroizing::new(value);
-
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(timeout_secs)).await;
-        if let Ok(mut cb) = arboard::Clipboard::new() {
-            // Only clear if the clipboard still contains our secret.
-            // If the user copied something else in the meantime, leave it alone
-            // so we don't clobber their later copy.
-            let current = cb.get_text().ok();
-            if current.as_deref() == Some(secret.as_str()) {
-                let _ = cb.clear();
+    if timeout_secs > 0 {
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(timeout_secs)).await;
+            if let Ok(mut cb) = arboard::Clipboard::new() {
+                // Only clear if the clipboard still contains our secret.
+                // If the user copied something else in the meantime, leave it alone
+                // so we don't clobber their later copy.
+                let current = cb.get_text().ok();
+                if current.as_deref() == Some(secret.as_str()) {
+                    let _ = cb.clear();
+                }
             }
-        }
-        // secret is dropped and zeroized here
-    });
+            // secret is dropped and zeroized here
+        });
+    }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> KagiResult<()> {
+    copy_secret(Zeroizing::new(value), timeout_secs)
 }
 
 /// Synchronous clipboard clear — usable from sync contexts (exit handler, …).

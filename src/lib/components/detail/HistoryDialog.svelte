@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { timeAgo, cardBrandName } from "$lib/utils/format";
+  import { onMount, untrack } from "svelte";
+  import { timeAgo, cardBrandName, formatCardNumber } from "$lib/utils/format";
   import Icon from "../ui/Icon.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import Field from "./Field.svelte";
@@ -35,20 +35,36 @@
     }
   });
 
+  // Card numbers are shown in full (matching the detail view), fetched per
+  // revision alongside the sanitized entry.
+  let cardNumberPlain = $state("");
+
   $effect(() => {
     if (selectedVersion !== null) {
       const thisFetch = ++fetchId;
+      const version = selectedVersion;
       // Keep the previous revision's data visible during refetch (mirrors
       // ItemDetail) so switching revisions doesn't flash the fields off/on.
       // Only show "Loading…" when we have no prior data to display.
-      if (!detailEntry) loadingDetail = true;
+      // untrack: depending on `detailEntry` here would make the assignment
+      // below re-trigger the effect, refetching in a loop on every completion.
+      if (!untrack(() => detailEntry)) loadingDetail = true;
       error = "";
+      cardNumberPlain = "";
       entriesBridge
-        .entryHistoryGet(entryId, selectedVersion)
+        .entryHistoryGet(entryId, version)
         .then((e) => {
           if (thisFetch === fetchId) {
             detailEntry = e;
             loadingDetail = false;
+            if (e.card?.hasNumber) {
+              entriesBridge
+                .entryRevealField(entryId, "cardNumber", version)
+                .then((n) => {
+                  if (thisFetch === fetchId) cardNumberPlain = n;
+                })
+                .catch((err) => console.error("Failed to load card number", err));
+            }
           }
         })
         .catch((e) => {
@@ -128,7 +144,7 @@
               <div class="detail-scroll">
                 <div class="detail-title">{detailEntry.title}</div>
 
-                {#if detailEntry.username || detailEntry.password || detailEntry.url}
+                {#if detailEntry.username || detailEntry.hasPassword || detailEntry.url}
                   <FieldGroup>
                     {#if detailEntry.username}
                       <Field
@@ -137,10 +153,12 @@
                         onCopy={() => clipboard.copyPlain(detailEntry!.username!)}
                       />
                     {/if}
-                    {#if detailEntry.password}
+                    {#if detailEntry.hasPassword}
+                      {@const version = selectedVersion ?? undefined}
                       <PasswordField
                         label="Password"
-                        password={detailEntry.password}
+                        reveal={() => entriesBridge.entryRevealField(entryId, "password", version)}
+                        copy={() => clipboard.copySecretField(entryId, "password", version)}
                         showStrength
                       />
                     {/if}
@@ -206,12 +224,19 @@
                         onCopy={() => clipboard.copyPlain(detailEntry!.card!.holder!)}
                       />
                     {/if}
-                    {#if detailEntry.card.number}
+                    {#if detailEntry.card.hasNumber}
                       <Field
                         label="Number"
-                        value={detailEntry.card.number}
+                        value={cardNumberPlain
+                          ? formatCardNumber(cardNumberPlain, detailEntry.card.type)
+                          : (detailEntry.card.numberMasked ?? "")}
                         mono
-                        onCopy={() => clipboard.copy(detailEntry!.card!.number!)}
+                        onCopy={() =>
+                          clipboard.copySecretField(
+                            entryId,
+                            "cardNumber",
+                            selectedVersion ?? undefined,
+                          )}
                       />
                     {/if}
                     {#if detailEntry.card.expMonth && detailEntry.card.expYear}
@@ -220,8 +245,13 @@
                         value={`${String(detailEntry.card.expMonth).padStart(2, "0")}/${detailEntry.card.expYear}`}
                       />
                     {/if}
-                    {#if detailEntry.card.cvv}
-                      <PasswordField label="CVV" password={detailEntry.card.cvv} />
+                    {#if detailEntry.card.hasCvv}
+                      {@const version = selectedVersion ?? undefined}
+                      <PasswordField
+                        label="CVV"
+                        reveal={() => entriesBridge.entryRevealField(entryId, "cardCvv", version)}
+                        copy={() => clipboard.copySecretField(entryId, "cardCvv", version)}
+                      />
                     {/if}
                   </FieldGroup>
                 {/if}

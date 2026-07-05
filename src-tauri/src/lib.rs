@@ -78,6 +78,8 @@ pub fn run() {
             commands::entries::entry_update,
             commands::entries::entry_delete,
             commands::entries::entry_discard,
+            commands::entries::entry_reveal_field,
+            commands::entries::entry_copy_field,
             commands::entries::entry_history_list,
             commands::entries::entry_history_get,
             commands::clipboard::clipboard_copy,

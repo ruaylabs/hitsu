@@ -1,39 +1,62 @@
 <script lang="ts">
-  import { clipboard } from "$lib/stores/clipboard.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
 
   let {
     label,
-    password,
+    reveal,
+    copy: copyFn,
     showStrength = false,
   }: {
     label: string;
-    password: string;
+    /** Fetch the plaintext on demand (explicit reveal only — the secret is
+     *  not in the webview until the user asks for it). */
+    reveal: () => Promise<string>;
+    /** Copy backend-side; the secret never crosses IPC for this path. */
+    copy: () => Promise<void>;
     /** Show a strength meter under the value. Only meaningful for actual
-     *  passwords — CVV/pin are always short and would always read "weak". */
+     *  passwords — CVV/pin are always short and would always read "weak".
+     *  Shown only while revealed, since the plaintext isn't held otherwise. */
     showStrength?: boolean;
   } = $props();
 
   let revealed = $state(false);
+  let plaintext = $state("");
   let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function toggleReveal() {
+  function hide() {
+    revealed = false;
+    plaintext = "";
+    if (revealTimer) clearTimeout(revealTimer);
+    revealTimer = null;
+  }
+
+  async function toggleReveal() {
     if (revealed) {
-      revealed = false;
-      if (revealTimer) clearTimeout(revealTimer);
-    } else {
+      hide();
+      return;
+    }
+    try {
+      plaintext = await reveal();
       revealed = true;
-      revealTimer = setTimeout(() => {
-        revealed = false;
-      }, 30000);
+      revealTimer = setTimeout(hide, 30000);
+    } catch (e) {
+      console.error("Failed to reveal secret", e);
     }
   }
 
-  function copy() {
-    clipboard.copy(password);
+  // Drop the plaintext when the component unmounts or switches entries.
+  $effect(() => () => hide());
+
+  async function copy() {
+    try {
+      await copyFn();
+    } catch (e) {
+      console.error("Failed to copy secret", e);
+      return;
+    }
     if (copyTimer) clearTimeout(copyTimer);
     copied = true;
     copyTimer = setTimeout(() => (copied = false), 1000);
@@ -43,7 +66,7 @@
 <div class="field-row">
   <span class="field-label">{label}</span>
   <div class="field-main">
-    <span class="field-value mono">{revealed ? password : "•".repeat(14)}</span>
+    <span class="field-value mono">{revealed ? plaintext : "•".repeat(14)}</span>
     <div class="field-actions">
       <button class="field-action" onclick={copy} aria-label="Copy password" title="Copy password">
         <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
@@ -57,8 +80,8 @@
         <i class="ti ti-{revealed ? 'eye-off' : 'eye'}" style="font-size: 15px"></i>
       </button>
     </div>
-    {#if showStrength}
-      <PasswordStrengthMeter {password} />
+    {#if showStrength && revealed}
+      <PasswordStrengthMeter password={plaintext} />
     {/if}
   </div>
 </div>

@@ -4,7 +4,7 @@ use tauri::State;
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
     CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, HistoryEntrySummary, IdentityFields,
-    ItemType,
+    ItemType, SecretField,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -29,8 +29,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
     let subtitle = if item_type == ItemType::Card {
         entry_ref
             .get("card.number")
-            .filter(|n: &&str| n.len() >= 4)
-            .map(|num: &str| format!("{} •••• {}", &num[..4], &num[num.len() - 4..]))
+            .and_then(mask_card_number)
             .unwrap_or(username.clone())
     } else {
         username.clone()
@@ -49,18 +48,30 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
     }
 }
 
+/// Mask a card number for display: keep first/last 4 digits.
+/// Returns `None` for values too short to mask meaningfully.
+fn mask_card_number(num: &str) -> Option<String> {
+    if num.len() >= 4 && num.is_ascii() {
+        Some(format!("{} •••• {}", &num[..4], &num[num.len() - 4..]))
+    } else {
+        None
+    }
+}
+
+/// Map a KDBX entry to the webview detail model. Secrets are reduced to
+/// presence flags / masked values here — see the `Entry` doc comment.
 fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
     let id = entry_ref.id().uuid().to_string();
     let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
-    let password = entry_ref.get_password().unwrap_or("").to_string();
+    let has_password = entry_ref.get_password().is_some_and(|p| !p.is_empty());
     let url = entry_ref.get_url().map(str::to_string);
     let notes = entry_ref.get(fields::NOTES).map(str::to_string);
     let tags = entry_ref.tags.clone();
     let item_type = read_item_type(entry_ref);
     let icon_hint = read_icon_hint(entry_ref);
     let favorite = read_favorite(entry_ref);
-    let totp = read_totp_seed(entry_ref);
+    let has_totp = read_totp_seed(entry_ref).is_some();
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -90,9 +101,10 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
     };
 
     let card = if item_type == ItemType::Card {
+        let number = entry_ref.get("card.number");
         Some(CardFields {
             holder: entry_ref.get("card.holder").map(str::to_string),
-            number: entry_ref.get("card.number").map(str::to_string),
+            number_masked: number.and_then(mask_card_number),
             card_type: entry_ref.get("card.type").map(str::to_string),
             exp_month: entry_ref
                 .get("card.expMonth")
@@ -100,8 +112,9 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
             exp_year: entry_ref
                 .get("card.expYear")
                 .and_then(|v: &str| v.parse().ok()),
-            cvv: entry_ref.get("card.cvv").map(str::to_string),
-            pin: entry_ref.get("card.pin").map(str::to_string),
+            has_number: number.is_some_and(|v| !v.is_empty()),
+            has_cvv: entry_ref.get("card.cvv").is_some_and(|v| !v.is_empty()),
+            has_pin: entry_ref.get("card.pin").is_some_and(|v| !v.is_empty()),
         })
     } else {
         None
@@ -114,8 +127,8 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
         subtitle: username.clone(),
         url,
         username: Some(username),
-        password: Some(password),
-        totp,
+        has_password,
+        has_totp,
         notes,
         tags,
         favorite,
@@ -169,7 +182,10 @@ fn read_favorite(entry: &keepass::db::Entry) -> bool {
 }
 
 /// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
-fn find_entry_ref<'a>(db: &'a keepass::Database, id: &str) -> Option<keepass::db::EntryRef<'a>> {
+pub(crate) fn find_entry_ref<'a>(
+    db: &'a keepass::Database,
+    id: &str,
+) -> Option<keepass::db::EntryRef<'a>> {
     let uuid = uuid::Uuid::parse_str(id).ok()?;
     db.entry(EntryId::from_uuid(uuid))
 }
@@ -312,8 +328,8 @@ pub async fn entry_create(
         subtitle,
         url: draft.url,
         username: draft.username,
-        password: draft.password,
-        totp: draft.totp,
+        has_password: draft.password.as_deref().is_some_and(|p| !p.is_empty()),
+        has_totp: draft.totp.as_deref().is_some_and(|t| !t.is_empty()),
         notes: draft.notes,
         tags: Vec::new(),
         favorite: false,
@@ -370,7 +386,7 @@ pub async fn entry_update(
 ///
 /// Tries the KeePassXC standard `otp` field first (an `otpauth://` URI),
 /// then falls back to the legacy `TOTP Seed` + `TOTP Settings` fields.
-fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
+pub(crate) fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
     // 1. Try the modern `otp` field (full otpauth:// URI — KeePassXC convention)
     if let Some(otp_uri) = entry.get_raw_otp_value() {
         // Validate that it parses as a valid TOTP URI
@@ -477,6 +493,81 @@ pub async fn entry_discard(state: State<'_, AppState>, id: String) -> KagiResult
     remove_entry(&mut vault.db, &id)?;
     // Intentionally no save_vault(): the entry was never on disk.
     Ok(())
+}
+
+/// Read a secret field's plaintext from an entry, or from one of its history
+/// versions when `version` is given.
+fn read_secret_value(
+    vault: &OpenVault,
+    id: &str,
+    field: SecretField,
+    version: Option<u32>,
+) -> KagiResult<String> {
+    let entry_ref =
+        find_entry_ref(&vault.db, id).ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+
+    let read = |e: &keepass::db::Entry| -> Option<String> {
+        match field {
+            SecretField::Password => e.get_password().map(str::to_string),
+            SecretField::Totp => read_totp_seed(e),
+            SecretField::CardNumber => e.get("card.number").map(str::to_string),
+            SecretField::CardCvv => e.get("card.cvv").map(str::to_string),
+            SecretField::CardPin => e.get("card.pin").map(str::to_string),
+        }
+    };
+
+    let value = match version {
+        None => read(&entry_ref),
+        Some(v) => {
+            let history = entry_ref
+                .history
+                .as_ref()
+                .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+            let history_entry = history
+                .get_entries()
+                .get(v as usize)
+                .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", v)))?;
+            read(history_entry)
+        }
+    };
+
+    Ok(value.unwrap_or_default())
+}
+
+/// Return a secret field's plaintext to the webview.
+///
+/// This is the only command that sends secrets over IPC, and it runs solely
+/// on explicit user action (reveal button, populating the edit form) — never
+/// on selection. For copy, use `entry_copy_field`, which keeps the secret
+/// backend-side.
+#[tauri::command]
+pub async fn entry_reveal_field(
+    state: State<'_, AppState>,
+    id: String,
+    field: SecretField,
+    version: Option<u32>,
+) -> KagiResult<String> {
+    let vaults = state.vaults.lock();
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    read_secret_value(vault, &id, field, version)
+}
+
+/// Copy a secret field to the clipboard entirely inside Rust — the plaintext
+/// never crosses IPC to the webview. `timeout_secs = 0` disables auto-clear.
+#[tauri::command]
+pub async fn entry_copy_field(
+    state: State<'_, AppState>,
+    id: String,
+    field: SecretField,
+    timeout_secs: u64,
+    version: Option<u32>,
+) -> KagiResult<()> {
+    let value = {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        zeroize::Zeroizing::new(read_secret_value(vault, &id, field, version)?)
+    }; // lock released before touching the clipboard
+    super::clipboard::copy_secret(value, timeout_secs)
 }
 
 #[tauri::command]
