@@ -142,20 +142,24 @@ fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
             ..
         } => {
             if *memory < 1024 * 1024 {
-                return Err(KagiError::Custom("KDF memory menor a 1 MiB".to_string()));
+                return Err(KagiError::Custom("KDF memory is below 1 MiB".to_string()));
             }
             if *iterations < 2 {
-                return Err(KagiError::Custom("KDF iterations menor a 2".to_string()));
+                return Err(KagiError::Custom(
+                    "KDF iterations must be at least 2".to_string(),
+                ));
             }
             if *parallelism < 1 {
-                return Err(KagiError::Custom("KDF parallelism inválido".to_string()));
+                return Err(KagiError::Custom(
+                    "KDF parallelism must be at least 1".to_string(),
+                ));
             }
             Ok(())
         }
         KdfConfig::Aes { .. } => Err(KagiError::Custom(
-            "AES-KDF no aceptado, usar Argon2id".to_string(),
+            "AES-KDF is not supported — use Argon2id".to_string(),
         )),
-        _ => Err(KagiError::Custom("KDF no soportado".to_string())),
+        _ => Err(KagiError::Custom("Unsupported KDF".to_string())),
     }
 }
 
