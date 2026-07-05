@@ -2,6 +2,7 @@ use std::io::Cursor;
 
 use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
 use keepass::{Database, DatabaseKey};
+use sha2::{Digest, Sha256};
 
 /// Build an in-memory database with a single entry having the given fields,
 /// save it, return the raw bytes.
@@ -1280,6 +1281,7 @@ fn test_vault_lock_clears_state() {
             db,
             path: "/tmp/test.kdbx".into(),
             db_key: DatabaseKey::new().with_password("test-password"),
+            password_hash: Sha256::digest(b"test-password").into(),
         },
     );
 
@@ -1329,6 +1331,7 @@ fn test_openvault_drop_replaces_database() {
             db,
             path: "/tmp/test.kdbx".into(),
             db_key: DatabaseKey::new().with_password("password"),
+            password_hash: Sha256::digest(b"password").into(),
         },
     );
 
@@ -1369,6 +1372,7 @@ fn test_db_key_zeroized_after_lock() {
             db,
             path: "/tmp/test.kdbx".into(),
             db_key,
+            password_hash: Sha256::digest(b"supersecret").into(),
         },
     );
 

@@ -1,8 +1,10 @@
 use std::io::Read;
 
 use keepass::config::KdfConfig;
+use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -451,6 +453,7 @@ pub async fn vault_open(
     // Build the DatabaseKey; then early-zeroize the source password String
     // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
+    let password_hash = Sha256::digest(password.as_bytes()).into();
     password.zeroize();
     // Single-vault app: every read uses vaults.iter().next(), so opening a
     // new vault must replace any previously open one — otherwise stale
@@ -463,6 +466,7 @@ pub async fn vault_open(
             db,
             path: path.clone(),
             db_key,
+            password_hash,
         },
     );
 
@@ -559,6 +563,7 @@ pub async fn vault_create(
     // Build the DatabaseKey; then early-zeroize the source password String
     // since the DatabaseKey holds its own copy (zeroized on drop).
     let db_key = keepass::DatabaseKey::new().with_password(&password);
+    let password_hash = Sha256::digest(password.as_bytes()).into();
     password.zeroize();
     // Single-vault app: replace any previously open vault (see vault_open).
     vaults.clear();
@@ -568,6 +573,7 @@ pub async fn vault_create(
             db,
             path: path.clone(),
             db_key,
+            password_hash,
         },
     );
 
@@ -602,8 +608,10 @@ pub async fn vault_change_password(
     let (_id, vault): (&VaultId, &mut OpenVault) =
         vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-    // Verify old password matches the stored key
-    if vault.db_key != keepass::DatabaseKey::new().with_password(&old_password) {
+    // Verify old password matches the stored hash (constant-time).
+    // Avoids timing side-channels from PartialEq on DatabaseKey.
+    let old_hash = Sha256::digest(old_password.as_bytes());
+    if vault.password_hash[..].ct_ne(&*old_hash).into() {
         return Err(KagiError::Custom("Wrong password".to_string()));
     }
 
@@ -613,8 +621,9 @@ pub async fn vault_change_password(
     let bytes = buf.into_inner();
     crate::vault::atomic_write(&vault.path, &bytes)?;
 
-    // Store the new DatabaseKey; early-zeroize both source buffers
+    // Store the new DatabaseKey and password hash; early-zeroize both source buffers
     vault.db_key = keepass::DatabaseKey::new().with_password(&new_password);
+    vault.password_hash = Sha256::digest(new_password.as_bytes()).into();
     old_password.zeroize();
     new_password.zeroize();
     Ok(())

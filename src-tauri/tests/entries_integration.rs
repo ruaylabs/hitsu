@@ -15,6 +15,8 @@
 
 use std::io::Cursor;
 
+use sha2::{Digest, Sha256};
+
 use kagi_lib::commands::entries::{
     entries_list, entry_create, entry_delete, entry_discard, entry_get, entry_update,
 };
@@ -86,6 +88,7 @@ fn setup() -> TestVault {
         db,
         path: path.clone(),
         db_key: keepass::DatabaseKey::new().with_password(TEST_PW),
+        password_hash: Sha256::digest(TEST_PW.as_bytes()).into(),
     };
 
     let app = mock_builder()
