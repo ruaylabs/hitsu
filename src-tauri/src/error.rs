@@ -6,6 +6,9 @@ pub enum KagiError {
     #[error("No vault is currently open")]
     NoOpenVault,
 
+    #[error("Vault file changed on disk")]
+    ExternalModification,
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -37,6 +40,12 @@ impl KagiError {
         match self {
             KagiError::EntryNotFound(_) | KagiError::NoOpenVault | KagiError::Custom(_) => {
                 self.to_string()
+            }
+            KagiError::ExternalModification => {
+                "The vault file was changed on disk by another program (a sync client?). \
+                 Nothing was saved. Lock and reopen the vault to load the latest version, \
+                 then retry your change."
+                    .to_string()
             }
             KagiError::Io(_) => "A file operation failed.".to_string(),
             KagiError::KeepassOpen(_) => {

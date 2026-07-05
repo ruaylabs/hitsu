@@ -1282,6 +1282,7 @@ fn test_vault_lock_clears_state() {
             path: "/tmp/test.kdbx".into(),
             db_key: DatabaseKey::new().with_password("test-password"),
             password_hash: Sha256::digest(b"test-password").into(),
+            disk_hash: [0u8; 32],
         },
     );
 
@@ -1332,6 +1333,7 @@ fn test_openvault_drop_replaces_database() {
             path: "/tmp/test.kdbx".into(),
             db_key: DatabaseKey::new().with_password("password"),
             password_hash: Sha256::digest(b"password").into(),
+            disk_hash: [0u8; 32],
         },
     );
 
@@ -1373,6 +1375,7 @@ fn test_db_key_zeroized_after_lock() {
             path: "/tmp/test.kdbx".into(),
             db_key,
             password_hash: Sha256::digest(b"supersecret").into(),
+            disk_hash: [0u8; 32],
         },
     );
 

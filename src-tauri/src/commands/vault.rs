@@ -467,6 +467,10 @@ pub async fn vault_open(
     // Wrap immediately so the buffer is zeroized on any early return
     let password = Zeroizing::new(password);
 
+    // Take the writer lock so we never read the file while a queued save is
+    // mid-write — the bytes we hash below must be the bytes we parsed.
+    let _save_guard = state.save_lock.lock().await;
+
     let path = PathBuf::from(&path);
     let name = path
         .file_stem()
@@ -477,8 +481,9 @@ pub async fn vault_open(
     // The Argon2 KDF inside Database::open takes hundreds of ms at 64 MiB —
     // run it on a blocking thread so other commands stay responsive.
     let open_path = path.clone();
-    let (db, db_key, password_hash) = tauri::async_runtime::spawn_blocking(
-        move || -> KagiResult<(keepass::Database, keepass::DatabaseKey, [u8; 32])> {
+    type OpenResult = (keepass::Database, keepass::DatabaseKey, [u8; 32], [u8; 32]);
+    let (db, db_key, password_hash, disk_hash) =
+        tauri::async_runtime::spawn_blocking(move || -> KagiResult<OpenResult> {
             // Wrap in Zeroizing again inside the closure so the buffer is
             // scrubbed when the task finishes, success or not.
             let mut password = password;
@@ -486,9 +491,12 @@ pub async fn vault_open(
             // Validate header early before passing to keepass
             validate_header(&open_path)?;
 
-            let mut file = File::open(&open_path)?;
+            // Read the whole file once: the same bytes are hashed (for
+            // external-modification detection on later saves) and parsed.
+            let bytes = std::fs::read(&open_path)?;
+            let disk_hash = crate::vault::sha256_bytes(&bytes);
             let key = keepass::DatabaseKey::new().with_password(&password);
-            let mut db = keepass::Database::open(&mut file, key)?;
+            let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
 
             validate_kdf(&db.config.kdf_config)?;
 
@@ -500,11 +508,10 @@ pub async fn vault_open(
             let db_key = keepass::DatabaseKey::new().with_password(&password);
             let password_hash = Sha256::digest(password.as_bytes()).into();
             password.zeroize();
-            Ok((db, db_key, password_hash))
-        },
-    )
-    .await
-    .map_err(KagiError::from_join)??;
+            Ok((db, db_key, password_hash, disk_hash))
+        })
+        .await
+        .map_err(KagiError::from_join)??;
 
     let entry_count = count_entries(&db);
     let id = uuid::Uuid::new_v4();
@@ -528,6 +535,7 @@ pub async fn vault_open(
             path: path.clone(),
             db_key,
             password_hash,
+            disk_hash,
         },
     );
 
@@ -547,7 +555,7 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
     // Mutate + snapshot under a brief vaults lock.
-    let (db, key, path) = {
+    let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
 
         let (_id, vault): (&VaultId, &mut OpenVault) =
@@ -556,17 +564,26 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
         // Upgrade KDF to Argon2id with 64 MiB
         vault.db.config.kdf_config = default_kdf_config();
 
-        (vault.db.clone(), vault.db_key.clone(), vault.path.clone())
+        (
+            vault.db.clone(),
+            vault.db_key.clone(),
+            vault.path.clone(),
+            vault.disk_hash,
+        )
     };
 
     // KDF + write + verification re-open (a second KDF) off the runtime.
-    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+    let save_path = path.clone();
+    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+        // Abort before touching the file if another program changed it.
+        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
+
         // Re-save with the stored DatabaseKey (no raw password in memory)
         let mut buf = std::io::Cursor::new(Vec::new());
         db.save(&mut buf, key.clone())?;
         let bytes = buf.into_inner();
 
-        crate::vault::backed_up_atomic_write(&path, &bytes, |path| {
+        crate::vault::backed_up_atomic_write(&save_path, &bytes, |path| {
             let mut file = File::open(path).map_err(|e| e.to_string())?;
             keepass::Database::open(&mut file, key.clone())
                 .map(|_| ())
@@ -574,10 +591,13 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
         })
         .map_err(KagiError::Custom)?;
 
-        Ok(())
+        Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
-    .map_err(KagiError::from_join)?
+    .map_err(KagiError::from_join)??;
+
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(())
 }
 
 #[tauri::command]
@@ -593,6 +613,10 @@ pub async fn vault_create(
     // Backend-enforced minimum: reject weak passwords before any I/O
     validate_master_password(&password)?;
 
+    // Writer lock: creating writes a file that could be the currently open
+    // vault's path — don't interleave with a queued save.
+    let _save_guard = state.save_lock.lock().await;
+
     let path = PathBuf::from(&path);
     let vault_name = if name.is_empty() {
         path.file_stem()
@@ -607,8 +631,9 @@ pub async fn vault_create(
     // the async runtime.
     let create_path = path.clone();
     let create_name = vault_name.clone();
-    let (db, db_key, password_hash) = tauri::async_runtime::spawn_blocking(
-        move || -> KagiResult<(keepass::Database, keepass::DatabaseKey, [u8; 32])> {
+    type CreateResult = (keepass::Database, keepass::DatabaseKey, [u8; 32], [u8; 32]);
+    let (db, db_key, password_hash, disk_hash) =
+        tauri::async_runtime::spawn_blocking(move || -> KagiResult<CreateResult> {
             let mut password = password;
 
             let mut db = keepass::Database::new();
@@ -626,6 +651,7 @@ pub async fn vault_create(
             db.save(&mut buf, key)?;
             let bytes = buf.into_inner();
             crate::vault::atomic_write(&create_path, &bytes)?;
+            let disk_hash = crate::vault::sha256_bytes(&bytes);
 
             // Re-open from buffer to verify and obtain the in-memory DB
             let key = keepass::DatabaseKey::new().with_password(&password);
@@ -643,11 +669,10 @@ pub async fn vault_create(
             let db_key = keepass::DatabaseKey::new().with_password(&password);
             let password_hash = Sha256::digest(password.as_bytes()).into();
             password.zeroize();
-            Ok((db, db_key, password_hash))
-        },
-    )
-    .await
-    .map_err(KagiError::from_join)??;
+            Ok((db, db_key, password_hash, disk_hash))
+        })
+        .await
+        .map_err(KagiError::from_join)??;
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
@@ -663,6 +688,7 @@ pub async fn vault_create(
             path: path.clone(),
             db_key,
             password_hash,
+            disk_hash,
         },
     );
 
@@ -693,7 +719,7 @@ pub async fn vault_change_password(
     let _save_guard = state.save_lock.lock().await;
 
     // Verify the old password + snapshot under a brief vaults lock.
-    let (db, path) = {
+    let (db, path, expected_disk_hash) = {
         let vaults = state.vaults.lock();
 
         // Find the single open vault
@@ -707,7 +733,7 @@ pub async fn vault_change_password(
             return Err(KagiError::Custom("Wrong password".to_string()));
         }
 
-        (vault.db.clone(), vault.path.clone())
+        (vault.db.clone(), vault.path.clone(), vault.disk_hash)
     };
     old_password.zeroize();
 
@@ -719,7 +745,10 @@ pub async fn vault_change_password(
     // Save + verification re-open each run the Argon2 KDF — off the runtime.
     let save_key = new_key.clone();
     let save_path = path.clone();
-    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+        // Abort before touching the file if another program changed it.
+        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
+
         // new_password (Zeroizing) is scrubbed when this closure drops it.
         let mut buf = std::io::Cursor::new(Vec::new());
         db.save(&mut buf, save_key)?;
@@ -734,7 +763,7 @@ pub async fn vault_change_password(
         })
         .map_err(KagiError::Custom)?;
 
-        Ok(())
+        Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
     .map_err(KagiError::from_join)??;
@@ -747,6 +776,7 @@ pub async fn vault_change_password(
         if vault.path == path {
             vault.db_key = new_key;
             vault.password_hash = new_hash;
+            vault.disk_hash = new_disk_hash;
         }
     }
     Ok(())

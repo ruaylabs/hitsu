@@ -6,6 +6,7 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -37,6 +38,7 @@
       vault.setEditingId(entry.id);
     } catch (e) {
       console.error("Failed to create entry", e);
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -169,8 +171,10 @@
             try {
               await vaultBridge.vaultUpgradeKdf();
               showKdfUpgrade = false;
+              toast.success("Vault security upgraded");
             } catch (e) {
               console.error("KDF upgrade failed", e);
+              toast.error(e instanceof Error ? e.message : String(e));
             }
           }}
         >

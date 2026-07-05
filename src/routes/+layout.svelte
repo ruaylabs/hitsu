@@ -3,6 +3,8 @@
   import "../lib/styles/tokens.css";
   import "../lib/styles/reset.css";
   import "../lib/styles/global.css";
+  import ToastStack from "$lib/components/ui/ToastStack.svelte";
 </script>
 
 <slot />
+<ToastStack />

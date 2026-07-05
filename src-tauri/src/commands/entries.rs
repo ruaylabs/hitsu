@@ -214,11 +214,27 @@ fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
 /// `vaults` lock so the KDF + write can run outside it.
 fn snapshot_for_save(
     vault: &OpenVault,
-) -> (keepass::Database, keepass::DatabaseKey, std::path::PathBuf) {
-    (vault.db.clone(), vault.db_key.clone(), vault.path.clone())
+) -> (
+    keepass::Database,
+    keepass::DatabaseKey,
+    std::path::PathBuf,
+    [u8; 32],
+) {
+    (
+        vault.db.clone(),
+        vault.db_key.clone(),
+        vault.path.clone(),
+        vault.disk_hash,
+    )
 }
 
-/// Run KDF + serialize + atomic write on a blocking thread.
+/// Run KDF + serialize + atomic write on a blocking thread. Returns the
+/// hash of the written bytes; the caller must commit it via
+/// `AppState::commit_disk_hash` so the next save's conflict check passes.
+///
+/// Aborts with `ExternalModification` (writing nothing) if the file on disk
+/// no longer hashes to `expected_disk_hash` — another program (sync client,
+/// other KeePass app) changed it and we must not clobber those changes.
 ///
 /// The caller must hold `AppState::save_lock` from before the in-memory
 /// mutation until this completes (so a later writer can't hit the disk
@@ -228,12 +244,15 @@ async fn save_snapshot(
     db: keepass::Database,
     key: keepass::DatabaseKey,
     path: std::path::PathBuf,
-) -> KagiResult<()> {
-    tauri::async_runtime::spawn_blocking(move || -> KagiResult<()> {
+    expected_disk_hash: [u8; 32],
+) -> KagiResult<[u8; 32]> {
+    tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+        crate::vault::ensure_unmodified(&path, &expected_disk_hash)?;
         let mut buf = std::io::Cursor::new(Vec::new());
         db.save(&mut buf, key)?;
-        crate::vault::atomic_write(&path, &buf.into_inner())?;
-        Ok(())
+        let bytes = buf.into_inner();
+        crate::vault::atomic_write(&path, &bytes)?;
+        Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
     .map_err(KagiError::from_join)?
@@ -383,7 +402,7 @@ pub async fn entry_update(
     // between our in-memory commit and our disk write.
     let _save_guard = state.save_lock.lock().await;
 
-    let (updated, db, key, path) = {
+    let (updated, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
 
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
@@ -412,11 +431,12 @@ pub async fn entry_update(
             .entry(entry_id)
             .ok_or(KagiError::EntryNotFound(id))?;
         let updated = map_entry_to_full(&entry_ref);
-        let (db, key, path) = snapshot_for_save(vault);
-        (updated, db, key, path)
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (updated, db, key, path, expected_disk_hash)
     }; // vaults lock released — KDF + fsync run outside it
 
-    save_snapshot(db, key, path).await?;
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
     Ok(updated)
 }
 
@@ -513,7 +533,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
 pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
-    let (db, key, path) = {
+    let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
 
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
@@ -522,7 +542,9 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
         snapshot_for_save(vault)
     };
 
-    save_snapshot(db, key, path).await
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(())
 }
 
 /// Drop a brand-new, never-persisted entry from the in-memory database

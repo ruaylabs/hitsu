@@ -15,6 +15,10 @@ pub struct OpenVault {
     /// SHA-256 of the raw master-password bytes, stored for constant-time
     /// verification on password change.
     pub password_hash: [u8; 32],
+    /// SHA-256 of the vault file's bytes as we last read or wrote them.
+    /// Checked before every save to detect external modification (sync
+    /// clients, other KeePass apps) instead of silently clobbering it.
+    pub disk_hash: [u8; 32],
 }
 
 // Zeroize sensitive key material when the vault is dropped (lock, close, …)
@@ -58,5 +62,16 @@ impl Default for AppState {
 impl AppState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Record the on-disk hash after a successful save. No-op if the vault
+    /// was locked or swapped for a different file while the save ran.
+    pub fn commit_disk_hash(&self, path: &std::path::Path, hash: [u8; 32]) {
+        let mut vaults = self.vaults.lock();
+        if let Some((_id, vault)) = vaults.iter_mut().next() {
+            if vault.path == path {
+                vault.disk_hash = hash;
+            }
+        }
     }
 }

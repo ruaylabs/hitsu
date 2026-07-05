@@ -4,6 +4,7 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
@@ -221,6 +222,7 @@
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
     } catch (e) {
       console.error("Failed to toggle favorite", e);
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -255,6 +257,7 @@
       newEntryId = null;
     }
     editing = false;
+    saveError = "";
     clearCardErrors();
   }
 
@@ -306,9 +309,12 @@
     return valid;
   }
 
+  let saveError = $state("");
+
   async function saveEdit() {
     if (!_entry) return;
     if (!validateCardFields()) return;
+    saveError = "";
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, {
         title: editTitle,
@@ -337,6 +343,9 @@
       newEntryId = null;
       clearCardErrors();
     } catch (e) {
+      // Surface the failure (e.g. the vault file changed on disk) instead
+      // of silently staying in edit mode.
+      saveError = e instanceof Error ? e.message : String(e);
       console.error("Failed to save", e);
     }
   }
@@ -435,6 +444,10 @@
         </button>
       {/if}
     </div>
+
+    {#if editing && saveError}
+      <p class="save-error">{saveError}</p>
+    {/if}
 
     {#if editing}
       <div class="edit-title">
@@ -1094,5 +1107,12 @@
   .error-msg {
     color: var(--danger);
     font-size: 13px;
+  }
+
+  .save-error {
+    color: var(--danger);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 12px;
   }
 </style>

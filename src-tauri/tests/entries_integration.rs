@@ -97,6 +97,7 @@ fn setup() -> TestVault {
         path: path.clone(),
         db_key: keepass::DatabaseKey::new().with_password(TEST_PW),
         password_hash: Sha256::digest(TEST_PW.as_bytes()).into(),
+        disk_hash: Sha256::digest(std::fs::read(&path).unwrap()).into(),
     };
 
     let app = mock_builder()
@@ -451,6 +452,78 @@ async fn saved_password_is_protected_on_disk() {
         Some(Value::Protected(_)) => {}
         other => panic!("expected Protected password on disk, got {:?}", other),
     }
+}
+
+// ── external modification (sync-conflict) detection ────────────────────────
+
+#[tokio::test]
+async fn external_modification_blocks_save() {
+    let tv = setup();
+    let state = tv.state();
+
+    // Persist one entry so a real vault is on disk and the hash is committed.
+    let entry = entry_create(state.clone(), "login".to_string(), draft("Mine"))
+        .await
+        .unwrap();
+    entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| {
+            p.title = Some("Mine saved".to_string());
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Simulate a sync client replacing the file with different bytes.
+    let external_bytes = b"replaced by another program".to_vec();
+    std::fs::write(tv.path(), &external_bytes).unwrap();
+
+    // The next save must fail without touching the file.
+    let res = entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| {
+            p.title = Some("Clobbering save".to_string());
+        }),
+    )
+    .await;
+    assert!(
+        res.is_err(),
+        "save over an externally modified file must fail"
+    );
+    assert_eq!(
+        std::fs::read(tv.path()).unwrap(),
+        external_bytes,
+        "the externally written bytes must be left untouched"
+    );
+}
+
+#[tokio::test]
+async fn consecutive_saves_update_the_disk_hash() {
+    // Each save must commit the new file hash, or the second save would
+    // false-positive as an external modification.
+    let tv = setup();
+    let state = tv.state();
+
+    let entry = entry_create(state.clone(), "login".to_string(), draft("Entry"))
+        .await
+        .unwrap();
+    for title in ["First save", "Second save", "Third save"] {
+        entry_update(
+            state.clone(),
+            entry.id.clone(),
+            patch(|p| {
+                p.title = Some(title.to_string());
+            }),
+        )
+        .await
+        .unwrap_or_else(|e| panic!("save '{title}' should succeed: {e}"));
+    }
+
+    let disk = tv.reload_disk();
+    let de = disk.iter_all_entries().next().unwrap();
+    assert_eq!(de.get_title().unwrap_or(""), "Third save");
 }
 
 #[tokio::test]

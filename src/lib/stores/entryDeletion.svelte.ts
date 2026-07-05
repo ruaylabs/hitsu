@@ -1,5 +1,6 @@
 import * as entriesBridge from "$lib/bridge/entries";
 import { selection } from "$lib/stores/selection.svelte";
+import { toast } from "$lib/stores/toast.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 
 interface PendingDelete {
@@ -34,6 +35,7 @@ export const entryDeletion = {
       await entriesBridge.entryDelete(id);
     } catch (e) {
       console.error("Failed to delete entry", e);
+      toast.error(e instanceof Error ? e.message : String(e));
       return;
     }
     // Caller cleanup first: it may clear state (newEntryId) that effects
