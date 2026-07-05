@@ -56,8 +56,7 @@
     dialog = null;
     try {
       const meta = await vaultBridge.vaultOpen(selectedPath, password);
-      vault.setMeta(meta);
-      vault.setEntries(meta.entries);
+      vault.openVault(meta);
 
       prefsBridge.prefsSetLastVault(selectedPath);
       app.view = "main";
@@ -70,8 +69,7 @@
     dialog = null;
     try {
       const meta = await vaultBridge.vaultCreate(selectedPath, password, "");
-      vault.setMeta(meta);
-      vault.setEntries(meta.entries);
+      vault.openVault(meta);
 
       prefsBridge.prefsSetLastVault(selectedPath);
       app.view = "main";

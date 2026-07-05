@@ -25,8 +25,7 @@
     error = "";
     try {
       const meta = await vaultBridge.vaultOpen(path, password);
-      vault.setMeta(meta);
-      vault.setEntries(meta.entries);
+      vault.openVault(meta);
       onunlock();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);

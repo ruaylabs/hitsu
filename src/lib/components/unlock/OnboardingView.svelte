@@ -33,8 +33,7 @@
     error = "";
     try {
       const meta = await vaultBridge.vaultOpen(pendingPath, password);
-      vault.setMeta(meta);
-      vault.setEntries(meta.entries);
+      vault.openVault(meta);
 
       prefsBridge.prefsSetLastVault(pendingPath);
     } catch (e) {
@@ -65,8 +64,7 @@
     error = "";
     try {
       const meta = await vaultBridge.vaultCreate(pendingPath, password, "");
-      vault.setMeta(meta);
-      vault.setEntries(meta.entries);
+      vault.openVault(meta);
 
       prefsBridge.prefsSetLastVault(pendingPath);
     } catch (e) {

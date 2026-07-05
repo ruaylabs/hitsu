@@ -34,6 +34,18 @@ export const vault = {
   setMeta(m: VaultMeta | null) {
     vaultMeta = m;
   },
+  /** Install a freshly opened/created vault. Resets the per-vault UI state
+   *  (selected entry, search, sidebar filter) so nothing from a previously
+   *  open vault leaks into this one — a stale selectedId would make
+   *  ItemDetail fetch an entry the new vault doesn't have. */
+  openVault(meta: VaultMeta) {
+    vaultMeta = meta;
+    entries = meta.entries;
+    locked = false;
+    selection.selectedId = null;
+    selection.search = "";
+    selection.filter = { kind: "all" };
+  },
   setEntries(data: EntrySummary[]) {
     entries = data;
   },
