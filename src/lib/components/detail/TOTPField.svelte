@@ -17,17 +17,7 @@
   let dashoffset = $derived(circumference - (remaining / period) * circumference);
 
   let prevCounter = $state(-1);
-
-  function tick() {
-    const nowCounter = Math.floor(Date.now() / 1000 / period);
-    if (nowCounter !== prevCounter) {
-      prevCounter = nowCounter;
-      flash = true;
-      setTimeout(() => (flash = false), 200);
-      computeCode();
-    }
-    remaining = period - (Math.floor(Date.now() / 1000) % period);
-  }
+  let animFrame: number | undefined;
 
   async function computeCode() {
     try {
@@ -40,15 +30,29 @@
     }
   }
 
-  // Recompute periodically
-  let interval: ReturnType<typeof setInterval>;
+  function tick(_ts: DOMHighResTimeStamp) {
+    const ms = Date.now();
+    remaining = period - (Math.floor(ms / 1000) % period);
+
+    const counter = Math.floor(ms / 1000 / period);
+    if (counter !== prevCounter) {
+      prevCounter = counter;
+      flash = true;
+      setTimeout(() => (flash = false), 200);
+      computeCode();
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
 
   $effect(() => {
     computeCode();
-    remaining = period - (Math.floor(Date.now() / 1000) % period);
-    prevCounter = Math.floor(Date.now() / 1000 / period);
-    interval = setInterval(tick, 250);
-    return () => clearInterval(interval);
+    const now = Date.now();
+    remaining = period - (Math.floor(now / 1000) % period);
+    prevCounter = Math.floor(now / 1000 / period);
+    animFrame = requestAnimationFrame(tick);
+    return () => {
+      if (animFrame !== undefined) cancelAnimationFrame(animFrame);
+    };
   });
 
   let formattedCode = $derived(code.length >= 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);
