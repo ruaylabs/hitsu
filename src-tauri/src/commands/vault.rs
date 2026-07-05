@@ -104,6 +104,18 @@ fn count_entries(db: &keepass::Database) -> usize {
     db.iter_all_entries().count()
 }
 
+/// KDF configuration for newly created vaults and KDF upgrades:
+/// Argon2id with 64 MiB memory, 2 iterations, 4 lanes. Pinned explicitly so
+/// vault security never silently depends on the keepass crate's defaults.
+fn default_kdf_config() -> KdfConfig {
+    KdfConfig::Argon2id {
+        memory: 64 * 1024 * 1024,
+        iterations: 2,
+        parallelism: 4,
+        version: argon2::Version::Version13,
+    }
+}
+
 /// Check whether the KDF is below the recommended 64 MiB threshold.
 /// Returns `true` if the vault should be upgraded.
 fn needs_kdf_upgrade(kdf: &KdfConfig) -> bool {
@@ -375,6 +387,36 @@ mod tests {
         assert_eq!(argon2::Version::default(), argon2::Version::Version13);
     }
 
+    // ── default_kdf_config tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_default_kdf_config_passes_validators() {
+        let kdf = default_kdf_config();
+        assert!(validate_kdf(&kdf).is_ok());
+        assert!(!needs_kdf_upgrade(&kdf));
+    }
+
+    /// The pinned KDF must survive a save/open round-trip — this is what
+    /// vault_create relies on when it re-opens the freshly written vault.
+    #[test]
+    fn test_default_kdf_config_survives_roundtrip() {
+        use std::io::Cursor;
+        let mut db = keepass::Database::new();
+        db.config.kdf_config = default_kdf_config();
+        ensure_kdbx4(&mut db);
+
+        let key = || keepass::DatabaseKey::new().with_password("test-password-123");
+        let mut buf = Cursor::new(Vec::new());
+        db.save(&mut buf, key()).unwrap();
+
+        let reopened = keepass::Database::open(&mut Cursor::new(buf.into_inner()), key()).unwrap();
+        assert!(validate_kdf(&reopened.config.kdf_config).is_ok());
+        assert!(
+            !needs_kdf_upgrade(&reopened.config.kdf_config),
+            "created vaults must not immediately report kdf_needs_upgrade"
+        );
+    }
+
     // ── validate_master_password tests ────────────────────────────────────
 
     #[test]
@@ -508,12 +550,7 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
             vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
         // Upgrade KDF to Argon2id with 64 MiB
-        vault.db.config.kdf_config = KdfConfig::Argon2id {
-            memory: 64 * 1024 * 1024,
-            iterations: 2,
-            parallelism: 4,
-            version: argon2::Version::Version13,
-        };
+        vault.db.config.kdf_config = default_kdf_config();
 
         (vault.db.clone(), vault.db_key.clone(), vault.path.clone())
     };
@@ -573,6 +610,11 @@ pub async fn vault_create(
             let mut db = keepass::Database::new();
             db.meta.database_name = Some(create_name);
 
+            // Pin the KDF and format explicitly instead of trusting the
+            // library defaults (item 3 in IMPROVEMENT_PLAN.md).
+            db.config.kdf_config = default_kdf_config();
+            ensure_kdbx4(&mut db);
+
             // Serialise to buffer first, then atomic-write — never truncate the
             // target directly; a crash mid-save leaves the original file intact.
             let key = keepass::DatabaseKey::new().with_password(&password);
@@ -584,6 +626,10 @@ pub async fn vault_create(
             // Re-open from buffer to verify and obtain the in-memory DB
             let key = keepass::DatabaseKey::new().with_password(&password);
             let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
+
+            // Check the pinned KDF actually survived the save/open round-trip
+            // rather than assuming it did.
+            validate_kdf(&db.config.kdf_config)?;
 
             // keepass 0.13 only supports saving KDBX4 — upgrade if needed
             ensure_kdbx4(&mut db);
@@ -601,6 +647,7 @@ pub async fn vault_create(
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
+    let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
     let mut vaults = state.vaults.lock();
     // Single-vault app: replace any previously open vault (see vault_open).
@@ -620,7 +667,7 @@ pub async fn vault_create(
         name: vault_name,
         item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
-        kdf_needs_upgrade: false,
+        kdf_needs_upgrade,
         entries: Vec::new(),
     })
 }
