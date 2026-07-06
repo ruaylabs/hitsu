@@ -59,8 +59,10 @@ export function estimateStrength(password: string): StrengthResult {
   else if (len < 20) score = 3;
   else score = 4;
 
-  // Reward diversity
-  if (classes >= 3) score = Math.max(score, 2) as StrengthLevel;
+  // Reward diversity — never below 8 chars, so level 0 stays sticky under
+  // the backend's minimum (MIN_MASTER_PASSWORD_LEN in vault.rs) and the
+  // dialogs' strength gate can't pass a password the backend will reject.
+  if (classes >= 3 && len >= 8) score = Math.max(score, 2) as StrengthLevel;
   if (classes >= 4 && len >= 12) score = Math.max(score, 3) as StrengthLevel;
   if (classes >= 4 && len >= 20) score = 4;
 
