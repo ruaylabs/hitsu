@@ -3,7 +3,26 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::item_type::ItemType;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+/// Custom `Debug` for `EntryDraft`: secret-bearing fields (`password`,
+/// `totp`, `notes`) print as `<redacted>` so a `dbg!` or panic
+/// message can't leak them into a log file.
+///
+/// `title`, `username`, and `url` are non-secret metadata and render
+/// normally.
+impl std::fmt::Debug for EntryDraft {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntryDraft")
+            .field("title", &self.title)
+            .field("username", &self.username)
+            .field("password", &redacted_opt(&self.password))
+            .field("url", &self.url)
+            .field("notes", &redacted_opt(&self.notes))
+            .field("totp", &redacted_opt(&self.totp))
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryDraft {
     pub title: String,
@@ -14,7 +33,38 @@ pub struct EntryDraft {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Zeroize, ZeroizeOnDrop)]
+/// Custom `Debug` for `EntryPatch`: secret fields (`password`, `totp`,
+/// `notes`, `card_number`, `card_cvv`, `card_pin`) are redacted. The
+/// rest (title, identity fields, expiry) render normally — they're
+/// PII but not credentials.
+impl std::fmt::Debug for EntryPatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntryPatch")
+            .field("title", &self.title)
+            .field("username", &self.username)
+            .field("password", &redacted_opt(&self.password))
+            .field("url", &self.url)
+            .field("notes", &redacted_opt(&self.notes))
+            .field("totp", &redacted_opt(&self.totp))
+            .field("tags", &self.tags)
+            .field("favorite", &self.favorite)
+            .field("first_name", &self.first_name)
+            .field("last_name", &self.last_name)
+            .field("email", &self.email)
+            .field("phone", &self.phone)
+            .field("address", &self.address)
+            .field("card_holder", &self.card_holder)
+            .field("card_number", &redacted_opt(&self.card_number))
+            .field("card_type", &self.card_type)
+            .field("card_exp_month", &self.card_exp_month)
+            .field("card_exp_year", &self.card_exp_year)
+            .field("card_cvv", &redacted_opt(&self.card_cvv))
+            .field("card_pin", &redacted_opt(&self.card_pin))
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Default, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryPatch {
     pub title: Option<String>,
@@ -77,6 +127,24 @@ pub struct Entry {
     pub history_count: u32,
 }
 
+/// Render an `Option<T>` for `Debug` as `Some(<redacted>)` or `None`,
+/// without exposing the wrapped value. Used by the redacted `Debug`
+/// impls of the secret-bearing DTOs above.
+fn redacted_opt<T>(opt: &Option<T>) -> RedactedOpt<'_, T> {
+    RedactedOpt(opt)
+}
+
+struct RedactedOpt<'a, T>(&'a Option<T>);
+
+impl<T> std::fmt::Debug for RedactedOpt<'_, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(_) => f.write_str("Some(<redacted>)"),
+            None => f.write_str("None"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryEntrySummary {
@@ -103,7 +171,20 @@ pub struct EntrySummary {
     pub icon_hint: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+/// Custom `Debug` for `CustomField`: the `value` is redacted because
+/// it can hold protected secrets (and unprotected values are often
+/// sensitive too — recovery codes, security questions, etc.).
+impl std::fmt::Debug for CustomField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomField")
+            .field("name", &self.name)
+            .field("value", &"<redacted>")
+            .field("protected", &self.protected)
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomField {
     pub name: String,
@@ -183,4 +264,140 @@ pub struct VaultMeta {
     /// Entry summaries returned inline from vault_open so the frontend
     /// doesn't need a second entries_list round-trip after unlock.
     pub entries: Vec<EntrySummary>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `dbg!`/panic-message regression test: formatting an
+    /// `EntryDraft` that contains real secrets must not print the
+    /// secret values.
+    #[test]
+    fn entrydraft_debug_redacts_secrets() {
+        let draft = EntryDraft {
+            title: "Gmail".into(),
+            username: Some("alice@example.com".into()),
+            password: Some("hunter2-SECRET".into()),
+            url: Some("https://gmail.com".into()),
+            notes: Some("recovery: ANSWER-SECRET".into()),
+            totp: Some("otpauth://totp/TOTP-SECRET".into()),
+        };
+        let s = format!("{draft:?}");
+
+        assert!(s.contains("Gmail"), "non-secret title should appear: {s}");
+        assert!(
+            s.contains("alice@example.com"),
+            "non-secret username should appear: {s}"
+        );
+        assert!(
+            s.contains("https://gmail.com"),
+            "non-secret url should appear: {s}"
+        );
+        for secret in ["hunter2-SECRET", "ANSWER-SECRET", "TOTP-SECRET"] {
+            assert!(
+                !s.contains(secret),
+                "secret {secret:?} leaked into Debug: {s}"
+            );
+        }
+        // Make sure redaction markers are actually present (not
+        // accidentally elided).
+        assert!(
+            s.contains("Some(<redacted>)"),
+            "missing redaction marker: {s}"
+        );
+    }
+
+    #[test]
+    fn entrypatch_debug_redacts_secrets_and_keeps_metadata() {
+        let patch = EntryPatch {
+            title: None,
+            username: None,
+            password: Some("hunter2-SECRET".into()),
+            url: None,
+            notes: Some("notes-SECRET".into()),
+            totp: Some("otpauth://totp/TOTP-SECRET".into()),
+            tags: Some(vec!["email".into()]),
+            favorite: Some(true),
+            first_name: None,
+            last_name: None,
+            email: Some("alice@example.com".into()),
+            phone: None,
+            address: None,
+            card_holder: Some("Alice".into()),
+            card_number: Some("4242424242424242".into()),
+            card_type: Some("Visa".into()),
+            card_exp_month: Some("12".into()),
+            card_exp_year: Some("2030".into()),
+            card_cvv: Some("123".into()),
+            card_pin: Some("0000".into()),
+        };
+        let s = format!("{patch:?}");
+
+        // PII / metadata should pass through.
+        for visible in ["email", "Alice", "Visa", "12", "2030", "alice@example.com"] {
+            assert!(s.contains(visible), "expected {visible:?} in Debug: {s}");
+        }
+        // Secrets must be redacted.
+        for secret in [
+            "hunter2-SECRET",
+            "notes-SECRET",
+            "TOTP-SECRET",
+            "4242424242424242",
+            "123",
+            "0000",
+        ] {
+            assert!(
+                !s.contains(secret),
+                "secret {secret:?} leaked into Debug: {s}"
+            );
+        }
+    }
+
+    #[test]
+    fn customfield_debug_redacts_value() {
+        let cf = CustomField {
+            name: "Backup email".into(),
+            value: "recovery-SECRET@example.com".into(),
+            protected: true,
+        };
+        let s = format!("{cf:?}");
+        assert!(s.contains("Backup email"), "name should appear: {s}");
+        assert!(
+            s.contains("protected: true"),
+            "protected flag should appear: {s}"
+        );
+        assert!(
+            !s.contains("recovery-SECRET@example.com"),
+            "value leaked into Debug: {s}"
+        );
+        assert!(
+            s.contains("value: \"<redacted>\""),
+            "missing redaction marker: {s}"
+        );
+    }
+
+    #[test]
+    fn debug_distinguishes_some_vs_none_for_redacted_fields() {
+        // Knowing whether a field is set is OK — the leak risk is
+        // only the value. Make sure `Some(<redacted>)` and `None`
+        // still come through distinctly.
+        let with_password = EntryDraft {
+            title: "x".into(),
+            username: None,
+            password: Some("p".into()),
+            url: None,
+            notes: None,
+            totp: None,
+        };
+        let without_password = EntryDraft {
+            password: None,
+            ..with_password.clone()
+        };
+        let with = format!("{with_password:?}");
+        let without = format!("{without_password:?}");
+        assert!(with.contains("Some(<redacted>)"));
+        assert!(without.contains("None"));
+        assert_ne!(with, without);
+    }
 }
