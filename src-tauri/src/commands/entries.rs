@@ -57,13 +57,19 @@ pub(crate) fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary>
         .collect()
 }
 
-/// Mask a card number for display: keep first/last 4 digits.
-/// Returns `None` for values too short to mask meaningfully.
+/// Mask a card number for display. First/last 4 digits are shown only when
+/// the value is long enough (>= 12 chars — real PANs are 13–19) that they
+/// don't overlap and at least four digits stay hidden; anything shorter is
+/// masked entirely rather than leaked verbatim into the list subtitle.
+/// Returns `None` for empty values so callers can fall back to the username.
 fn mask_card_number(num: &str) -> Option<String> {
-    if num.len() >= 4 && num.is_ascii() {
+    if num.is_empty() {
+        return None;
+    }
+    if num.len() >= 12 && num.is_ascii() {
         Some(format!("{} •••• {}", &num[..4], &num[num.len() - 4..]))
     } else {
-        None
+        Some("••••".to_string())
     }
 }
 
@@ -701,4 +707,44 @@ pub async fn entry_history_get(
     let mut result = map_entry_to_full(history_entry);
     result.id = id;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mask_card_number;
+
+    #[test]
+    fn test_mask_full_length_pan_shows_ends() {
+        assert_eq!(
+            mask_card_number("4111111111111111").as_deref(),
+            Some("4111 •••• 1111")
+        );
+        // 13 digits — shortest real PAN
+        assert_eq!(
+            mask_card_number("4222222222222").as_deref(),
+            Some("4222 •••• 2222")
+        );
+    }
+
+    #[test]
+    fn test_mask_short_values_are_fully_hidden() {
+        // Below 12 chars first/last-4 would overlap and leak digits.
+        for v in ["1234", "12345678", "12345678901"] {
+            assert_eq!(mask_card_number(v).as_deref(), Some("••••"), "leaked {v}");
+        }
+    }
+
+    #[test]
+    fn test_mask_non_ascii_is_fully_hidden() {
+        // Byte-slicing a non-ASCII string could split a code point — mask it.
+        assert_eq!(
+            mask_card_number("４１１１１１１１１１１１１１１１").as_deref(),
+            Some("••••")
+        );
+    }
+
+    #[test]
+    fn test_mask_empty_is_none() {
+        assert_eq!(mask_card_number(""), None);
+    }
 }
