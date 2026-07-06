@@ -163,7 +163,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SHA="${{ needs.check-diff.outputs.sha }}"
+          # `fetch-depth: 0` on the checkout above gives us the full
+          # SHA, which is what the GitHub API wants for target_commitish.
+          SHA="$(git rev-parse HEAD)"
+          SHORT_SHA="${{ needs.check-diff.outputs.sha }}"
           DATE="$(date +%Y-%m-%d)"
 
           # Delete old nightly release (if any)
@@ -188,7 +191,8 @@ jobs:
           fi
 
           gh release create nightly \
+            --target="${SHA}" \
             --prerelease \
             --title "Nightly — ${DATE}" \
-            --notes "Commit: \`${SHA}\`" \
+            --notes "Commit: \`${SHORT_SHA}\`" \
             "${ASSETS[@]}"
