@@ -2,6 +2,27 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+/// Create a file with owner-only permissions (0600).
+fn create_owner_only(path: &Path) -> io::Result<fs::File> {
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    opts.mode(0o600);
+    opts.open(path)
+}
+
+/// Set permissions of a file to owner-only (0600).
+fn set_owner_only(path: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
+}
+
 /// Atomically write `data` to `path`.
 ///
 /// 1. Write to `<path>.kagi-tmp` on the same filesystem.
@@ -24,7 +45,7 @@ pub fn atomic_write(path: &Path, data: &[u8]) -> io::Result<()> {
 
 fn try_write(path: &Path, data: &[u8], tmp_path: &Path) -> io::Result<()> {
     // 1. Write to temp
-    let mut tmp = fs::File::create(tmp_path)?;
+    let mut tmp = create_owner_only(tmp_path)?;
     tmp.write_all(data)?;
 
     // 2. Flush and fsync file data + metadata
@@ -71,6 +92,8 @@ pub fn backed_up_atomic_write(
     fs::copy(path, &backup).map_err(|_| {
         "Could not create a backup before writing. The original file is unchanged.".to_string()
     })?;
+    // Restrict backup to owner-only (copy may inherit broader permissions)
+    let _ = set_owner_only(&backup);
 
     // 2. Atomically write new data
     atomic_write(path, new_bytes).map_err(|_| {
@@ -170,6 +193,30 @@ mod tests {
         // Let me use the actual path instead
         let bad_tmp = bad_path.with_extension("kagi-tmp");
         assert!(!bad_tmp.exists(), "temp file must be cleaned up");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_atomic_write_owner_only_permissions() {
+        let dir = std::env::temp_dir().join("kagi-atomic-perms");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        let path = dir.join("vault.kdbx");
+        atomic_write(&path, b"secret data").unwrap();
+
+        let meta = fs::metadata(&path).unwrap();
+        let mode = meta.permissions().mode();
+        // File should be 0600 (owner read/write, no group/other access).
+        // st_mode includes the file type bits, so mask to just permissions.
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "vault file must be owner-only ({:#o})",
+            mode
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
