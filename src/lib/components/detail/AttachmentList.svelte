@@ -1,14 +1,107 @@
 <script lang="ts">
   import type { AttachmentMeta } from "$lib/bridge/types";
   import { formatFileSize } from "$lib/utils/format";
+  import { toast } from "$lib/stores/toast.svelte";
+  import * as entriesBridge from "$lib/bridge/entries";
+  import { save } from "@tauri-apps/plugin-dialog";
+  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
 
-  let { attachments }: { attachments: AttachmentMeta[] } = $props();
+  let {
+    entryId,
+    attachments,
+    onchange,
+  }: {
+    entryId: string;
+    attachments: AttachmentMeta[];
+    onchange?: () => void;
+  } = $props();
+
+  let fileInput: HTMLInputElement | undefined = $state();
+
+  async function download(att: AttachmentMeta) {
+    try {
+      const dest = await save({
+        defaultPath: att.name,
+      });
+      if (!dest) return; // user cancelled
+      const bytes = await entriesBridge.entryAttachmentSave(entryId, att.name, dest);
+      toast.success(`Saved ${att.name} (${formatFileSize(bytes)})`);
+    } catch (e) {
+      toast.error(`Failed to save ${att.name}: ${e}`);
+    }
+  }
+
+  function pickFile() {
+    fileInput?.click();
+  }
+
+  async function onFilePicked(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      // Read file as base64
+      const b64 = await fileToBase64(file);
+      // Strip data URL prefix if present
+      const raw = b64.includes(",") ? b64.split(",")[1] : b64;
+      await entriesBridge.entryAttachmentAdd(entryId, file.name, raw);
+      toast.success(`Added ${file.name}`);
+      onchange?.();
+    } catch (e) {
+      toast.error(`Failed to add attachment: ${e}`);
+    } finally {
+      // Reset so the same file can be picked again
+      input.value = "";
+    }
+  }
+
+  let pendingRemoval = $state<AttachmentMeta | null>(null);
+
+  function requestRemove(att: AttachmentMeta) {
+    pendingRemoval = att;
+  }
+
+  function cancelRemove() {
+    pendingRemoval = null;
+  }
+
+  async function confirmRemove() {
+    const att = pendingRemoval;
+    if (!att) return;
+    pendingRemoval = null;
+    try {
+      await entriesBridge.entryAttachmentRemove(entryId, att.name);
+      toast.success(`Removed ${att.name}`);
+      onchange?.();
+    } catch (e) {
+      toast.error(`Failed to remove ${att.name}: ${e}`);
+    }
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
 </script>
 
-{#if attachments.length > 0}
-  <div class="attachments-section">
+<div class="attachments-section">
+  <div class="attachments-header">
     <span class="attachments-label">Attachments</span>
+    <button class="add-btn" onclick={pickFile} aria-label="Add attachment" title="Add attachment">
+      <Icon name="plus" size={14} />
+      <span>Add</span>
+    </button>
+  </div>
+
+  <input type="file" bind:this={fileInput} onchange={onFilePicked} style="display: none" />
+
+  {#if attachments.length > 0}
     <div class="attachments-list">
       {#each attachments as att (att.id)}
         <div class="attachment-row">
@@ -19,15 +112,37 @@
           </div>
           <button
             class="attachment-download"
+            onclick={() => download(att)}
             aria-label="Download {att.name}"
             title="Download {att.name}"
           >
             <Icon name="download" size={15} />
           </button>
+          <button
+            class="attachment-remove"
+            onclick={() => requestRemove(att)}
+            aria-label="Remove {att.name}"
+            title="Remove {att.name}"
+          >
+            <Icon name="trash" size={14} />
+          </button>
         </div>
       {/each}
     </div>
-  </div>
+  {:else}
+    <p class="attachments-empty">No attachments</p>
+  {/if}
+</div>
+
+{#if pendingRemoval}
+  <ConfirmDialog
+    title="Remove attachment?"
+    message={`Are you sure you want to remove “${pendingRemoval.name}”?`}
+    confirmLabel="Remove"
+    danger={true}
+    onconfirm={confirmRemove}
+    oncancel={cancelRemove}
+  />
 {/if}
 
 <style>
@@ -35,11 +150,35 @@
     margin-bottom: 16px;
   }
 
+  .attachments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
   .attachments-label {
-    display: block;
     font-size: 11px;
     color: var(--text-muted);
-    margin-bottom: 6px;
+  }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    transition: background 0.1s;
+  }
+
+  .add-btn:hover {
+    background: var(--border);
   }
 
   .attachments-list {
@@ -77,7 +216,8 @@
     color: var(--text-muted);
   }
 
-  .attachment-download {
+  .attachment-download,
+  .attachment-remove {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -85,9 +225,23 @@
     height: 28px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
   }
 
   .attachment-download:hover {
     background: var(--border);
+  }
+
+  .attachment-remove:hover {
+    background: var(--danger-bg, rgba(255, 0, 0, 0.08));
+    color: var(--danger, #e53e3e);
+  }
+
+  .attachments-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
   }
 </style>

@@ -1,10 +1,11 @@
+use base64::Engine;
 use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
 use tauri::State;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
-    CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, HistoryEntrySummary, IdentityFields,
-    ItemType, SecretField,
+    AttachmentMeta, CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, HistoryEntrySummary,
+    IdentityFields, ItemType, SecretField,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -71,6 +72,18 @@ fn mask_card_number(num: &str) -> Option<String> {
     } else {
         Some("••••".to_string())
     }
+}
+
+/// Read attachment metadata from an entry ref.
+pub(crate) fn read_attachments(entry_ref: &keepass::db::EntryRef<'_>) -> Vec<AttachmentMeta> {
+    entry_ref
+        .attachments_named()
+        .map(|(name, att)| AttachmentMeta {
+            id: name.to_string(),
+            name: name.to_string(),
+            size_bytes: att.data.len() as u64,
+        })
+        .collect()
 }
 
 /// Map a KDBX entry to the webview detail model. Secrets are reduced to
@@ -319,7 +332,9 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
 
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
-    Ok(map_entry_to_full(&entry_ref))
+    let mut entry = map_entry_to_full(&entry_ref);
+    entry.attachments = read_attachments(&entry_ref);
+    Ok(entry)
 }
 
 #[tauri::command]
@@ -436,7 +451,8 @@ pub async fn entry_update(
             .db
             .entry(entry_id)
             .ok_or(KagiError::EntryNotFound(id))?;
-        let updated = map_entry_to_full(&entry_ref);
+        let mut updated = map_entry_to_full(&entry_ref);
+        updated.attachments = read_attachments(&entry_ref);
         let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
         (updated, db, key, path, expected_disk_hash)
     }; // vaults lock released — KDF + fsync run outside it
@@ -711,9 +727,119 @@ pub async fn entry_history_get(
     Ok(result)
 }
 
+/// Save an attachment to a file on disk.
+#[tauri::command]
+pub async fn entry_attachment_save(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    dest: String,
+) -> KagiResult<u64> {
+    let data = {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let entry_ref =
+            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        let att = entry_ref
+            .attachment_by_name(&name)
+            .ok_or_else(|| KagiError::Custom(format!("Attachment not found: {name}")))?;
+        att.data.clone()
+    };
+
+    let path = std::path::PathBuf::from(&dest);
+    std::fs::write(&path, &*data)
+        .map_err(|e| KagiError::Custom(format!("Failed to write file: {e}")))?;
+    Ok(data.len() as u64)
+}
+
+/// Add an attachment to an entry. `data_b64` is base64-encoded binary data.
+#[tauri::command]
+pub async fn entry_attachment_add(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    data_b64: String,
+) -> KagiResult<AttachmentMeta> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (meta, db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+        let entry_id = EntryId::from_uuid(
+            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+        );
+
+        let data = base64::engine::general_purpose::STANDARD
+            .decode(&data_b64)
+            .map_err(|e| KagiError::Custom(format!("Invalid base64 data: {e}")))?;
+        let size_bytes = data.len() as u64;
+
+        let meta = {
+            let mut em = vault
+                .db
+                .entry_mut(entry_id)
+                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+
+            em.add_attachment(name.clone(), Value::unprotected(data));
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+
+            AttachmentMeta {
+                id: name.clone(),
+                name,
+                size_bytes,
+            }
+        };
+
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (meta, db, key, path, expected_disk_hash)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(meta)
+}
+
+/// Remove an attachment from an entry.
+#[tauri::command]
+pub async fn entry_attachment_remove(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> KagiResult<()> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+
+        let entry_id = EntryId::from_uuid(
+            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+        );
+
+        {
+            let mut em = vault
+                .db
+                .entry_mut(entry_id)
+                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+
+            em.remove_attachment_by_name(&name);
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
+
+        snapshot_for_save(vault)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{mask_card_number, read_totp_seed};
+    use super::{mask_card_number, read_attachments, read_totp_seed};
 
     #[test]
     fn test_mask_full_length_pan_shows_ends() {
@@ -792,5 +918,45 @@ mod tests {
         );
         assert_eq!(totp.period, 30);
         assert_eq!(totp.digits, 6);
+    }
+
+    #[test]
+    fn test_read_attachments_returns_name_and_size() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+
+        {
+            let mut root = db.root_mut();
+            let mut em = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            em.set_unprotected(keepass::db::fields::TITLE, "Test");
+
+            em.add_attachment(
+                "notes.txt",
+                keepass::db::Value::unprotected(b"hello world".to_vec()),
+            );
+            em.add_attachment(
+                "photo.jpg",
+                keepass::db::Value::unprotected(vec![0u8; 4096]),
+            );
+        }
+
+        let entry = db.iter_all_entries().next().expect("entry should exist");
+        let metas = read_attachments(&entry);
+
+        assert_eq!(metas.len(), 2);
+
+        // Sort so order is deterministic
+        let mut metas = metas;
+        metas.sort_by(|a, b| a.name.cmp(&b.name));
+
+        assert_eq!(metas[0].id, "notes.txt");
+        assert_eq!(metas[0].name, "notes.txt");
+        assert_eq!(metas[0].size_bytes, 11);
+
+        assert_eq!(metas[1].id, "photo.jpg");
+        assert_eq!(metas[1].name, "photo.jpg");
+        assert_eq!(metas[1].size_bytes, 4096);
     }
 }

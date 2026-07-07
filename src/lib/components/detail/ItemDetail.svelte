@@ -866,7 +866,13 @@
     {/if}
 
     {#if !editing}
-      <AttachmentList attachments={entry.attachments} />
+      <AttachmentList
+        entryId={entry.id}
+        attachments={entry.attachments}
+        onchange={() => {
+          entriesBridge.entryGet(entry.id).then((e) => { _entry = e; }).catch(() => {});
+        }}
+      />
       <DetailFooter
         modifiedAt={entry.modifiedAt}
         historyCount={entry.historyCount}

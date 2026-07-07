@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Entry, EntrySummary, SecretField } from "./types";
+import type { AttachmentMeta, Entry, EntrySummary, SecretField } from "./types";
 
 /** Convert a full Entry to its safe summary (for the list store). */
 export function toSummary(entry: Entry): EntrySummary {
@@ -146,4 +146,23 @@ export async function entryDelete(id: string): Promise<void> {
 /** Drop a brand-new, never-persisted entry from memory without touching disk. */
 export async function entryDiscard(id: string): Promise<void> {
   return invoke<void>("entry_discard", { id });
+}
+
+/** Save an attachment to a file on disk. Returns bytes written. */
+export async function entryAttachmentSave(id: string, name: string, dest: string): Promise<number> {
+  return invoke<number>("entry_attachment_save", { id, name, dest });
+}
+
+/** Add an attachment to an entry. `dataB64` is base64-encoded binary data. */
+export async function entryAttachmentAdd(
+  id: string,
+  name: string,
+  dataB64: string,
+): Promise<AttachmentMeta> {
+  return invoke<AttachmentMeta>("entry_attachment_add", { id, name, dataB64 });
+}
+
+/** Remove an attachment from an entry. */
+export async function entryAttachmentRemove(id: string, name: string): Promise<void> {
+  return invoke<void>("entry_attachment_remove", { id, name });
 }
