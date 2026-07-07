@@ -473,7 +473,9 @@ pub(crate) fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
         .unwrap_or(6);
     Some(format!(
         "otpauth://totp/entry?secret={}&period={}&digits={}",
-        seed, period, digits
+        percent_encoding::utf8_percent_encode(seed, percent_encoding::NON_ALPHANUMERIC),
+        period,
+        digits
     ))
 }
 
@@ -711,7 +713,7 @@ pub async fn entry_history_get(
 
 #[cfg(test)]
 mod tests {
-    use super::mask_card_number;
+    use super::{mask_card_number, read_totp_seed};
 
     #[test]
     fn test_mask_full_length_pan_shows_ends() {
@@ -746,5 +748,49 @@ mod tests {
     #[test]
     fn test_mask_empty_is_none() {
         assert_eq!(mask_card_number(""), None);
+    }
+
+    #[test]
+    fn test_read_totp_seed_url_encodes_padded_base32() {
+        // A Base32 secret with `=` padding — without URL-encoding the `=` would
+        // be interpreted as a query-param separator or KV separator, mangling the URI.
+        let padded_secret = "JBSWY3DPEHPK3PXP====";
+
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut em = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            em.fields.insert(
+                "TOTP Seed".to_string(),
+                keepass::db::Value::unprotected(padded_secret),
+            );
+            em.fields.insert(
+                "TOTP Settings".to_string(),
+                keepass::db::Value::unprotected("30;6"),
+            );
+        } // drop EntryMut + RootMut, releasing the mutable borrow on db
+
+        let entry = db.iter_all_entries().next().expect("entry should exist");
+        let uri = read_totp_seed(&entry).expect("should produce a URI");
+
+        // The seed must be URL-encoded so `=` comes through as `%3D`.
+        let expected =
+            "otpauth://totp/entry?secret=JBSWY3DPEHPK3PXP%3D%3D%3D%3D&period=30&digits=6";
+        assert_eq!(uri, expected);
+
+        // The produced URI must be parseable (the KeePass library URL-decodes the
+        // %3D back to `=` internally). get_secret() strips Base32 padding, so we
+        // compare without the padding chars.
+        let totp: keepass::db::TOTP = uri.parse().expect("should be a valid TOTP URI");
+        assert_eq!(
+            totp.get_secret(),
+            "JBSWY3DPEHPK3PXP",
+            "secret should match (padding stripped by library)"
+        );
+        assert_eq!(totp.period, 30);
+        assert_eq!(totp.digits, 6);
     }
 }

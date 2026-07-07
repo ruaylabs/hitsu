@@ -2131,6 +2131,7 @@ dependencies = [
  "keepass",
  "libc",
  "parking_lot",
+ "percent-encoding",
  "rand",
  "rust-argon2",
  "serde",
