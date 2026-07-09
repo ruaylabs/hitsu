@@ -20,8 +20,10 @@
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
+  import ShortcutsDialog from "$lib/components/ui/ShortcutsDialog.svelte";
 
   let showCommandPalette = $state(false);
+  let showShortcuts = $state(false);
 
   function deleteSelected() {
     if (selection.selectedId) entryDeletion.request(selection.selectedId);
@@ -129,7 +131,7 @@
       <ItemList />
       <ItemDetail />
     </div>
-    <StatusBar />
+    <StatusBar onHelpClick={() => (showShortcuts = true)} />
   </div>
 {/if}
 
@@ -183,6 +185,10 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if showShortcuts}
+  <ShortcutsDialog onclose={() => (showShortcuts = false)} />
 {/if}
 
 {#if entryDeletion.pending}

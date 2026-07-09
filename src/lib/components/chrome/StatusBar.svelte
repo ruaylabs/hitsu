@@ -4,6 +4,8 @@
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import Icon from "../ui/Icon.svelte";
 
+  let { onHelpClick }: { onHelpClick: () => void } = $props();
+
   let itemCount = $derived(vault.entries.length);
 </script>
 
@@ -35,6 +37,14 @@
       title="Settings"
     >
       <Icon name="settings" size={12} />
+    </button>
+    <button
+      class="settings-gear"
+      onclick={onHelpClick}
+      aria-label="Keyboard shortcuts"
+      title="Keyboard shortcuts"
+    >
+      <Icon name="help-circle" size={12} />
     </button>
   </div>
 </footer>
