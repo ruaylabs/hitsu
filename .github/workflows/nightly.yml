@@ -131,6 +131,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp src-tauri/target/release/bundle/deb/*.deb artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/rpm/*.rpm artifacts/ 2>/dev/null || true
           cp src-tauri/target/release/bundle/appimage/*.AppImage artifacts/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v7
@@ -181,7 +182,7 @@ jobs:
 
           # Collect asset paths
           ASSETS=()
-          for f in macos/*.dmg linux/*.deb linux/*.AppImage; do
+          for f in macos/*.dmg linux/*.deb linux/*.rpm linux/*.AppImage; do
             [ -f "$f" ] && ASSETS+=("$f")
           done
 
