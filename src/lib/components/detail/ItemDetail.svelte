@@ -13,6 +13,7 @@
   import Field from "./Field.svelte";
   import PasswordField from "./PasswordField.svelte";
   import TOTPField from "./TOTPField.svelte";
+  import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import NotesField from "./NotesField.svelte";
   import AttachmentList from "./AttachmentList.svelte";
   import DetailFooter from "./DetailFooter.svelte";
@@ -101,6 +102,7 @@
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
   let showGenerator = $state(false);
+  let showTotpSetup = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
   let editPassword = $state("");
@@ -464,7 +466,13 @@
         />
       </div>
     {:else}
-      <DetailHeader {entry} onFavorite={toggleFavorite} onEdit={startEdit} />
+      <DetailHeader
+        {entry}
+        onFavorite={toggleFavorite}
+        onEdit={startEdit}
+        onTotpSetup={() => (showTotpSetup = true)}
+        showTotpSetup={entry.type === "login" && !entry.hasTotp}
+      />
     {/if}
 
     {#if editing}
@@ -525,16 +533,26 @@
           </div>
           <div class="field-row">
             <span class="field-label">TOTP</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="otpauth:// URI"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editTotp}
-            />
+            <div class="totp-edit-wrap">
+              <input
+                class="edit-input"
+                type="text"
+                placeholder="otpauth:// URI"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                bind:value={editTotp}
+              />
+              <button
+                class="totp-setup-btn-small"
+                onclick={() => (showTotpSetup = true)}
+                aria-label="Setup TOTP from seed"
+                title="Setup TOTP from seed"
+              >
+                <Icon name="key" size={13} />
+              </button>
+            </div>
           </div>
         {:else if entry.type === "identity"}
           <div class="field-row">
@@ -888,6 +906,27 @@
   <HistoryDialog entryId={_entry.id} onclose={() => (showHistory = false)} />
 {/if}
 
+{#if showTotpSetup && _entry}
+  <TotpSetupDialog
+    oncancel={() => (showTotpSetup = false)}
+    onconfirm={async (uri) => {
+      showTotpSetup = false;
+      if (!_entry) return;
+      try {
+        const updated = await entriesBridge.entryUpdate(_entry.id, { totp: uri });
+        _entry = updated;
+        vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
+        if (editing) {
+          editTotp = uri;
+        }
+        toast.success("TOTP configured successfully");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    }}
+  />
+{/if}
+
 <style>
   .detail-pane {
     padding: 22px 24px;
@@ -1120,5 +1159,35 @@
     font-size: 12px;
     line-height: 1.4;
     margin-bottom: 12px;
+  }
+
+  .totp-edit-wrap {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .totp-edit-wrap .edit-input {
+    flex: 1;
+  }
+
+  .totp-setup-btn-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+
+  .totp-setup-btn-small:hover {
+    background: var(--border);
+    color: var(--accent);
   }
 </style>

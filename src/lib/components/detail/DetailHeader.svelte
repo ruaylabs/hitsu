@@ -22,10 +22,14 @@
     entry,
     onFavorite,
     onEdit,
+    onTotpSetup,
+    showTotpSetup,
   }: {
     entry: Entry;
     onFavorite?: () => void;
     onEdit?: () => void;
+    onTotpSetup?: () => void;
+    showTotpSetup?: boolean;
   } = $props();
 </script>
 
@@ -42,6 +46,16 @@
     </div>
   </div>
   <div class="detail-header-actions">
+    {#if showTotpSetup}
+      <button
+        class="action-btn"
+        onclick={onTotpSetup}
+        aria-label="Setup TOTP"
+        title="Setup TOTP from seed"
+      >
+        <Icon name="key" size={14} />
+      </button>
+    {/if}
     <button
       class="action-btn"
       class:favorited={entry.favorite}
