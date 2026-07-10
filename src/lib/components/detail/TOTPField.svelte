@@ -16,42 +16,59 @@
   let circumference = $derived(2 * Math.PI * 8); // r=8 → ~50.27
   let dashoffset = $derived(circumference - (remaining / period) * circumference);
 
-  let prevCounter = $state(-1);
-  let animFrame: number | undefined;
-
-  async function computeCode() {
-    try {
-      const result = await totpBridge.totpCompute(entryId);
-      code = result.code;
-      remaining = result.remaining;
-      period = result.period;
-    } catch {
-      code = "------";
-    }
-  }
-
-  function tick(_ts: DOMHighResTimeStamp) {
-    const ms = Date.now();
-    remaining = period - (Math.floor(ms / 1000) % period);
-
-    const counter = Math.floor(ms / 1000 / period);
-    if (counter !== prevCounter) {
-      prevCounter = counter;
-      flash = true;
-      setTimeout(() => (flash = false), 200);
-      computeCode();
-    }
-    animFrame = requestAnimationFrame(tick);
-  }
-
   $effect(() => {
-    computeCode();
-    const now = Date.now();
-    remaining = period - (Math.floor(now / 1000) % period);
-    prevCounter = Math.floor(now / 1000 / period);
-    animFrame = requestAnimationFrame(tick);
+    const id = entryId;
+    let active = true;
+    let prevCounter = -1;
+    let tickTimer: ReturnType<typeof setTimeout> | undefined;
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+
+    async function computeCode() {
+      try {
+        const result = await totpBridge.totpCompute(id);
+        if (!active) return;
+        code = result.code;
+        remaining = result.remaining;
+        period = result.period;
+      } catch {
+        if (active) code = "------";
+      }
+    }
+
+    function updateClock() {
+      const now = Date.now();
+      remaining = period - (Math.floor(now / 1000) % period);
+
+      const counter = Math.floor(now / 1000 / period);
+      if (counter !== prevCounter) {
+        prevCounter = counter;
+        flash = true;
+        if (flashTimer) clearTimeout(flashTimer);
+        flashTimer = setTimeout(() => (flash = false), 200);
+        void computeCode();
+      }
+
+      // Wake just after the next wall-clock second instead of polling on
+      // every animation frame. The displayed countdown has one-second
+      // precision, so frame-rate updates only waste CPU.
+      const delay = 1000 - (now % 1000) + 5;
+      tickTimer = setTimeout(updateClock, delay);
+    }
+
+    async function start() {
+      await computeCode();
+      if (!active) return;
+      const now = Date.now();
+      remaining = period - (Math.floor(now / 1000) % period);
+      prevCounter = Math.floor(now / 1000 / period);
+      tickTimer = setTimeout(updateClock, 1000 - (now % 1000) + 5);
+    }
+
+    void start();
     return () => {
-      if (animFrame !== undefined) cancelAnimationFrame(animFrame);
+      active = false;
+      if (tickTimer) clearTimeout(tickTimer);
+      if (flashTimer) clearTimeout(flashTimer);
     };
   });
 
