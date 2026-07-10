@@ -63,7 +63,7 @@ jobs:
             src-tauri/target
             ~/.cargo/registry/cache
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
