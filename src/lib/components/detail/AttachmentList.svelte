@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { AttachmentMeta } from "$lib/bridge/types";
-  import { formatFileSize } from "$lib/utils/format";
-  import { toast } from "$lib/stores/toast.svelte";
-  import * as entriesBridge from "$lib/bridge/entries";
   import { save } from "@tauri-apps/plugin-dialog";
+  import * as entriesBridge from "$lib/bridge/entries";
+  import type { AttachmentMeta } from "$lib/bridge/types";
+  import { toast } from "$lib/stores/toast.svelte";
+  import { formatFileSize } from "$lib/utils/format";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
 

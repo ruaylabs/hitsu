@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { vault } from "$lib/stores/vault.svelte";
-  import { security } from "$lib/stores/security.svelte";
-  import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
-  import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
   import MainApp from "$lib/components/MainApp.svelte";
+  import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
+  import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
+  import { security } from "$lib/stores/security.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
 
   let startupDialog: "password" | null = $state(null);
   let startupPath = $state("");

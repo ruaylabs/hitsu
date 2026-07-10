@@ -1,10 +1,10 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { vault } from "$lib/stores/vault.svelte";
   import { selection } from "$lib/stores/selection.svelte";
-  import SearchField from "./SearchField.svelte";
-  import ItemListRow from "./ItemListRow.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
+  import ItemListRow from "./ItemListRow.svelte";
+  import SearchField from "./SearchField.svelte";
 
   let filtered = $derived.by(() => {
     let items = vault.entries;

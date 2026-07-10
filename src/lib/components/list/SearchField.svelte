@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { vault } from "$lib/stores/vault.svelte";
-  import { selection } from "$lib/stores/selection.svelte";
-  import type { ItemType } from "$lib/bridge/types";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
+  import type { ItemType } from "$lib/bridge/types";
+  import { selection } from "$lib/stores/selection.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
   let search = $state(selection.search);

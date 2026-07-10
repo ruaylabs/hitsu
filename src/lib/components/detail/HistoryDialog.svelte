@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { timeAgo, cardBrandName, formatCardNumber } from "$lib/utils/format";
-  import Icon from "../ui/Icon.svelte";
-  import FieldGroup from "./FieldGroup.svelte";
-  import Field from "./Field.svelte";
-  import PasswordField from "./PasswordField.svelte";
-  import NotesField from "./NotesField.svelte";
-  import * as entriesBridge from "$lib/bridge/entries";
-  import { clipboard } from "$lib/stores/clipboard.svelte";
   import type { HistoryEntrySummary } from "$lib/bridge/entries";
+  import * as entriesBridge from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { cardBrandName, formatCardNumber, timeAgo } from "$lib/utils/format";
+  import Icon from "../ui/Icon.svelte";
+  import Field from "./Field.svelte";
+  import FieldGroup from "./FieldGroup.svelte";
+  import NotesField from "./NotesField.svelte";
+  import PasswordField from "./PasswordField.svelte";
 
   let { entryId, onclose }: { entryId: string; onclose: () => void } = $props();
 

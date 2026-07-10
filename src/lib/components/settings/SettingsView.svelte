@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { open, save } from "@tauri-apps/plugin-dialog";
+  import { onMount } from "svelte";
+  import * as prefsBridge from "$lib/bridge/prefs";
+  import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
-  import { vault } from "$lib/stores/vault.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { security } from "$lib/stores/security.svelte";
-  import * as vaultBridge from "$lib/bridge/vault";
-  import * as prefsBridge from "$lib/bridge/prefs";
+  import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 

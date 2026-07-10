@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { EntrySummary } from "$lib/bridge/types";
-  import EntryIcon from "./EntryIcon.svelte";
   import Icon from "../ui/Icon.svelte";
+  import EntryIcon from "./EntryIcon.svelte";
 
   let {
     entry,

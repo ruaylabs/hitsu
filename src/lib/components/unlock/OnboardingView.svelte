@@ -1,10 +1,10 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
-  import { vault } from "$lib/stores/vault.svelte";
-  import * as vaultBridge from "$lib/bridge/vault";
   import * as prefsBridge from "$lib/bridge/prefs";
-  import PasswordDialog from "../ui/PasswordDialog.svelte";
+  import * as vaultBridge from "$lib/bridge/vault";
+  import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
+  import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   let dialog: "open" | "create" | null = $state(null);
   let pendingPath = $state("");

@@ -1,8 +1,7 @@
 <script lang="ts">
+  import { estimateStrength } from "$lib/utils/passwordStrength";
   import Icon from "./Icon.svelte";
   import PasswordStrengthMeter from "./PasswordStrengthMeter.svelte";
-
-  import { estimateStrength } from "$lib/utils/passwordStrength";
 
   let {
     title = "Enter master password",

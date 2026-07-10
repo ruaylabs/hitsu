@@ -198,7 +198,7 @@
   }
 
   /* Make the click area keyboard-accessible: it's a label-like container
-     that focuses the input. */
+       that focuses the input. */
   .chip-area:focus-within {
     border-color: var(--accent);
   }

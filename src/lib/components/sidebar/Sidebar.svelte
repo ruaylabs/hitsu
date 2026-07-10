@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { vault } from "$lib/stores/vault.svelte";
-  import { selection } from "$lib/stores/selection.svelte";
-  import SidebarSection from "./SidebarSection.svelte";
-  import SidebarItem from "./SidebarItem.svelte";
   import type { ItemType } from "$lib/bridge/types";
+  import { selection } from "$lib/stores/selection.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
+  import SidebarItem from "./SidebarItem.svelte";
+  import SidebarSection from "./SidebarSection.svelte";
 
   let allCount = $derived(vault.entries.length);
   let favoritesCount = $derived(vault.entries.filter((e) => e.favorite).length);

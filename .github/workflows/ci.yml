@@ -24,6 +24,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Check formatting (Biome)
+        run: pnpm exec biome format .
+
+      - name: Lint (Biome)
+        run: pnpm exec biome lint .
+
       - name: Check Svelte / TypeScript
         run: pnpm check
 

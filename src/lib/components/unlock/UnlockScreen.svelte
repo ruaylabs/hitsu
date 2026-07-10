@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { vault } from "$lib/stores/vault.svelte";
   import * as vaultBridge from "$lib/bridge/vault";
+  import { vault } from "$lib/stores/vault.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   let {

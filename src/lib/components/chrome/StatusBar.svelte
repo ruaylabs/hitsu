@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from "$lib/stores/app.svelte";
-  import { vault } from "$lib/stores/vault.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
   let { onHelpClick }: { onHelpClick: () => void } = $props();

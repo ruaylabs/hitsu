@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import type { Entry } from "$lib/bridge/types";
   import EntryIcon from "../list/EntryIcon.svelte";
   import Icon from "../ui/Icon.svelte";
-  import { openUrl } from "@tauri-apps/plugin-opener";
 
   function openEntryUrl(rawUrl: string): void {
     const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
