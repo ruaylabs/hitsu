@@ -18,8 +18,7 @@ pub async fn prefs_set_last_vault(app: AppHandle, path: String) -> KagiResult<()
     if prefs.recent_vaults.len() > 10 {
         prefs.recent_vaults.truncate(10);
     }
-    prefs.save(&app);
-    Ok(())
+    prefs.save(&app)
 }
 
 #[tauri::command]
@@ -31,8 +30,7 @@ pub async fn prefs_set_security(
     let mut prefs = Preferences::load(&app);
     prefs.idle_lock_minutes = idle_lock_minutes;
     prefs.clipboard_clear_seconds = clipboard_clear_seconds;
-    prefs.save(&app);
-    Ok(())
+    prefs.save(&app)
 }
 
 #[tauri::command]
@@ -46,6 +44,5 @@ pub async fn prefs_set_kdf_dismissed(
     if dismissed {
         prefs.kdf_upgrade_dismissed_vaults.push(path);
     }
-    prefs.save(&app);
-    Ok(())
+    prefs.save(&app)
 }

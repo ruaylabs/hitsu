@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
+use crate::error::{KagiError, KagiResult};
 use crate::vault::atomic_write;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,13 +62,14 @@ impl Preferences {
         }
     }
 
-    pub fn save(&self, app: &tauri::AppHandle) {
+    pub fn save(&self, app: &tauri::AppHandle) -> KagiResult<()> {
         let path = Self::path(app);
         if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
+            fs::create_dir_all(parent)?;
         }
-        if let Ok(content) = serde_json::to_string_pretty(self) {
-            let _ = atomic_write(&path, content.as_bytes());
-        }
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|_| KagiError::Custom("Could not serialize preferences".to_string()))?;
+        atomic_write(&path, content.as_bytes())?;
+        Ok(())
     }
 }
