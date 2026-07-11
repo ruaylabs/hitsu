@@ -125,8 +125,7 @@
 
 <style>
   .item-list {
-    width: var(--list-width);
-    border-right: 0.5px solid var(--border);
+    width: 100%;
     display: flex;
     flex-direction: column;
     min-width: 0;

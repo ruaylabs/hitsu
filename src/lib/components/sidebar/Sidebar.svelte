@@ -108,9 +108,8 @@
 
 <style>
   .sidebar {
-    width: var(--sidebar-width);
+    width: 100%;
     background: var(--surface-1);
-    border-right: 0.5px solid var(--border);
     padding: 14px 8px;
     overflow-y: auto;
   }

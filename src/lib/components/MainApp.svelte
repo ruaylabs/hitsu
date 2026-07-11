@@ -25,6 +25,86 @@
   let showCommandPalette = $state(false);
   let showShortcuts = $state(false);
 
+  const SIDEBAR_DEFAULT = 168;
+  const SIDEBAR_MIN = 140;
+  const LIST_DEFAULT = 224;
+  const LIST_MIN = 190;
+  const DETAIL_MIN = 360;
+  const RESIZER_WIDTH = 1;
+  const PANE_WIDTHS_KEY = "kagi:pane-widths";
+
+  let sidebarWidth = $state(SIDEBAR_DEFAULT);
+  let listWidth = $state(LIST_DEFAULT);
+  let viewportWidth = $state(1100);
+
+  function fitPaneWidths() {
+    viewportWidth = window.innerWidth;
+    const available = viewportWidth - DETAIL_MIN - RESIZER_WIDTH * 2;
+    sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(sidebarWidth, available - LIST_MIN));
+    listWidth = Math.max(LIST_MIN, Math.min(listWidth, available - sidebarWidth));
+  }
+
+  function savePaneWidths() {
+    try {
+      localStorage.setItem(PANE_WIDTHS_KEY, JSON.stringify({ sidebarWidth, listWidth }));
+    } catch {
+      // Layout persistence is optional.
+    }
+  }
+
+  function resizePane(pane: "sidebar" | "list", delta: number, startWidth: number) {
+    const available = window.innerWidth - DETAIL_MIN - RESIZER_WIDTH * 2;
+    if (pane === "sidebar") {
+      sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(startWidth + delta, available - LIST_MIN));
+    } else {
+      listWidth = Math.max(LIST_MIN, Math.min(startWidth + delta, available - sidebarWidth));
+    }
+  }
+
+  function beginPaneResize(pane: "sidebar" | "list", event: PointerEvent) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = pane === "sidebar" ? sidebarWidth : listWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const move = (moveEvent: PointerEvent) => {
+      resizePane(pane, moveEvent.clientX - startX, startWidth);
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+      window.removeEventListener("blur", stop);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      savePaneWidths();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    window.addEventListener("blur", stop);
+  }
+
+  function onResizerKeydown(pane: "sidebar" | "list", event: KeyboardEvent) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    resizePane(
+      pane,
+      event.key === "ArrowLeft" ? -10 : 10,
+      pane === "sidebar" ? sidebarWidth : listWidth,
+    );
+    savePaneWidths();
+  }
+
+  function resetPaneWidth(pane: "sidebar" | "list") {
+    if (pane === "sidebar") sidebarWidth = SIDEBAR_DEFAULT;
+    else listWidth = LIST_DEFAULT;
+    fitPaneWidths();
+    savePaneWidths();
+  }
+
   function deleteSelected() {
     if (selection.selectedId) entryDeletion.request(selection.selectedId);
   }
@@ -113,6 +193,19 @@
   let showKdfUpgrade = $state(false);
   let kdfUpgradeDismissedVaults = $state<string[]>([]);
 
+  onMount(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PANE_WIDTHS_KEY) ?? "null");
+      if (Number.isFinite(saved?.sidebarWidth)) sidebarWidth = saved.sidebarWidth;
+      if (Number.isFinite(saved?.listWidth)) listWidth = saved.listWidth;
+    } catch {
+      // Ignore invalid persisted layout values.
+    }
+    fitPaneWidths();
+    window.addEventListener("resize", fitPaneWidths);
+    return () => window.removeEventListener("resize", fitPaneWidths);
+  });
+
   // Load persisted KDF-dismissals so a deliberate "Later" survives restarts.
   onMount(async () => {
     try {
@@ -147,9 +240,38 @@
   <SettingsView />
 {:else}
   <div class="app-window">
-    <div class="main-grid">
+    <div
+      class="main-grid"
+      style={`--sidebar-current: ${sidebarWidth}px; --list-current: ${listWidth}px;`}
+    >
       <Sidebar />
+      <button
+        type="button"
+        class="pane-resizer"
+        role="slider"
+        aria-label="Sidebar width"
+        aria-orientation="horizontal"
+        aria-valuemin={SIDEBAR_MIN}
+        aria-valuemax={viewportWidth - DETAIL_MIN - RESIZER_WIDTH * 2 - LIST_MIN}
+        aria-valuenow={Math.round(sidebarWidth)}
+        onpointerdown={(event) => beginPaneResize("sidebar", event)}
+        onkeydown={(event) => onResizerKeydown("sidebar", event)}
+        ondblclick={() => resetPaneWidth("sidebar")}
+      ></button>
       <ItemList />
+      <button
+        type="button"
+        class="pane-resizer"
+        role="slider"
+        aria-label="Item list width"
+        aria-orientation="horizontal"
+        aria-valuemin={LIST_MIN}
+        aria-valuemax={viewportWidth - DETAIL_MIN - RESIZER_WIDTH * 2 - sidebarWidth}
+        aria-valuenow={Math.round(listWidth)}
+        onpointerdown={(event) => beginPaneResize("list", event)}
+        onkeydown={(event) => onResizerKeydown("list", event)}
+        ondblclick={() => resetPaneWidth("list")}
+      ></button>
       <ItemDetail />
     </div>
     <StatusBar
@@ -237,10 +359,39 @@
 
   .main-grid {
     display: grid;
-    grid-template-columns: var(--sidebar-width) var(--list-width) minmax(0, 1fr);
+    grid-template-columns:
+      var(--sidebar-current, var(--sidebar-width)) var(--resizer-width)
+      var(--list-current, var(--list-width)) var(--resizer-width) minmax(0, 1fr);
     flex: 1;
-    min-height: 480px;
+    min-height: 0;
     overflow: hidden;
+  }
+
+  .pane-resizer {
+    position: relative;
+    width: var(--resizer-width);
+    cursor: col-resize;
+    background: var(--surface-1);
+    outline: none;
+  }
+
+  .pane-resizer::before {
+    content: "";
+    position: absolute;
+    inset: 0 -4px;
+  }
+
+  .pane-resizer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    transition: background 0.1s;
+  }
+
+  .pane-resizer:hover::after,
+  .pane-resizer:focus-visible::after {
+    background: var(--accent);
   }
 
   .kdf-overlay {

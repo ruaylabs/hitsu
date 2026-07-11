@@ -41,6 +41,7 @@
   /* Layout — wireframe-derived */
   --sidebar-width: 168px;
   --list-width: 224px;
+  --resizer-width: 1px;
   --titlebar-height: 38px;
   --statusbar-height: 26px;
 }
