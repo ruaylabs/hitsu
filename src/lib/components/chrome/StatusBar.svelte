@@ -1,5 +1,6 @@
 <script lang="ts">
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { saveStatus } from "$lib/stores/saveStatus.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
@@ -12,12 +13,31 @@
   } = $props();
 
   let itemCount = $derived(vault.entries.length);
+  let statusLabel = $derived(
+    saveStatus.state === "dirty"
+      ? "Unsaved changes"
+      : saveStatus.state === "saving"
+        ? "Saving…"
+        : saveStatus.state === "error"
+          ? "Save failed"
+          : "Saved",
+  );
 </script>
 
 <footer class="statusbar">
-  <div class="statusbar-left">
-    <span class="sync-dot"></span>
-    <span>Changes saved</span>
+  <div
+    class="statusbar-left"
+    role="status"
+    aria-live="polite"
+    title={saveStatus.state === "error" ? saveStatus.errorMessage : statusLabel}
+  >
+    <span
+      class="sync-dot"
+      class:dirty={saveStatus.state === "dirty"}
+      class:saving={saveStatus.state === "saving"}
+      class:error={saveStatus.state === "error"}
+    ></span>
+    <span>{statusLabel}</span>
   </div>
   <div class="statusbar-right">
     <span>{itemCount} items</span>
@@ -74,6 +94,31 @@
     border-radius: 50%;
     background: var(--success);
     flex-shrink: 0;
+  }
+
+  .sync-dot.dirty {
+    background: var(--warning);
+  }
+
+  .sync-dot.saving {
+    background: var(--accent);
+    animation: status-pulse 0.8s ease-in-out infinite alternate;
+  }
+
+  .sync-dot.error {
+    background: var(--danger);
+  }
+
+  @keyframes status-pulse {
+    to {
+      opacity: 0.35;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sync-dot.saving {
+      animation: none;
+    }
   }
 
   .statusbar-right {

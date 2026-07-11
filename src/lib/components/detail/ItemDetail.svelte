@@ -6,6 +6,7 @@
   import type { Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { saveStatus } from "$lib/stores/saveStatus.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
@@ -204,6 +205,7 @@
         _entry = undefined;
       }
       clearCardErrors();
+      saveStatus.markSaved();
       entriesBridge.entryDiscard(id).catch((e) => console.error("Failed to discard new entry", e));
       untrack(() => {
         vault.setEntries(vault.entries.filter((s) => s.id !== id));
@@ -248,15 +250,19 @@
 
   async function toggleFavorite() {
     if (!_entry) return;
+    saveStatus.markSaving();
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, {
         favorite: !_entry.favorite,
       });
       _entry = updated;
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
+      saveStatus.markSaved();
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
       console.error("Failed to toggle favorite", e);
-      toast.error(e instanceof Error ? e.message : String(e));
+      saveStatus.markError(message);
+      toast.error(message);
     }
   }
 
@@ -293,6 +299,7 @@
     editing = false;
     saveError = "";
     clearCardErrors();
+    saveStatus.markSaved();
   }
 
   function validateCardFields(): boolean {
@@ -347,8 +354,12 @@
 
   async function saveEdit(): Promise<boolean> {
     if (!_entry) return false;
-    if (!validateCardFields()) return false;
+    if (!validateCardFields()) {
+      saveStatus.markError("Fix validation errors before saving");
+      return false;
+    }
     saveError = "";
+    saveStatus.markSaving();
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, {
         title: editTitle,
@@ -377,12 +388,14 @@
       newEntryId = null;
       initialEditSnapshot = editSnapshot();
       clearCardErrors();
+      saveStatus.markSaved();
       return true;
     } catch (e) {
       // Surface the failure (e.g. the vault file changed on disk) instead
       // of silently staying in edit mode.
       saveError = e instanceof Error ? e.message : String(e);
       console.error("Failed to save", e);
+      saveStatus.markError(saveError);
       return false;
     }
   }
@@ -417,9 +430,16 @@
     editing = false;
     saveError = "";
     clearCardErrors();
+    saveStatus.markSaved();
     pendingNavigation = null;
     navigate();
   }
+
+  $effect(() => {
+    if (!editing) return;
+    if (hasUnsavedChanges()) saveStatus.markDirty();
+    else saveStatus.markSaved();
+  });
 
   $effect(() => {
     if (!editing) return;
@@ -427,6 +447,7 @@
       if (pendingNavigation) return false;
       if (!hasUnsavedChanges()) {
         editing = false;
+        saveStatus.markSaved();
         return true;
       }
       pendingNavigation = navigate;
