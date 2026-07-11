@@ -27,11 +27,9 @@
   } = $props();
 </script>
 
-<Dialog {title} onclose={oncancel} {onconfirm} width="360px" closeLabel="Cancel">
+<Dialog {title} onclose={oncancel} {onconfirm} size="sm" closeLabel="Cancel">
   {#snippet children()}
-    <div class="dialog-body">
-      <p class="dialog-message">{message}</p>
-    </div>
+    <p class="dialog-message">{message}</p>
   {/snippet}
 
   {#snippet footer()}
@@ -46,10 +44,6 @@
 </Dialog>
 
 <style>
-  .dialog-body {
-    padding: 20px;
-  }
-
   .dialog-message {
     font-size: 13.5px;
     color: var(--text-secondary);

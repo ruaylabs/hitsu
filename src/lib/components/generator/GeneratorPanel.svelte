@@ -41,9 +41,9 @@
   });
 </script>
 
-<Dialog title="Password generator" onclose={oncancel} width="400px">
+<Dialog title="Password generator" onclose={oncancel} size="md">
   {#snippet children()}
-    <div class="panel-body">
+    <div class="panel-content">
       <div class="password-display">
         <code class="generated-pw">{password}</code>
         <IconButton
@@ -99,8 +99,7 @@
 </Dialog>
 
 <style>
-  .panel-body {
-    padding: 18px;
+  .panel-content {
     display: flex;
     flex-direction: column;
     gap: 16px;

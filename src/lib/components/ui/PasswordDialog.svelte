@@ -66,55 +66,53 @@
   {title}
   onclose={showCancel ? oncancel : undefined}
   onconfirm={submit}
-  width="380px"
+  size="md"
   transparent={transparentOverlay}
   showFooter={showConfirm}
   closeLabel="Cancel"
 >
   {#snippet children()}
-    <div class="dialog-body">
-      <div class="password-field">
-        <label class="control-label" for="master-pw">Master password</label>
-        <!-- svelte-ignore a11y_autofocus -->
+    <div class="password-field">
+      <label class="control-label" for="master-pw">Master password</label>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        id="master-pw"
+        type="password"
+        class="control control--mono"
+        aria-invalid={Boolean(displayError)}
+        placeholder="Enter master password"
+        autofocus
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        bind:value={password}
+        oninput={() => { localError = ""; }}
+      />
+      {#if displayError}
+        <span class="control-error">{displayError}</span>
+      {/if}
+
+      {#if showStrength}
+        <PasswordStrengthMeter {password} showWhenEmpty />
+      {/if}
+
+      {#if confirm}
+        <label class="control-label" for="master-pw-confirm">{confirmLabel2}</label>
         <input
-          id="master-pw"
+          id="master-pw-confirm"
           type="password"
           class="control control--mono"
           aria-invalid={Boolean(displayError)}
-          placeholder="Enter master password"
-          autofocus
+          placeholder="Re-enter password"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
-          bind:value={password}
+          bind:value={confirmPassword}
           oninput={() => { localError = ""; }}
         />
-        {#if displayError}
-          <span class="control-error">{displayError}</span>
-        {/if}
-
-        {#if showStrength}
-          <PasswordStrengthMeter {password} showWhenEmpty />
-        {/if}
-
-        {#if confirm}
-          <label class="control-label" for="master-pw-confirm">{confirmLabel2}</label>
-          <input
-            id="master-pw-confirm"
-            type="password"
-            class="control control--mono"
-            aria-invalid={Boolean(displayError)}
-            placeholder="Re-enter password"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            bind:value={confirmPassword}
-            oninput={() => { localError = ""; }}
-          />
-        {/if}
-      </div>
+      {/if}
     </div>
   {/snippet}
 
@@ -127,10 +125,6 @@
 </Dialog>
 
 <style>
-  .dialog-body {
-    padding: 20px;
-  }
-
   .password-field {
     display: flex;
     flex-direction: column;

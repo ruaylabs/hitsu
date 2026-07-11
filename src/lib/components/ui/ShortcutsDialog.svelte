@@ -26,29 +26,29 @@
   ];
 </script>
 
-<Dialog title="Keyboard shortcuts" {onclose} width="380px">
-  <div class="dialog-body">
-    <div class="shortcuts-list">
-      {#each shortcuts as shortcut}
-        <div class="shortcut-row">
-          <kbd class="shortcut-keys">{shortcut.keys}</kbd>
-          <span class="shortcut-desc">{shortcut.description}</span>
-        </div>
-      {/each}
-    </div>
+<Dialog
+  title="Keyboard shortcuts"
+  {onclose}
+  size="md"
+  bodyPadding="none"
+  bodyOverflow="auto"
+  bodyMaxHeight="360px"
+>
+  <div class="shortcuts-list">
+    {#each shortcuts as shortcut}
+      <div class="shortcut-row">
+        <kbd class="shortcut-keys">{shortcut.keys}</kbd>
+        <span class="shortcut-desc">{shortcut.description}</span>
+      </div>
+    {/each}
   </div>
 </Dialog>
 
 <style>
-  .dialog-body {
-    padding: 12px 0;
-    max-height: 360px;
-    overflow-y: auto;
-  }
-
   .shortcuts-list {
     display: flex;
     flex-direction: column;
+    padding: 12px 0;
   }
 
   .shortcut-row {

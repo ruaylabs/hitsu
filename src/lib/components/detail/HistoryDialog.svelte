@@ -89,185 +89,186 @@
   }
 </script>
 
-<Dialog title="Revision history" {onclose} width="720px" height="min(520px, 80vh)">
+<Dialog
+  title="Revision history"
+  {onclose}
+  size="lg"
+  height="min(520px, 80vh)"
+  bodyPadding="none"
+  bodyOverflow="hidden"
+  bodyFill
+>
   {#snippet titleContent()}
     <Icon name="history" size={16} />
     Revision history
   {/snippet}
 
   {#snippet children()}
-    <div class="dialog-body">
-      {#if loading}
-        <div class="loading">Loading revisions…</div>
-      {:else if error}
-        <div class="error">{error}</div>
-      {:else if revisions.length === 0}
-        <div class="empty">No revisions for this entry.</div>
-      {:else}
-        <div class="revision-layout">
-          <div class="revision-list">
-            <div class="list-label">Revisions</div>
-            {#each revisions as rev (rev.version)}
-              <button
-                class="revision-row"
-                class:selected={selectedVersion === rev.version}
-                onclick={() => (selectedVersion = rev.version)}
-              >
-                <div class="rev-meta">
-                  <span class="rev-date" title={formatDate(rev.modifiedAt)}>
-                    {timeAgo(rev.modifiedAt)}
-                  </span>
-                </div>
-                <div class="rev-title">{rev.title}</div>
-              </button>
-            {/each}
-          </div>
+    {#if loading}
+      <div class="loading">Loading revisions…</div>
+    {:else if error}
+      <div class="error">{error}</div>
+    {:else if revisions.length === 0}
+      <div class="empty">No revisions for this entry.</div>
+    {:else}
+      <div class="revision-layout">
+        <div class="revision-list">
+          <div class="list-label">Revisions</div>
+          {#each revisions as rev (rev.version)}
+            <button
+              class="revision-row"
+              class:selected={selectedVersion === rev.version}
+              onclick={() => (selectedVersion = rev.version)}
+            >
+              <div class="rev-meta">
+                <span class="rev-date" title={formatDate(rev.modifiedAt)}>
+                  {timeAgo(rev.modifiedAt)}
+                </span>
+              </div>
+              <div class="rev-title">{rev.title}</div>
+            </button>
+          {/each}
+        </div>
 
-          <div class="revision-detail">
-            {#if loadingDetail}
-              <div class="loading">Loading revision…</div>
-            {:else if detailEntry}
-              <div class="detail-scroll">
-                <div class="detail-title">{detailEntry.title}</div>
+        <div class="revision-detail">
+          {#if loadingDetail}
+            <div class="loading">Loading revision…</div>
+          {:else if detailEntry}
+            <div class="detail-scroll">
+              <div class="detail-title">{detailEntry.title}</div>
 
-                {#if detailEntry.username || detailEntry.hasPassword || detailEntry.url}
-                  <FieldGroup>
-                    {#if detailEntry.username}
-                      <Field
-                        label="Username"
-                        value={detailEntry.username}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.username!)}
-                      />
-                    {/if}
-                    {#if detailEntry.hasPassword}
-                      {@const version = selectedVersion ?? undefined}
-                      <PasswordField
-                        label="Password"
-                        reveal={() => entriesBridge.entryRevealField(entryId, "password", version)}
-                        copy={() => clipboard.copySecretField(entryId, "password", version)}
-                        showStrength
-                      />
-                    {/if}
-                    {#if detailEntry.url}
-                      <Field
-                        label="URL"
-                        value={detailEntry.url}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.url!)}
-                      />
-                    {/if}
-                  </FieldGroup>
-                {/if}
+              {#if detailEntry.username || detailEntry.hasPassword || detailEntry.url}
+                <FieldGroup>
+                  {#if detailEntry.username}
+                    <Field
+                      label="Username"
+                      value={detailEntry.username}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.username!)}
+                    />
+                  {/if}
+                  {#if detailEntry.hasPassword}
+                    {@const version = selectedVersion ?? undefined}
+                    <PasswordField
+                      label="Password"
+                      reveal={() => entriesBridge.entryRevealField(entryId, "password", version)}
+                      copy={() => clipboard.copySecretField(entryId, "password", version)}
+                      showStrength
+                    />
+                  {/if}
+                  {#if detailEntry.url}
+                    <Field
+                      label="URL"
+                      value={detailEntry.url}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.url!)}
+                    />
+                  {/if}
+                </FieldGroup>
+              {/if}
 
-                {#if detailEntry.identity}
-                  <FieldGroup>
-                    {#if detailEntry.identity.firstName}
-                      <Field
-                        label="First name"
-                        value={detailEntry.identity.firstName}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.firstName!)}
-                      />
-                    {/if}
-                    {#if detailEntry.identity.lastName}
-                      <Field
-                        label="Last name"
-                        value={detailEntry.identity.lastName}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.lastName!)}
-                      />
-                    {/if}
-                    {#if detailEntry.identity.email}
-                      <Field
-                        label="Email"
-                        value={detailEntry.identity.email}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.email!)}
-                      />
-                    {/if}
-                    {#if detailEntry.identity.phone}
-                      <Field
-                        label="Phone"
-                        value={detailEntry.identity.phone}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.phone!)}
-                      />
-                    {/if}
-                    {#if detailEntry.identity.address}
-                      <Field
-                        label="Address"
-                        value={detailEntry.identity.address}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.identity!.address!)}
-                      />
-                    {/if}
-                  </FieldGroup>
-                {/if}
+              {#if detailEntry.identity}
+                <FieldGroup>
+                  {#if detailEntry.identity.firstName}
+                    <Field
+                      label="First name"
+                      value={detailEntry.identity.firstName}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.identity!.firstName!)}
+                    />
+                  {/if}
+                  {#if detailEntry.identity.lastName}
+                    <Field
+                      label="Last name"
+                      value={detailEntry.identity.lastName}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.identity!.lastName!)}
+                    />
+                  {/if}
+                  {#if detailEntry.identity.email}
+                    <Field
+                      label="Email"
+                      value={detailEntry.identity.email}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.identity!.email!)}
+                    />
+                  {/if}
+                  {#if detailEntry.identity.phone}
+                    <Field
+                      label="Phone"
+                      value={detailEntry.identity.phone}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.identity!.phone!)}
+                    />
+                  {/if}
+                  {#if detailEntry.identity.address}
+                    <Field
+                      label="Address"
+                      value={detailEntry.identity.address}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.identity!.address!)}
+                    />
+                  {/if}
+                </FieldGroup>
+              {/if}
 
-                {#if detailEntry.card}
-                  <FieldGroup>
-                    {#if detailEntry.card.type}
-                      <Field label="Type" value={cardBrandName(detailEntry.card.type)} />
-                    {/if}
-                    {#if detailEntry.card.holder}
-                      <Field
-                        label="Holder"
-                        value={detailEntry.card.holder}
-                        onCopy={() => clipboard.copyPlain(detailEntry!.card!.holder!)}
-                      />
-                    {/if}
-                    {#if detailEntry.card.hasNumber}
-                      <Field
-                        label="Number"
-                        value={cardNumberPlain
+              {#if detailEntry.card}
+                <FieldGroup>
+                  {#if detailEntry.card.type}
+                    <Field label="Type" value={cardBrandName(detailEntry.card.type)} />
+                  {/if}
+                  {#if detailEntry.card.holder}
+                    <Field
+                      label="Holder"
+                      value={detailEntry.card.holder}
+                      onCopy={() => clipboard.copyPlain(detailEntry!.card!.holder!)}
+                    />
+                  {/if}
+                  {#if detailEntry.card.hasNumber}
+                    <Field
+                      label="Number"
+                      value={cardNumberPlain
                           ? formatCardNumber(cardNumberPlain, detailEntry.card.type)
                           : (detailEntry.card.numberMasked ?? "")}
-                        mono
-                        onCopy={() =>
+                      mono
+                      onCopy={() =>
                           clipboard.copySecretField(
                             entryId,
                             "cardNumber",
                             selectedVersion ?? undefined,
                           )}
-                      />
-                    {/if}
-                    {#if detailEntry.card.expMonth && detailEntry.card.expYear}
-                      <Field
-                        label="Expires"
-                        value={`${String(detailEntry.card.expMonth).padStart(2, "0")}/${detailEntry.card.expYear}`}
-                      />
-                    {/if}
-                    {#if detailEntry.card.hasCvv}
-                      {@const version = selectedVersion ?? undefined}
-                      <PasswordField
-                        label="CVV"
-                        reveal={() => entriesBridge.entryRevealField(entryId, "cardCvv", version)}
-                        copy={() => clipboard.copySecretField(entryId, "cardCvv", version)}
-                      />
-                    {/if}
-                  </FieldGroup>
-                {/if}
+                    />
+                  {/if}
+                  {#if detailEntry.card.expMonth && detailEntry.card.expYear}
+                    <Field
+                      label="Expires"
+                      value={`${String(detailEntry.card.expMonth).padStart(2, "0")}/${detailEntry.card.expYear}`}
+                    />
+                  {/if}
+                  {#if detailEntry.card.hasCvv}
+                    {@const version = selectedVersion ?? undefined}
+                    <PasswordField
+                      label="CVV"
+                      reveal={() => entriesBridge.entryRevealField(entryId, "cardCvv", version)}
+                      copy={() => clipboard.copySecretField(entryId, "cardCvv", version)}
+                    />
+                  {/if}
+                </FieldGroup>
+              {/if}
 
-                {#if detailEntry.tags.length > 0}
-                  <div class="tags-display">
-                    {#each detailEntry.tags as tag}
-                      <span class="tag-badge">{tag}</span>
-                    {/each}
-                  </div>
-                {/if}
+              {#if detailEntry.tags.length > 0}
+                <div class="tags-display">
+                  {#each detailEntry.tags as tag}
+                    <span class="tag-badge">{tag}</span>
+                  {/each}
+                </div>
+              {/if}
 
-                {#if detailEntry.notes}
-                  <NotesField notes={detailEntry.notes} />
-                {/if}
-              </div>
-            {/if}
-          </div>
+              {#if detailEntry.notes}
+                <NotesField notes={detailEntry.notes} />
+              {/if}
+            </div>
+          {/if}
         </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
   {/snippet}
 </Dialog>
 
 <style>
-  .dialog-body {
-    flex: 1;
-    overflow: hidden;
-  }
-
   .loading,
   .error,
   .empty {

@@ -44,11 +44,11 @@
   title="Setup TOTP from seed"
   onclose={oncancel}
   onconfirm={submit}
-  width="380px"
+  size="md"
   closeLabel="Cancel"
 >
   {#snippet children()}
-    <div class="dialog-body">
+    <div class="dialog-content">
       <p class="dialog-message">
         Enter the TOTP secret seed code from the website. It will be converted to the standard
         otpauth:// format and saved to this entry.
@@ -82,8 +82,7 @@
 </Dialog>
 
 <style>
-  .dialog-body {
-    padding: 20px;
+  .dialog-content {
     display: flex;
     flex-direction: column;
     gap: 10px;

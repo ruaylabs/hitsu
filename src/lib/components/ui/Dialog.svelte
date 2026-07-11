@@ -10,10 +10,15 @@
     footer,
     showFooter = true,
     titleContent,
-    width = "380px",
+    size = "md",
+    width,
     height,
     maxWidth = "90vw",
     maxHeight,
+    bodyPadding = "normal",
+    bodyOverflow = "visible",
+    bodyMaxHeight,
+    bodyFill = false,
     transparent = false,
     closeLabel = "Close",
   }: {
@@ -24,10 +29,15 @@
     footer?: Snippet;
     showFooter?: boolean;
     titleContent?: Snippet;
+    size?: "sm" | "md" | "lg";
     width?: string;
     height?: string;
     maxWidth?: string;
     maxHeight?: string;
+    bodyPadding?: "normal" | "compact" | "none";
+    bodyOverflow?: "visible" | "auto" | "hidden";
+    bodyMaxHeight?: string;
+    bodyFill?: boolean;
     transparent?: boolean;
     closeLabel?: string;
   } = $props();
@@ -80,7 +90,7 @@
 <div class="dialog-overlay" class:transparent onclick={handleBackdropClick} role="presentation">
   <div
     bind:this={pane}
-    class="dialog-pane"
+    class={["dialog-pane", `dialog-${size}`].join(" ")}
     role="dialog"
     aria-modal="true"
     aria-label={title}
@@ -109,7 +119,16 @@
       {/if}
     </header>
 
-    {@render children()}
+    <div
+      class="dialog-body"
+      class:body-fill={bodyFill}
+      class:padding-compact={bodyPadding === "compact"}
+      class:padding-none={bodyPadding === "none"}
+      style:overflow={bodyOverflow}
+      style:max-height={bodyMaxHeight}
+    >
+      {@render children()}
+    </div>
 
     {#if footer && showFooter}
       <footer class="dialog-footer">
@@ -150,6 +169,18 @@
     outline: none;
   }
 
+  .dialog-sm {
+    width: 360px;
+  }
+
+  .dialog-md {
+    width: 400px;
+  }
+
+  .dialog-lg {
+    width: 720px;
+  }
+
   .dialog-header {
     display: flex;
     align-items: center;
@@ -167,6 +198,23 @@
     color: var(--text-primary);
     font-size: 15px;
     font-weight: 500;
+  }
+
+  .dialog-body {
+    padding: 20px;
+  }
+
+  .dialog-body.padding-compact {
+    padding: 12px;
+  }
+
+  .dialog-body.padding-none {
+    padding: 0;
+  }
+
+  .dialog-body.body-fill {
+    flex: 1;
+    min-height: 0;
   }
 
   .dialog-footer {
