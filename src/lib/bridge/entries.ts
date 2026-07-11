@@ -148,9 +148,10 @@ export async function entryDiscard(id: string): Promise<void> {
   return invoke<void>("entry_discard", { id });
 }
 
-/** Save an attachment to a file on disk. Returns bytes written. */
-export async function entryAttachmentSave(id: string, name: string, dest: string): Promise<number> {
-  return invoke<number>("entry_attachment_save", { id, name, dest });
+/** Ask the Rust backend to choose a destination and save an attachment.
+ * Returns bytes written, or null when the native dialog is cancelled. */
+export async function entryAttachmentSave(id: string, name: string): Promise<number | null> {
+  return invoke<number | null>("entry_attachment_save", { id, name });
 }
 
 /** Add an attachment to an entry. `dataB64` is base64-encoded binary data. */

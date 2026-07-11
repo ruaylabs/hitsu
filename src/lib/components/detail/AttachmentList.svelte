@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { save } from "@tauri-apps/plugin-dialog";
   import * as entriesBridge from "$lib/bridge/entries";
   import type { AttachmentMeta } from "$lib/bridge/types";
   import { toast } from "$lib/stores/toast.svelte";
@@ -21,11 +20,8 @@
 
   async function download(att: AttachmentMeta) {
     try {
-      const dest = await save({
-        defaultPath: att.name,
-      });
-      if (!dest) return; // user cancelled
-      const bytes = await entriesBridge.entryAttachmentSave(entryId, att.name, dest);
+      const bytes = await entriesBridge.entryAttachmentSave(entryId, att.name);
+      if (bytes === null) return; // user cancelled the Rust-owned native dialog
       toast.success(`Saved ${att.name} (${formatFileSize(bytes)})`);
     } catch (e) {
       toast.error(`Failed to save ${att.name}: ${e}`);

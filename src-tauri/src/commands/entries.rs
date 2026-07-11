@@ -1,6 +1,7 @@
 use base64::Engine;
 use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
@@ -727,29 +728,96 @@ pub async fn entry_history_get(
     Ok(result)
 }
 
-/// Save an attachment to a file on disk.
+fn safe_attachment_file_name(name: &str) -> String {
+    let file_name = name
+        .rsplit(['/', '\\'])
+        .find(|part| !part.is_empty() && *part != "." && *part != "..")
+        .unwrap_or("attachment")
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>();
+
+    if file_name.is_empty() {
+        "attachment".to_string()
+    } else {
+        file_name
+    }
+}
+
+fn write_attachment_file(path: &std::path::Path, data: &[u8]) -> KagiResult<()> {
+    // Refuse an existing symlink rather than following it to an unrelated
+    // user file. The native dialog already handles normal overwrite
+    // confirmation for regular files.
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        return Err(KagiError::Custom(
+            "Refusing to save an attachment through a symbolic link".into(),
+        ));
+    }
+    std::fs::write(path, data)
+        .map_err(|e| KagiError::Custom(format!("Failed to write file: {e}")))?;
+    Ok(())
+}
+
+/// Save an attachment using a native save dialog owned by the Rust backend.
+///
+/// The destination path never crosses IPC and cannot be supplied by webview
+/// code. `None` means the user cancelled the native dialog.
 #[tauri::command]
 pub async fn entry_attachment_save(
+    app: AppHandle,
     state: State<'_, AppState>,
     id: String,
     name: String,
-    dest: String,
-) -> KagiResult<u64> {
+) -> KagiResult<Option<u64>> {
+    // Validate before opening a dialog, but do not clone the attachment data
+    // yet: it may be large or sensitive, and the dialog can remain open for
+    // an arbitrary amount of time.
+    {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let entry_ref =
+            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        entry_ref
+            .attachment_by_name(&name)
+            .ok_or_else(|| KagiError::Custom(format!("Attachment not found: {name}")))?;
+    }
+
+    // Treat attachment names from imported vaults as untrusted. Supplying only
+    // the final component prevents a crafted name from steering the dialog to
+    // another directory.
+    let suggested_name = safe_attachment_file_name(&name);
+
+    let Some(destination) = app
+        .dialog()
+        .file()
+        .set_file_name(suggested_name)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = destination
+        .into_path()
+        .map_err(|_| KagiError::Custom("The selected destination is not a local file".into()))?;
+
+    // Re-read only after the user approves the destination. If the vault was
+    // locked while the dialog was open, fail instead of retaining stale data.
     let data = {
         let vaults = state.vaults.lock();
         let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
         let entry_ref =
             find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
-        let att = entry_ref
+        let attachment = entry_ref
             .attachment_by_name(&name)
             .ok_or_else(|| KagiError::Custom(format!("Attachment not found: {name}")))?;
-        att.data.clone()
+        zeroize::Zeroizing::new(attachment.data.get().clone())
     };
+    let bytes_written = data.len() as u64;
 
-    let path = std::path::PathBuf::from(&dest);
-    std::fs::write(&path, &*data)
-        .map_err(|e| KagiError::Custom(format!("Failed to write file: {e}")))?;
-    Ok(data.len() as u64)
+    tauri::async_runtime::spawn_blocking(move || write_attachment_file(&path, &data))
+        .await
+        .map_err(KagiError::from_join)??;
+
+    Ok(Some(bytes_written))
 }
 
 /// Add an attachment to an entry. `data_b64` is base64-encoded binary data.
@@ -839,7 +907,64 @@ pub async fn entry_attachment_remove(
 
 #[cfg(test)]
 mod tests {
-    use super::{mask_card_number, read_attachments, read_totp_seed};
+    use super::{
+        mask_card_number, read_attachments, read_totp_seed, safe_attachment_file_name,
+        write_attachment_file,
+    };
+
+    #[test]
+    fn attachment_file_name_strips_directory_components() {
+        assert_eq!(
+            safe_attachment_file_name("../../secrets.txt"),
+            "secrets.txt"
+        );
+        assert_eq!(
+            safe_attachment_file_name(r"..\\..\\secrets.txt"),
+            "secrets.txt"
+        );
+        assert_eq!(safe_attachment_file_name("notes.txt"), "notes.txt");
+    }
+
+    #[test]
+    fn attachment_file_name_rejects_empty_and_control_only_names() {
+        for name in ["", ".", "..", "../..", "\n\r\t"] {
+            assert_eq!(safe_attachment_file_name(name), "attachment");
+        }
+    }
+
+    #[test]
+    fn attachment_file_write_creates_and_overwrites_regular_file() {
+        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("export.txt");
+
+        write_attachment_file(&path, b"first").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+
+        write_attachment_file(&path, b"replacement").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"replacement");
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn attachment_file_write_refuses_symlink_without_touching_target() {
+        use std::os::unix::fs::symlink;
+
+        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("target.txt");
+        let link = dir.join("export.txt");
+        std::fs::write(&target, b"original").unwrap();
+        symlink(&target, &link).unwrap();
+
+        let error = write_attachment_file(&link, b"malicious").unwrap_err();
+        assert!(error.to_string().contains("symbolic link"));
+        assert_eq!(std::fs::read(&target).unwrap(), b"original");
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn test_mask_full_length_pan_shows_ends() {
