@@ -18,6 +18,7 @@
   import TagInput from "../ui/TagInput.svelte";
   import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import AttachmentList from "./AttachmentList.svelte";
+  import DetailFieldRow from "./DetailFieldRow.svelte";
   import DetailFooter from "./DetailFooter.svelte";
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
@@ -582,8 +583,7 @@
       <!-- Edit mode: type-specific fields -->
       <FieldGroup>
         {#if entry.type === "login"}
-          <div class="field-row">
-            <span class="field-label">Username</span>
+          <DetailFieldRow label="Username">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -594,9 +594,8 @@
               spellcheck="false"
               bind:value={editUsername}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">Password</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Password">
             <div class="password-edit-col">
               <div class="password-edit-row">
                 <input
@@ -620,9 +619,8 @@
               </div>
               <PasswordStrengthMeter password={editPassword} showWhenEmpty />
             </div>
-          </div>
-          <div class="field-row">
-            <span class="field-label">URL</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="URL">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -633,9 +631,8 @@
               spellcheck="false"
               bind:value={editUrl}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">TOTP</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="TOTP">
             <div class="totp-edit-wrap">
               <input
                 class="control control--compact edit-input"
@@ -656,10 +653,9 @@
                 <Icon name="key" size={13} />
               </button>
             </div>
-          </div>
+          </DetailFieldRow>
         {:else if entry.type === "identity"}
-          <div class="field-row">
-            <span class="field-label">First name</span>
+          <DetailFieldRow label="First name">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -670,9 +666,8 @@
               spellcheck="false"
               bind:value={editFirstName}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">Last name</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Last name">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -683,9 +678,8 @@
               spellcheck="false"
               bind:value={editLastName}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">Email</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Email">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -696,9 +690,8 @@
               spellcheck="false"
               bind:value={editEmail}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">Phone</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Phone">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -709,9 +702,8 @@
               spellcheck="false"
               bind:value={editPhone}
             />
-          </div>
-          <div class="field-row">
-            <span class="field-label">Address</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Address">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -722,10 +714,9 @@
               spellcheck="false"
               bind:value={editAddress}
             />
-          </div>
+          </DetailFieldRow>
         {:else if entry.type === "card"}
-          <div class="field-row">
-            <span class="field-label">Holder</span>
+          <DetailFieldRow label="Holder">
             <input
               class="control control--compact edit-input"
               type="text"
@@ -736,9 +727,8 @@
               spellcheck="false"
               bind:value={editCardHolder}
             />
-          </div>
-          <div class="field-row card-field-row">
-            <span class="field-label">Number</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Number" alignStart>
             <div class="card-input-wrap">
               <input
                 class="control control--compact edit-input"
@@ -758,18 +748,16 @@
                 <span class="control-error">{cardNumberError}</span>
               {/if}
             </div>
-          </div>
-          <div class="field-row">
-            <span class="field-label">Type</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Type">
             <select class="control control--compact edit-select" bind:value={editCardType}>
               <option value="">Select brand</option>
               {#each Object.entries(CARD_BRANDS) as [ key, name ]}
                 <option value={key}>{name}</option>
               {/each}
             </select>
-          </div>
-          <div class="field-row card-field-row">
-            <span class="field-label">Exp month</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Exp month" alignStart>
             <div class="card-input-wrap">
               <input
                 class="control control--compact edit-input"
@@ -790,9 +778,8 @@
                 <span class="control-error">{cardExpMonthError}</span>
               {/if}
             </div>
-          </div>
-          <div class="field-row card-field-row">
-            <span class="field-label">Exp year</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="Exp year" alignStart>
             <div class="card-input-wrap">
               <input
                 class="control control--compact edit-input"
@@ -813,9 +800,8 @@
                 <span class="control-error">{cardExpYearError}</span>
               {/if}
             </div>
-          </div>
-          <div class="field-row card-field-row">
-            <span class="field-label">CVV</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="CVV" alignStart>
             <div class="card-input-wrap">
               <input
                 class="control control--compact edit-input"
@@ -836,9 +822,8 @@
                 <span class="control-error">{cardCvvError}</span>
               {/if}
             </div>
-          </div>
-          <div class="field-row card-field-row">
-            <span class="field-label">PIN</span>
+          </DetailFieldRow>
+          <DetailFieldRow label="PIN" alignStart>
             <div class="card-input-wrap">
               <input
                 class="control control--compact edit-input"
@@ -859,7 +844,7 @@
                 <span class="control-error">{cardPinError}</span>
               {/if}
             </div>
-          </div>
+          </DetailFieldRow>
         {/if}
       </FieldGroup>
     {:else if entry.type === "login" || entry.type === "note"}
@@ -1115,10 +1100,6 @@
     outline: none;
   }
 
-  .card-field-row {
-    align-items: flex-start;
-  }
-
   .card-input-wrap {
     flex: 1;
     display: flex;
@@ -1138,22 +1119,6 @@
     background-repeat: no-repeat;
     background-position: right 8px center;
     padding-right: 28px;
-  }
-
-  .field-row {
-    background: var(--surface-2);
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 38px;
-  }
-
-  .field-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    width: 70px;
-    flex-shrink: 0;
   }
 
   .password-edit-col {

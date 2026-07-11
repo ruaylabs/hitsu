@@ -1,6 +1,7 @@
 <script lang="ts">
   import IconButton from "../ui/IconButton.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
+  import DetailFieldRow from "./DetailFieldRow.svelte";
 
   let {
     label,
@@ -64,8 +65,7 @@
   }
 </script>
 
-<div class="field-row">
-  <span class="field-label">{label}</span>
+<DetailFieldRow {label}>
   <div class="field-main">
     <span class="field-value mono">{revealed ? plaintext : "•".repeat(14)}</span>
     <div class="field-actions">
@@ -86,25 +86,9 @@
       <PasswordStrengthMeter password={plaintext} />
     {/if}
   </div>
-</div>
+</DetailFieldRow>
 
 <style>
-  .field-row {
-    background: var(--surface-2);
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 38px;
-  }
-
-  .field-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    width: 70px;
-    flex-shrink: 0;
-  }
-
   .field-value {
     font-size: 13.5px;
     color: var(--text-primary);

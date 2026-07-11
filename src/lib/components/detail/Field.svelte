@@ -1,5 +1,6 @@
 <script lang="ts">
   import IconButton from "../ui/IconButton.svelte";
+  import DetailFieldRow from "./DetailFieldRow.svelte";
 
   let {
     label,
@@ -38,8 +39,7 @@
   }
 </script>
 
-<div class="field-row">
-  <span class="field-label">{label}</span>
+<DetailFieldRow {label}>
   {#if onOpenUrl}
     <button class="field-value field-link" class:mono onclick={onOpenUrl} title={value}>
       {displayValue}
@@ -69,25 +69,9 @@
       {/if}
     </div>
   {/if}
-</div>
+</DetailFieldRow>
 
 <style>
-  .field-row {
-    background: var(--surface-2);
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 38px;
-  }
-
-  .field-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    width: 70px;
-    flex-shrink: 0;
-  }
-
   .field-value {
     font-size: 13.5px;
     color: var(--text-primary);
