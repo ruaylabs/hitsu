@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
 
   let {
@@ -74,8 +75,8 @@
   {/snippet}
 
   {#snippet footer()}
-    <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
-    <button class="btn btn-confirm" onclick={submit} disabled={!seed.trim()}>Save</button>
+    <Button onclick={oncancel}>Cancel</Button>
+    <Button variant="primary" onclick={submit} disabled={!seed.trim()}>Save</Button>
   {/snippet}
 </Dialog>
 
@@ -122,36 +123,5 @@
   .input-error {
     font-size: 12px;
     color: var(--danger);
-  }
-
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    transition: background var(--transition-fast);
-    cursor: pointer;
-  }
-
-  .btn-cancel {
-    color: var(--text-secondary);
-    background: transparent;
-  }
-
-  .btn-cancel:hover {
-    background: var(--border);
-  }
-
-  .btn-confirm {
-    color: #fff;
-    background: var(--accent);
-  }
-
-  .btn-confirm:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-confirm:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 </style>

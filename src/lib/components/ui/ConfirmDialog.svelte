@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
 
   let {
@@ -34,15 +35,13 @@
   {/snippet}
 
   {#snippet footer()}
-    <button class="btn btn-cancel" onclick={oncancel}>{cancelLabel}</button>
+    <Button onclick={oncancel}>{cancelLabel}</Button>
     {#if secondaryLabel && onsecondary}
-      <button class="btn btn-secondary" class:btn-danger={secondaryDanger} onclick={onsecondary}>
+      <Button variant={secondaryDanger ? "danger" : "secondary"} onclick={onsecondary}>
         {secondaryLabel}
-      </button>
+      </Button>
     {/if}
-    <button class="btn" class:btn-danger={danger} class:btn-confirm={!danger} onclick={onconfirm}>
-      {confirmLabel}
-    </button>
+    <Button variant={danger ? "danger" : "primary"} onclick={onconfirm}>{confirmLabel}</Button>
   {/snippet}
 </Dialog>
 
@@ -56,42 +55,5 @@
     color: var(--text-secondary);
     line-height: 1.5;
     margin: 0;
-  }
-
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    transition: background var(--transition-fast);
-    cursor: pointer;
-  }
-
-  .btn-cancel,
-  .btn-secondary {
-    color: var(--text-secondary);
-    background: transparent;
-  }
-
-  .btn-cancel:hover,
-  .btn-secondary:hover {
-    background: var(--border);
-  }
-
-  .btn-confirm {
-    color: #fff;
-    background: var(--accent);
-  }
-
-  .btn-confirm:hover {
-    opacity: 0.9;
-  }
-
-  .btn-danger {
-    color: #fff;
-    background: var(--danger);
-  }
-
-  .btn-danger:hover {
-    opacity: 0.9;
   }
 </style>

@@ -1,7 +1,8 @@
 <script lang="ts">
   import * as generatorBridge from "$lib/bridge/generator";
+  import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
-  import Icon from "../ui/Icon.svelte";
+  import IconButton from "../ui/IconButton.svelte";
 
   let {
     onUse,
@@ -45,14 +46,13 @@
     <div class="panel-body">
       <div class="password-display">
         <code class="generated-pw">{password}</code>
-        <button
-          class="regenerate-btn"
+        <IconButton
+          icon="refresh"
+          iconSize={16}
           onclick={generate}
           aria-label="Regenerate"
           title="Regenerate"
-        >
-          <Icon name="refresh" size={16} />
-        </button>
+        />
       </div>
 
       <div class="options">
@@ -91,10 +91,10 @@
   {/snippet}
 
   {#snippet footer()}
-    <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
-    <button class="btn btn-use" disabled={!password} onclick={() => onUse?.(password)}>
+    <Button onclick={oncancel}>Cancel</Button>
+    <Button variant="primary" disabled={!password} onclick={() => onUse?.(password)}>
       Use this
-    </button>
+    </Button>
   {/snippet}
 </Dialog>
 
@@ -123,21 +123,6 @@
     color: var(--text-primary);
     word-break: break-all;
     min-width: 0;
-  }
-
-  .regenerate-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .regenerate-btn:hover {
-    background: var(--border);
   }
 
   .options {
@@ -169,34 +154,5 @@
   .range-input {
     width: 120px;
     accent-color: var(--accent);
-  }
-
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-  }
-
-  .btn-cancel {
-    color: var(--text-secondary);
-    background: transparent;
-  }
-
-  .btn-cancel:hover {
-    background: var(--border);
-  }
-
-  .btn-use {
-    color: #fff;
-    background: var(--accent);
-  }
-
-  .btn-use:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-use:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 </style>

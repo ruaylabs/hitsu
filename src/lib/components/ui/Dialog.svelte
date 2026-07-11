@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from "svelte";
-  import Icon from "./Icon.svelte";
+  import IconButton from "./IconButton.svelte";
 
   let {
     title,
@@ -99,9 +99,13 @@
         {/if}
       </h2>
       {#if onclose}
-        <button class="dialog-close" onclick={onclose} aria-label={closeLabel} title={closeLabel}>
-          <Icon name="x" size={16} />
-        </button>
+        <IconButton
+          icon="x"
+          iconSize={16}
+          onclick={onclose}
+          aria-label={closeLabel}
+          title={closeLabel}
+        />
       {/if}
     </header>
 
@@ -163,20 +167,6 @@
     color: var(--text-primary);
     font-size: 15px;
     font-weight: 500;
-  }
-
-  .dialog-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-  }
-
-  .dialog-close:hover {
-    background: var(--border);
   }
 
   .dialog-footer {

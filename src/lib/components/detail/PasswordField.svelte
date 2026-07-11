@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from "../ui/IconButton.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
 
   let {
@@ -68,17 +69,18 @@
   <div class="field-main">
     <span class="field-value mono">{revealed ? plaintext : "•".repeat(14)}</span>
     <div class="field-actions">
-      <button class="field-action" onclick={copy} aria-label="Copy password" title="Copy password">
-        <i class="ti ti-{copied ? 'check' : 'copy'}" style="font-size: 15px"></i>
-      </button>
-      <button
-        class="field-action"
+      <IconButton
+        icon={copied ? "check" : "copy"}
+        onclick={copy}
+        aria-label="Copy password"
+        title="Copy password"
+      />
+      <IconButton
+        icon={revealed ? "eye-off" : "eye"}
         onclick={toggleReveal}
         aria-label={revealed ? "Hide password" : "Reveal password"}
         title={revealed ? "Hide password" : "Reveal password"}
-      >
-        <i class="ti ti-{revealed ? 'eye-off' : 'eye'}" style="font-size: 15px"></i>
-      </button>
+      />
     </div>
     {#if showStrength && revealed}
       <PasswordStrengthMeter password={plaintext} />
@@ -130,20 +132,5 @@
     display: flex;
     gap: 4px;
     flex-shrink: 0;
-  }
-
-  .field-action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    transition: background 0.1s;
-  }
-
-  .field-action:hover {
-    background: var(--border);
   }
 </style>

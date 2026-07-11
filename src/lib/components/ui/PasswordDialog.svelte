@@ -1,5 +1,6 @@
 <script lang="ts">
   import { estimateStrength } from "$lib/utils/passwordStrength";
+  import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
   import PasswordStrengthMeter from "./PasswordStrengthMeter.svelte";
 
@@ -117,11 +118,9 @@
 
   {#snippet footer()}
     {#if showCancel}
-      <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
+      <Button onclick={oncancel}>Cancel</Button>
     {/if}
-    <button class="btn btn-confirm" onclick={submit} disabled={!canSubmit}>
-      {confirmLabel}
-    </button>
+    <Button variant="primary" onclick={submit} disabled={!canSubmit}>{confirmLabel}</Button>
   {/snippet}
 </Dialog>
 
@@ -164,35 +163,5 @@
   .input-error {
     font-size: 12px;
     color: var(--danger);
-  }
-
-  .btn {
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    transition: background var(--transition-fast);
-  }
-
-  .btn-cancel {
-    color: var(--text-secondary);
-    background: transparent;
-  }
-
-  .btn-cancel:hover {
-    background: var(--border);
-  }
-
-  .btn-confirm {
-    color: #fff;
-    background: var(--accent);
-  }
-
-  .btn-confirm:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-confirm:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 </style>

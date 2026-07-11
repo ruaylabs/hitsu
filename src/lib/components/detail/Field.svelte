@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from "../ui/Icon.svelte";
+  import IconButton from "../ui/IconButton.svelte";
 
   let {
     label,
@@ -53,23 +53,19 @@
     </div>
   {:else if onCopy}
     <div class="field-actions">
-      <button
-        class="field-action"
+      <IconButton
+        icon={copied ? "check" : "copy"}
         onclick={handleCopy}
         aria-label="Copy {label}"
         title="Copy {label}"
-      >
-        <Icon name={copied ? "check" : "copy"} size={15} />
-      </button>
+      />
       {#if label.toLowerCase().includes("password") && onReveal}
-        <button
-          class="field-action"
+        <IconButton
+          icon={reveal ? "eye-off" : "eye"}
           onclick={onReveal}
           aria-label="Reveal {label}"
           title="Reveal {label}"
-        >
-          <Icon name={reveal ? "eye-off" : "eye"} size={15} />
-        </button>
+        />
       {/if}
     </div>
   {/if}
@@ -126,20 +122,5 @@
     display: flex;
     gap: 4px;
     flex-shrink: 0;
-  }
-
-  .field-action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    transition: background 0.1s;
-  }
-
-  .field-action:hover {
-    background: var(--border);
   }
 </style>

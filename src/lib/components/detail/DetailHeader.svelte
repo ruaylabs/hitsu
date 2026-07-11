@@ -2,7 +2,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type { Entry } from "$lib/bridge/types";
   import EntryIcon from "../list/EntryIcon.svelte";
-  import Icon from "../ui/Icon.svelte";
+  import IconButton from "../ui/IconButton.svelte";
 
   function openEntryUrl(rawUrl: string): void {
     const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
@@ -47,27 +47,32 @@
   </div>
   <div class="detail-header-actions">
     {#if showTotpSetup}
-      <button
-        class="action-btn"
+      <IconButton
+        icon="key"
+        iconSize={14}
+        variant="outline"
         onclick={onTotpSetup}
         aria-label="Setup TOTP"
         title="Setup TOTP from seed"
-      >
-        <Icon name="key" size={14} />
-      </button>
+      />
     {/if}
-    <button
-      class="action-btn"
-      class:favorited={entry.favorite}
+    <IconButton
+      icon="star"
+      iconSize={14}
+      variant="outline"
+      active={entry.favorite}
       onclick={onFavorite}
       aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
       title={entry.favorite ? "Unfavorite" : "Favorite"}
-    >
-      <Icon name="star" size={14} />
-    </button>
-    <button class="action-btn" onclick={onEdit} aria-label="Edit entry" title="Edit entry">
-      <Icon name="pencil" size={14} />
-    </button>
+    />
+    <IconButton
+      icon="pencil"
+      iconSize={14}
+      variant="outline"
+      onclick={onEdit}
+      aria-label="Edit entry"
+      title="Edit entry"
+    />
   </div>
 </div>
 
@@ -126,25 +131,5 @@
     display: flex;
     gap: 6px;
     flex-shrink: 0;
-  }
-
-  .action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    transition: background 0.1s;
-  }
-
-  .action-btn:hover {
-    background: var(--border);
-  }
-
-  .action-btn.favorited {
-    color: var(--warning);
   }
 </style>

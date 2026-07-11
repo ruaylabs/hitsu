@@ -5,6 +5,7 @@
   import { formatFileSize } from "$lib/utils/format";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
+  import IconButton from "../ui/IconButton.svelte";
 
   let {
     entryId,
@@ -106,22 +107,20 @@
             <span class="attachment-name">{att.name}</span>
             <span class="attachment-size">{formatFileSize(att.sizeBytes)}</span>
           </div>
-          <button
-            class="attachment-download"
+          <IconButton
+            icon="download"
             onclick={() => download(att)}
             aria-label="Download {att.name}"
             title="Download {att.name}"
-          >
-            <Icon name="download" size={15} />
-          </button>
-          <button
-            class="attachment-remove"
+          />
+          <IconButton
+            icon="trash"
+            iconSize={14}
+            variant="danger"
             onclick={() => requestRemove(att)}
             aria-label="Remove {att.name}"
             title="Remove {att.name}"
-          >
-            <Icon name="trash" size={14} />
-          </button>
+          />
         </div>
       {/each}
     </div>
@@ -210,29 +209,6 @@
   .attachment-size {
     font-size: 11.5px;
     color: var(--text-muted);
-  }
-
-  .attachment-download,
-  .attachment-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  .attachment-download:hover {
-    background: var(--border);
-  }
-
-  .attachment-remove:hover {
-    background: var(--danger-bg);
-    color: var(--danger);
   }
 
   .attachments-empty {
