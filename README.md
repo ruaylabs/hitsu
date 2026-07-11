@@ -14,9 +14,9 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - **Lock on sleep** (detects page hidden for >30 s)
 - Last vault path remembered; re-opened automatically on next launch
 
-### Entries (login, note, identity, card)
+### Entries (login, password, note, identity, card)
 
-- **Create** entries of four types
+- **Create** entries of five types
 - **Edit** all fields (type-specific editors)
 - **Delete** with confirmation
 - **Favorites** — star/unstar, filter sidebar, ⌘⇧F toggle

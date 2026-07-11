@@ -654,6 +654,44 @@
               </button>
             </div>
           </DetailFieldRow>
+        {:else if entry.type === "password"}
+          <DetailFieldRow label="Password">
+            <div class="password-edit-col">
+              <div class="password-edit-row">
+                <input
+                  class="control control--compact edit-input"
+                  type="text"
+                  placeholder="Password"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  bind:value={editPassword}
+                />
+                <button
+                  class="generate-btn"
+                  onclick={() => (showGenerator = true)}
+                  aria-label="Generate password"
+                  title="Generate password"
+                >
+                  <Icon name="bolt" size={14} />
+                </button>
+              </div>
+              <PasswordStrengthMeter password={editPassword} showWhenEmpty />
+            </div>
+          </DetailFieldRow>
+          <DetailFieldRow label="URL">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="URL"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editUrl}
+            />
+          </DetailFieldRow>
         {:else if entry.type === "identity"}
           <DetailFieldRow label="First name">
             <input
@@ -847,8 +885,27 @@
           </DetailFieldRow>
         {/if}
       </FieldGroup>
+    {:else if entry.type === "password"}
+      {#if entry.hasPassword}
+        <FieldGroup>
+          <PasswordField
+            label="Password"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
+            copy={() => clipboard.copySecretField(entry.id, "password")}
+            showStrength
+          />
+          {#if entry.url}
+            <Field
+              label="URL"
+              value={entry.url}
+              onOpenUrl={() => openEntryUrl(entry.url!)}
+              onCopy={() => clipboard.copyPlain(entry.url!)}
+            />
+          {/if}
+        </FieldGroup>
+      {/if}
     {:else if entry.type === "login" || entry.type === "note"}
-      {#if entry.hasTotp}
+      {#if entry.type === "login" && entry.hasTotp}
         <TOTPField entryId={entry.id} />
       {/if}
       <FieldGroup>

@@ -11,6 +11,7 @@
 
   const items = [
     { type: "login", label: "Login", icon: "key" },
+    { type: "password", label: "Password", icon: "lock" },
     { type: "note", label: "Note", icon: "notes" },
     { type: "identity", label: "Identity", icon: "user" },
     { type: "card", label: "Card", icon: "credit-card" },

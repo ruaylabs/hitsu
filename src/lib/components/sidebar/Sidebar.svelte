@@ -8,6 +8,7 @@
   let allCount = $derived(vault.entries.length);
   let favoritesCount = $derived(vault.entries.filter((e) => e.favorite).length);
   let loginCount = $derived(vault.entries.filter((e) => e.type === "login").length);
+  let passwordCount = $derived(vault.entries.filter((e) => e.type === "password").length);
   let noteCount = $derived(vault.entries.filter((e) => e.type === "note").length);
   let identityCount = $derived(vault.entries.filter((e) => e.type === "identity").length);
   let cardCount = $derived(vault.entries.filter((e) => e.type === "card").length);
@@ -68,6 +69,13 @@
       count={loginCount}
       selected={isSelected("type", "login")}
       onclick={() => selectFilter({ kind: "type", type: "login" })}
+    />
+    <SidebarItem
+      label="Passwords"
+      icon="lock"
+      count={passwordCount}
+      selected={isSelected("type", "password")}
+      onclick={() => selectFilter({ kind: "type", type: "password" })}
     />
     <SidebarItem
       label="Notes"

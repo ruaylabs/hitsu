@@ -94,6 +94,14 @@
           </button>
           <button
             class="type-item"
+            onclick={() => { showTypePicker = false; requestCreateEntry("password"); }}
+            role="menuitem"
+          >
+            <Icon name="lock" size={12} />
+            Password
+          </button>
+          <button
+            class="type-item"
             onclick={() => { showTypePicker = false; requestCreateEntry("note"); }}
             role="menuitem"
           >

@@ -1,4 +1,4 @@
-export type ItemType = "login" | "note" | "identity" | "card";
+export type ItemType = "login" | "password" | "note" | "identity" | "card";
 
 /**
  * Detail view of an entry. Carries NO secret material: the backend reduces

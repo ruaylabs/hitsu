@@ -21,7 +21,7 @@ use kagi_lib::commands::entries::{
     entries_list, entry_create, entry_delete, entry_discard, entry_get, entry_reveal_field,
     entry_update,
 };
-use kagi_lib::models::{EntryDraft, EntryPatch, SecretField};
+use kagi_lib::models::{EntryDraft, EntryPatch, ItemType, SecretField};
 use kagi_lib::state::{AppState, OpenVault};
 use keepass::db::Value;
 
@@ -146,6 +146,28 @@ async fn create_adds_to_memory_not_to_disk() {
 
     // …but the on-disk file still has zero entries (create does not save).
     assert_eq!(tv.disk_entry_count(), 0, "create must not touch disk");
+}
+
+#[tokio::test]
+async fn create_password_item_keeps_secret_backend_side() {
+    let tv = setup();
+    let state = tv.state();
+    let mut password_draft = draft("Recovery code");
+    password_draft.password = Some("correct horse battery staple".to_string());
+
+    let entry = entry_create(state.clone(), "password".to_string(), password_draft)
+        .await
+        .expect("password item creation should succeed");
+
+    assert_eq!(entry.item_type, ItemType::Password);
+    assert!(entry.has_password);
+    assert_eq!(entry.username.as_deref(), None);
+    assert_eq!(entry.subtitle, "");
+
+    let revealed = entry_reveal_field(state, entry.id.clone(), SecretField::Password, None)
+        .await
+        .expect("password should be revealable on demand");
+    assert_eq!(revealed, "correct horse battery staple");
 }
 
 // ── discard: drops from memory without persisting ─────────────────────────

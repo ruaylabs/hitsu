@@ -23,6 +23,7 @@
 
   const typeColors: Record<string, string> = {
     login: "#378add",
+    password: "#d85a30",
     note: "#a1a09a",
     identity: "#7f77dd",
     card: "#1d9e75",
@@ -30,6 +31,7 @@
 
   const typeIcons: Record<string, string> = {
     login: "key",
+    password: "lock",
     note: "notes",
     identity: "user",
     card: "credit-card",
