@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from "./Icon.svelte";
+  import Dialog from "./Dialog.svelte";
 
   let {
     title = "Confirm",
@@ -24,95 +24,29 @@
     onsecondary?: () => void;
     oncancel: () => void;
   } = $props();
-
-  function onKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      oncancel();
-    } else if (e.key === "Enter") {
-      onconfirm();
-    }
-  }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="dialog-overlay" onclick={oncancel} role="dialog" aria-label={title}>
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="dialog-pane" onclick={(e) => e.stopPropagation()}>
-    <header class="dialog-header">
-      <h2 class="dialog-title">{title}</h2>
-      <button class="dialog-close" onclick={oncancel} aria-label="Cancel" title="Close">
-        <Icon name="x" size={16} />
-      </button>
-    </header>
-
+<Dialog {title} onclose={oncancel} {onconfirm} width="360px" closeLabel="Cancel">
+  {#snippet children()}
     <div class="dialog-body">
       <p class="dialog-message">{message}</p>
     </div>
+  {/snippet}
 
-    <footer class="dialog-footer">
-      <button class="btn btn-cancel" onclick={oncancel}>{cancelLabel}</button>
-      {#if secondaryLabel && onsecondary}
-        <button class="btn btn-secondary" class:btn-danger={secondaryDanger} onclick={onsecondary}>
-          {secondaryLabel}
-        </button>
-      {/if}
-      <button class="btn" class:btn-danger={danger} class:btn-confirm={!danger} onclick={onconfirm}>
-        {confirmLabel}
+  {#snippet footer()}
+    <button class="btn btn-cancel" onclick={oncancel}>{cancelLabel}</button>
+    {#if secondaryLabel && onsecondary}
+      <button class="btn btn-secondary" class:btn-danger={secondaryDanger} onclick={onsecondary}>
+        {secondaryLabel}
       </button>
-    </footer>
-  </div>
-</div>
+    {/if}
+    <button class="btn" class:btn-danger={danger} class:btn-confirm={!danger} onclick={onconfirm}>
+      {confirmLabel}
+    </button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--backdrop);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-dialog);
-  }
-
-  .dialog-pane {
-    width: 360px;
-    background: var(--surface-2);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-card);
-    overflow: hidden;
-    box-shadow: var(--shadow-dialog);
-  }
-
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 0.5px solid var(--border);
-  }
-
-  .dialog-title {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .dialog-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-  }
-
-  .dialog-close:hover {
-    background: var(--border);
-  }
-
   .dialog-body {
     padding: 20px;
   }
@@ -122,14 +56,6 @@
     color: var(--text-secondary);
     line-height: 1.5;
     margin: 0;
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 20px;
-    border-top: 0.5px solid var(--border);
   }
 
   .btn {

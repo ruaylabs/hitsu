@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from "./Icon.svelte";
+  import Dialog from "./Dialog.svelte";
 
   let {
     oncancel,
@@ -37,35 +37,16 @@
     const uri = `otpauth://totp/entry?secret=${encodeURIComponent(normalized)}&period=30&digits=6`;
     onconfirm(uri);
   }
-
-  function onKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      submit();
-    } else if (e.key === "Escape") {
-      oncancel();
-    }
-  }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div
-  class="dialog-overlay"
-  onclick={oncancel}
-  role="dialog"
-  aria-label="Setup TOTP from seed"
-  tabindex="-1"
+<Dialog
+  title="Setup TOTP from seed"
+  onclose={oncancel}
+  onconfirm={submit}
+  width="380px"
+  closeLabel="Cancel"
 >
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="dialog-pane" onclick={(e) => e.stopPropagation()}>
-    <header class="dialog-header">
-      <h2 class="dialog-title">Setup TOTP from seed</h2>
-      <button class="dialog-close" onclick={oncancel} aria-label="Cancel" title="Close">
-        <Icon name="x" size={16} />
-      </button>
-    </header>
-
+  {#snippet children()}
     <div class="dialog-body">
       <p class="dialog-message">
         Enter the TOTP secret seed code from the website. It will be converted to the standard
@@ -90,62 +71,15 @@
         <span class="input-error">{error}</span>
       {/if}
     </div>
+  {/snippet}
 
-    <footer class="dialog-footer">
-      <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
-      <button class="btn btn-confirm" onclick={submit} disabled={!seed.trim()}>Save</button>
-    </footer>
-  </div>
-</div>
+  {#snippet footer()}
+    <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
+    <button class="btn btn-confirm" onclick={submit} disabled={!seed.trim()}>Save</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--backdrop);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-dialog);
-  }
-
-  .dialog-pane {
-    width: 380px;
-    background: var(--surface-2);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-card);
-    overflow: hidden;
-    box-shadow: var(--shadow-dialog);
-  }
-
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 0.5px solid var(--border);
-  }
-
-  .dialog-title {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .dialog-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-  }
-
-  .dialog-close:hover {
-    background: var(--border);
-  }
-
   .dialog-body {
     padding: 20px;
     display: flex;
@@ -188,14 +122,6 @@
   .input-error {
     font-size: 12px;
     color: var(--danger);
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 20px;
-    border-top: 0.5px solid var(--border);
   }
 
   .btn {

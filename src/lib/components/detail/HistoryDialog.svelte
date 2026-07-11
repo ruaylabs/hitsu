@@ -5,6 +5,7 @@
   import type { Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { cardBrandName, formatCardNumber, timeAgo } from "$lib/utils/format";
+  import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import Field from "./Field.svelte";
   import FieldGroup from "./FieldGroup.svelte";
@@ -86,30 +87,15 @@
       minute: "2-digit",
     });
   }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      onclose();
-    }
-  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<Dialog title="Revision history" {onclose} width="720px" height="min(520px, 80vh)">
+  {#snippet titleContent()}
+    <Icon name="history" size={16} />
+    Revision history
+  {/snippet}
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="overlay" onclick={onclose}>
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="dialog" onclick={(e) => e.stopPropagation()}>
-    <div class="dialog-header">
-      <h2 class="dialog-title">
-        <Icon name="history" size={16} />
-        Revision history
-      </h2>
-      <button class="close-btn" onclick={onclose} aria-label="Close" title="Close">
-        <Icon name="x" size={16} />
-      </button>
-    </div>
-
+  {#snippet children()}
     <div class="dialog-body">
       {#if loading}
         <div class="loading">Loading revisions…</div>
@@ -273,67 +259,10 @@
         </div>
       {/if}
     </div>
-  </div>
-</div>
+  {/snippet}
+</Dialog>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-view-overlay);
-  }
-
-  .dialog {
-    background: var(--surface-2);
-    border-radius: var(--radius-card);
-    border: 0.5px solid var(--border);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-    width: min(720px, 90vw);
-    height: min(520px, 80vh);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 0.5px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .dialog-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .close-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    background: var(--surface-1);
-  }
-
-  .close-btn:hover {
-    background: var(--border);
-  }
-
   .dialog-body {
     flex: 1;
     overflow: hidden;

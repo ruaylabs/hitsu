@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as generatorBridge from "$lib/bridge/generator";
+  import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
 
   let {
@@ -39,22 +40,8 @@
   });
 </script>
 
-<div
-  class="overlay"
-  onclick={(e) => { if (e.target === e.currentTarget) oncancel?.(); }}
-  onkeydown={(e) => { if (e.key === "Escape") oncancel?.(); }}
-  role="dialog"
-  aria-label="Password generator"
-  tabindex="-1"
->
-  <div class="panel">
-    <header class="panel-header">
-      <h2 class="panel-title">Password generator</h2>
-      <button class="close-btn" onclick={oncancel} aria-label="Close" title="Close">
-        <Icon name="x" size={16} />
-      </button>
-    </header>
-
+<Dialog title="Password generator" onclose={oncancel} width="400px">
+  {#snippet children()}
     <div class="panel-body">
       <div class="password-display">
         <code class="generated-pw">{password}</code>
@@ -101,64 +88,17 @@
         </label>
       </div>
     </div>
+  {/snippet}
 
-    <footer class="panel-footer">
-      <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
-      <button class="btn btn-use" disabled={!password} onclick={() => onUse?.(password)}>
-        Use this
-      </button>
-    </footer>
-  </div>
-</div>
+  {#snippet footer()}
+    <button class="btn btn-cancel" onclick={oncancel}>Cancel</button>
+    <button class="btn btn-use" disabled={!password} onclick={() => onUse?.(password)}>
+      Use this
+    </button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--backdrop);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-dialog);
-  }
-
-  .panel {
-    width: 400px;
-    background: var(--surface-2);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-card);
-    overflow: hidden;
-    box-shadow: var(--shadow-dialog);
-  }
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 0.5px solid var(--border);
-  }
-
-  .panel-title {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .close-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-  }
-
-  .close-btn:hover {
-    background: var(--border);
-  }
-
   .panel-body {
     padding: 18px;
     display: flex;
@@ -229,14 +169,6 @@
   .range-input {
     width: 120px;
     accent-color: var(--accent);
-  }
-
-  .panel-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 18px;
-    border-top: 0.5px solid var(--border);
   }
 
   .btn {
