@@ -233,7 +233,7 @@
         <h2 class="section-heading">Security</h2>
         <div class="setting-row">
           <span class="setting-label">Lock on idle</span>
-          <select class="setting-select" onchange={onIdleChange}>
+          <select class="control control--compact setting-select" onchange={onIdleChange}>
             {#each [
               { value: 0, label: "Never" },
               { value: 1, label: "1 minute" },
@@ -251,7 +251,7 @@
         </div>
         <div class="setting-row">
           <span class="setting-label">Clipboard clear</span>
-          <select class="setting-select" onchange={onClipboardChange}>
+          <select class="control control--compact setting-select" onchange={onClipboardChange}>
             {#each [
               { value: 5, label: "5 seconds" },
               { value: 10, label: "10 seconds" },
@@ -484,11 +484,6 @@
   }
 
   .setting-select {
-    font-size: 13px;
-    color: var(--text-primary);
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
     padding: 5px 28px 5px 10px;
     cursor: pointer;
     appearance: none;
@@ -501,11 +496,6 @@
 
   .setting-select:hover {
     background-color: var(--border);
-  }
-
-  .setting-select:focus {
-    border-color: var(--accent);
-    outline: none;
   }
 
   .settings-footer {

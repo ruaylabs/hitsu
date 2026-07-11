@@ -28,7 +28,7 @@
   --backdrop: rgba(0, 0, 0, 0.3);
   --backdrop-strong: rgba(0, 0, 0, 0.5);
   --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.15);
-  --focus-ring: 2px solid var(--accent);
+  --focus-ring: 1px solid var(--accent);
   --transition-fast: 0.1s;
   --z-view-overlay: 100;
   --z-dialog: 200;

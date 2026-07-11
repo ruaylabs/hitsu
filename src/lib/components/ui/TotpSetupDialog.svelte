@@ -53,12 +53,13 @@
         Enter the TOTP secret seed code from the website. It will be converted to the standard
         otpauth:// format and saved to this entry.
       </p>
-      <label class="input-label" for="totp-seed">Seed code</label>
+      <label class="control-label" for="totp-seed">Seed code</label>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         id="totp-seed"
         type="text"
-        class="seed-input"
+        class="control control--mono"
+        aria-invalid={Boolean(error)}
         placeholder="e.g. JBSWY3DPEHPK3PXP"
         autofocus
         autocomplete="off"
@@ -69,7 +70,7 @@
         oninput={() => { error = ""; }}
       />
       {#if error}
-        <span class="input-error">{error}</span>
+        <span class="control-error">{error}</span>
       {/if}
     </div>
   {/snippet}
@@ -93,35 +94,5 @@
     color: var(--text-secondary);
     line-height: 1.5;
     margin: 0;
-  }
-
-  .input-label {
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .seed-input {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-  }
-
-  .seed-input:focus {
-    border-color: var(--accent);
-    outline: none;
-  }
-
-  .seed-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .input-error {
-    font-size: 12px;
-    color: var(--danger);
   }
 </style>

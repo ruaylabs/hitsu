@@ -557,7 +557,7 @@
     {#if editing}
       <div class="edit-title">
         <input
-          class="edit-input edit-title-input"
+          class="edit-title-input"
           type="text"
           placeholder="Title"
           autofocus
@@ -585,7 +585,7 @@
           <div class="field-row">
             <span class="field-label">Username</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Username"
               autocomplete="off"
@@ -600,7 +600,7 @@
             <div class="password-edit-col">
               <div class="password-edit-row">
                 <input
-                  class="edit-input"
+                  class="control control--compact edit-input"
                   type="text"
                   placeholder="Password"
                   autocomplete="off"
@@ -624,7 +624,7 @@
           <div class="field-row">
             <span class="field-label">URL</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="URL"
               autocomplete="off"
@@ -638,7 +638,7 @@
             <span class="field-label">TOTP</span>
             <div class="totp-edit-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 placeholder="otpauth:// URI"
                 autocomplete="off"
@@ -661,7 +661,7 @@
           <div class="field-row">
             <span class="field-label">First name</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="First name"
               autocomplete="off"
@@ -674,7 +674,7 @@
           <div class="field-row">
             <span class="field-label">Last name</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Last name"
               autocomplete="off"
@@ -687,7 +687,7 @@
           <div class="field-row">
             <span class="field-label">Email</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Email"
               autocomplete="off"
@@ -700,7 +700,7 @@
           <div class="field-row">
             <span class="field-label">Phone</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Phone"
               autocomplete="off"
@@ -713,7 +713,7 @@
           <div class="field-row">
             <span class="field-label">Address</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Address"
               autocomplete="off"
@@ -727,7 +727,7 @@
           <div class="field-row">
             <span class="field-label">Holder</span>
             <input
-              class="edit-input"
+              class="control control--compact edit-input"
               type="text"
               placeholder="Card holder"
               autocomplete="off"
@@ -741,10 +741,11 @@
             <span class="field-label">Number</span>
             <div class="card-input-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                aria-invalid={Boolean(cardNumberError)}
                 placeholder="Card number"
                 autocomplete="off"
                 autocorrect="off"
@@ -754,13 +755,13 @@
                 oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardNumber = el.value; }}
               />
               {#if cardNumberError}
-                <span class="field-error">{cardNumberError}</span>
+                <span class="control-error">{cardNumberError}</span>
               {/if}
             </div>
           </div>
           <div class="field-row">
             <span class="field-label">Type</span>
-            <select class="edit-select" bind:value={editCardType}>
+            <select class="control control--compact edit-select" bind:value={editCardType}>
               <option value="">Select brand</option>
               {#each Object.entries(CARD_BRANDS) as [ key, name ]}
                 <option value={key}>{name}</option>
@@ -771,10 +772,11 @@
             <span class="field-label">Exp month</span>
             <div class="card-input-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                aria-invalid={Boolean(cardExpMonthError)}
                 placeholder="MM"
                 maxlength="2"
                 autocomplete="off"
@@ -785,7 +787,7 @@
                 oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); editCardExpMonth = el.value; }}
               />
               {#if cardExpMonthError}
-                <span class="field-error">{cardExpMonthError}</span>
+                <span class="control-error">{cardExpMonthError}</span>
               {/if}
             </div>
           </div>
@@ -793,10 +795,11 @@
             <span class="field-label">Exp year</span>
             <div class="card-input-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                aria-invalid={Boolean(cardExpYearError)}
                 placeholder="YYYY"
                 maxlength="4"
                 autocomplete="off"
@@ -807,7 +810,7 @@
                 oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardExpYear = el.value; }}
               />
               {#if cardExpYearError}
-                <span class="field-error">{cardExpYearError}</span>
+                <span class="control-error">{cardExpYearError}</span>
               {/if}
             </div>
           </div>
@@ -815,10 +818,11 @@
             <span class="field-label">CVV</span>
             <div class="card-input-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                aria-invalid={Boolean(cardCvvError)}
                 placeholder="CVV"
                 maxlength="4"
                 autocomplete="off"
@@ -829,7 +833,7 @@
                 oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 4); editCardCvv = el.value; }}
               />
               {#if cardCvvError}
-                <span class="field-error">{cardCvvError}</span>
+                <span class="control-error">{cardCvvError}</span>
               {/if}
             </div>
           </div>
@@ -837,10 +841,11 @@
             <span class="field-label">PIN</span>
             <div class="card-input-wrap">
               <input
-                class="edit-input"
+                class="control control--compact edit-input"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                aria-invalid={Boolean(cardPinError)}
                 placeholder="PIN"
                 maxlength="12"
                 autocomplete="off"
@@ -851,7 +856,7 @@
                 oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 12); editCardPin = el.value; }}
               />
               {#if cardPinError}
-                <span class="field-error">{cardPinError}</span>
+                <span class="control-error">{cardPinError}</span>
               {/if}
             </div>
           </div>
@@ -966,7 +971,7 @@
       <div class="edit-notes">
         <span class="notes-label">Notes</span>
         <textarea
-          class="edit-textarea"
+          class="control edit-textarea"
           placeholder="Notes"
           autocomplete="off"
           spellcheck="false"
@@ -1110,16 +1115,6 @@
     outline: none;
   }
 
-  .edit-input {
-    width: 100%;
-    padding: 6px 8px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13.5px;
-    color: var(--text-primary);
-  }
-
   .card-field-row {
     align-items: flex-start;
   }
@@ -1135,26 +1130,7 @@
     width: 100%;
   }
 
-  .field-error {
-    font-size: 11px;
-    color: var(--danger);
-    line-height: 1.3;
-  }
-
-  .edit-input:focus,
-  .edit-select:focus {
-    border-color: var(--accent);
-    outline: none;
-  }
-
   .edit-select {
-    width: 100%;
-    padding: 6px 8px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13.5px;
-    color: var(--text-primary);
     cursor: pointer;
     appearance: none;
     -webkit-appearance: none;
@@ -1228,21 +1204,11 @@
   }
 
   .edit-textarea {
-    width: 100%;
     min-height: 80px;
-    padding: 8px 10px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
     border-radius: var(--radius);
     font-size: 13px;
     line-height: 1.55;
-    color: var(--text-primary);
     resize: vertical;
-  }
-
-  .edit-textarea:focus {
-    border-color: var(--accent);
-    outline: none;
   }
 
   .edit-tags {

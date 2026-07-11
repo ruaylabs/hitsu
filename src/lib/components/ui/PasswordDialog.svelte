@@ -74,12 +74,13 @@
   {#snippet children()}
     <div class="dialog-body">
       <div class="password-field">
-        <label class="input-label" for="master-pw">Master password</label>
+        <label class="control-label" for="master-pw">Master password</label>
         <!-- svelte-ignore a11y_autofocus -->
         <input
           id="master-pw"
           type="password"
-          class="password-input"
+          class="control control--mono"
+          aria-invalid={Boolean(displayError)}
           placeholder="Enter master password"
           autofocus
           autocomplete="off"
@@ -90,7 +91,7 @@
           oninput={() => { localError = ""; }}
         />
         {#if displayError}
-          <span class="input-error">{displayError}</span>
+          <span class="control-error">{displayError}</span>
         {/if}
 
         {#if showStrength}
@@ -98,11 +99,12 @@
         {/if}
 
         {#if confirm}
-          <label class="input-label" for="master-pw-confirm">{confirmLabel2}</label>
+          <label class="control-label" for="master-pw-confirm">{confirmLabel2}</label>
           <input
             id="master-pw-confirm"
             type="password"
-            class="password-input"
+            class="control control--mono"
+            aria-invalid={Boolean(displayError)}
             placeholder="Re-enter password"
             autocomplete="off"
             autocorrect="off"
@@ -133,35 +135,5 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-
-  .input-label {
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .password-input {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-  }
-
-  .password-input:focus {
-    border-color: var(--accent);
-    outline: none;
-  }
-
-  .password-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .input-error {
-    font-size: 12px;
-    color: var(--danger);
   }
 </style>
