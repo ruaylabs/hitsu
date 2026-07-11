@@ -45,6 +45,19 @@
   }
 
   function onkeydown(e: KeyboardEvent) {
+    const target = e.target as HTMLElement | null;
+    const isEditable =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target?.isContentEditable;
+
+    if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditable) {
+      e.preventDefault();
+      showShortcuts = true;
+      return;
+    }
+
     if (e.key === "Escape") {
       if (showCommandPalette) {
         showCommandPalette = false;

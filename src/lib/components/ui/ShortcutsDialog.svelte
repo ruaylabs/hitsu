@@ -12,6 +12,7 @@
   }
 
   const shortcuts: Shortcut[] = [
+    { keys: "?", description: "Open keyboard shortcuts" },
     { keys: `${mod}N`, description: "New entry" },
     { keys: `${mod}⌫`, description: "Delete selected entry" },
     { keys: `${mod}F`, description: "Focus search" },
