@@ -39,7 +39,9 @@
   // Auto-select first when filter/search changes and nothing is selected
   $effect(() => {
     if (filtered.length > 0 && !hasSelection) {
-      selection.selectedId = filtered[0].id;
+      selection.requestNavigation(() => {
+        selection.selectedId = filtered[0].id;
+      });
     }
   });
 
@@ -83,10 +85,15 @@
     }
 
     if (next !== current && filtered[next]) {
-      selection.selectedId = filtered[next].id;
-      // Focus the newly selected row so subsequent arrow keys keep working.
-      await tick();
-      document.querySelector<HTMLButtonElement>(`[data-entry-id="${filtered[next].id}"]`)?.focus();
+      const nextEntry = filtered[next];
+      selection.requestNavigation(() => {
+        selection.selectedId = nextEntry.id;
+        // Focus only after navigation is allowed (immediately or after the
+        // unsaved-changes dialog is resolved).
+        void tick().then(() => {
+          document.querySelector<HTMLButtonElement>(`[data-entry-id="${nextEntry.id}"]`)?.focus();
+        });
+      });
     }
   }
 </script>
@@ -100,7 +107,7 @@
       <ItemListRow
         {entry}
         selected={entry.id === selection.selectedId}
-        onclick={() => { selection.selectedId = entry.id; }}
+        onclick={() => selection.requestNavigation(() => { selection.selectedId = entry.id; })}
       />
     {:else}
       <div class="empty-list">

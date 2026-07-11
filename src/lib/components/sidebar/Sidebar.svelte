@@ -26,7 +26,9 @@
   }
 
   function selectFilter(filter: typeof selection.filter) {
-    selection.filter = filter;
+    selection.requestNavigation(() => {
+      selection.filter = filter;
+    });
   }
 
   function isSelected(kind: "all" | "favorites" | "trash"): boolean;

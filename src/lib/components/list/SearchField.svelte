@@ -21,6 +21,12 @@
     }
   }
 
+  function requestCreateEntry(type: string) {
+    selection.requestNavigation(() => {
+      void createEntry(type);
+    });
+  }
+
   async function createEntry(type: string) {
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
@@ -80,7 +86,7 @@
         <div class="type-picker" role="menu">
           <button
             class="type-item"
-            onclick={() => { showTypePicker = false; createEntry("login"); }}
+            onclick={() => { showTypePicker = false; requestCreateEntry("login"); }}
             role="menuitem"
           >
             <Icon name="key" size={12} />
@@ -88,7 +94,7 @@
           </button>
           <button
             class="type-item"
-            onclick={() => { showTypePicker = false; createEntry("note"); }}
+            onclick={() => { showTypePicker = false; requestCreateEntry("note"); }}
             role="menuitem"
           >
             <Icon name="notes" size={12} />
@@ -96,7 +102,7 @@
           </button>
           <button
             class="type-item"
-            onclick={() => { showTypePicker = false; createEntry("identity"); }}
+            onclick={() => { showTypePicker = false; requestCreateEntry("identity"); }}
             role="menuitem"
           >
             <Icon name="user" size={12} />
@@ -104,7 +110,7 @@
           </button>
           <button
             class="type-item"
-            onclick={() => { showTypePicker = false; createEntry("card"); }}
+            onclick={() => { showTypePicker = false; requestCreateEntry("card"); }}
             role="menuitem"
           >
             <Icon name="credit-card" size={12} />

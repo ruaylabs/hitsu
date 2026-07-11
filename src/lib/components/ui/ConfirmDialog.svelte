@@ -6,16 +6,22 @@
     message = "Are you sure?",
     confirmLabel = "Confirm",
     cancelLabel = "Cancel",
+    secondaryLabel,
     danger = false,
+    secondaryDanger = false,
     onconfirm,
+    onsecondary,
     oncancel,
   }: {
     title?: string;
     message?: string;
     confirmLabel?: string;
     cancelLabel?: string;
+    secondaryLabel?: string;
     danger?: boolean;
+    secondaryDanger?: boolean;
     onconfirm: () => void;
+    onsecondary?: () => void;
     oncancel: () => void;
   } = $props();
 
@@ -47,6 +53,11 @@
 
     <footer class="dialog-footer">
       <button class="btn btn-cancel" onclick={oncancel}>{cancelLabel}</button>
+      {#if secondaryLabel && onsecondary}
+        <button class="btn btn-secondary" class:btn-danger={secondaryDanger} onclick={onsecondary}>
+          {secondaryLabel}
+        </button>
+      {/if}
       <button class="btn" class:btn-danger={danger} class:btn-confirm={!danger} onclick={onconfirm}>
         {confirmLabel}
       </button>
@@ -129,12 +140,14 @@
     cursor: pointer;
   }
 
-  .btn-cancel {
+  .btn-cancel,
+  .btn-secondary {
     color: var(--text-secondary);
     background: transparent;
   }
 
-  .btn-cancel:hover {
+  .btn-cancel:hover,
+  .btn-secondary:hover {
     background: var(--border);
   }
 

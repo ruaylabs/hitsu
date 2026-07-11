@@ -11,6 +11,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
+  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import TagInput from "../ui/TagInput.svelte";
@@ -131,6 +132,36 @@
   let cardExpYearError = $state("");
   let cardCvvError = $state("");
   let cardPinError = $state("");
+  let initialEditSnapshot = "";
+  let pendingNavigation = $state<(() => void) | null>(null);
+
+  function editSnapshot() {
+    return JSON.stringify({
+      title: editTitle,
+      username: editUsername,
+      password: editPassword,
+      url: editUrl,
+      totp: editTotp,
+      notes: editNotes,
+      tags: editTags,
+      firstName: editFirstName,
+      lastName: editLastName,
+      email: editEmail,
+      phone: editPhone,
+      address: editAddress,
+      cardHolder: editCardHolder,
+      cardNumber: editCardNumber,
+      cardType: editCardType,
+      cardExpMonth: editCardExpMonth,
+      cardExpYear: editCardExpYear,
+      cardCvv: editCardCvv,
+      cardPin: editCardPin,
+    });
+  }
+
+  function hasUnsavedChanges() {
+    return newEntryId !== null || editSnapshot() !== initialEditSnapshot;
+  }
 
   function clearCardErrors() {
     cardNumberError = "";
@@ -211,6 +242,7 @@
     editCardNumber = cardNumber;
     editCardCvv = cardCvv;
     editCardPin = cardPin;
+    initialEditSnapshot = editSnapshot();
     clearCardErrors();
   }
 
@@ -313,9 +345,9 @@
 
   let saveError = $state("");
 
-  async function saveEdit() {
-    if (!_entry) return;
-    if (!validateCardFields()) return;
+  async function saveEdit(): Promise<boolean> {
+    if (!_entry) return false;
+    if (!validateCardFields()) return false;
     saveError = "";
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, {
@@ -343,14 +375,64 @@
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
       editing = false;
       newEntryId = null;
+      initialEditSnapshot = editSnapshot();
       clearCardErrors();
+      return true;
     } catch (e) {
       // Surface the failure (e.g. the vault file changed on disk) instead
       // of silently staying in edit mode.
       saveError = e instanceof Error ? e.message : String(e);
       console.error("Failed to save", e);
+      return false;
     }
   }
+
+  async function saveAndNavigate() {
+    const navigate = pendingNavigation;
+    if (!navigate) return;
+    if (await saveEdit()) {
+      pendingNavigation = null;
+      navigate();
+    } else {
+      pendingNavigation = null;
+    }
+  }
+
+  async function discardAndNavigate() {
+    const navigate = pendingNavigation;
+    if (!navigate) return;
+
+    if (newEntryId && _entry?.id === newEntryId) {
+      const id = newEntryId;
+      try {
+        await entriesBridge.entryDiscard(id);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+        return;
+      }
+      vault.setEntries(vault.entries.filter((entry) => entry.id !== id));
+      newEntryId = null;
+    }
+
+    editing = false;
+    saveError = "";
+    clearCardErrors();
+    pendingNavigation = null;
+    navigate();
+  }
+
+  $effect(() => {
+    if (!editing) return;
+    return selection.setNavigationGuard((navigate) => {
+      if (pendingNavigation) return false;
+      if (!hasUnsavedChanges()) {
+        editing = false;
+        return true;
+      }
+      pendingNavigation = navigate;
+      return false;
+    });
+  });
 
   function confirmDelete() {
     if (!_entry) return;
@@ -384,7 +466,7 @@
   // where focus sits in the detail pane.
   function onEditKeydown(e: KeyboardEvent) {
     if (!editing) return;
-    if (showGenerator || entryDeletion.pending || showHistory) return;
+    if (showGenerator || entryDeletion.pending || showHistory || pendingNavigation) return;
 
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
@@ -900,6 +982,20 @@
   </div>
 {:else}
   <EmptyDetail />
+{/if}
+
+{#if pendingNavigation}
+  <ConfirmDialog
+    title="Save changes?"
+    message="You have unsaved changes. Save them before leaving this entry?"
+    confirmLabel="Save"
+    secondaryLabel="Discard"
+    secondaryDanger={true}
+    cancelLabel="Keep editing"
+    onconfirm={saveAndNavigate}
+    onsecondary={discardAndNavigate}
+    oncancel={() => (pendingNavigation = null)}
+  />
 {/if}
 
 {#if showHistory && _entry}

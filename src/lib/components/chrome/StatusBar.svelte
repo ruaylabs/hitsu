@@ -1,10 +1,15 @@
 <script lang="ts">
-  import { app } from "$lib/stores/app.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
-  let { onHelpClick }: { onHelpClick: () => void } = $props();
+  let {
+    onHelpClick,
+    onSettingsClick,
+  }: {
+    onHelpClick: () => void;
+    onSettingsClick: () => void;
+  } = $props();
 
   let itemCount = $derived(vault.entries.length);
 </script>
@@ -30,12 +35,7 @@
         <Icon name="lock" size={12} />
       </button>
     {/if}
-    <button
-      class="settings-gear"
-      onclick={() => app.toggleSettings()}
-      aria-label="Settings"
-      title="Settings"
-    >
+    <button class="settings-gear" onclick={onSettingsClick} aria-label="Settings" title="Settings">
       <Icon name="settings" size={12} />
     </button>
     <button

@@ -29,7 +29,13 @@
     if (selection.selectedId) entryDeletion.request(selection.selectedId);
   }
 
-  async function onCreateEntry(type: string) {
+  function onCreateEntry(type: string) {
+    selection.requestNavigation(() => {
+      void createEntry(type);
+    });
+  }
+
+  async function createEntry(type: string) {
     showCommandPalette = false;
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
@@ -70,7 +76,7 @@
     }
     if ((e.metaKey || e.ctrlKey) && e.key === ",") {
       e.preventDefault();
-      app.toggleSettings();
+      selection.requestNavigation(() => app.toggleSettings());
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "n") {
       e.preventDefault();
@@ -83,8 +89,10 @@
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
       e.preventDefault();
       // Toggle the Favorites sidebar filter.
-      selection.filter =
-        selection.filter.kind === "favorites" ? { kind: "all" } : { kind: "favorites" };
+      selection.requestNavigation(() => {
+        selection.filter =
+          selection.filter.kind === "favorites" ? { kind: "all" } : { kind: "favorites" };
+      });
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "f") {
@@ -125,7 +133,7 @@
 
   onMount(() => {
     const unlisten = listen("menu://settings", () => {
-      app.toggleSettings();
+      selection.requestNavigation(() => app.toggleSettings());
     });
     return () => {
       unlisten.then((fn) => fn());
@@ -144,7 +152,10 @@
       <ItemList />
       <ItemDetail />
     </div>
-    <StatusBar onHelpClick={() => (showShortcuts = true)} />
+    <StatusBar
+      onHelpClick={() => (showShortcuts = true)}
+      onSettingsClick={() => selection.requestNavigation(() => app.toggleSettings())}
+    />
   </div>
 {/if}
 
