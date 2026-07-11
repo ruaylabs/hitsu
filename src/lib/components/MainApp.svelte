@@ -397,11 +397,11 @@
   .kdf-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: var(--z-blocking-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--backdrop-strong);
   }
 
   .kdf-dialog {
@@ -420,7 +420,7 @@
 
   .kdf-dialog p {
     margin: 0 0 20px 0;
-    color: var(--text-2);
+    color: var(--text-secondary);
     line-height: 1.5;
   }
 

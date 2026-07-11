@@ -231,8 +231,8 @@
   }
 
   .attachment-remove:hover {
-    background: var(--danger-bg, rgba(255, 0, 0, 0.08));
-    color: var(--danger, #e53e3e);
+    background: var(--danger-bg);
+    color: var(--danger);
   }
 
   .attachments-empty {

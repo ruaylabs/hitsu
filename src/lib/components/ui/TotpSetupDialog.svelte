@@ -102,11 +102,11 @@
   .dialog-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--backdrop);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 200;
+    z-index: var(--z-dialog);
   }
 
   .dialog-pane {
@@ -115,7 +115,7 @@
     border: 0.5px solid var(--border);
     border-radius: var(--radius-card);
     overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-dialog);
   }
 
   .dialog-header {
@@ -136,8 +136,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
   }
@@ -202,7 +202,7 @@
     padding: 6px 14px;
     border-radius: var(--radius-sm);
     font-size: 13px;
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
     cursor: pointer;
   }
 

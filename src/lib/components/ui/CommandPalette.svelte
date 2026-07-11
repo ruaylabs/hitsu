@@ -104,12 +104,12 @@
   .palette-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--backdrop);
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding-top: 120px;
-    z-index: 200;
+    z-index: var(--z-dialog);
   }
 
   .palette-pane {
@@ -118,7 +118,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-card);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-dialog);
     display: flex;
     flex-direction: column;
     overflow: hidden;

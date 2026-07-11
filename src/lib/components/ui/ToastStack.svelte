@@ -45,7 +45,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-dialog);
     font-size: 12.5px;
     line-height: 1.4;
     color: var(--text-primary);

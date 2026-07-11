@@ -284,7 +284,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: var(--z-view-overlay);
   }
 
   .dialog {
@@ -322,8 +322,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);

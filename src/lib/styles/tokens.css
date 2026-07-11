@@ -22,6 +22,17 @@
   --success: #1d9e75;
   --warning: #ba7517;
   --danger: #e24b4a;
+  --danger-bg: rgba(226, 75, 74, 0.1);
+
+  /* Effects and interaction */
+  --backdrop: rgba(0, 0, 0, 0.3);
+  --backdrop-strong: rgba(0, 0, 0, 0.5);
+  --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --focus-ring: 2px solid var(--accent);
+  --transition-fast: 0.1s;
+  --z-view-overlay: 100;
+  --z-dialog: 200;
+  --z-blocking-overlay: 1000;
 
   /* Tag swatches */
   --tag-work: #378add;
@@ -33,6 +44,7 @@
   --radius: 8px;
   --radius-sm: 6px;
   --radius-card: 12px;
+  --icon-button-size: 28px;
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
@@ -58,5 +70,9 @@
     --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.14);
     --bg-accent: #0c447c;
+    --danger-bg: rgba(226, 75, 74, 0.16);
+    --backdrop: rgba(0, 0, 0, 0.45);
+    --backdrop-strong: rgba(0, 0, 0, 0.65);
+    --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 }
