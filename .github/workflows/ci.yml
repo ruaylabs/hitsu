@@ -33,6 +33,9 @@ jobs:
       - name: Check Svelte / TypeScript
         run: pnpm check
 
+      - name: Test frontend
+        run: pnpm test
+
   rust:
     runs-on: ubuntu-24.04
     steps:
