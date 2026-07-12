@@ -8,6 +8,7 @@ pub mod commands;
 mod error;
 mod hardening;
 pub mod models;
+mod session_lock;
 mod vault;
 
 use state::AppState;
@@ -54,6 +55,7 @@ pub fn run() {
                 .build()?;
 
             app.set_menu(menu)?;
+            session_lock::start(app.handle().clone());
             Ok(())
         })
         .on_menu_event(|app, event| {

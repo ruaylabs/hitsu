@@ -783,17 +783,22 @@ pub async fn vault_change_password(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
+/// Immediately clear all backend secret state. Shared by the IPC command and
+/// the OS session-lock monitor so locking does not depend on the webview being
+/// awake enough to make an IPC call.
+pub(crate) fn lock_open_vaults(state: &AppState) {
     // Clear the clipboard of any previously copied secrets (password, CVV, …)
     // so they don't linger after the vault is locked.
     super::clipboard::clear_clipboard_sync();
 
     let mut vaults = state.vaults.lock();
-
     // Clear all open vaults — this drops each OpenVault, which zeroizes
     // the master-key buffer via Zeroizing's Drop impl.
     vaults.clear();
+}
 
+#[tauri::command]
+pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
+    lock_open_vaults(&state);
     Ok(())
 }

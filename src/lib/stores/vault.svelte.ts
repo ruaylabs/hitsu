@@ -9,6 +9,16 @@ let locked = $state(false);
 let editingId = $state<string | null>(null);
 let creatingId = $state<string | null>(null);
 
+function clearUnlockedState() {
+  clipboard.cancel();
+  selection.selectedId = null;
+  selection.search = "";
+  editingId = null;
+  creatingId = null;
+  locked = true;
+  entries = [];
+}
+
 export const vault = {
   get entries() {
     return entries;
@@ -57,14 +67,13 @@ export const vault = {
     } catch (e) {
       console.error("Failed to lock vault in backend", e);
     }
-    // Clear any pending clipboard auto-clear timer
-    clipboard.cancel();
-    // Forget the selected entry and search query so nothing sensitive
-    // auto-loads or re-renders after unlock.
-    selection.selectedId = null;
-    selection.search = "";
-    locked = true;
-    entries = [];
+    // Forget all decrypted-entry UI state even if the backend command failed.
+    clearUnlockedState();
+  },
+  /** Apply an OS-initiated lock after the backend has already dropped its
+   * decrypted database and cleared the system clipboard. */
+  sessionLocked() {
+    clearUnlockedState();
   },
   unlock() {
     locked = false;

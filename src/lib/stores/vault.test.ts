@@ -60,6 +60,7 @@ describe("vault store", () => {
 
   it("locks frontend state when the backend lock rejects", async () => {
     vault.setEntries([firstEntry]);
+    vault.setEditingId(firstEntry.id);
     selection.selectedId = firstEntry.id;
     const lock = vi.spyOn(vaultBridge, "vaultLock").mockRejectedValue(new Error("IPC failed"));
     const cancelClipboard = vi.spyOn(clipboard, "cancel").mockImplementation(() => {});
@@ -70,11 +71,28 @@ describe("vault store", () => {
     expect(lock).toHaveBeenCalledOnce();
     expect(vault.locked).toBe(true);
     expect(vault.entries).toEqual([]);
+    expect(vault.editingId).toBeNull();
     expect(selection.selectedId).toBeNull();
     expect(consoleError).toHaveBeenCalledWith("Failed to lock vault in backend", expect.any(Error));
 
     lock.mockRestore();
     cancelClipboard.mockRestore();
     consoleError.mockRestore();
+  });
+
+  it("applies an OS session lock without another backend call", () => {
+    const lock = vi.spyOn(vaultBridge, "vaultLock");
+    vault.setEntries([firstEntry]);
+    vault.setCreatingId(firstEntry.id);
+    selection.selectedId = firstEntry.id;
+
+    vault.sessionLocked();
+
+    expect(lock).not.toHaveBeenCalled();
+    expect(vault.locked).toBe(true);
+    expect(vault.entries).toEqual([]);
+    expect(vault.creatingId).toBeNull();
+    expect(selection.selectedId).toBeNull();
+    lock.mockRestore();
   });
 });

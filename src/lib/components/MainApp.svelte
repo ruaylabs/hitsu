@@ -225,11 +225,16 @@
   });
 
   onMount(() => {
-    const unlisten = listen("menu://settings", () => {
-      selection.requestNavigation(() => app.toggleSettings());
-    });
+    const listeners = [
+      listen("menu://settings", () => {
+        selection.requestNavigation(() => app.toggleSettings());
+      }),
+      listen("vault://session-locked", () => {
+        vault.sessionLocked();
+      }),
+    ];
     return () => {
-      unlisten.then((fn) => fn());
+      for (const unlisten of listeners) unlisten.then((fn) => fn());
     };
   });
 </script>

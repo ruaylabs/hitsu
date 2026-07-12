@@ -12,6 +12,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - **Lock** vault (drops decrypted data and zeroizes master key)
 - **Idle lock** (configurable timeout; default 5 min)
 - **Lock on sleep** (detects page hidden for >30 s)
+- **Lock with the OS session** via systemd-logind on Linux and NSWorkspace on macOS
 - Last vault path remembered; re-opened automatically on next launch
 
 ### Entries (login, password, note, identity, card)
