@@ -18,19 +18,27 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 - **Create** entries of five types
 - **Edit** all fields (type-specific editors)
-- **Delete** with confirmation
+- **Delete safely** to a KeePass-compatible Recycle Bin
+- **Restore** trashed entries to their previous group or delete them permanently
 - **Favorites** — star/unstar, filter sidebar, ⌘⇧F toggle
 - **Tags** with autocomplete suggestions
 - **History** tracking via KeePass entry history
+- **Attachments** — add, export, and remove files
 - Field clearing (blanking a field removes it from KDBX)
 
 ### Security
 
 - **Two-tier API** — summaries in list, full details only when selected
 - **Protected fields** stored encrypted in KDBX (Password, card.number, card.cvv, card.pin)
-- **Master key zeroized** on vault lock/drop (`Zeroizing<Vec<u8>>`)
+- **Master key zeroized** by `DatabaseKey` on vault lock/drop
+- **Secret DTOs zeroized** on drop; sensitive fields are redacted from debug output
 - **Atomic writes** (tmp file → fsync → rename → dir-fsync) — no partial writes
+- **External-modification detection** prevents overwriting a vault changed by another app
+- **Verified password/KDF changes** use a temporary backup and re-open the saved vault
+- **Argon2id defaults** for new vaults (64 MiB, 2 iterations, 4 lanes)
+- **KDF validation and upgrade prompt** for vaults below the recommended 64 MiB
 - **Constant-time** master password comparison (`subtle::ConstantTimeEq`)
+- **Process hardening** disables core dumps and blocks debugger attachment in release builds
 - **CSP** enabled — `default-src 'self'`
 
 ### Clipboard
@@ -55,8 +63,9 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 ### Search & navigation
 
 - Real-time search (title, username, URL, tags)
-- Sidebar filters (All, Favorites, by type, by tag)
-- Keyboard shortcuts (⌘K, ⌘, for settings, ⌘⇧F for favorite, ⌘F to focus search)
+- Sidebar filters (All, Favorites, Recycle Bin, by type, by tag)
+- Arrow-key navigation with Home/End jumps
+- Keyboard shortcuts (⌘N new entry, ⌘⌫ delete, ⌘F search, ⌘⇧F favorites, ⌘, settings)
 
 ### Appearance
 
@@ -64,15 +73,16 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 ## Formats supported
 
-|Format |Read|Write               |
-|-------|----|--------------------|
-|KDBX4.1|✅   |✅                   |
-|KDBX4.0|✅   |✅ (upgraded on save)|
-|KDBX3  |✅   |✅ (upgraded on save)|
-|KDB    |✅   |✅ (upgraded on save)|
+| Format  | Read | Write                  |
+|---------|------|------------------------|
+| KDBX4.1 | ✅   | ✅                     |
+| KDBX4.0 | ✅   | ✅ (upgraded on save)  |
+| KDBX3   | ❌   | ❌                     |
+| KDB     | ❌   | ❌                     |
 
-Vaults opened in non-KDBX4 formats are silently upgraded to KDBX4.1 on first save.
-This is fully compatible with KeePassXC and KeePass 2.x.
+KDBX4.0 vaults are upgraded to KDBX4.1 on first save. Kagi currently requires an
+Argon2/Argon2id KDF; legacy AES-KDF vaults must be upgraded in KeePassXC first.
+Written vaults remain compatible with KeePassXC and KeePass 2.x.
 
 ## Tech stack
 
@@ -93,12 +103,16 @@ This is fully compatible with KeePassXC and KeePass 2.x.
 pnpm install
 
 # Run in dev mode
-cargo tauri dev    # from src-tauri/
+pnpm tauri dev
 
-# Run checks
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo test  --manifest-path src-tauri/Cargo.toml
+# Run checks and tests
 pnpm check
+pnpm test
+cargo check --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Run the desktop end-to-end smoke test (requires tauri-driver)
+pnpm test:e2e
 ```
 
 ### Project structure
@@ -125,7 +139,7 @@ src-tauri/        # Rust backend
 - Decrypted vault data lives in process memory while unlocked; `vault_lock` drops the
   `Database` and zeroizes the master key buffer, but heap memory is not explicitly
   scrubbed after drop.
-- Argon2 KDF parameters and encryption cipher are **not validated** on open (see
-  `keepass-rust-bridge-guide.md` for guidance).
+- Kagi validates Argon2/Argon2id parameters on open and rejects AES-KDF vaults.
+  It does not currently expose cipher or KDF configuration controls.
 - Memory locking (`mlock`/`mprotect`) is not implemented — sensitive pages may be
-  written to swap.
+  written to swap. Use encrypted swap or full-disk encryption.
