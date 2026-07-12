@@ -20,8 +20,10 @@
   let excludeLookalikes = $state(true);
 
   let password = $state("");
+  let error = $state("");
 
   async function generate() {
+    error = "";
     try {
       password = await generatorBridge.generatePassword({
         length,
@@ -32,7 +34,8 @@
         excludeLookalikes,
       });
     } catch {
-      password = "Error generating password";
+      password = "";
+      error = "Failed to generate a password";
     }
   }
 
@@ -45,7 +48,11 @@
   {#snippet children()}
     <div class="panel-content">
       <div class="password-display">
-        <code class="generated-pw">{password}</code>
+        {#if error}
+          <span class="generator-error">{error}</span>
+        {:else}
+          <code class="generated-pw">{password}</code>
+        {/if}
         <IconButton
           icon="refresh"
           iconSize={16}
@@ -115,13 +122,20 @@
     border-radius: var(--radius);
   }
 
-  .generated-pw {
+  .generated-pw,
+  .generator-error {
     flex: 1;
     font-family: var(--font-mono);
     font-size: 14px;
     color: var(--text-primary);
     word-break: break-all;
     min-width: 0;
+  }
+
+  .generator-error {
+    color: var(--danger);
+    font-family: var(--font-sans);
+    font-size: 13px;
   }
 
   .options {

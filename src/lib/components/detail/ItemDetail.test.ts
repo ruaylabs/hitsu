@@ -116,6 +116,35 @@ afterEach(() => {
   clipboard.cancel();
 });
 
+describe("ItemDetail errors", () => {
+  it("shows entry loading failures", async () => {
+    const entry = passwordEntry();
+    vault.setEntries([summary(entry)]);
+    mocks.entryGet.mockRejectedValue(new Error("Entry unavailable"));
+    selection.selectedId = entry.id;
+
+    render(ItemDetail);
+
+    expect(await screen.findByText("Entry unavailable")).toBeInTheDocument();
+  });
+
+  it("keeps editing and shows save failures", async () => {
+    selectEntry(passwordEntry());
+    mocks.entryUpdate.mockRejectedValue(new Error("Vault changed on disk"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Password")).toBeInTheDocument());
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Vault changed on disk")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(saveStatus.state).toBe("error");
+    consoleError.mockRestore();
+  });
+});
+
 describe("password entry workflow", () => {
   it("shows password and URL editors for a new password entry", async () => {
     selectEntry(passwordEntry({ hasPassword: false, url: undefined }), true);

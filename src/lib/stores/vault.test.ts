@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
+import * as vaultBridge from "$lib/bridge/vault";
+import { clipboard } from "./clipboard.svelte";
 import { selection } from "./selection.svelte";
 import { vault } from "./vault.svelte";
 
@@ -25,6 +27,7 @@ beforeEach(() => {
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
+  vault.unlock();
   vault.setEntries([]);
   vault.setCreatingId(null);
   vault.setEditingId(null);
@@ -53,5 +56,25 @@ describe("vault store", () => {
 
     vault.setEntries([secondEntry]);
     expect(vault.entries).toEqual([secondEntry]);
+  });
+
+  it("locks frontend state when the backend lock rejects", async () => {
+    vault.setEntries([firstEntry]);
+    selection.selectedId = firstEntry.id;
+    const lock = vi.spyOn(vaultBridge, "vaultLock").mockRejectedValue(new Error("IPC failed"));
+    const cancelClipboard = vi.spyOn(clipboard, "cancel").mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await vault.lock();
+
+    expect(lock).toHaveBeenCalledOnce();
+    expect(vault.locked).toBe(true);
+    expect(vault.entries).toEqual([]);
+    expect(selection.selectedId).toBeNull();
+    expect(consoleError).toHaveBeenCalledWith("Failed to lock vault in backend", expect.any(Error));
+
+    lock.mockRestore();
+    cancelClipboard.mockRestore();
+    consoleError.mockRestore();
   });
 });
