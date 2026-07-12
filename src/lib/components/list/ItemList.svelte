@@ -7,12 +7,10 @@
   import SearchField from "./SearchField.svelte";
 
   let filtered = $derived.by(() => {
-    let items = vault.entries;
     const f = selection.filter;
+    let items = vault.entries.filter((e) => (f.kind === "trash" ? e.trashed : !e.trashed));
     if (f.kind === "favorites") {
       items = items.filter((e) => e.favorite);
-    } else if (f.kind === "trash") {
-      items = [];
     } else if (f.kind === "type") {
       items = items.filter((e) => e.type === f.type);
     } else if (f.kind === "tag") {
@@ -101,7 +99,7 @@
 <svelte:window onkeydown={onListKeydown} />
 
 <div class="item-list">
-  <SearchField />
+  <SearchField allowCreate={selection.filter.kind !== "trash"} />
   <div class="list-rows" role="listbox">
     {#each filtered as entry (entry.id)}
       <ItemListRow
@@ -114,6 +112,9 @@
         {#if selection.search}
           <Icon name="search-off" size={18} />
           <p>No items match "{selection.search}"</p>
+        {:else if selection.filter.kind === "trash"}
+          <Icon name="trash" size={18} />
+          <p>Recycle Bin is empty</p>
         {:else}
           <Icon name="lock-open" size={18} />
           <p>No entries yet</p>

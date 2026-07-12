@@ -6,6 +6,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
+  let { allowCreate = true }: { allowCreate?: boolean } = $props();
   let search = $state(selection.search);
 
   function onInput(e: Event) {
@@ -80,61 +81,63 @@
         <Icon name="x" size={12} />
       </button>
     {/if}
-    <div class="search-divider"></div>
-    <div class="search-actions">
-      {#if showTypePicker}
-        <div class="type-picker" role="menu">
-          <button
-            class="type-item"
-            onclick={() => { showTypePicker = false; requestCreateEntry("login"); }}
-            role="menuitem"
-          >
-            <Icon name="key" size={12} />
-            Login
-          </button>
-          <button
-            class="type-item"
-            onclick={() => { showTypePicker = false; requestCreateEntry("password"); }}
-            role="menuitem"
-          >
-            <Icon name="lock" size={12} />
-            Password
-          </button>
-          <button
-            class="type-item"
-            onclick={() => { showTypePicker = false; requestCreateEntry("note"); }}
-            role="menuitem"
-          >
-            <Icon name="notes" size={12} />
-            Note
-          </button>
-          <button
-            class="type-item"
-            onclick={() => { showTypePicker = false; requestCreateEntry("identity"); }}
-            role="menuitem"
-          >
-            <Icon name="user" size={12} />
-            Identity
-          </button>
-          <button
-            class="type-item"
-            onclick={() => { showTypePicker = false; requestCreateEntry("card"); }}
-            role="menuitem"
-          >
-            <Icon name="credit-card" size={12} />
-            Card
-          </button>
-        </div>
-      {/if}
-      <button
-        class="add-btn"
-        onclick={(e) => { e.stopPropagation(); showTypePicker = !showTypePicker; }}
-        aria-label="Add entry"
-        title="Add entry"
-      >
-        <Icon name="plus" size={14} />
-      </button>
-    </div>
+    {#if allowCreate}
+      <div class="search-divider"></div>
+      <div class="search-actions">
+        {#if showTypePicker}
+          <div class="type-picker" role="menu">
+            <button
+              class="type-item"
+              onclick={() => { showTypePicker = false; requestCreateEntry("login"); }}
+              role="menuitem"
+            >
+              <Icon name="key" size={12} />
+              Login
+            </button>
+            <button
+              class="type-item"
+              onclick={() => { showTypePicker = false; requestCreateEntry("password"); }}
+              role="menuitem"
+            >
+              <Icon name="lock" size={12} />
+              Password
+            </button>
+            <button
+              class="type-item"
+              onclick={() => { showTypePicker = false; requestCreateEntry("note"); }}
+              role="menuitem"
+            >
+              <Icon name="notes" size={12} />
+              Note
+            </button>
+            <button
+              class="type-item"
+              onclick={() => { showTypePicker = false; requestCreateEntry("identity"); }}
+              role="menuitem"
+            >
+              <Icon name="user" size={12} />
+              Identity
+            </button>
+            <button
+              class="type-item"
+              onclick={() => { showTypePicker = false; requestCreateEntry("card"); }}
+              role="menuitem"
+            >
+              <Icon name="credit-card" size={12} />
+              Card
+            </button>
+          </div>
+        {/if}
+        <button
+          class="add-btn"
+          onclick={(e) => { e.stopPropagation(); showTypePicker = !showTypePicker; }}
+          aria-label="Add entry"
+          title="Add entry"
+        >
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
+    {/if}
   </div>
 </div>
 

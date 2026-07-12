@@ -31,4 +31,14 @@ describe("Sidebar", () => {
       "true",
     );
   });
+
+  it("counts trashed entries separately and opens the recycle bin", async () => {
+    vault.setEntries([...entries, { ...entries[0], id: "deleted", trashed: true }]);
+    const recycleBin = render(Sidebar).getByRole("tab", { name: "Recycle Bin 1" });
+
+    expect(screen.getByRole("tab", { name: "All items 3" })).toBeInTheDocument();
+    await fireEvent.click(recycleBin);
+
+    expect(selection.filter).toEqual({ kind: "trash" });
+  });
 });

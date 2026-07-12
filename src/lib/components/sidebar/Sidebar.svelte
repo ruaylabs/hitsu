@@ -5,15 +5,17 @@
   import SidebarItem from "./SidebarItem.svelte";
   import SidebarSection from "./SidebarSection.svelte";
 
-  let allCount = $derived(vault.entries.length);
-  let favoritesCount = $derived(vault.entries.filter((e) => e.favorite).length);
-  let loginCount = $derived(vault.entries.filter((e) => e.type === "login").length);
-  let passwordCount = $derived(vault.entries.filter((e) => e.type === "password").length);
-  let noteCount = $derived(vault.entries.filter((e) => e.type === "note").length);
-  let identityCount = $derived(vault.entries.filter((e) => e.type === "identity").length);
-  let cardCount = $derived(vault.entries.filter((e) => e.type === "card").length);
+  let activeEntries = $derived(vault.entries.filter((e) => !e.trashed));
+  let allCount = $derived(activeEntries.length);
+  let favoritesCount = $derived(activeEntries.filter((e) => e.favorite).length);
+  let trashCount = $derived(vault.entries.filter((e) => e.trashed).length);
+  let loginCount = $derived(activeEntries.filter((e) => e.type === "login").length);
+  let passwordCount = $derived(activeEntries.filter((e) => e.type === "password").length);
+  let noteCount = $derived(activeEntries.filter((e) => e.type === "note").length);
+  let identityCount = $derived(activeEntries.filter((e) => e.type === "identity").length);
+  let cardCount = $derived(activeEntries.filter((e) => e.type === "card").length);
 
-  let tags = $derived([...new Set(vault.entries.flatMap((e) => e.tags))].sort());
+  let tags = $derived([...new Set(activeEntries.flatMap((e) => e.tags))].sort());
 
   const tagColors: Record<string, string> = {
     work: "var(--tag-work)",
@@ -59,6 +61,13 @@
       count={favoritesCount}
       selected={isSelected("favorites")}
       onclick={() => selectFilter({ kind: "favorites" })}
+    />
+    <SidebarItem
+      label="Recycle Bin"
+      icon="trash"
+      count={trashCount}
+      selected={isSelected("trash")}
+      onclick={() => selectFilter({ kind: "trash" })}
     />
   </SidebarSection>
 

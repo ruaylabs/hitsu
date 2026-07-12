@@ -8,7 +8,7 @@ use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
-use super::entries::build_entry_summaries;
+use super::entries::{build_entry_summaries, ensure_recycle_bin};
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
 use crate::state::{AppState, OpenVault, VaultId};
@@ -638,6 +638,7 @@ pub async fn vault_create(
 
             let mut db = keepass::Database::new();
             db.meta.database_name = Some(create_name);
+            ensure_recycle_bin(&mut db);
 
             // Pin the KDF and format explicitly instead of trusting the
             // library defaults (item 3 in IMPROVEMENT_PLAN.md).

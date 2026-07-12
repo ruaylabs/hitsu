@@ -18,6 +18,7 @@ export interface Entry {
   notes?: string;
   tags: string[];
   favorite: boolean;
+  trashed?: boolean;
   iconHint?: string;
   identity?: IdentityFields;
   card?: CardFields;
@@ -73,6 +74,7 @@ export interface EntrySummary {
   username?: string;
   tags: string[];
   favorite: boolean;
+  trashed?: boolean;
   iconHint?: string;
 }
 

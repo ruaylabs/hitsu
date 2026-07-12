@@ -339,9 +339,11 @@
 
 {#if entryDeletion.pending}
   <ConfirmDialog
-    title="Delete entry?"
-    message={`Are you sure you want to delete "${entryDeletion.pending.title}"?`}
-    confirmLabel="Delete"
+    title={entryDeletion.pending.permanent ? "Delete permanently?" : "Move to Recycle Bin?"}
+    message={entryDeletion.pending.permanent
+      ? `Permanently delete "${entryDeletion.pending.title}"? This cannot be undone.`
+      : `Move "${entryDeletion.pending.title}" to the Recycle Bin?`}
+    confirmLabel={entryDeletion.pending.permanent ? "Delete permanently" : "Move to Bin"}
     danger={true}
     onconfirm={() => entryDeletion.confirm()}
     oncancel={() => entryDeletion.cancel()}

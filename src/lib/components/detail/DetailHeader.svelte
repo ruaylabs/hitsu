@@ -24,12 +24,14 @@
     onEdit,
     onTotpSetup,
     showTotpSetup,
+    readOnly = false,
   }: {
     entry: Entry;
     onFavorite?: () => void;
     onEdit?: () => void;
     onTotpSetup?: () => void;
     showTotpSetup?: boolean;
+    readOnly?: boolean;
   } = $props();
 </script>
 
@@ -45,35 +47,37 @@
       {/if}
     </div>
   </div>
-  <div class="detail-header-actions">
-    {#if showTotpSetup}
+  {#if !readOnly}
+    <div class="detail-header-actions">
+      {#if showTotpSetup}
+        <IconButton
+          icon="key"
+          iconSize={14}
+          variant="outline"
+          onclick={onTotpSetup}
+          aria-label="Setup TOTP"
+          title="Setup TOTP from seed"
+        />
+      {/if}
       <IconButton
-        icon="key"
+        icon="star"
         iconSize={14}
         variant="outline"
-        onclick={onTotpSetup}
-        aria-label="Setup TOTP"
-        title="Setup TOTP from seed"
+        active={entry.favorite}
+        onclick={onFavorite}
+        aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
+        title={entry.favorite ? "Unfavorite" : "Favorite"}
       />
-    {/if}
-    <IconButton
-      icon="star"
-      iconSize={14}
-      variant="outline"
-      active={entry.favorite}
-      onclick={onFavorite}
-      aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
-      title={entry.favorite ? "Unfavorite" : "Favorite"}
-    />
-    <IconButton
-      icon="pencil"
-      iconSize={14}
-      variant="outline"
-      onclick={onEdit}
-      aria-label="Edit entry"
-      title="Edit entry"
-    />
-  </div>
+      <IconButton
+        icon="pencil"
+        iconSize={14}
+        variant="outline"
+        onclick={onEdit}
+        aria-label="Edit entry"
+        title="Edit entry"
+      />
+    </div>
+  {/if}
 </div>
 
 <style>

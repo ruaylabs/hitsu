@@ -6,11 +6,13 @@ import { vault } from "./vault.svelte";
 
 const mocks = vi.hoisted(() => ({
   entryDelete: vi.fn(),
+  entryDeletePermanent: vi.fn(),
   toastError: vi.fn(),
 }));
 
 vi.mock("$lib/bridge/entries", () => ({
   entryDelete: mocks.entryDelete,
+  entryDeletePermanent: mocks.entryDeletePermanent,
 }));
 
 vi.mock("$lib/stores/toast.svelte", () => ({
@@ -34,15 +36,26 @@ beforeEach(() => {
 });
 
 describe("entry deletion", () => {
-  it("removes a successfully deleted entry and clears selection", async () => {
+  it("moves an active entry to the recycle bin and clears selection", async () => {
     mocks.entryDelete.mockResolvedValue(undefined);
     entryDeletion.request(entry.id, entry.title);
 
     await entryDeletion.confirm();
 
     expect(mocks.entryDelete).toHaveBeenCalledWith(entry.id);
-    expect(vault.entries).toEqual([]);
+    expect(vault.entries).toEqual([{ ...entry, trashed: true }]);
     expect(selection.selectedId).toBeNull();
+  });
+
+  it("permanently removes an entry already in the recycle bin", async () => {
+    mocks.entryDeletePermanent.mockResolvedValue(undefined);
+    vault.setEntries([{ ...entry, trashed: true }]);
+    entryDeletion.request(entry.id, entry.title);
+
+    await entryDeletion.confirm();
+
+    expect(mocks.entryDeletePermanent).toHaveBeenCalledWith(entry.id);
+    expect(vault.entries).toEqual([]);
   });
 
   it("keeps the entry when deletion fails", async () => {

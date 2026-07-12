@@ -18,8 +18,8 @@ use std::io::Cursor;
 use sha2::{Digest, Sha256};
 
 use kagi_lib::commands::entries::{
-    entries_list, entry_create, entry_delete, entry_discard, entry_get, entry_reveal_field,
-    entry_update,
+    entries_list, entry_create, entry_delete, entry_delete_permanent, entry_discard, entry_get,
+    entry_restore, entry_reveal_field, entry_update,
 };
 use kagi_lib::models::{EntryDraft, EntryPatch, ItemType, SecretField};
 use kagi_lib::state::{AppState, OpenVault};
@@ -243,10 +243,10 @@ async fn update_nonexistent_entry_errors() {
     assert!(res.is_err());
 }
 
-// ── delete: persists removal to disk ───────────────────────────────────────
+// ── delete: persists recycle-bin state to disk ─────────────────────────────
 
 #[tokio::test]
-async fn delete_persists_removal_to_disk() {
+async fn delete_moves_to_bin_and_permanent_delete_removes_from_disk() {
     let tv = setup();
     let state = tv.state();
 
@@ -269,7 +269,15 @@ async fn delete_persists_removal_to_disk() {
         .await
         .expect("delete should succeed");
 
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 0);
+    let entries = entries_list(state.clone()).await.unwrap();
+    assert_eq!(entries.len(), 1);
+    assert!(entries[0].trashed);
+    assert_eq!(tv.disk_entry_count(), 1);
+
+    entry_delete_permanent(state.clone(), entry.id.clone())
+        .await
+        .expect("permanent delete should succeed");
+    assert!(entries_list(state.clone()).await.unwrap().is_empty());
     assert_eq!(tv.disk_entry_count(), 0);
 }
 
@@ -392,9 +400,25 @@ async fn full_create_save_get_delete_workflow() {
     // 4. List shows one entry
     assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
 
-    // 5. Delete removes it from memory and disk
+    // 5. Delete moves it to the recycle bin.
     entry_delete(state.clone(), entry.id.clone()).await.unwrap();
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 0);
+    let trashed = entry_get(state.clone(), entry.id.clone()).await.unwrap();
+    assert!(trashed.trashed);
+    assert_eq!(tv.disk_entry_count(), 1);
+
+    // 6. Restore returns it to the active entries.
+    entry_restore(state.clone(), entry.id.clone())
+        .await
+        .unwrap();
+    let restored = entry_get(state.clone(), entry.id.clone()).await.unwrap();
+    assert!(!restored.trashed);
+
+    // 7. Permanent deletion is only available after moving it back to the bin.
+    entry_delete(state.clone(), entry.id.clone()).await.unwrap();
+    entry_delete_permanent(state.clone(), entry.id.clone())
+        .await
+        .unwrap();
+    assert!(entries_list(state.clone()).await.unwrap().is_empty());
     assert!(entry_get(state.clone(), entry.id.clone()).await.is_err());
     assert_eq!(tv.disk_entry_count(), 0);
 }

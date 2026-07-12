@@ -114,6 +114,7 @@ pub struct Entry {
     pub notes: Option<String>,
     pub tags: Vec<String>,
     pub favorite: bool,
+    pub trashed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -167,6 +168,7 @@ pub struct EntrySummary {
     pub username: Option<String>,
     pub tags: Vec<String>,
     pub favorite: bool,
+    pub trashed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
 }

@@ -77,6 +77,8 @@ pub fn run() {
             commands::entries::entry_create,
             commands::entries::entry_update,
             commands::entries::entry_delete,
+            commands::entries::entry_restore,
+            commands::entries::entry_delete_permanent,
             commands::entries::entry_discard,
             commands::entries::entry_reveal_field,
             commands::entries::entry_copy_field,

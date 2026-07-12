@@ -458,14 +458,30 @@
 
   function confirmDelete() {
     if (!_entry) return;
-    // The shared flow removes the entry and clears the selection; the
-    // callback resets local state so the auto-discard effect doesn't try
-    // to discard an entry that was just deleted.
+    // The shared flow moves active entries to the bin and permanently removes
+    // entries already in it. The callback clears local editing state.
     entryDeletion.request(_entry.id, _entry.title, () => {
       editing = false;
       newEntryId = null;
       _entry = undefined;
     });
+  }
+
+  async function restoreEntry() {
+    if (!_entry?.trashed) return;
+    const id = _entry.id;
+    try {
+      await entriesBridge.entryRestore(id);
+      vault.setEntries(
+        vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: false } : entry)),
+      );
+      _entry = undefined;
+      if (selection.selectedId === id) selection.selectedId = null;
+      toast.success("Entry restored");
+    } catch (e) {
+      console.error("Failed to restore entry", e);
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
   }
 
   function openEntryUrl(rawUrl: string): void {
@@ -525,7 +541,26 @@
   {@const entry = _entry}
   <div class="detail-pane">
     <div class="detail-toolbar">
-      {#if editing}
+      {#if entry.trashed}
+        <button
+          class="toolbar-btn toolbar-save"
+          onclick={restoreEntry}
+          aria-label="Restore"
+          title="Restore"
+        >
+          <Icon name="restore" size={14} />
+          <span>Restore</span>
+        </button>
+        <button
+          class="toolbar-btn toolbar-delete"
+          onclick={confirmDelete}
+          aria-label="Delete permanently"
+          title="Delete permanently"
+        >
+          <Icon name="trash-x" size={14} />
+          <span>Delete permanently</span>
+        </button>
+      {:else if editing}
         <button class="toolbar-btn" onclick={cancelEdit} aria-label="Cancel" title="Cancel (Esc)">
           <Icon name="x" size={14} />
           <span>Cancel</span>
@@ -576,6 +611,7 @@
         onEdit={startEdit}
         onTotpSetup={() => (showTotpSetup = true)}
         showTotpSetup={entry.type === "login" && !entry.hasTotp}
+        readOnly={entry.trashed}
       />
     {/if}
 

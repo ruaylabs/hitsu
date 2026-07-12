@@ -6,6 +6,7 @@ import { vault } from "$lib/stores/vault.svelte";
 interface PendingDelete {
   id: string;
   title: string;
+  permanent: boolean;
   /** Extra cleanup run after a successful delete (e.g. exit edit mode). */
   onDeleted?: () => void;
 }
@@ -21,18 +22,20 @@ export const entryDeletion = {
     return pending;
   },
   request(id: string, title?: string, onDeleted?: () => void) {
-    const resolved = title ?? vault.entries.find((e) => e.id === id)?.title ?? "this entry";
-    pending = { id, title: resolved, onDeleted };
+    const item = vault.entries.find((e) => e.id === id);
+    const resolved = title ?? item?.title ?? "this entry";
+    pending = { id, title: resolved, permanent: item?.trashed ?? false, onDeleted };
   },
   cancel() {
     pending = null;
   },
   async confirm() {
     if (!pending) return;
-    const { id, onDeleted } = pending;
+    const { id, permanent, onDeleted } = pending;
     pending = null;
     try {
-      await entriesBridge.entryDelete(id);
+      if (permanent) await entriesBridge.entryDeletePermanent(id);
+      else await entriesBridge.entryDelete(id);
     } catch (e) {
       console.error("Failed to delete entry", e);
       toast.error(e instanceof Error ? e.message : String(e));
@@ -41,7 +44,11 @@ export const entryDeletion = {
     // Caller cleanup first: it may clear state (newEntryId) that effects
     // keyed on the selection change below would otherwise act on.
     onDeleted?.();
-    vault.setEntries(vault.entries.filter((e) => e.id !== id));
+    vault.setEntries(
+      permanent
+        ? vault.entries.filter((e) => e.id !== id)
+        : vault.entries.map((e) => (e.id === id ? { ...e, trashed: true } : e)),
+    );
     if (selection.selectedId === id) selection.selectedId = null;
   },
 };

@@ -12,7 +12,7 @@
     onSettingsClick: () => void;
   } = $props();
 
-  let itemCount = $derived(vault.entries.length);
+  let itemCount = $derived(vault.entries.filter((entry) => !entry.trashed).length);
   let statusLabel = $derived(
     saveStatus.state === "dirty"
       ? "Unsaved changes"

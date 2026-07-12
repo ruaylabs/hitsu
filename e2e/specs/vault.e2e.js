@@ -73,10 +73,14 @@ describe("standalone vault smoke test", () => {
 
     await $('[aria-label="Edit entry"]').click();
     await (await button("Delete")).click();
-    const confirmDelete = await $('//div[@role="dialog"]//button[normalize-space(.)="Delete"]');
+    const confirmDelete = await $(
+      '//div[@role="dialog"]//button[normalize-space(.)="Move to Bin"]',
+    );
     await confirmDelete.waitForDisplayed();
     await confirmDelete.click();
 
     await $("p=No entries yet").waitForDisplayed();
+    await (await button("Recycle Bin 1")).click();
+    await $("h1=E2E password").waitForDisplayed();
   });
 });

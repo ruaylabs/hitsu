@@ -12,6 +12,7 @@ export function toSummary(entry: Entry): EntrySummary {
     username: entry.username,
     tags: entry.tags,
     favorite: entry.favorite,
+    trashed: entry.trashed,
     iconHint: entry.iconHint,
   };
 }
@@ -141,6 +142,14 @@ export async function entryHistoryGet(id: string, version: number): Promise<Entr
 
 export async function entryDelete(id: string): Promise<void> {
   return invoke<void>("entry_delete", { id });
+}
+
+export async function entryRestore(id: string): Promise<void> {
+  return invoke<void>("entry_restore", { id });
+}
+
+export async function entryDeletePermanent(id: string): Promise<void> {
+  return invoke<void>("entry_delete_permanent", { id });
 }
 
 /** Drop a brand-new, never-persisted entry from memory without touching disk. */

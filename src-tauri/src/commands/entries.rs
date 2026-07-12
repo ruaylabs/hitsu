@@ -1,5 +1,5 @@
 use base64::Engine;
-use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
+use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, GroupId, Value};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -18,7 +18,7 @@ fn is_protected_key(key: &str) -> bool {
     )
 }
 
-fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
+fn map_entry_to_summary(entry_ref: &keepass::db::Entry, trashed: bool) -> EntrySummary {
     let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
     let item_type = read_item_type(entry_ref);
@@ -46,16 +46,36 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry) -> EntrySummary {
         username: Some(username),
         tags: entry_ref.tags.clone(),
         favorite,
+        trashed,
         icon_hint,
     }
 }
 
-/// Build entry summaries for every entry in the database.
-/// Exported for vault_open so the frontend doesn't need a second
-/// round-trip (entries_list) after unlock.
+fn group_is_in_recycle_bin(db: &keepass::Database, group_id: GroupId) -> bool {
+    let Some(recycle_id) = db.meta.recyclebin_uuid.map(GroupId::from_uuid) else {
+        return false;
+    };
+    let mut current = Some(group_id);
+    while let Some(id) = current {
+        if id == recycle_id {
+            return true;
+        }
+        current = db
+            .group(id)
+            .and_then(|group| group.parent().map(|parent| parent.id()));
+    }
+    false
+}
+
+fn entry_is_trashed(db: &keepass::Database, entry: &keepass::db::EntryRef<'_>) -> bool {
+    group_is_in_recycle_bin(db, entry.parent().id())
+}
+
+/// Build entry summaries for every entry in the database, including recycle-bin
+/// entries (marked with `trashed` so the frontend can keep them out of normal views).
 pub(crate) fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary> {
     db.iter_all_entries()
-        .map(|e| map_entry_to_summary(&e))
+        .map(|e| map_entry_to_summary(&e, entry_is_trashed(db, &e)))
         .collect()
 }
 
@@ -89,7 +109,7 @@ pub(crate) fn read_attachments(entry_ref: &keepass::db::EntryRef<'_>) -> Vec<Att
 
 /// Map a KDBX entry to the webview detail model. Secrets are reduced to
 /// presence flags / masked values here — see the `Entry` doc comment.
-fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
+fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
     let id = entry_ref.id().uuid().to_string();
     let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
@@ -161,6 +181,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry) -> Entry {
         notes,
         tags,
         favorite,
+        trashed,
         icon_hint,
         identity,
         card,
@@ -219,7 +240,31 @@ pub(crate) fn find_entry_ref<'a>(
     db.entry(EntryId::from_uuid(uuid))
 }
 
-/// Remove an entry by UUID string.
+/// Ensure the database has a KeePass-compatible recycle-bin group.
+/// New Kagi vaults call this eagerly; imported vaults are upgraded lazily on
+/// their first deletion if their recycle-bin metadata is absent or stale.
+pub(crate) fn ensure_recycle_bin(db: &mut keepass::Database) -> GroupId {
+    if let Some(id) = db.meta.recyclebin_uuid.map(GroupId::from_uuid) {
+        if db.group(id).is_some() {
+            db.meta.recyclebin_enabled = Some(true);
+            return id;
+        }
+    }
+
+    let id = {
+        let mut root = db.root_mut();
+        let mut group = root.add_group();
+        group.name = "Recycle Bin".to_string();
+        group.id()
+    };
+    let now = chrono::Utc::now().naive_utc();
+    db.meta.recyclebin_enabled = Some(true);
+    db.meta.recyclebin_uuid = Some(id.uuid());
+    db.meta.recyclebin_changed = Some(now);
+    id
+}
+
+/// Remove an entry by UUID string permanently.
 fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
     let uuid = uuid::Uuid::parse_str(id).map_err(|_| KagiError::EntryNotFound(id.to_string()))?;
     let entry_id = EntryId::from_uuid(uuid);
@@ -318,11 +363,7 @@ pub async fn entries_list(state: State<'_, AppState>) -> KagiResult<Vec<EntrySum
 
     let (_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
 
-    Ok(vault
-        .db
-        .iter_all_entries()
-        .map(|e| map_entry_to_summary(&e))
-        .collect())
+    Ok(build_entry_summaries(&vault.db))
 }
 
 #[tauri::command]
@@ -333,7 +374,8 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
 
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
-    let mut entry = map_entry_to_full(&entry_ref);
+    let trashed = entry_is_trashed(&vault.db, &entry_ref);
+    let mut entry = map_entry_to_full(&entry_ref, trashed);
     entry.attachments = read_attachments(&entry_ref);
     Ok(entry)
 }
@@ -403,6 +445,7 @@ pub async fn entry_create(
         notes: draft.notes,
         tags: Vec::new(),
         favorite: false,
+        trashed: false,
         icon_hint: None,
         identity: None,
         card: None,
@@ -452,7 +495,8 @@ pub async fn entry_update(
             .db
             .entry(entry_id)
             .ok_or(KagiError::EntryNotFound(id))?;
-        let mut updated = map_entry_to_full(&entry_ref);
+        let trashed = entry_is_trashed(&vault.db, &entry_ref);
+        let mut updated = map_entry_to_full(&entry_ref, trashed);
         updated.attachments = read_attachments(&entry_ref);
         let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
         (updated, db, key, path, expected_disk_hash)
@@ -560,9 +604,90 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
 
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
+        let recycle_id = ensure_recycle_bin(&mut vault.db);
+        let entry_id = EntryId::from_uuid(
+            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+        );
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        if entry_is_trashed(&vault.db, &entry_ref) {
+            return Err(KagiError::Custom(
+                "Entry is already in the Recycle Bin".into(),
+            ));
+        }
+        let mut entry = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        entry
+            .move_to(recycle_id)
+            .map_err(|_| KagiError::Custom("Recycle Bin is unavailable".into()))?;
+        entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
+        snapshot_for_save(vault)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn entry_restore(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let entry_id = EntryId::from_uuid(
+            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+        );
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        if !entry_is_trashed(&vault.db, &entry_ref) {
+            return Err(KagiError::Custom("Entry is not in the Recycle Bin".into()));
+        }
+        let root_id = vault.db.root().id();
+        let destination = entry_ref
+            .previous_parent()
+            .map(|group| group.id())
+            .filter(|group_id| !group_is_in_recycle_bin(&vault.db, *group_id))
+            .unwrap_or(root_id);
+        let mut entry = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        entry
+            .move_to(destination)
+            .map_err(|_| KagiError::Custom("Original group is unavailable".into()))?;
+        entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
+        snapshot_for_save(vault)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let entry_ref =
+            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        if !entry_is_trashed(&vault.db, &entry_ref) {
+            return Err(KagiError::Custom(
+                "Only entries in the Recycle Bin can be permanently deleted".into(),
+            ));
+        }
         remove_entry(&mut vault.db, &id)?;
         snapshot_for_save(vault)
     };
@@ -723,7 +848,7 @@ pub async fn entry_history_get(
         .get(version as usize)
         .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", version)))?;
 
-    let mut result = map_entry_to_full(history_entry);
+    let mut result = map_entry_to_full(history_entry, entry_is_trashed(&vault.db, &entry_ref));
     result.id = id;
     Ok(result)
 }
@@ -908,9 +1033,32 @@ pub async fn entry_attachment_remove(
 #[cfg(test)]
 mod tests {
     use super::{
-        mask_card_number, read_attachments, read_totp_seed, safe_attachment_file_name,
-        write_attachment_file,
+        build_entry_summaries, ensure_recycle_bin, mask_card_number, read_attachments,
+        read_totp_seed, safe_attachment_file_name, write_attachment_file,
     };
+
+    #[test]
+    fn recycle_bin_is_created_once_and_marks_moved_entries() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(entry_id)
+            .expect("duplicate entry id")
+            .set_unprotected(keepass::db::fields::TITLE, "Deleted entry");
+
+        let recycle_id = ensure_recycle_bin(&mut db);
+        assert_eq!(ensure_recycle_bin(&mut db), recycle_id);
+        assert_eq!(db.meta.recyclebin_enabled, Some(true));
+        assert_eq!(db.meta.recyclebin_uuid, Some(recycle_id.uuid()));
+
+        db.entry_mut(entry_id)
+            .expect("entry should exist")
+            .move_to(recycle_id)
+            .expect("recycle bin should exist");
+        let summaries = build_entry_summaries(&db);
+        assert_eq!(summaries.len(), 1);
+        assert!(summaries[0].trashed);
+    }
 
     #[test]
     fn attachment_file_name_strips_directory_components() {
