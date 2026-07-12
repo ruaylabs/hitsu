@@ -68,6 +68,14 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - Arrow-key navigation with Home/End jumps
 - Keyboard shortcuts (⌘N new entry, ⌘⌫ delete, ⌘F search, ⌘⇧F favorites, ⌘, settings)
 
+### Browser integration (developer preview)
+
+- Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge
+- Exact-host login lookup and popup-initiated username/password filling
+- Native Messaging bridge to the unlocked desktop app on macOS and Linux
+- Owner-only local IPC; trashed entries and non-matching origins are rejected
+- See [`chrome-extension/README.md`](chrome-extension/README.md) for development installation
+
 ### Appearance
 
 - Light and dark mode (follows OS preference)
@@ -125,6 +133,7 @@ src/              # Svelte frontend
     stores/       # Svelte 5 $state stores
     components/   # UI components
     utils/        # OTP, time formatting
+chrome-extension/ # Chromium extension and native-host installer
 src-tauri/        # Rust backend
   src/
     commands/     # Tauri command handlers

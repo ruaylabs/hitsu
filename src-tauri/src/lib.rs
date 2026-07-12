@@ -1,6 +1,8 @@
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::Emitter;
 
+#[cfg(unix)]
+pub mod browser_ipc;
 pub mod prefs;
 pub mod state;
 
@@ -56,6 +58,10 @@ pub fn run() {
 
             app.set_menu(menu)?;
             session_lock::start(app.handle().clone());
+            #[cfg(unix)]
+            if let Err(error) = browser_ipc::start(app.handle().clone()) {
+                eprintln!("browser integration unavailable: {error}");
+            }
             Ok(())
         })
         .on_menu_event(|app, event| {

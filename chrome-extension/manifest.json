@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Kagi Password Manager",
+  "version": "0.1.0",
+  "description": "Fill login credentials from the unlocked Kagi desktop app.",
+  "permissions": ["activeTab", "nativeMessaging"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Kagi",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -67,7 +67,7 @@ fn group_is_in_recycle_bin(db: &keepass::Database, group_id: GroupId) -> bool {
     false
 }
 
-fn entry_is_trashed(db: &keepass::Database, entry: &keepass::db::EntryRef<'_>) -> bool {
+pub(crate) fn entry_is_trashed(db: &keepass::Database, entry: &keepass::db::EntryRef<'_>) -> bool {
     group_is_in_recycle_bin(db, entry.parent().id())
 }
 
