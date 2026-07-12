@@ -1,6 +1,7 @@
 {
   "name": "kagi",
   "version": "0.1.0",
+  "packageManager": "pnpm@11.5.2",
   "description": "",
   "type": "module",
   "scripts": {
