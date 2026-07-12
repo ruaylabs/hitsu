@@ -8,11 +8,11 @@ fi
 
 extension_id="$1"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-host_path="${2:-$root/src-tauri/target/release/kagi-native-host}"
+host_path="${2:-$root/chrome-extension/native-host/target/release/kagi-native-host}"
 
 if [[ ! -x "$host_path" ]]; then
   echo "Building kagi-native-host…"
-  (cd "$root" && cargo build --release --manifest-path src-tauri/Cargo.toml --bin kagi-native-host)
+  (cd "$root" && cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml)
 fi
 host_path="$(cd "$(dirname "$host_path")" && pwd)/$(basename "$host_path")"
 

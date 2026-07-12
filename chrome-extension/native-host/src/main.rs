@@ -3,7 +3,13 @@ use std::io::{BufRead, BufReader, Read, Write};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
+#[cfg(unix)]
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
+
+#[cfg(unix)]
+fn socket_path() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("kagi-browser-{}.sock", unsafe { libc::geteuid() }))
+}
 
 #[cfg(unix)]
 fn main() {
@@ -27,7 +33,7 @@ fn main() {
 #[cfg(unix)]
 fn run() -> Result<(), String> {
     let request = read_native_message()?;
-    let mut stream = UnixStream::connect(kagi_lib::browser_ipc::socket_path())
+    let mut stream = UnixStream::connect(socket_path())
         .map_err(|_| "Open and unlock the Kagi desktop app first".to_string())?;
     stream
         .write_all(&request)

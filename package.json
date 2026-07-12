@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "pnpm tauri build --debug --no-bundle && wdio run ./e2e/wdio.conf.js",
+    "prepare:native-host": "node scripts/prepare-native-host.mjs",
     "tauri": "tauri"
   },
   "license": "MIT",

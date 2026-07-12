@@ -9,7 +9,8 @@ page.
 1. Build Kagi and its native-messaging host:
 
    ```bash
-   cargo build --release --manifest-path src-tauri/Cargo.toml --bin kagi --bin kagi-native-host
+   cargo build --release --manifest-path src-tauri/Cargo.toml --bin kagi
+   cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml
    ```
 
 2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select this
@@ -22,7 +23,11 @@ page.
    ```
 
 5. Start and unlock the release build of Kagi. Open an HTTP(S) page whose hostname exactly matches a
-login URL, then select the Kagi toolbar button.
+   login URL, then select the Kagi toolbar button.
+
+A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. The script above
+remains useful for an unpacked development extension until automatic production registration is
+implemented.
 
 Reload the extension from `chrome://extensions` after changing its source files.
 

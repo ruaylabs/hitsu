@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Kagi — native desktop password manager"
 authors = ["you"]
 edition = "2021"
-default-run = "kagi"
 
 [lib]
 name = "kagi_lib"

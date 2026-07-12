@@ -65,27 +65,43 @@ jobs:
         with:
           path: |
             src-tauri/target
+            chrome-extension/native-host/target
             ~/.cargo/registry/cache
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'chrome-extension/native-host/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Check formatting
+      - name: Prepare native host sidecar
+        run: node scripts/prepare-native-host.mjs
+
+      - name: Check Kagi formatting
+        working-directory: src-tauri
         run: cargo fmt --check
-        working-directory: src-tauri
 
-      - name: Lint (clippy)
+      - name: Check native host formatting
+        working-directory: chrome-extension/native-host
+        run: cargo fmt --check
+
+      - name: Lint Kagi
+        working-directory: src-tauri
         run: cargo clippy -- -D warnings
-        working-directory: src-tauri
 
-      - name: Build
+      - name: Lint native host
+        working-directory: chrome-extension/native-host
+        run: cargo clippy -- -D warnings
+
+      - name: Build Kagi
+        working-directory: src-tauri
         run: cargo build
-        working-directory: src-tauri
 
-      - name: Test
-        run: cargo test
+      - name: Test Kagi
         working-directory: src-tauri
+        run: cargo test
+
+      - name: Test native host
+        working-directory: chrome-extension/native-host
+        run: cargo test
 
   e2e:
     needs: [svelte, rust]
