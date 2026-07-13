@@ -12,6 +12,15 @@ function stop() {
   remainingMs = 0;
 }
 
+function startCountdown(secs: number) {
+  if (secs <= 0) return;
+  remainingMs = secs * 1000;
+  timer = setInterval(() => {
+    remainingMs = Math.max(0, remainingMs - 1000);
+    if (remainingMs <= 0) stop();
+  }, 1000);
+}
+
 export const clipboard = {
   get remainingMs() {
     return remainingMs;
@@ -34,13 +43,7 @@ export const clipboard = {
     stop();
     if (secs > 0) {
       await clipboardBridge.clipboardCopyWithTimeout(value, secs);
-      remainingMs = secs * 1000;
-      timer = setInterval(() => {
-        remainingMs = Math.max(0, remainingMs - 1000);
-        if (remainingMs <= 0) {
-          stop();
-        }
-      }, 1000);
+      startCountdown(secs);
     } else {
       await clipboardBridge.clipboardCopy(value);
     }
@@ -53,15 +56,14 @@ export const clipboard = {
     const secs = defaultTimeoutSecs;
     stop();
     await entriesBridge.entryCopyField(id, field, secs, version);
-    if (secs > 0) {
-      remainingMs = secs * 1000;
-      timer = setInterval(() => {
-        remainingMs = Math.max(0, remainingMs - 1000);
-        if (remainingMs <= 0) {
-          stop();
-        }
-      }, 1000);
-    }
+    startCountdown(secs);
+  },
+  /** Copy a protected custom field without exposing it to the webview. */
+  async copyCustomField(id: string, name: string) {
+    const secs = defaultTimeoutSecs;
+    stop();
+    await entriesBridge.entryCopyCustomField(id, name, secs);
+    startCountdown(secs);
   },
   /** Copy a plain value (username, URL) without auto-clear.
    *  Does NOT fall back to the WebView clipboard API — if the Rust command

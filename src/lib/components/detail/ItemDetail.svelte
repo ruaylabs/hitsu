@@ -3,7 +3,7 @@
   import { untrack } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
-  import type { Entry } from "$lib/bridge/types";
+  import type { CustomField, Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { saveStatus } from "$lib/stores/saveStatus.svelte";
@@ -113,6 +113,7 @@
   let editTotp = $state("");
   let editNotes = $state("");
   let editTags = $state<string[]>([]);
+  let editCustomFields = $state<CustomField[]>([]);
   // Identity fields
   let editFirstName = $state("");
   let editLastName = $state("");
@@ -146,6 +147,7 @@
       totp: editTotp,
       notes: editNotes,
       tags: editTags,
+      customFields: editCustomFields,
       firstName: editFirstName,
       lastName: editLastName,
       email: editEmail,
@@ -233,18 +235,27 @@
     editCardExpYear = e.card?.expYear?.toString() ?? "";
     // Secrets are not in the Entry DTO — fetch the ones that exist so the
     // form is prefilled and an untouched save round-trips them unchanged.
-    const [password, totp, cardNumber, cardCvv, cardPin] = await Promise.all([
+    const [password, totp, cardNumber, cardCvv, cardPin, customFields] = await Promise.all([
       e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
       e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
       e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
       e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
       e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
+      Promise.all(
+        e.customFields.map(async (field) => ({
+          ...field,
+          value: field.protected
+            ? await entriesBridge.entryRevealCustomField(e.id, field.name)
+            : field.value,
+        })),
+      ),
     ]);
     editPassword = password;
     editTotp = totp;
     editCardNumber = cardNumber;
     editCardCvv = cardCvv;
     editCardPin = cardPin;
+    editCustomFields = customFields;
     initialEditSnapshot = editSnapshot();
     clearCardErrors();
   }
@@ -382,6 +393,10 @@
         cardExpYear: editCardExpYear,
         cardCvv: editCardCvv,
         cardPin: editCardPin,
+        customFields: editCustomFields.map((field) => ({
+          ...field,
+          name: field.name.trim(),
+        })),
       });
       _entry = updated;
       vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
@@ -1042,6 +1057,62 @@
     {/if}
 
     {#if editing}
+      <div class="custom-fields-editor">
+        <div class="custom-fields-heading">
+          <span class="notes-label">Custom fields</span>
+          <button
+            type="button"
+            class="add-custom-field"
+            onclick={() => {
+              editCustomFields = [
+                ...editCustomFields,
+                { name: "", value: "", protected: false },
+              ];
+            }}
+          >
+            <Icon name="plus" size={13} />
+            Add field
+          </button>
+        </div>
+        {#each editCustomFields as field, index}
+          <div class="custom-field-edit-row">
+            <input
+              class="control control--compact custom-field-name"
+              placeholder="Field name"
+              aria-label="Custom field name"
+              autocomplete="off"
+              bind:value={field.name}
+            />
+            <input
+              class="control control--compact custom-field-value"
+              type={field.protected ? "password" : "text"}
+              placeholder="Value"
+              aria-label="Custom field value"
+              autocomplete="off"
+              bind:value={field.value}
+            />
+            <label class="protect-custom-field" title="Protect this value in the vault">
+              <input
+                type="checkbox"
+                bind:checked={field.protected}
+                aria-label="Protect custom field"
+              />
+              <Icon name="lock" size={13} />
+            </label>
+            <button
+              type="button"
+              class="remove-custom-field"
+              aria-label="Remove custom field"
+              title="Remove custom field"
+              onclick={() => {
+                editCustomFields = editCustomFields.filter((_, itemIndex) => itemIndex !== index);
+              }}
+            >
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+        {/each}
+      </div>
       <div class="edit-tags">
         <span class="notes-label">Tags</span>
         <TagInput initialTags={editTags} onupdate={(t) => (editTags = t)} />
@@ -1066,6 +1137,25 @@
       {/if}
       {#if entry.notes}
         <NotesField notes={entry.notes} />
+      {/if}
+      {#if entry.customFields.length > 0}
+        <FieldGroup>
+          {#each entry.customFields as customField}
+            {#if customField.protected}
+              <PasswordField
+                label={customField.name}
+                reveal={() => entriesBridge.entryRevealCustomField(entry.id, customField.name)}
+                copy={() => clipboard.copyCustomField(entry.id, customField.name)}
+              />
+            {:else}
+              <Field
+                label={customField.name}
+                value={customField.value}
+                onCopy={() => clipboard.copyPlain(customField.value)}
+              />
+            {/if}
+          {/each}
+        </FieldGroup>
       {/if}
     {/if}
 
@@ -1248,6 +1338,73 @@
 
   .generate-btn:hover {
     background: var(--bg-accent);
+  }
+
+  .custom-fields-editor {
+    margin-bottom: 16px;
+  }
+
+  .custom-fields-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .custom-fields-heading .notes-label {
+    margin-bottom: 0;
+  }
+
+  .add-custom-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent);
+    font-size: 12px;
+  }
+
+  .custom-field-edit-row {
+    display: grid;
+    grid-template-columns: minmax(100px, 0.7fr) minmax(140px, 1.3fr) 28px 28px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .custom-field-name,
+  .custom-field-value {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .protect-custom-field,
+  .remove-custom-field {
+    display: flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .protect-custom-field:has(input:checked) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--bg-accent);
+  }
+
+  .protect-custom-field input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .remove-custom-field:hover {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 9%, transparent);
   }
 
   .edit-notes {

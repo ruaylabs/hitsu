@@ -60,6 +60,7 @@ impl std::fmt::Debug for EntryPatch {
             .field("card_exp_year", &self.card_exp_year)
             .field("card_cvv", &redacted_opt(&self.card_cvv))
             .field("card_pin", &redacted_opt(&self.card_pin))
+            .field("custom_fields", &self.custom_fields)
             .finish()
     }
 }
@@ -87,6 +88,7 @@ pub struct EntryPatch {
     pub card_exp_year: Option<String>,
     pub card_cvv: Option<String>,
     pub card_pin: Option<String>,
+    pub custom_fields: Option<Vec<CustomField>>,
 }
 
 /// Detail view of an entry sent to the webview.
@@ -333,6 +335,11 @@ mod tests {
             card_exp_year: Some("2030".into()),
             card_cvv: Some("123".into()),
             card_pin: Some("0000".into()),
+            custom_fields: Some(vec![CustomField {
+                name: "Recovery answer".into(),
+                value: "custom-SECRET".into(),
+                protected: true,
+            }]),
         };
         let s = format!("{patch:?}");
 
@@ -348,6 +355,7 @@ mod tests {
             "4242424242424242",
             "123",
             "0000",
+            "custom-SECRET",
         ] {
             assert!(
                 !s.contains(secret),

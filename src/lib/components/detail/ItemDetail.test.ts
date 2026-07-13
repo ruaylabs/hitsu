@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   entryDiscard: vi.fn(),
   entryDelete: vi.fn(),
   entryCopyField: vi.fn(),
+  entryRevealCustomField: vi.fn(),
+  entryCopyCustomField: vi.fn(),
   clipboardCopy: vi.fn(),
   clipboardClear: vi.fn(),
   openUrl: vi.fn(),
@@ -26,6 +28,8 @@ vi.mock("$lib/bridge/entries", () => ({
   entryDiscard: mocks.entryDiscard,
   entryDelete: mocks.entryDelete,
   entryCopyField: mocks.entryCopyField,
+  entryRevealCustomField: mocks.entryRevealCustomField,
+  entryCopyCustomField: mocks.entryCopyCustomField,
   toSummary: (entry: Entry): EntrySummary => ({
     id: entry.id,
     type: entry.type,
@@ -105,6 +109,8 @@ beforeEach(() => {
   mocks.entryRevealField.mockResolvedValue("stored-password");
   mocks.entryDiscard.mockResolvedValue(undefined);
   mocks.entryCopyField.mockResolvedValue(undefined);
+  mocks.entryRevealCustomField.mockResolvedValue("protected-value");
+  mocks.entryCopyCustomField.mockResolvedValue(undefined);
   mocks.clipboardCopy.mockResolvedValue(undefined);
   mocks.clipboardClear.mockResolvedValue(undefined);
 });
@@ -142,6 +148,52 @@ describe("ItemDetail errors", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(saveStatus.state).toBe("error");
     consoleError.mockRestore();
+  });
+});
+
+describe("custom fields", () => {
+  it("displays and reveals protected and unprotected fields", async () => {
+    selectEntry(
+      passwordEntry({
+        customFields: [
+          { name: "Environment", value: "Production", protected: false },
+          { name: "API key", value: "", protected: true },
+        ],
+      }),
+    );
+    render(ItemDetail);
+
+    expect(await screen.findByText("Production")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Reveal api key" }));
+
+    expect(mocks.entryRevealCustomField).toHaveBeenCalledWith("password-1", "API key");
+    expect(await screen.findByText("protected-value")).toBeInTheDocument();
+  });
+
+  it("adds a protected custom field while editing", async () => {
+    const entry = passwordEntry();
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue(entry);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    await fireEvent.click(await screen.findByRole("button", { name: "Add field" }));
+    await fireEvent.input(screen.getByRole("textbox", { name: "Custom field name" }), {
+      target: { value: "API key" },
+    });
+    await fireEvent.input(screen.getByLabelText("Custom field value"), {
+      target: { value: "secret" },
+    });
+    await fireEvent.click(screen.getByRole("checkbox", { name: "Protect custom field" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith(
+      "password-1",
+      expect.objectContaining({
+        customFields: [{ name: "API key", value: "secret", protected: true }],
+      }),
+    );
   });
 });
 

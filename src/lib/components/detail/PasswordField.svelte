@@ -72,14 +72,14 @@
       <IconButton
         icon={copied ? "check" : "copy"}
         onclick={copy}
-        aria-label="Copy password"
-        title="Copy password"
+        aria-label={`Copy ${label.toLowerCase()}`}
+        title={`Copy ${label.toLowerCase()}`}
       />
       <IconButton
         icon={revealed ? "eye-off" : "eye"}
         onclick={toggleReveal}
-        aria-label={revealed ? "Hide password" : "Reveal password"}
-        title={revealed ? "Hide password" : "Reveal password"}
+        aria-label={revealed ? `Hide ${label.toLowerCase()}` : `Reveal ${label.toLowerCase()}`}
+        title={revealed ? `Hide ${label.toLowerCase()}` : `Reveal ${label.toLowerCase()}`}
       />
     </div>
     {#if showStrength && revealed}

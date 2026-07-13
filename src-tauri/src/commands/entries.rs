@@ -5,8 +5,8 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
-    AttachmentMeta, CardFields, Entry, EntryDraft, EntryPatch, EntrySummary, HistoryEntrySummary,
-    IdentityFields, ItemType, SecretField,
+    AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryPatch, EntrySummary,
+    HistoryEntrySummary, IdentityFields, ItemType, SecretField,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -186,7 +186,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         identity,
         card,
         attachments: Vec::new(),
-        custom_fields: Vec::new(),
+        custom_fields: read_custom_fields(entry_ref),
         modified_at,
         created_at,
         history_count: entry_ref
@@ -229,6 +229,33 @@ fn read_icon_hint(entry: &keepass::db::Entry) -> Option<String> {
 
 fn read_favorite(entry: &keepass::db::Entry) -> bool {
     read_custom_data_string(entry, "kagi.favorite").is_some_and(|v| v == "true")
+}
+
+const CUSTOM_FIELD_PREFIX: &str = "custom.";
+
+fn custom_field_storage_name(name: &str) -> String {
+    format!("{CUSTOM_FIELD_PREFIX}{}", name.trim())
+}
+
+fn read_custom_fields(entry: &keepass::db::Entry) -> Vec<CustomField> {
+    let mut custom_fields = entry
+        .fields
+        .iter()
+        .filter_map(|(name, value)| {
+            let display_name = name.strip_prefix(CUSTOM_FIELD_PREFIX)?;
+            Some(CustomField {
+                name: display_name.to_string(),
+                value: if value.is_protected() {
+                    String::new()
+                } else {
+                    value.get().clone()
+                },
+                protected: value.is_protected(),
+            })
+        })
+        .collect::<Vec<_>>();
+    custom_fields.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    custom_fields
 }
 
 /// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
@@ -463,6 +490,7 @@ pub async fn entry_update(
     id: String,
     patch: EntryPatch,
 ) -> KagiResult<Entry> {
+    validate_custom_fields(&patch)?;
     // Take the writer lock before mutating so no other save can interleave
     // between our in-memory commit and our disk write.
     let _save_guard = state.save_lock.lock().await;
@@ -596,6 +624,57 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "card.expYear", &patch.card_exp_year);
     apply_opt(entry, "card.cvv", &patch.card_cvv);
     apply_opt(entry, "card.pin", &patch.card_pin);
+
+    if let Some(custom_fields) = &patch.custom_fields {
+        let existing = entry
+            .fields
+            .keys()
+            .filter(|name| name.starts_with(CUSTOM_FIELD_PREFIX))
+            .cloned()
+            .collect::<Vec<_>>();
+        for name in existing {
+            entry.fields.remove(&name);
+        }
+        for field in custom_fields {
+            let value = if field.protected {
+                Value::protected(field.value.clone())
+            } else {
+                Value::unprotected(field.value.clone())
+            };
+            entry
+                .fields
+                .insert(custom_field_storage_name(&field.name), value);
+        }
+    }
+}
+
+fn validate_custom_fields(patch: &EntryPatch) -> KagiResult<()> {
+    let Some(custom_fields) = &patch.custom_fields else {
+        return Ok(());
+    };
+    if custom_fields.len() > 64 {
+        return Err(KagiError::Custom(
+            "An entry cannot have more than 64 custom fields".into(),
+        ));
+    }
+    let mut names = std::collections::HashSet::new();
+    for field in custom_fields {
+        let name = field.name.trim();
+        if name.is_empty() {
+            return Err(KagiError::Custom(
+                "Custom field names cannot be empty".into(),
+            ));
+        }
+        if name.len() > 255 {
+            return Err(KagiError::Custom("Custom field name is too long".into()));
+        }
+        if !names.insert(name.to_lowercase()) {
+            return Err(KagiError::Custom(format!(
+                "Custom field names must be unique: {name}"
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -783,6 +862,42 @@ pub async fn entry_copy_field(
         let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
         zeroize::Zeroizing::new(read_secret_value(vault, &id, field, version)?)
     }; // lock released before touching the clipboard
+    super::clipboard::copy_secret(value, timeout_secs)
+}
+
+fn read_custom_field_value(vault: &OpenVault, id: &str, name: &str) -> KagiResult<String> {
+    let entry =
+        find_entry_ref(&vault.db, id).ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+    entry
+        .fields
+        .get(&custom_field_storage_name(name))
+        .map(|value| value.get().clone())
+        .ok_or_else(|| KagiError::Custom("Custom field not found".into()))
+}
+
+#[tauri::command]
+pub async fn entry_reveal_custom_field(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> KagiResult<String> {
+    let vaults = state.vaults.lock();
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    read_custom_field_value(vault, &id, &name)
+}
+
+#[tauri::command]
+pub async fn entry_copy_custom_field(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    timeout_secs: u64,
+) -> KagiResult<()> {
+    let value = {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        zeroize::Zeroizing::new(read_custom_field_value(vault, &id, &name)?)
+    };
     super::clipboard::copy_secret(value, timeout_secs)
 }
 
@@ -1033,9 +1148,11 @@ pub async fn entry_attachment_remove(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_entry_summaries, ensure_recycle_bin, mask_card_number, read_attachments,
-        read_totp_seed, safe_attachment_file_name, write_attachment_file,
+        apply_patch, build_entry_summaries, ensure_recycle_bin, map_entry_to_full,
+        mask_card_number, read_attachments, read_totp_seed, safe_attachment_file_name,
+        validate_custom_fields, write_attachment_file,
     };
+    use crate::models::{CustomField, EntryPatch};
 
     #[test]
     fn recycle_bin_is_created_once_and_marks_moved_entries() {
@@ -1058,6 +1175,60 @@ mod tests {
         let summaries = build_entry_summaries(&db);
         assert_eq!(summaries.len(), 1);
         assert!(summaries[0].trashed);
+    }
+
+    #[test]
+    fn custom_fields_roundtrip_and_protected_values_are_sanitized() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(entry_id)
+            .expect("duplicate entry id")
+            .set_unprotected("PluginData", "preserved");
+        let mut patch = EntryPatch::default();
+        patch.custom_fields = Some(vec![
+            CustomField {
+                name: "Environment".into(),
+                value: "Production".into(),
+                protected: false,
+            },
+            CustomField {
+                name: "API key".into(),
+                value: "secret".into(),
+                protected: true,
+            },
+        ]);
+        validate_custom_fields(&patch).unwrap();
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+
+        let entry = db.entry(entry_id).unwrap();
+        let mapped = map_entry_to_full(&entry, false);
+        assert_eq!(mapped.custom_fields[0].name, "API key");
+        assert_eq!(mapped.custom_fields[0].value, "");
+        assert!(mapped.custom_fields[0].protected);
+        assert_eq!(mapped.custom_fields[1].value, "Production");
+        assert!(!mapped.custom_fields[1].protected);
+        assert_eq!(entry.fields["custom.API key"].get(), "secret");
+        assert!(entry.fields["custom.API key"].is_protected());
+        assert_eq!(entry.fields["PluginData"].get(), "preserved");
+    }
+
+    #[test]
+    fn custom_field_validation_rejects_duplicate_names() {
+        let mut patch = EntryPatch::default();
+        patch.custom_fields = Some(vec![
+            CustomField {
+                name: "Title".into(),
+                value: "bad".into(),
+                protected: false,
+            },
+            CustomField {
+                name: "title".into(),
+                value: "duplicate".into(),
+                protected: false,
+            },
+        ]);
+        assert!(validate_custom_fields(&patch).is_err());
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AttachmentMeta, Entry, EntrySummary, SecretField } from "./types";
+import type { AttachmentMeta, CustomField, Entry, EntrySummary, SecretField } from "./types";
 
 /** Convert a full Entry to its safe summary (for the list store). */
 export function toSummary(entry: Entry): EntrySummary {
@@ -96,6 +96,7 @@ export interface EntryPatch {
   cardExpYear?: string | null;
   cardCvv?: string | null;
   cardPin?: string | null;
+  customFields?: CustomField[];
 }
 
 export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry> {
@@ -122,6 +123,7 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
       cardExpYear: patch.cardExpYear ?? null,
       cardCvv: patch.cardCvv ?? null,
       cardPin: patch.cardPin ?? null,
+      customFields: patch.customFields ?? null,
     },
   });
 }
@@ -138,6 +140,18 @@ export async function entryHistoryList(id: string): Promise<HistoryEntrySummary[
 
 export async function entryHistoryGet(id: string, version: number): Promise<Entry> {
   return invoke<Entry>("entry_history_get", { id, version });
+}
+
+export async function entryRevealCustomField(id: string, name: string): Promise<string> {
+  return invoke<string>("entry_reveal_custom_field", { id, name });
+}
+
+export async function entryCopyCustomField(
+  id: string,
+  name: string,
+  timeoutSecs: number,
+): Promise<void> {
+  return invoke<void>("entry_copy_custom_field", { id, name, timeoutSecs });
 }
 
 export async function entryDelete(id: string): Promise<void> {
