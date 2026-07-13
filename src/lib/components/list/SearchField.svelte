@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import type { ItemType } from "$lib/bridge/types";
@@ -9,16 +10,34 @@
   let { allowCreate = true }: { allowCreate?: boolean } = $props();
   let search = $state(selection.search);
 
+  // The input echoes keystrokes immediately, but filtering the list is
+  // deferred so fast typing doesn't re-filter on every keystroke.
+  const SEARCH_DEBOUNCE_MS = 100;
+  let debounce: ReturnType<typeof setTimeout> | undefined;
+
+  function setSearch(value: string) {
+    search = value;
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      selection.search = value;
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  function clearSearch() {
+    search = "";
+    clearTimeout(debounce);
+    selection.search = "";
+  }
+
+  onDestroy(() => clearTimeout(debounce));
+
   function onInput(e: Event) {
-    const el = e.currentTarget as HTMLInputElement;
-    search = el.value;
-    selection.search = search;
+    setSearch((e.currentTarget as HTMLInputElement).value);
   }
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
-      search = "";
-      selection.search = "";
+      clearSearch();
     }
   }
 
@@ -74,7 +93,7 @@
     {#if search}
       <button
         class="search-clear"
-        onclick={() => { search = ""; selection.search = ""; }}
+        onclick={clearSearch}
         aria-label="Clear search"
         title="Clear search"
       >

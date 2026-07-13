@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { entryHaystack } from "$lib/utils/search";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
   import SearchField from "./SearchField.svelte";
@@ -18,17 +19,49 @@
     }
     if (selection.search) {
       const q = selection.search.toLowerCase();
-      items = items.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.subtitle.toLowerCase().includes(q) ||
-          e.url?.toLowerCase().includes(q) ||
-          e.username?.toLowerCase().includes(q) ||
-          e.tags.some((t) => t.toLowerCase().includes(q)),
-      );
+      items = items.filter((e) => entryHaystack(e).includes(q));
     }
     return items;
   });
+
+  // Windowed rendering: only the rows intersecting the viewport (plus a
+  // small overscan) exist in the DOM. Must match .list-row's fixed height.
+  const ROW_HEIGHT = 50;
+  const OVERSCAN = 5;
+
+  let scrollEl = $state<HTMLDivElement | undefined>();
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+
+  let startIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN));
+  let endIndex = $derived(
+    Math.min(filtered.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN),
+  );
+  let visible = $derived(filtered.slice(startIndex, endIndex));
+
+  // When the list shrinks or the viewport grows, the browser clamps the
+  // container's scrollTop without necessarily firing a scroll event;
+  // re-read it so the window doesn't point past the end of the list.
+  $effect(() => {
+    void filtered.length;
+    void viewportHeight;
+    if (scrollEl) scrollTop = scrollEl.scrollTop;
+  });
+
+  /** Scroll just far enough that row `index` is fully inside the viewport,
+   * so it is rendered and focusable. Mirrors what the browser used to do
+   * implicitly when focusing an off-screen row. */
+  function scrollIndexIntoView(index: number) {
+    if (!scrollEl) return;
+    const top = index * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    if (top < scrollEl.scrollTop) {
+      scrollEl.scrollTop = top;
+    } else if (bottom > scrollEl.scrollTop + scrollEl.clientHeight) {
+      scrollEl.scrollTop = bottom - scrollEl.clientHeight;
+    }
+    scrollTop = scrollEl.scrollTop;
+  }
 
   let hasSelection = $derived(
     filtered.length > 0 && filtered.some((e) => e.id === selection.selectedId),
@@ -84,12 +117,17 @@
 
     if (next !== current && filtered[next]) {
       const nextEntry = filtered[next];
+      const nextIndex = next;
       selection.requestNavigation(() => {
         selection.selectedId = nextEntry.id;
-        // Focus only after navigation is allowed (immediately or after the
-        // unsaved-changes dialog is resolved).
+        // The target row may not be in the DOM yet (windowed rendering), so
+        // scroll it into range first, then focus after navigation is allowed
+        // (immediately or after the unsaved-changes dialog is resolved).
+        scrollIndexIntoView(nextIndex);
         void tick().then(() => {
-          document.querySelector<HTMLButtonElement>(`[data-entry-id="${nextEntry.id}"]`)?.focus();
+          document
+            .querySelector<HTMLButtonElement>(`[data-entry-id="${nextEntry.id}"]`)
+            ?.focus({ preventScroll: true });
         });
       });
     }
@@ -100,13 +138,33 @@
 
 <div class="item-list">
   <SearchField allowCreate={selection.filter.kind !== "trash"} />
-  <div class="list-rows" role="listbox">
-    {#each filtered as entry (entry.id)}
-      <ItemListRow
-        {entry}
-        selected={entry.id === selection.selectedId}
-        onclick={() => selection.requestNavigation(() => { selection.selectedId = entry.id; })}
-      />
+  <div
+    class="list-rows"
+    role="listbox"
+    bind:this={scrollEl}
+    bind:clientHeight={viewportHeight}
+    onscroll={() => { scrollTop = scrollEl?.scrollTop ?? 0; }}
+  >
+    {#if filtered.length > 0}
+      <div
+        class="virtual-spacer"
+        role="presentation"
+        style="height: {filtered.length * ROW_HEIGHT}px"
+      >
+        <div
+          class="virtual-window"
+          role="presentation"
+          style="transform: translateY({startIndex * ROW_HEIGHT}px)"
+        >
+          {#each visible as entry (entry.id)}
+            <ItemListRow
+              {entry}
+              selected={entry.id === selection.selectedId}
+              onclick={() => selection.requestNavigation(() => { selection.selectedId = entry.id; })}
+            />
+          {/each}
+        </div>
+      </div>
     {:else}
       <div class="empty-list">
         {#if selection.search}
@@ -120,7 +178,7 @@
           <p>No entries yet</p>
         {/if}
       </div>
-    {/each}
+    {/if}
   </div>
 </div>
 
@@ -136,6 +194,15 @@
   .list-rows {
     flex: 1;
     overflow-y: auto;
+  }
+
+  .virtual-spacer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .virtual-window {
+    will-change: transform;
   }
 
   .empty-list {

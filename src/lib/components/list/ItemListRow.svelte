@@ -40,7 +40,10 @@
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 10px 12px;
+    /* Fixed height: the virtualized list (ItemList) positions rows at
+       ROW_HEIGHT intervals, so this must stay in sync with that constant. */
+    height: 50px;
+    padding: 0 12px;
     border-bottom: 0.5px solid var(--border);
     width: 100%;
     text-align: left;
