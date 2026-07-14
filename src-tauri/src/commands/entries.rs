@@ -609,6 +609,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "identity.email", &patch.email);
     apply_opt(entry, "identity.phone", &patch.phone);
     apply_opt(entry, "identity.address", &patch.address);
+    apply_opt(entry, "identity.dob", &patch.dob);
     apply_opt(entry, "card.holder", &patch.card_holder);
     apply_opt(entry, "card.number", &patch.card_number);
     apply_opt(entry, "card.type", &patch.card_type);

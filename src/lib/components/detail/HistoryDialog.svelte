@@ -202,6 +202,9 @@
                       onCopy={() => clipboard.copyPlain(detailEntry!.identity!.address!)}
                     />
                   {/if}
+                  {#if detailEntry.identity.dob}
+                    <Field label="Date of birth" value={detailEntry.identity.dob} />
+                  {/if}
                 </FieldGroup>
               {/if}
 

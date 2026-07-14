@@ -233,6 +233,45 @@ describe("entry refreshes", () => {
   });
 });
 
+describe("identity entry workflow", () => {
+  it("displays and saves the date of birth", async () => {
+    const entry = passwordEntry({
+      id: "identity-1",
+      type: "identity",
+      title: "Alice Example",
+      url: undefined,
+      hasPassword: false,
+      identity: {
+        firstName: "Alice",
+        lastName: "Example",
+        dob: "1990-01-02",
+      },
+    });
+    const updated = {
+      ...entry,
+      identity: { ...entry.identity, dob: "1991-03-04" },
+    };
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue(updated);
+    render(ItemDetail);
+
+    expect(await screen.findByText("1990-01-02")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Edit entry" }));
+
+    const dob = await screen.findByLabelText("Date of birth");
+    expect(dob).toHaveValue("1990-01-02");
+    await fireEvent.input(dob, { target: { value: "1991-03-04" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith(
+      "identity-1",
+      expect.objectContaining({ dob: "1991-03-04" }),
+    );
+    expect(await screen.findByText("1991-03-04")).toBeInTheDocument();
+  });
+});
+
 describe("password entry workflow", () => {
   it("shows password and URL editors for a new password entry", async () => {
     selectEntry(passwordEntry({ hasPassword: false, url: undefined }), true);

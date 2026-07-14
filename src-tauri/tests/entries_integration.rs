@@ -240,6 +240,58 @@ async fn update_persists_to_disk() {
 }
 
 #[tokio::test]
+async fn identity_date_of_birth_roundtrips_and_clears() {
+    let tv = setup();
+    let state = tv.state();
+
+    let entry = entry_create(
+        state.clone(),
+        "identity".to_string(),
+        draft("Alice Example"),
+    )
+    .await
+    .unwrap();
+
+    let saved = entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| p.dob = Some("1990-01-02".to_string())),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        saved
+            .identity
+            .as_ref()
+            .and_then(|identity| identity.dob.as_deref()),
+        Some("1990-01-02")
+    );
+    let disk = tv.reload_disk();
+    let disk_entry = disk.iter_all_entries().next().expect("one entry on disk");
+    assert_eq!(disk_entry.get("identity.dob"), Some("1990-01-02"));
+
+    let cleared = entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|p| p.dob = Some(String::new())),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        cleared
+            .identity
+            .as_ref()
+            .and_then(|identity| identity.dob.as_deref()),
+        None
+    );
+    let disk = tv.reload_disk();
+    let disk_entry = disk.iter_all_entries().next().expect("one entry on disk");
+    assert_eq!(disk_entry.get("identity.dob"), None);
+}
+
+#[tokio::test]
 async fn update_nonexistent_entry_errors() {
     let tv = setup();
     let state = tv.state();

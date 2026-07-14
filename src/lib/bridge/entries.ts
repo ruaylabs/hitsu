@@ -85,6 +85,7 @@ export interface EntryPatch {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  dob?: string | null;
   cardHolder?: string | null;
   cardNumber?: string | null;
   cardType?: string | null;
@@ -112,6 +113,7 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
       email: patch.email ?? null,
       phone: patch.phone ?? null,
       address: patch.address ?? null,
+      dob: patch.dob ?? null,
       cardHolder: patch.cardHolder ?? null,
       cardNumber: patch.cardNumber ?? null,
       cardType: patch.cardType ?? null,

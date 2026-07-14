@@ -141,6 +141,7 @@
   let editEmail = $state("");
   let editPhone = $state("");
   let editAddress = $state("");
+  let editDob = $state("");
   // Card fields
   let editCardHolder = $state("");
   let editCardNumber = $state("");
@@ -174,6 +175,7 @@
       email: editEmail,
       phone: editPhone,
       address: editAddress,
+      dob: editDob,
       cardHolder: editCardHolder,
       cardNumber: editCardNumber,
       cardType: editCardType,
@@ -250,6 +252,7 @@
     editEmail = e.identity?.email ?? "";
     editPhone = e.identity?.phone ?? "";
     editAddress = e.identity?.address ?? "";
+    editDob = e.identity?.dob ?? "";
     editCardHolder = e.card?.holder ?? "";
     editCardType = e.card?.type ?? "";
     editCardExpMonth = e.card?.expMonth?.toString() ?? "";
@@ -406,6 +409,7 @@
         email: editEmail,
         phone: editPhone,
         address: editAddress,
+        dob: editDob,
         cardHolder: editCardHolder,
         cardNumber: editCardNumber,
         cardType: editCardType,
@@ -823,6 +827,15 @@
               bind:value={editAddress}
             />
           </DetailFieldRow>
+          <DetailFieldRow label="Date of birth">
+            <input
+              class="control control--compact edit-input"
+              type="date"
+              aria-label="Date of birth"
+              autocomplete="bday"
+              bind:value={editDob}
+            />
+          </DetailFieldRow>
         {:else if entry.type === "card"}
           <DetailFieldRow label="Holder">
             <input
@@ -1030,6 +1043,9 @@
         {/if}
         {#if entry.identity.address}
           <Field label="Address" value={entry.identity.address} />
+        {/if}
+        {#if entry.identity.dob}
+          <Field label="Date of birth" value={entry.identity.dob} />
         {/if}
       </FieldGroup>
     {/if}

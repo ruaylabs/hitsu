@@ -53,6 +53,7 @@ impl std::fmt::Debug for EntryPatch {
             .field("email", &self.email)
             .field("phone", &self.phone)
             .field("address", &self.address)
+            .field("dob", &self.dob)
             .field("card_holder", &self.card_holder)
             .field("card_number", &redacted_opt(&self.card_number))
             .field("card_type", &self.card_type)
@@ -81,6 +82,7 @@ pub struct EntryPatch {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub address: Option<String>,
+    pub dob: Option<String>,
     pub card_holder: Option<String>,
     pub card_number: Option<String>,
     pub card_type: Option<String>,
@@ -328,6 +330,7 @@ mod tests {
             email: Some("alice@example.com".into()),
             phone: None,
             address: None,
+            dob: Some("1990-01-02".into()),
             card_holder: Some("Alice".into()),
             card_number: Some("4242424242424242".into()),
             card_type: Some("Visa".into()),
@@ -344,7 +347,15 @@ mod tests {
         let s = format!("{patch:?}");
 
         // PII / metadata should pass through.
-        for visible in ["email", "Alice", "Visa", "12", "2030", "alice@example.com"] {
+        for visible in [
+            "email",
+            "Alice",
+            "Visa",
+            "12",
+            "2030",
+            "1990-01-02",
+            "alice@example.com",
+        ] {
             assert!(s.contains(visible), "expected {visible:?} in Debug: {s}");
         }
         // Secrets must be redacted.
