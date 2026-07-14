@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ItemType } from "$lib/bridge/types";
+  import { ENTRY_TYPES } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import SidebarItem from "./SidebarItem.svelte";
@@ -9,11 +10,13 @@
   let allCount = $derived(activeEntries.length);
   let favoritesCount = $derived(activeEntries.filter((e) => e.favorite).length);
   let trashCount = $derived(vault.entries.filter((e) => e.trashed).length);
-  let loginCount = $derived(activeEntries.filter((e) => e.type === "login").length);
-  let passwordCount = $derived(activeEntries.filter((e) => e.type === "password").length);
-  let noteCount = $derived(activeEntries.filter((e) => e.type === "note").length);
-  let identityCount = $derived(activeEntries.filter((e) => e.type === "identity").length);
-  let cardCount = $derived(activeEntries.filter((e) => e.type === "card").length);
+  let typeCounts = $derived.by(() => {
+    const counts: Partial<Record<ItemType, number>> = {};
+    for (const entry of activeEntries) {
+      counts[entry.type] = (counts[entry.type] ?? 0) + 1;
+    }
+    return counts;
+  });
 
   let tags = $derived([...new Set(activeEntries.flatMap((e) => e.tags))].sort());
 
@@ -72,41 +75,15 @@
   </SidebarSection>
 
   <SidebarSection label="Types">
-    <SidebarItem
-      label="Logins"
-      icon="key"
-      count={loginCount}
-      selected={isSelected("type", "login")}
-      onclick={() => selectFilter({ kind: "type", type: "login" })}
-    />
-    <SidebarItem
-      label="Passwords"
-      icon="lock"
-      count={passwordCount}
-      selected={isSelected("type", "password")}
-      onclick={() => selectFilter({ kind: "type", type: "password" })}
-    />
-    <SidebarItem
-      label="Notes"
-      icon="notes"
-      count={noteCount}
-      selected={isSelected("type", "note")}
-      onclick={() => selectFilter({ kind: "type", type: "note" })}
-    />
-    <SidebarItem
-      label="Identities"
-      icon="user"
-      count={identityCount}
-      selected={isSelected("type", "identity")}
-      onclick={() => selectFilter({ kind: "type", type: "identity" })}
-    />
-    <SidebarItem
-      label="Cards"
-      icon="credit-card"
-      count={cardCount}
-      selected={isSelected("type", "card")}
-      onclick={() => selectFilter({ kind: "type", type: "card" })}
-    />
+    {#each ENTRY_TYPES as item (item.type)}
+      <SidebarItem
+        label={item.pluralLabel}
+        icon={item.icon}
+        count={typeCounts[item.type] ?? 0}
+        selected={isSelected("type", item.type)}
+        onclick={() => selectFilter({ kind: "type", type: item.type })}
+      />
+    {/each}
   </SidebarSection>
 
   {#if tags.length > 0}

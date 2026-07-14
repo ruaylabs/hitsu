@@ -109,18 +109,18 @@
     if (selection.selectedId) entryDeletion.request(selection.selectedId);
   }
 
-  function onCreateEntry(type: string) {
+  function onCreateEntry(type: ItemType) {
     selection.requestNavigation(() => {
       void createEntry(type);
     });
   }
 
-  async function createEntry(type: string) {
+  async function createEntry(type: ItemType) {
     showCommandPalette = false;
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
       vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = { kind: "type", type: type as ItemType };
+      selection.filter = { kind: "type", type };
       selection.selectedId = entry.id;
       vault.setCreatingId(entry.id);
       vault.setEditingId(entry.id);

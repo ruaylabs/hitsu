@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ItemType } from "$lib/bridge/types";
+  import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import Icon from "../ui/Icon.svelte";
 
   const brandIcons: Record<string, string> = {
@@ -21,22 +23,6 @@
     forgejo: "#4a90d9",
   };
 
-  const typeColors: Record<string, string> = {
-    login: "#378add",
-    password: "#d85a30",
-    note: "#a1a09a",
-    identity: "#7f77dd",
-    card: "#1d9e75",
-  };
-
-  const typeIcons: Record<string, string> = {
-    login: "key",
-    password: "lock",
-    note: "notes",
-    identity: "user",
-    card: "credit-card",
-  };
-
   let {
     iconHint,
     type,
@@ -44,21 +30,25 @@
     size = 30,
   }: {
     iconHint?: string;
-    type: string;
+    type: ItemType;
     title: string;
     size?: number;
   } = $props();
 
   let brandKey = $derived(iconHint && brandIcons[iconHint] ? iconHint : null);
+  let typeMetadata = $derived(ENTRY_TYPE_BY_TYPE[type]);
 
-  let bgColor = $derived(brandKey ? brandColors[brandKey] : typeColors[type] || typeColors.login);
+  let bgColor = $derived(brandKey ? brandColors[brandKey] : typeMetadata.color);
 
-  let iconName = $derived(brandKey ? brandIcons[brandKey] : typeIcons[type] || typeIcons.login);
+  let iconName = $derived(brandKey ? brandIcons[brandKey] : typeMetadata.icon);
 </script>
 
 <div
   class="entry-icon"
-  style="width: {size}px; height: {size}px; background: {bgColor}; border-radius: {Math.round(size * 0.233)}px;"
+  style:width={`${size}px`}
+  style:height={`${size}px`}
+  style:background={bgColor}
+  style:border-radius={`${Math.round(size * 0.233)}px`}
 >
   <Icon name={iconName} size={Math.round(size * 0.53)} />
 </div>

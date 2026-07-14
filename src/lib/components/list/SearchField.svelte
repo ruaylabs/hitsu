@@ -3,6 +3,7 @@
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import type { ItemType } from "$lib/bridge/types";
+  import { ENTRY_TYPES } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -41,17 +42,17 @@
     }
   }
 
-  function requestCreateEntry(type: string) {
+  function requestCreateEntry(type: ItemType) {
     selection.requestNavigation(() => {
       void createEntry(type);
     });
   }
 
-  async function createEntry(type: string) {
+  async function createEntry(type: ItemType) {
     try {
       const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
       vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = { kind: "type", type: type as ItemType };
+      selection.filter = { kind: "type", type };
       selection.selectedId = entry.id;
       // Mark as a brand-new entry so ItemDetail auto-discards it if the
       // user navigates away (or cancels) without saving. Must match the
@@ -105,46 +106,19 @@
       <div class="search-actions">
         {#if showTypePicker}
           <div class="type-picker" role="menu">
-            <button
-              class="type-item"
-              onclick={() => { showTypePicker = false; requestCreateEntry("login"); }}
-              role="menuitem"
-            >
-              <Icon name="key" size={12} />
-              Login
-            </button>
-            <button
-              class="type-item"
-              onclick={() => { showTypePicker = false; requestCreateEntry("password"); }}
-              role="menuitem"
-            >
-              <Icon name="lock" size={12} />
-              Password
-            </button>
-            <button
-              class="type-item"
-              onclick={() => { showTypePicker = false; requestCreateEntry("note"); }}
-              role="menuitem"
-            >
-              <Icon name="notes" size={12} />
-              Note
-            </button>
-            <button
-              class="type-item"
-              onclick={() => { showTypePicker = false; requestCreateEntry("identity"); }}
-              role="menuitem"
-            >
-              <Icon name="user" size={12} />
-              Identity
-            </button>
-            <button
-              class="type-item"
-              onclick={() => { showTypePicker = false; requestCreateEntry("card"); }}
-              role="menuitem"
-            >
-              <Icon name="credit-card" size={12} />
-              Card
-            </button>
+            {#each ENTRY_TYPES as item (item.type)}
+              <button
+                class="type-item"
+                onclick={() => {
+                  showTypePicker = false;
+                  requestCreateEntry(item.type);
+                }}
+                role="menuitem"
+              >
+                <Icon name={item.icon} size={12} />
+                {item.label}
+              </button>
+            {/each}
           </div>
         {/if}
         <button

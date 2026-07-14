@@ -1,29 +1,23 @@
 <script lang="ts">
+  import type { ItemType } from "$lib/bridge/types";
+  import { ENTRY_TYPES } from "$lib/entryTypes";
   import Icon from "./Icon.svelte";
 
   let {
     onSelect,
     onClose,
   }: {
-    onSelect: (type: string) => void;
+    onSelect: (type: ItemType) => void;
     onClose: () => void;
   } = $props();
-
-  const items = [
-    { type: "login", label: "Login", icon: "key" },
-    { type: "password", label: "Password", icon: "lock" },
-    { type: "note", label: "Note", icon: "notes" },
-    { type: "identity", label: "Identity", icon: "user" },
-    { type: "card", label: "Card", icon: "credit-card" },
-  ];
 
   let search = $state("");
   let selectedIndex = $state(0);
 
   let filtered = $derived(
     search
-      ? items.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
-      : items,
+      ? ENTRY_TYPES.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
+      : ENTRY_TYPES,
   );
 
   // Reset selection when filter changes
