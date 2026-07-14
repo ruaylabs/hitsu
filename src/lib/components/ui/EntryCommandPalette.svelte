@@ -36,16 +36,19 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    const ctrlNext = event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "n";
+    const ctrlPrevious = event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "p";
+
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
       onClose();
-    } else if (event.key === "ArrowDown") {
+    } else if (event.key === "ArrowDown" || ctrlNext) {
       event.preventDefault();
       event.stopPropagation();
       selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
       keepSelectedVisible();
-    } else if (event.key === "ArrowUp") {
+    } else if (event.key === "ArrowUp" || ctrlPrevious) {
       event.preventDefault();
       event.stopPropagation();
       selectedIndex = Math.max(selectedIndex - 1, 0);

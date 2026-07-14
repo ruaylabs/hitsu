@@ -39,14 +39,22 @@ describe("EntryCommandPalette", () => {
     expect(onSelect).toHaveBeenCalledWith(entries[1]);
   });
 
-  it("supports keyboard navigation and selection", async () => {
+  it("supports Ctrl+N and Ctrl+P navigation", async () => {
     const onSelect = vi.fn();
     render(EntryCommandPalette, { entries, onSelect, onClose: vi.fn() });
     const input = screen.getByRole("textbox", { name: "Search entries" });
 
-    await fireEvent.keyDown(input, { key: "ArrowDown" });
-    await fireEvent.keyDown(input, { key: "Enter" });
+    await fireEvent.keyDown(input, { key: "n", ctrlKey: true });
+    expect(screen.getByRole("option", { name: /Travel card/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
+    await fireEvent.keyDown(input, { key: "p", ctrlKey: true });
+    expect(screen.getByRole("option", { name: /Kagi/ })).toHaveAttribute("aria-selected", "true");
+
+    await fireEvent.keyDown(input, { key: "n", ctrlKey: true });
+    await fireEvent.keyDown(input, { key: "Enter" });
     expect(onSelect).toHaveBeenCalledWith(entries[1]);
   });
 });

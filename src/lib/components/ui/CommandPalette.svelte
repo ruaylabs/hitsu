@@ -28,15 +28,18 @@
   });
 
   function onKeydown(e: KeyboardEvent) {
+    const ctrlNext = e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "n";
+    const ctrlPrevious = e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "p";
+
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       onClose();
-    } else if (e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown" || ctrlNext) {
       e.preventDefault();
       e.stopPropagation();
       selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" || ctrlPrevious) {
       e.preventDefault();
       e.stopPropagation();
       selectedIndex = Math.max(selectedIndex - 1, 0);
