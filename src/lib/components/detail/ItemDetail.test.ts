@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   entryCopyField: vi.fn(),
   entryRevealCustomField: vi.fn(),
   entryCopyCustomField: vi.fn(),
+  entryAttachmentRemove: vi.fn(),
   clipboardCopy: vi.fn(),
   clipboardClear: vi.fn(),
   openUrl: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("$lib/bridge/entries", () => ({
   entryCopyField: mocks.entryCopyField,
   entryRevealCustomField: mocks.entryRevealCustomField,
   entryCopyCustomField: mocks.entryCopyCustomField,
+  entryAttachmentRemove: mocks.entryAttachmentRemove,
   toSummary: (entry: Entry): EntrySummary => ({
     id: entry.id,
     type: entry.type,
@@ -111,6 +113,7 @@ beforeEach(() => {
   mocks.entryCopyField.mockResolvedValue(undefined);
   mocks.entryRevealCustomField.mockResolvedValue("protected-value");
   mocks.entryCopyCustomField.mockResolvedValue(undefined);
+  mocks.entryAttachmentRemove.mockResolvedValue(undefined);
   mocks.clipboardCopy.mockResolvedValue(undefined);
   mocks.clipboardClear.mockResolvedValue(undefined);
 });
@@ -194,6 +197,39 @@ describe("custom fields", () => {
         customFields: [{ name: "API key", value: "secret", protected: true }],
       }),
     );
+  });
+});
+
+describe("entry refreshes", () => {
+  it("ignores an attachment refresh after selection changes", async () => {
+    const first = passwordEntry({
+      attachments: [{ id: "notes.txt", name: "notes.txt", sizeBytes: 12 }],
+    });
+    const second = passwordEntry({ id: "password-2", title: "Second password" });
+    selectEntry(first);
+    render(ItemDetail);
+
+    expect(await screen.findByRole("heading", { name: first.title })).toBeInTheDocument();
+
+    let resolveRefresh!: (entry: Entry) => void;
+    const refresh = new Promise<Entry>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    mocks.entryGet.mockReturnValueOnce(refresh);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Remove notes.txt" }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
+    await waitFor(() => expect(mocks.entryGet).toHaveBeenCalledTimes(2));
+
+    mocks.entryGet.mockResolvedValue(second);
+    vault.setEntries([summary(first), summary(second)]);
+    selection.selectedId = second.id;
+    expect(await screen.findByRole("heading", { name: second.title })).toBeInTheDocument();
+
+    resolveRefresh(first);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: second.title })).toBeInTheDocument();
+    });
   });
 });
 

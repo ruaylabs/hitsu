@@ -36,6 +36,27 @@
   let fetchId = 0;
   let loadingTimer: ReturnType<typeof setTimeout> | undefined;
 
+  function installUpdatedEntry(updated: Entry) {
+    vault.setEntries(
+      vault.entries.map((summary) => (summary.id === updated.id ? toSummary(updated) : summary)),
+    );
+    if (selection.selectedId === updated.id) _entry = updated;
+  }
+
+  async function refreshEntry(id: string) {
+    const thisFetch = ++fetchId;
+    try {
+      const refreshed = await entriesBridge.entryGet(id);
+      if (thisFetch === fetchId && selection.selectedId === id) {
+        installUpdatedEntry(refreshed);
+      }
+    } catch (error) {
+      if (thisFetch === fetchId && selection.selectedId === id) {
+        console.error("Failed to refresh entry", error);
+      }
+    }
+  }
+
   // Fetch the full entry whenever selection changes
   $effect(() => {
     const id = selection.selectedId;
@@ -63,7 +84,7 @@
       .then((e) => {
         if (thisFetch === fetchId) {
           if (loadingTimer) clearTimeout(loadingTimer);
-          _entry = e;
+          installUpdatedEntry(e);
           entryLoading = false;
         }
       })
@@ -267,8 +288,7 @@
       const updated = await entriesBridge.entryUpdate(_entry.id, {
         favorite: !_entry.favorite,
       });
-      _entry = updated;
-      vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
+      installUpdatedEntry(updated);
       saveStatus.markSaved();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -398,8 +418,7 @@
           name: field.name.trim(),
         })),
       });
-      _entry = updated;
-      vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
+      installUpdatedEntry(updated);
       editing = false;
       newEntryId = null;
       initialEditSnapshot = editSnapshot();
@@ -1163,9 +1182,7 @@
       <AttachmentList
         entryId={entry.id}
         attachments={entry.attachments}
-        onchange={() => {
-          entriesBridge.entryGet(entry.id).then((e) => { _entry = e; }).catch(() => {});
-        }}
+        onchange={() => void refreshEntry(entry.id)}
       />
       <DetailFooter
         modifiedAt={entry.modifiedAt}
@@ -1204,11 +1221,8 @@
       if (!_entry) return;
       try {
         const updated = await entriesBridge.entryUpdate(_entry.id, { totp: uri });
-        _entry = updated;
-        vault.setEntries(vault.entries.map((s) => (s.id === updated.id ? toSummary(updated) : s)));
-        if (editing) {
-          editTotp = uri;
-        }
+        installUpdatedEntry(updated);
+        if (editing && selection.selectedId === updated.id) editTotp = uri;
         toast.success("TOTP configured successfully");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
