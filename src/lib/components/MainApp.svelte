@@ -4,7 +4,7 @@
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
-  import type { ItemType } from "$lib/bridge/types";
+  import type { EntrySummary, ItemType } from "$lib/bridge/types";
   import * as vaultBridge from "$lib/bridge/vault";
   import StatusBar from "$lib/components/chrome/StatusBar.svelte";
   import ItemDetail from "$lib/components/detail/ItemDetail.svelte";
@@ -13,6 +13,7 @@
   import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
+  import EntryCommandPalette from "$lib/components/ui/EntryCommandPalette.svelte";
   import ShortcutsDialog from "$lib/components/ui/ShortcutsDialog.svelte";
   import { app } from "$lib/stores/app.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
@@ -23,6 +24,7 @@
   import { vault } from "$lib/stores/vault.svelte";
 
   let showCommandPalette = $state(false);
+  let showEntryCommandPalette = $state(false);
   let showShortcuts = $state(false);
 
   const SIDEBAR_DEFAULT = 168;
@@ -130,6 +132,16 @@
     }
   }
 
+  function onSelectEntry(entry: EntrySummary) {
+    selection.requestNavigation(() => {
+      showEntryCommandPalette = false;
+      app.view = "main";
+      selection.search = "";
+      selection.filter = entry.trashed ? { kind: "trash" } : { kind: "all" };
+      selection.selectedId = entry.id;
+    });
+  }
+
   function onkeydown(e: KeyboardEvent) {
     const target = e.target as HTMLElement | null;
     const isEditable =
@@ -145,6 +157,10 @@
     }
 
     if (e.key === "Escape") {
+      if (showEntryCommandPalette) {
+        showEntryCommandPalette = false;
+        return;
+      }
       if (showCommandPalette) {
         showCommandPalette = false;
         return;
@@ -158,8 +174,14 @@
       e.preventDefault();
       selection.requestNavigation(() => app.toggleSettings());
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
+      showCommandPalette = false;
+      showEntryCommandPalette = true;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      showEntryCommandPalette = false;
       showCommandPalette = true;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
@@ -288,6 +310,14 @@
 
 {#if showCommandPalette}
   <CommandPalette onSelect={onCreateEntry} onClose={() => (showCommandPalette = false)} />
+{/if}
+
+{#if showEntryCommandPalette}
+  <EntryCommandPalette
+    entries={vault.entries}
+    onSelect={onSelectEntry}
+    onClose={() => (showEntryCommandPalette = false)}
+  />
 {/if}
 
 {#if showKdfUpgrade}

@@ -44,6 +44,19 @@ describe("Dialog", () => {
     expect(onclose).toHaveBeenCalledOnce();
   });
 
+  it("supports a headerless, top-aligned presentation", () => {
+    const { container } = render(DialogHarness, {
+      onclose: vi.fn(),
+      showHeader: false,
+      placement: "top",
+    });
+
+    expect(screen.getByRole("dialog", { name: "Test dialog" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+    expect(container.querySelector(".dialog-overlay")).toHaveClass("placement-top");
+  });
+
   it("wraps Tab and Shift+Tab inside the dialog", async () => {
     render(DialogHarness, { onclose: vi.fn() });
     const close = screen.getByRole("button", { name: "Close" });

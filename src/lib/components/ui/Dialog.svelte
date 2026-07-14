@@ -6,10 +6,14 @@
     title,
     onclose,
     onconfirm,
+    onkeydown,
     children,
     footer,
     showFooter = true,
     titleContent,
+    showHeader = true,
+    placement = "center",
+    topOffset = "96px",
     size = "md",
     width,
     height,
@@ -25,10 +29,14 @@
     title: string;
     onclose?: () => void;
     onconfirm?: () => void;
+    onkeydown?: (event: KeyboardEvent) => void;
     children: Snippet;
     footer?: Snippet;
     showFooter?: boolean;
     titleContent?: Snippet;
+    showHeader?: boolean;
+    placement?: "center" | "top";
+    topOffset?: string;
     size?: "sm" | "md" | "lg";
     width?: string;
     height?: string;
@@ -78,7 +86,9 @@
   onMount(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     queueMicrotask(() => {
-      if (!pane.contains(document.activeElement)) pane.focus();
+      const autofocusTarget = pane.querySelector<HTMLElement>("[autofocus]:not(:disabled)");
+      if (autofocusTarget) autofocusTarget.focus();
+      else if (!pane.contains(document.activeElement)) pane.focus();
     });
 
     return () => previouslyFocused?.focus();
@@ -87,7 +97,14 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="dialog-overlay" class:transparent onclick={handleBackdropClick} role="presentation">
+<div
+  class="dialog-overlay"
+  class:transparent
+  class:placement-top={placement === "top"}
+  style:--dialog-top-offset={topOffset}
+  onclick={handleBackdropClick}
+  role="presentation"
+>
   <div
     bind:this={pane}
     class={["dialog-pane", `dialog-${size}`].join(" ")}
@@ -99,25 +116,28 @@
     style:height
     style:max-width={maxWidth}
     style:max-height={maxHeight}
+    {onkeydown}
   >
-    <header class="dialog-header">
-      <h2 class="dialog-title">
-        {#if titleContent}
-          {@render titleContent()}
-        {:else}
-          {title}
+    {#if showHeader}
+      <header class="dialog-header">
+        <h2 class="dialog-title">
+          {#if titleContent}
+            {@render titleContent()}
+          {:else}
+            {title}
+          {/if}
+        </h2>
+        {#if onclose}
+          <IconButton
+            icon="x"
+            iconSize={16}
+            onclick={onclose}
+            aria-label={closeLabel}
+            title={closeLabel}
+          />
         {/if}
-      </h2>
-      {#if onclose}
-        <IconButton
-          icon="x"
-          iconSize={16}
-          onclick={onclose}
-          aria-label={closeLabel}
-          title={closeLabel}
-        />
-      {/if}
-    </header>
+      </header>
+    {/if}
 
     <div
       class="dialog-body"
@@ -147,6 +167,11 @@
     justify-content: center;
     background: var(--backdrop);
     z-index: var(--z-dialog);
+  }
+
+  .dialog-overlay.placement-top {
+    align-items: flex-start;
+    padding-top: var(--dialog-top-offset);
   }
 
   .dialog-overlay.transparent {

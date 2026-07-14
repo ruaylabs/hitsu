@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPES } from "$lib/entryTypes";
+  import Dialog from "./Dialog.svelte";
   import Icon from "./Icon.svelte";
 
   let {
@@ -29,15 +30,19 @@
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
       onClose();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
+      e.stopPropagation();
       selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      e.stopPropagation();
       selectedIndex = Math.max(selectedIndex - 1, 0);
     } else if (e.key === "Enter") {
       e.preventDefault();
+      e.stopPropagation();
       if (filtered[selectedIndex]) {
         onSelect(filtered[selectedIndex].type);
       }
@@ -45,20 +50,21 @@
   }
 </script>
 
-<div
-  class="palette-overlay"
-  onclick={onClose}
-  role="dialog"
-  aria-label="Command palette"
-  tabindex="-1"
+<Dialog
+  title="Create entry"
+  onclose={onClose}
+  showHeader={false}
+  placement="top"
+  topOffset="120px"
+  width="320px"
+  maxWidth="calc(100vw - 32px)"
+  maxHeight="min(360px, calc(100vh - 152px))"
+  bodyPadding="none"
+  bodyOverflow="hidden"
+  bodyFill={true}
+  onkeydown={onKeydown}
 >
-  <div
-    class="palette-pane"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={onKeydown}
-    role="listbox"
-    aria-label="Entry types"
-  >
+  <div class="palette-content">
     <div class="palette-search">
       <Icon name="search" size={14} />
       <!-- svelte-ignore a11y_autofocus -->
@@ -93,28 +99,13 @@
       {/each}
     </div>
   </div>
-</div>
+</Dialog>
 
 <style>
-  .palette-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--backdrop);
+  .palette-content {
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 120px;
-    z-index: var(--z-dialog);
-  }
-
-  .palette-pane {
-    width: 320px;
-    max-height: 360px;
-    background: var(--surface-2);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-dialog);
-    display: flex;
+    min-height: 0;
+    flex: 1;
     flex-direction: column;
     overflow: hidden;
   }
