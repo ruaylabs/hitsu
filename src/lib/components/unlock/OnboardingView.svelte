@@ -1,7 +1,5 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
-  import * as prefsBridge from "$lib/bridge/prefs";
-  import * as vaultBridge from "$lib/bridge/vault";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -32,12 +30,9 @@
     busy = true;
     error = "";
     try {
-      const meta = await vaultBridge.vaultOpen(pendingPath, password);
-      vault.openVault(meta);
-
-      prefsBridge.prefsSetLastVault(pendingPath);
+      await vault.open(pendingPath, password);
     } catch (e) {
-      error = String(e);
+      error = e instanceof Error ? e.message : String(e);
     }
     busy = false;
   }
@@ -63,12 +58,9 @@
     busy = true;
     error = "";
     try {
-      const meta = await vaultBridge.vaultCreate(pendingPath, password, "");
-      vault.openVault(meta);
-
-      prefsBridge.prefsSetLastVault(pendingPath);
+      await vault.create(pendingPath, password);
     } catch (e) {
-      error = String(e);
+      error = e instanceof Error ? e.message : String(e);
     }
     busy = false;
   }

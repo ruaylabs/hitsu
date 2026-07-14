@@ -1,3 +1,4 @@
+import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
@@ -8,6 +9,25 @@ let entries = $state<EntrySummary[]>([]);
 let locked = $state(false);
 let editingId = $state<string | null>(null);
 let creatingId = $state<string | null>(null);
+
+function installOpenVault(meta: VaultMeta) {
+  vaultMeta = meta;
+  entries = meta.entries;
+  locked = false;
+  selection.selectedId = null;
+  selection.search = "";
+  selection.filter = { kind: "all" };
+}
+
+function rememberVault(path: string) {
+  void prefsBridge
+    .prefsSetLastVault(path)
+    .catch((error) => console.error("Failed to remember vault", error));
+}
+
+function normalizeError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
 
 function clearUnlockedState() {
   clipboard.cancel();
@@ -44,17 +64,27 @@ export const vault = {
   setMeta(m: VaultMeta | null) {
     vaultMeta = m;
   },
-  /** Install a freshly opened/created vault. Resets the per-vault UI state
-   *  (selected entry, search, sidebar filter) so nothing from a previously
-   *  open vault leaks into this one — a stale selectedId would make
-   *  ItemDetail fetch an entry the new vault doesn't have. */
-  openVault(meta: VaultMeta) {
-    vaultMeta = meta;
-    entries = meta.entries;
-    locked = false;
-    selection.selectedId = null;
-    selection.search = "";
-    selection.filter = { kind: "all" };
+  /** Open and install a vault, then remember it for startup and recent-vault UI. */
+  async open(path: string, password: string) {
+    try {
+      const meta = await vaultBridge.vaultOpen(path, password);
+      installOpenVault(meta);
+      rememberVault(path);
+      return meta;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  },
+  /** Create and install a vault, then remember it for startup and recent-vault UI. */
+  async create(path: string, password: string, name = "") {
+    try {
+      const meta = await vaultBridge.vaultCreate(path, password, name);
+      installOpenVault(meta);
+      rememberVault(path);
+      return meta;
+    } catch (error) {
+      throw normalizeError(error);
+    }
   },
   setEntries(data: EntrySummary[]) {
     entries = data;

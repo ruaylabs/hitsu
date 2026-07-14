@@ -1,5 +1,4 @@
 <script lang="ts">
-  import * as vaultBridge from "$lib/bridge/vault";
   import { vault } from "$lib/stores/vault.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
@@ -24,8 +23,7 @@
   async function onSubmit(password: string) {
     error = "";
     try {
-      const meta = await vaultBridge.vaultOpen(path, password);
-      vault.openVault(meta);
+      await vault.open(path, password);
       onunlock();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);

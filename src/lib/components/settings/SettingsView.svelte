@@ -1,10 +1,8 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
-  import * as prefsBridge from "$lib/bridge/prefs";
   import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
-  import { clipboard } from "$lib/stores/clipboard.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -37,8 +35,7 @@
   let selectedPath = $state("");
 
   onMount(async () => {
-    await security.load();
-    const prefs = await prefsBridge.prefsGet();
+    const prefs = await security.load();
     recentVaults = prefs.recentVaults ?? [];
   });
 
@@ -55,10 +52,7 @@
   async function doOpen(password: string) {
     dialog = null;
     try {
-      const meta = await vaultBridge.vaultOpen(selectedPath, password);
-      vault.openVault(meta);
-
-      prefsBridge.prefsSetLastVault(selectedPath);
+      await vault.open(selectedPath, password);
       app.view = "main";
     } catch (e) {
       statusMsg = String(e);
@@ -68,10 +62,7 @@
   async function doCreate(password: string) {
     dialog = null;
     try {
-      const meta = await vaultBridge.vaultCreate(selectedPath, password, "");
-      vault.openVault(meta);
-
-      prefsBridge.prefsSetLastVault(selectedPath);
+      await vault.create(selectedPath, password);
       app.view = "main";
     } catch (e) {
       statusMsg = String(e);

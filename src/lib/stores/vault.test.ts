@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "./clipboard.svelte";
@@ -24,17 +25,20 @@ const secondEntry: EntrySummary = {
 };
 
 beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(prefsBridge, "prefsSetLastVault").mockResolvedValue(undefined);
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
   vault.unlock();
+  vault.setMeta(null);
   vault.setEntries([]);
   vault.setCreatingId(null);
   vault.setEditingId(null);
 });
 
 describe("vault store", () => {
-  it("resets selection when opening a vault and replaces its entries", () => {
+  it("opens, installs, and remembers a vault", async () => {
     selection.selectedId = "stale-entry";
     selection.search = "stale search";
     selection.filter = { kind: "favorites" };
@@ -45,9 +49,12 @@ describe("vault store", () => {
       syncProvider: "local",
       entries: [firstEntry],
     };
+    const open = vi.spyOn(vaultBridge, "vaultOpen").mockResolvedValue(meta);
 
-    vault.openVault(meta);
+    await vault.open(meta.path, "master-password");
 
+    expect(open).toHaveBeenCalledWith(meta.path, "master-password");
+    expect(prefsBridge.prefsSetLastVault).toHaveBeenCalledWith(meta.path);
     expect(vault.meta).toEqual(meta);
     expect(vault.entries).toEqual([firstEntry]);
     expect(selection.selectedId).toBeNull();
@@ -56,6 +63,33 @@ describe("vault store", () => {
 
     vault.setEntries([secondEntry]);
     expect(vault.entries).toEqual([secondEntry]);
+  });
+
+  it("creates, installs, and remembers a vault", async () => {
+    const meta: VaultMeta = {
+      path: "/tmp/new.kdbx",
+      name: "New vault",
+      itemCount: 0,
+      syncProvider: "local",
+      entries: [],
+    };
+    const create = vi.spyOn(vaultBridge, "vaultCreate").mockResolvedValue(meta);
+
+    await vault.create(meta.path, "master-password", "New vault");
+
+    expect(create).toHaveBeenCalledWith(meta.path, "master-password", "New vault");
+    expect(prefsBridge.prefsSetLastVault).toHaveBeenCalledWith(meta.path);
+    expect(vault.meta).toEqual(meta);
+    expect(vault.locked).toBe(false);
+  });
+
+  it("normalizes backend failures to errors without replacing state", async () => {
+    vi.spyOn(vaultBridge, "vaultOpen").mockRejectedValue("Wrong password");
+
+    await expect(vault.open("/tmp/test.kdbx", "wrong")).rejects.toThrow("Wrong password");
+
+    expect(vault.meta).toBeNull();
+    expect(prefsBridge.prefsSetLastVault).not.toHaveBeenCalled();
   });
 
   it("locks frontend state when the backend lock rejects", async () => {
