@@ -9,14 +9,23 @@
 
 use std::io::Cursor;
 
-use kagi_lib::commands::entries::entries_list;
+use kagi_lib::commands::entries::build_entry_summaries;
 use kagi_lib::commands::vault::{vault_create, vault_open};
+use kagi_lib::models::EntrySummary;
 use kagi_lib::state::AppState;
 use keepass::db::fields;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Manager;
 
 const PW: &str = "integration-test-pw";
+
+/// Summaries for the open vault, straight from the in-memory db. Stand-in for
+/// the removed `entries_list` command.
+fn entries_list(state: tauri::State<'_, AppState>) -> Vec<EntrySummary> {
+    let vaults = state.vaults.lock();
+    let (_id, vault) = vaults.iter().next().expect("no open vault");
+    build_entry_summaries(&vault.db)
+}
 
 /// A self-cleaning temp dir holding two distinct vault files.
 struct Fixture {
@@ -101,7 +110,7 @@ async fn opening_a_second_vault_replaces_the_first() {
     .await
     .expect("open A should succeed");
     assert_eq!(meta_a.item_count, 1);
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
+    assert_eq!(entries_list(state.clone()).len(), 1);
 
     // Now open B in the same app state — without the fix, the stale vault A
     // would remain in the map and entries_list could return A's single entry.
@@ -115,7 +124,7 @@ async fn opening_a_second_vault_replaces_the_first() {
     assert_eq!(meta_b.item_count, 22);
 
     // The list must reflect B, not A.
-    let summaries = entries_list(state.clone()).await.unwrap();
+    let summaries = entries_list(state.clone());
     assert_eq!(
         summaries.len(),
         22,
@@ -153,7 +162,7 @@ async fn creating_a_vault_replaces_an_open_one() {
     )
     .await
     .unwrap();
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
+    assert_eq!(entries_list(state.clone()).len(), 1);
 
     // Create a brand-new vault at a third path — must replace A.
     let path_c = fx.dir.join("c.kdbx");
@@ -168,7 +177,7 @@ async fn creating_a_vault_replaces_an_open_one() {
     assert_eq!(meta.item_count, 0);
 
     // New vault is empty; A's entry must not leak through.
-    let summaries = entries_list(state.clone()).await.unwrap();
+    let summaries = entries_list(state.clone());
     assert_eq!(summaries.len(), 0, "newly created vault should be empty");
     assert!(
         !summaries.iter().any(|s| s.title == "A1"),

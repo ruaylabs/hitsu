@@ -10,18 +10,19 @@
 //! as in production.
 //!
 //! No production source is modified to make this testable beyond exposing the
-//! `commands` and `models` modules (`pub mod`) from the library root; the
-//! command functions themselves were already `pub`.
+//! `commands` and `models` modules (`pub mod`) from the library root and the
+//! `build_entry_summaries` helper; the command functions themselves were
+//! already `pub`.
 
 use std::io::Cursor;
 
 use sha2::{Digest, Sha256};
 
 use kagi_lib::commands::entries::{
-    entries_list, entry_create, entry_delete, entry_delete_permanent, entry_discard, entry_get,
-    entry_restore, entry_reveal_field, entry_update,
+    build_entry_summaries, entry_create, entry_delete, entry_delete_permanent, entry_discard,
+    entry_get, entry_restore, entry_reveal_field, entry_update,
 };
-use kagi_lib::models::{EntryDraft, EntryPatch, ItemType, SecretField};
+use kagi_lib::models::{EntryDraft, EntryPatch, EntrySummary, ItemType, SecretField};
 use kagi_lib::state::{AppState, OpenVault};
 use keepass::db::Value;
 
@@ -30,6 +31,15 @@ fn patch(build: impl FnOnce(&mut EntryPatch)) -> EntryPatch {
     let mut p = EntryPatch::default();
     build(&mut p);
     p
+}
+
+/// Summaries for the open vault, straight from the in-memory db. Stand-in for
+/// the removed `entries_list` command (the frontend gets summaries from vault
+/// open/create metadata and mutation responses instead).
+fn entries_list(state: tauri::State<'_, AppState>) -> Vec<EntrySummary> {
+    let vaults = state.vaults.lock();
+    let (_id, vault) = vaults.iter().next().expect("no open vault");
+    build_entry_summaries(&vault.db)
 }
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Manager;
@@ -141,7 +151,7 @@ async fn create_adds_to_memory_not_to_disk() {
         .expect("create should succeed");
 
     // Visible through the command layer (in-memory db)…
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
+    assert_eq!(entries_list(state.clone()).len(), 1);
     assert!(entry_get(state.clone(), entry.id.clone()).await.is_ok());
 
     // …but the on-disk file still has zero entries (create does not save).
@@ -185,7 +195,7 @@ async fn discard_drops_from_memory_without_persisting() {
         .await
         .expect("discard should succeed");
 
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 0);
+    assert_eq!(entries_list(state.clone()).len(), 0);
     assert!(entry_get(state.clone(), entry.id.clone()).await.is_err());
     assert_eq!(tv.disk_entry_count(), 0);
 }
@@ -269,7 +279,7 @@ async fn delete_moves_to_bin_and_permanent_delete_removes_from_disk() {
         .await
         .expect("delete should succeed");
 
-    let entries = entries_list(state.clone()).await.unwrap();
+    let entries = entries_list(state.clone());
     assert_eq!(entries.len(), 1);
     assert!(entries[0].trashed);
     assert_eq!(tv.disk_entry_count(), 1);
@@ -277,7 +287,7 @@ async fn delete_moves_to_bin_and_permanent_delete_removes_from_disk() {
     entry_delete_permanent(state.clone(), entry.id.clone())
         .await
         .expect("permanent delete should succeed");
-    assert!(entries_list(state.clone()).await.unwrap().is_empty());
+    assert!(entries_list(state.clone()).is_empty());
     assert_eq!(tv.disk_entry_count(), 0);
 }
 
@@ -398,7 +408,7 @@ async fn full_create_save_get_delete_workflow() {
     );
 
     // 4. List shows one entry
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 1);
+    assert_eq!(entries_list(state.clone()).len(), 1);
 
     // 5. Delete moves it to the recycle bin.
     entry_delete(state.clone(), entry.id.clone()).await.unwrap();
@@ -418,7 +428,7 @@ async fn full_create_save_get_delete_workflow() {
     entry_delete_permanent(state.clone(), entry.id.clone())
         .await
         .unwrap();
-    assert!(entries_list(state.clone()).await.unwrap().is_empty());
+    assert!(entries_list(state.clone()).is_empty());
     assert!(entry_get(state.clone(), entry.id.clone()).await.is_err());
     assert_eq!(tv.disk_entry_count(), 0);
 }
@@ -448,7 +458,7 @@ async fn discard_after_save_still_on_disk() {
     entry_discard(state.clone(), entry.id.clone())
         .await
         .unwrap();
-    assert_eq!(entries_list(state.clone()).await.unwrap().len(), 0);
+    assert_eq!(entries_list(state.clone()).len(), 0);
 
     // Still on disk; reload sees it again.
     let disk = tv.reload_disk();
