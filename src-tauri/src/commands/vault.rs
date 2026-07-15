@@ -100,10 +100,6 @@ fn ensure_kdbx4(db: &mut keepass::Database) {
     db.config.version = keepass::config::DatabaseVersion::KDB4(1);
 }
 
-fn count_entries(db: &keepass::Database) -> usize {
-    db.iter_all_entries().count()
-}
-
 /// KDF configuration for newly created vaults and KDF upgrades:
 /// Argon2id with 64 MiB memory, 2 iterations, 4 lanes. Pinned explicitly so
 /// vault security never silently depends on the keepass crate's defaults.
@@ -513,7 +509,7 @@ pub async fn vault_open(
         .await
         .map_err(KagiError::from_join)??;
 
-    let entry_count = count_entries(&db);
+    let entry_count = db.num_entries();
     let id = uuid::Uuid::new_v4();
 
     // Build entry summaries while we have a reference to the db,
