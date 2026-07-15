@@ -492,7 +492,7 @@ pub async fn vault_open(
             let bytes = std::fs::read(&open_path)?;
             let disk_hash = crate::vault::sha256_bytes(&bytes);
             let key = keepass::DatabaseKey::new().with_password(&password);
-            let mut db = keepass::Database::open(&mut std::io::Cursor::new(bytes), key)?;
+            let mut db = keepass::Database::parse(&bytes, key)?;
 
             validate_kdf(&db.config.kdf_config)?;
 
