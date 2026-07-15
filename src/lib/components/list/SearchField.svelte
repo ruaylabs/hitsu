@@ -138,6 +138,8 @@
 
 <style>
   .search-wrapper {
+    position: relative;
+    z-index: 1;
     padding: 10px 12px;
     border-bottom: 0.5px solid var(--border);
   }
