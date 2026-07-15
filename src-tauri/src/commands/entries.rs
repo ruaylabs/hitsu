@@ -6,7 +6,8 @@ use tauri_plugin_dialog::DialogExt;
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryPatch, EntrySummary,
-    HistoryEntrySummary, IdentityFields, ItemType, SecretField, SoftwareLicenseFields,
+    HistoryEntrySummary, IdentityFields, ItemType, PassportFields, SecretField,
+    SoftwareLicenseFields,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -14,7 +15,12 @@ use crate::state::{AppState, OpenVault};
 fn is_protected_key(key: &str) -> bool {
     matches!(
         key,
-        fields::PASSWORD | "card.cvv" | "card.pin" | "card.number" | "license.key"
+        fields::PASSWORD
+            | "card.cvv"
+            | "card.pin"
+            | "card.number"
+            | "license.key"
+            | "passport.number"
     )
 }
 
@@ -34,6 +40,11 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry, trashed: bool) -> EntryS
             .unwrap_or(username.clone()),
         ItemType::SoftwareLicense => entry_ref
             .get("license.version")
+            .unwrap_or(&username)
+            .to_string(),
+        ItemType::Passport => entry_ref
+            .get("passport.fullName")
+            .or_else(|| entry_ref.get("passport.issuingCountry"))
             .unwrap_or(&username)
             .to_string(),
         _ => username.clone(),
@@ -194,6 +205,28 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         None
     };
 
+    let passport = if item_type == ItemType::Passport {
+        Some(PassportFields {
+            passport_type: entry_ref.get("passport.type").map(str::to_string),
+            issuing_country: entry_ref.get("passport.issuingCountry").map(str::to_string),
+            has_number: entry_ref
+                .get("passport.number")
+                .is_some_and(|value| !value.is_empty()),
+            full_name: entry_ref.get("passport.fullName").map(str::to_string),
+            sex: entry_ref.get("passport.sex").map(str::to_string),
+            nationality: entry_ref.get("passport.nationality").map(str::to_string),
+            issuing_authority: entry_ref
+                .get("passport.issuingAuthority")
+                .map(str::to_string),
+            birth_date: entry_ref.get("passport.birthDate").map(str::to_string),
+            birth_place: entry_ref.get("passport.birthPlace").map(str::to_string),
+            issue_date: entry_ref.get("passport.issueDate").map(str::to_string),
+            expiry_date: entry_ref.get("passport.expiryDate").map(str::to_string),
+        })
+    } else {
+        None
+    };
+
     Entry {
         id,
         item_type,
@@ -211,6 +244,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         identity,
         card,
         software_license,
+        passport,
         attachments: Vec::new(),
         custom_fields: read_custom_fields(entry_ref),
         modified_at,
@@ -494,6 +528,7 @@ pub async fn entry_create(
         identity: None,
         card: None,
         software_license: None,
+        passport: None,
         attachments: Vec::new(),
         custom_fields: Vec::new(),
         modified_at: now_rfc.clone(),
@@ -660,6 +695,25 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "license.purchaseDate", &patch.license_purchase_date);
     apply_opt(entry, "license.orderNumber", &patch.license_order_number);
     apply_opt(entry, "license.orderTotal", &patch.license_order_total);
+    apply_opt(entry, "passport.type", &patch.passport_type);
+    apply_opt(
+        entry,
+        "passport.issuingCountry",
+        &patch.passport_issuing_country,
+    );
+    apply_opt(entry, "passport.number", &patch.passport_number);
+    apply_opt(entry, "passport.fullName", &patch.passport_full_name);
+    apply_opt(entry, "passport.sex", &patch.passport_sex);
+    apply_opt(entry, "passport.nationality", &patch.passport_nationality);
+    apply_opt(
+        entry,
+        "passport.issuingAuthority",
+        &patch.passport_issuing_authority,
+    );
+    apply_opt(entry, "passport.birthDate", &patch.passport_birth_date);
+    apply_opt(entry, "passport.birthPlace", &patch.passport_birth_place);
+    apply_opt(entry, "passport.issueDate", &patch.passport_issue_date);
+    apply_opt(entry, "passport.expiryDate", &patch.passport_expiry_date);
 
     if let Some(custom_fields) = &patch.custom_fields {
         let existing = entry
@@ -845,6 +899,7 @@ fn read_secret_value(
             SecretField::CardCvv => e.get("card.cvv").map(str::to_string),
             SecretField::CardPin => e.get("card.pin").map(str::to_string),
             SecretField::LicenseKey => e.get("license.key").map(str::to_string),
+            SecretField::PassportNumber => e.get("passport.number").map(str::to_string),
         }
     };
 
@@ -1280,6 +1335,39 @@ mod tests {
         assert!(license.has_license_key);
         assert_eq!(license.licensed_to.as_deref(), Some("Ada"));
         assert_eq!(license.purchase_date.as_deref(), Some("2024-01-01"));
+    }
+
+    #[test]
+    fn passport_fields_roundtrip_and_number_is_sanitized() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            entry.set_unprotected(keepass::db::fields::TITLE, "US Passport");
+            super::set_custom_data(&mut entry, "kagi.itemType", Some("passport"));
+        }
+
+        let mut patch = EntryPatch::default();
+        patch.passport_issuing_country = Some("United States".into());
+        patch.passport_number = Some("123456789".into());
+        patch.passport_full_name = Some("Ada Lovelace".into());
+        patch.passport_birth_date = Some("1815-12-10".into());
+        patch.passport_expiry_date = Some("2030-01-01".into());
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+
+        let entry = db.entry(entry_id).unwrap();
+        assert!(entry.fields["passport.number"].is_protected());
+        let mapped = map_entry_to_full(&entry, false);
+        assert_eq!(mapped.item_type, ItemType::Passport);
+        let passport = mapped.passport.as_ref().unwrap();
+        assert!(passport.has_number);
+        assert_eq!(passport.issuing_country.as_deref(), Some("United States"));
+        assert_eq!(passport.full_name.as_deref(), Some("Ada Lovelace"));
+        assert_eq!(passport.birth_date.as_deref(), Some("1815-12-10"));
+        assert_eq!(passport.expiry_date.as_deref(), Some("2030-01-01"));
     }
 
     #[test]

@@ -106,6 +106,17 @@ export interface EntryPatch {
   licensePurchaseDate?: string | null;
   licenseOrderNumber?: string | null;
   licenseOrderTotal?: string | null;
+  passportType?: string | null;
+  passportIssuingCountry?: string | null;
+  passportNumber?: string | null;
+  passportFullName?: string | null;
+  passportSex?: string | null;
+  passportNationality?: string | null;
+  passportIssuingAuthority?: string | null;
+  passportBirthDate?: string | null;
+  passportBirthPlace?: string | null;
+  passportIssueDate?: string | null;
+  passportExpiryDate?: string | null;
   customFields?: CustomField[];
 }
 
@@ -147,6 +158,17 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
       licensePurchaseDate: patch.licensePurchaseDate ?? null,
       licenseOrderNumber: patch.licenseOrderNumber ?? null,
       licenseOrderTotal: patch.licenseOrderTotal ?? null,
+      passportType: patch.passportType ?? null,
+      passportIssuingCountry: patch.passportIssuingCountry ?? null,
+      passportNumber: patch.passportNumber ?? null,
+      passportFullName: patch.passportFullName ?? null,
+      passportSex: patch.passportSex ?? null,
+      passportNationality: patch.passportNationality ?? null,
+      passportIssuingAuthority: patch.passportIssuingAuthority ?? null,
+      passportBirthDate: patch.passportBirthDate ?? null,
+      passportBirthPlace: patch.passportBirthPlace ?? null,
+      passportIssueDate: patch.passportIssueDate ?? null,
+      passportExpiryDate: patch.passportExpiryDate ?? null,
       customFields: patch.customFields ?? null,
     },
   });

@@ -74,6 +74,20 @@ impl std::fmt::Debug for EntryPatch {
             .field("license_purchase_date", &self.license_purchase_date)
             .field("license_order_number", &self.license_order_number)
             .field("license_order_total", &self.license_order_total)
+            .field("passport_type", &self.passport_type)
+            .field("passport_issuing_country", &self.passport_issuing_country)
+            .field("passport_number", &redacted_opt(&self.passport_number))
+            .field("passport_full_name", &self.passport_full_name)
+            .field("passport_sex", &self.passport_sex)
+            .field("passport_nationality", &self.passport_nationality)
+            .field(
+                "passport_issuing_authority",
+                &self.passport_issuing_authority,
+            )
+            .field("passport_birth_date", &self.passport_birth_date)
+            .field("passport_birth_place", &self.passport_birth_place)
+            .field("passport_issue_date", &self.passport_issue_date)
+            .field("passport_expiry_date", &self.passport_expiry_date)
             .field("custom_fields", &self.custom_fields)
             .finish()
     }
@@ -116,6 +130,17 @@ pub struct EntryPatch {
     pub license_purchase_date: Option<String>,
     pub license_order_number: Option<String>,
     pub license_order_total: Option<String>,
+    pub passport_type: Option<String>,
+    pub passport_issuing_country: Option<String>,
+    pub passport_number: Option<String>,
+    pub passport_full_name: Option<String>,
+    pub passport_sex: Option<String>,
+    pub passport_nationality: Option<String>,
+    pub passport_issuing_authority: Option<String>,
+    pub passport_birth_date: Option<String>,
+    pub passport_birth_place: Option<String>,
+    pub passport_issue_date: Option<String>,
+    pub passport_expiry_date: Option<String>,
     pub custom_fields: Option<Vec<CustomField>>,
 }
 
@@ -153,6 +178,8 @@ pub struct Entry {
     pub card: Option<CardFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub software_license: Option<SoftwareLicenseFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passport: Option<PassportFields>,
     pub attachments: Vec<AttachmentMeta>,
     pub custom_fields: Vec<CustomField>,
     pub modified_at: String,
@@ -252,6 +279,35 @@ pub struct IdentityFields {
     pub dob: Option<String>,
 }
 
+/// Passport fields as shown in the detail view. The passport number stays
+/// backend-side and is represented only by `has_number`.
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(rename_all = "camelCase")]
+pub struct PassportFields {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "type")]
+    pub passport_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuing_country: Option<String>,
+    pub has_number: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub full_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sex: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nationality: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuing_authority: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth_place: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry_date: Option<String>,
+}
+
 /// Software-license fields as shown in the detail view. The license key stays
 /// backend-side and is represented only by `has_license_key`.
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -317,6 +373,7 @@ pub enum SecretField {
     CardCvv,
     CardPin,
     LicenseKey,
+    PassportNumber,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -412,6 +469,17 @@ mod tests {
             license_purchase_date: None,
             license_order_number: None,
             license_order_total: None,
+            passport_type: None,
+            passport_issuing_country: None,
+            passport_number: Some("PASSPORT-NUMBER-SECRET".into()),
+            passport_full_name: None,
+            passport_sex: None,
+            passport_nationality: None,
+            passport_issuing_authority: None,
+            passport_birth_date: None,
+            passport_birth_place: None,
+            passport_issue_date: None,
+            passport_expiry_date: None,
             custom_fields: Some(vec![CustomField {
                 name: "Recovery answer".into(),
                 value: "custom-SECRET".into(),
@@ -441,6 +509,7 @@ mod tests {
             "123",
             "0000",
             "LICENSE-KEY-SECRET",
+            "PASSPORT-NUMBER-SECRET",
             "custom-SECRET",
         ] {
             assert!(

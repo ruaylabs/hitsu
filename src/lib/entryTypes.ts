@@ -51,6 +51,13 @@ export const ENTRY_TYPES = [
     icon: "license",
     color: "#ba7517",
   },
+  {
+    type: "passport",
+    label: "Passport",
+    pluralLabel: "Passports",
+    icon: "e-passport",
+    color: "#0f6e56",
+  },
 ] as const satisfies readonly EntryTypeMetadata[];
 
 export const ENTRY_TYPE_BY_TYPE = Object.fromEntries(

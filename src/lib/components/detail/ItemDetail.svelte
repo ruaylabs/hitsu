@@ -164,6 +164,18 @@
   let editLicensePurchaseDate = $state("");
   let editLicenseOrderNumber = $state("");
   let editLicenseOrderTotal = $state("");
+  // Passport fields
+  let editPassportType = $state("");
+  let editPassportIssuingCountry = $state("");
+  let editPassportNumber = $state("");
+  let editPassportFullName = $state("");
+  let editPassportSex = $state("");
+  let editPassportNationality = $state("");
+  let editPassportIssuingAuthority = $state("");
+  let editPassportBirthDate = $state("");
+  let editPassportBirthPlace = $state("");
+  let editPassportIssueDate = $state("");
+  let editPassportExpiryDate = $state("");
 
   // Validation errors for card fields
   let cardNumberError = $state("");
@@ -210,6 +222,17 @@
       licensePurchaseDate: editLicensePurchaseDate,
       licenseOrderNumber: editLicenseOrderNumber,
       licenseOrderTotal: editLicenseOrderTotal,
+      passportType: editPassportType,
+      passportIssuingCountry: editPassportIssuingCountry,
+      passportNumber: editPassportNumber,
+      passportFullName: editPassportFullName,
+      passportSex: editPassportSex,
+      passportNationality: editPassportNationality,
+      passportIssuingAuthority: editPassportIssuingAuthority,
+      passportBirthDate: editPassportBirthDate,
+      passportBirthPlace: editPassportBirthPlace,
+      passportIssueDate: editPassportIssueDate,
+      passportExpiryDate: editPassportExpiryDate,
     });
   }
 
@@ -296,9 +319,19 @@
     editLicensePurchaseDate = e.softwareLicense?.purchaseDate ?? "";
     editLicenseOrderNumber = e.softwareLicense?.orderNumber ?? "";
     editLicenseOrderTotal = e.softwareLicense?.orderTotal ?? "";
+    editPassportType = e.passport?.type ?? "";
+    editPassportIssuingCountry = e.passport?.issuingCountry ?? "";
+    editPassportFullName = e.passport?.fullName ?? "";
+    editPassportSex = e.passport?.sex ?? "";
+    editPassportNationality = e.passport?.nationality ?? "";
+    editPassportIssuingAuthority = e.passport?.issuingAuthority ?? "";
+    editPassportBirthDate = e.passport?.birthDate ?? "";
+    editPassportBirthPlace = e.passport?.birthPlace ?? "";
+    editPassportIssueDate = e.passport?.issueDate ?? "";
+    editPassportExpiryDate = e.passport?.expiryDate ?? "";
     // Secrets are not in the Entry DTO — fetch the ones that exist so the
     // form is prefilled and an untouched save round-trips them unchanged.
-    const [password, totp, cardNumber, cardCvv, cardPin, licenseKey, customFields] =
+    const [password, totp, cardNumber, cardCvv, cardPin, licenseKey, passportNumber, customFields] =
       await Promise.all([
         e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
         e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
@@ -306,6 +339,7 @@
         e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
         e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
         e.softwareLicense?.hasLicenseKey ? entriesBridge.entryRevealField(e.id, "licenseKey") : "",
+        e.passport?.hasNumber ? entriesBridge.entryRevealField(e.id, "passportNumber") : "",
         Promise.all(
           e.customFields.map(async (field) => ({
             ...field,
@@ -321,6 +355,7 @@
     editCardCvv = cardCvv;
     editCardPin = cardPin;
     editLicenseKey = licenseKey;
+    editPassportNumber = passportNumber;
     editCustomFields = customFields;
     initialEditSnapshot = editSnapshot();
     clearCardErrors();
@@ -472,6 +507,17 @@
         licensePurchaseDate: editLicensePurchaseDate,
         licenseOrderNumber: editLicenseOrderNumber,
         licenseOrderTotal: editLicenseOrderTotal,
+        passportType: editPassportType,
+        passportIssuingCountry: editPassportIssuingCountry,
+        passportNumber: editPassportNumber,
+        passportFullName: editPassportFullName,
+        passportSex: editPassportSex,
+        passportNationality: editPassportNationality,
+        passportIssuingAuthority: editPassportIssuingAuthority,
+        passportBirthDate: editPassportBirthDate,
+        passportBirthPlace: editPassportBirthPlace,
+        passportIssueDate: editPassportIssueDate,
+        passportExpiryDate: editPassportExpiryDate,
         customFields: editCustomFields.map((field) => ({
           ...field,
           name: field.name.trim(),
@@ -1142,6 +1188,109 @@
               bind:value={editLicenseOrderTotal}
             />
           </DetailFieldRow>
+        {:else if entry.type === "passport"}
+          <DetailFieldRow label="Type">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Passport type"
+              autocomplete="off"
+              bind:value={editPassportType}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Issuing country">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Issuing country"
+              autocomplete="off"
+              bind:value={editPassportIssuingCountry}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Number">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Passport number"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              bind:value={editPassportNumber}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Full name">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Full name"
+              autocomplete="off"
+              bind:value={editPassportFullName}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Sex">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Sex"
+              autocomplete="off"
+              bind:value={editPassportSex}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Nationality">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Nationality"
+              autocomplete="off"
+              bind:value={editPassportNationality}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Issuing authority">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Issuing authority"
+              autocomplete="off"
+              bind:value={editPassportIssuingAuthority}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Date of birth">
+            <input
+              class="control control--compact edit-input"
+              type="date"
+              aria-label="Passport date of birth"
+              autocomplete="bday"
+              bind:value={editPassportBirthDate}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Place of birth">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Place of birth"
+              autocomplete="off"
+              bind:value={editPassportBirthPlace}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Issued on">
+            <input
+              class="control control--compact edit-input"
+              type="date"
+              aria-label="Passport issue date"
+              autocomplete="off"
+              bind:value={editPassportIssueDate}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Expiry date">
+            <input
+              class="control control--compact edit-input"
+              type="date"
+              aria-label="Passport expiry date"
+              autocomplete="off"
+              bind:value={editPassportExpiryDate}
+            />
+          </DetailFieldRow>
         {/if}
       </FieldGroup>
     {:else if entry.type === "password"}
@@ -1336,6 +1485,51 @@
         {/if}
         {#if license.orderTotal}
           <Field label="Order total" value={license.orderTotal} />
+        {/if}
+      </FieldGroup>
+    {/if}
+
+    {#if !editing && entry.type === "passport" && entry.passport}
+      {@const passport = entry.passport}
+      <FieldGroup>
+        {#if passport.type}
+          <Field label="Type" value={passport.type} />
+        {/if}
+        {#if passport.issuingCountry}
+          <Field label="Issuing country" value={passport.issuingCountry} />
+        {/if}
+        {#if passport.hasNumber}
+          <PasswordField
+            label="Number"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "passportNumber")}
+            copy={() => clipboard.copySecretField(entry.id, "passportNumber")}
+          />
+        {/if}
+        {#if passport.fullName}
+          <Field label="Full name" value={passport.fullName} />
+        {/if}
+        {#if passport.sex}
+          <Field label="Sex" value={passport.sex} />
+        {/if}
+        {#if passport.nationality}
+          <Field label="Nationality" value={passport.nationality} />
+        {/if}
+        {#if passport.issuingAuthority}
+          <Field label="Issuing authority" value={passport.issuingAuthority} />
+        {/if}
+      </FieldGroup>
+      <FieldGroup>
+        {#if passport.birthDate}
+          <Field label="Date of birth" value={passport.birthDate} />
+        {/if}
+        {#if passport.birthPlace}
+          <Field label="Place of birth" value={passport.birthPlace} />
+        {/if}
+        {#if passport.issueDate}
+          <Field label="Issued on" value={passport.issueDate} />
+        {/if}
+        {#if passport.expiryDate}
+          <Field label="Expiry date" value={passport.expiryDate} />
         {/if}
       </FieldGroup>
     {/if}

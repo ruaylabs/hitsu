@@ -1,9 +1,16 @@
-export type ItemType = "login" | "password" | "note" | "identity" | "card" | "software_license";
+export type ItemType =
+  | "login"
+  | "password"
+  | "note"
+  | "identity"
+  | "card"
+  | "software_license"
+  | "passport";
 
 /**
  * Detail view of an entry. Carries NO secret material: the backend reduces
- * passwords, TOTP URIs, card numbers, CVVs and PINs to presence flags or
- * masked values. Fetch plaintext on demand with `entryRevealField`, or copy
+ * passwords, TOTP URIs, card numbers, passport numbers, CVVs and PINs to
+ * presence flags or masked values. Fetch plaintext on demand with `entryRevealField`, or copy
  * it without ever seeing it via `entryCopyField`.
  */
 export interface Entry {
@@ -23,6 +30,7 @@ export interface Entry {
   identity?: IdentityFields;
   card?: CardFields;
   softwareLicense?: SoftwareLicenseFields;
+  passport?: PassportFields;
   attachments: AttachmentMeta[];
   customFields: CustomField[];
   modifiedAt: string;
@@ -49,6 +57,20 @@ export interface IdentityFields {
   phone?: string;
   address?: string;
   dob?: string;
+}
+
+export interface PassportFields {
+  type?: string;
+  issuingCountry?: string;
+  hasNumber: boolean;
+  fullName?: string;
+  sex?: string;
+  nationality?: string;
+  issuingAuthority?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  issueDate?: string;
+  expiryDate?: string;
 }
 
 export interface SoftwareLicenseFields {
@@ -80,7 +102,14 @@ export interface CardFields {
 }
 
 /** A secret field that can be revealed or copied on demand. */
-export type SecretField = "password" | "totp" | "cardNumber" | "cardCvv" | "cardPin" | "licenseKey";
+export type SecretField =
+  | "password"
+  | "totp"
+  | "cardNumber"
+  | "cardCvv"
+  | "cardPin"
+  | "licenseKey"
+  | "passportNumber";
 
 export interface EntrySummary {
   id: string;

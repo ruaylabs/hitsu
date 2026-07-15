@@ -10,6 +10,7 @@ pub enum ItemType {
     Identity,
     Card,
     SoftwareLicense,
+    Passport,
 }
 
 impl ItemType {
@@ -21,6 +22,7 @@ impl ItemType {
             "identity" => ItemType::Identity,
             "card" => ItemType::Card,
             "software_license" => ItemType::SoftwareLicense,
+            "passport" => ItemType::Passport,
             _ => ItemType::Login,
         }
     }
@@ -41,5 +43,10 @@ mod tests {
             ItemType::from_db_value("software_license"),
             ItemType::SoftwareLicense
         );
+    }
+
+    #[test]
+    fn reads_passport_item_type() {
+        assert_eq!(ItemType::from_db_value("passport"), ItemType::Passport);
     }
 }

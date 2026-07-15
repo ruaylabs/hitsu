@@ -76,6 +76,17 @@ struct ImportedItem {
     license_purchase_date: Option<String>,
     license_order_number: Option<String>,
     license_order_total: Option<String>,
+    passport_type: Option<String>,
+    passport_issuing_country: Option<String>,
+    passport_number: Option<String>,
+    passport_full_name: Option<String>,
+    passport_sex: Option<String>,
+    passport_nationality: Option<String>,
+    passport_issuing_authority: Option<String>,
+    passport_birth_date: Option<String>,
+    passport_birth_place: Option<String>,
+    passport_issue_date: Option<String>,
+    passport_expiry_date: Option<String>,
     custom_fields: Vec<ImportedField>,
     attachments: Vec<ImportedAttachment>,
     created_at: Option<chrono::NaiveDateTime>,
@@ -370,6 +381,17 @@ fn parse_record(
         license_purchase_date: None,
         license_order_number: None,
         license_order_total: None,
+        passport_type: None,
+        passport_issuing_country: None,
+        passport_number: None,
+        passport_full_name: None,
+        passport_sex: None,
+        passport_nationality: None,
+        passport_issuing_authority: None,
+        passport_birth_date: None,
+        passport_birth_place: None,
+        passport_issue_date: None,
+        passport_expiry_date: None,
         custom_fields: Vec::new(),
         attachments: Vec::new(),
         created_at: timestamp_at(record, &["createdAt"])
@@ -429,6 +451,8 @@ fn classify(record: &JsonValue, content: &JsonValue, type_name: &str) -> (ItemTy
         (ItemType::Note, false)
     } else if lower.contains("computer.license") || category == "100" {
         (ItemType::SoftwareLicense, false)
+    } else if lower.contains("government.passport") || category == "106" {
+        (ItemType::Passport, false)
     } else if lower.contains("creditcard") || category == "002" {
         (ItemType::Card, false)
     } else if lower.contains("identit") || category == "004" {
@@ -487,6 +511,24 @@ fn apply_direct_fields(item: &mut ImportedItem, content: &JsonValue) {
                 .map(|value| normalize_import_date(&value));
             item.license_order_number = first_string(content, &["order_number", "orderNumber"]);
             item.license_order_total = first_string(content, &["order_total", "orderTotal"]);
+        }
+        ItemType::Passport => {
+            item.passport_type = first_string(content, &["type"]);
+            item.passport_issuing_country =
+                first_string(content, &["issuing_country", "issuingCountry"]);
+            item.passport_number = first_string(content, &["number"]);
+            item.passport_full_name = first_string(content, &["fullname", "fullName"]);
+            item.passport_sex = first_string(content, &["sex"]);
+            item.passport_nationality = first_string(content, &["nationality"]);
+            item.passport_issuing_authority =
+                first_string(content, &["issuing_authority", "issuingAuthority"]);
+            item.passport_birth_date = first_string(content, &["birthdate", "birthDate"])
+                .map(|value| normalize_import_date(&value));
+            item.passport_birth_place = first_string(content, &["birthplace", "birthPlace"]);
+            item.passport_issue_date = first_string(content, &["issue_date", "issueDate"])
+                .map(|value| normalize_import_date(&value));
+            item.passport_expiry_date = first_string(content, &["expiry_date", "expiryDate"])
+                .map(|value| normalize_import_date(&value));
         }
         _ => {}
     }
@@ -637,7 +679,7 @@ fn apply_1password_field(item: &mut ImportedItem, field: &JsonValue) {
                 true
             }
             "order_date" | "purchase_date" if item.license_purchase_date.is_none() => {
-                item.license_purchase_date = Some(value.clone());
+                item.license_purchase_date = Some(normalize_import_date(&value));
                 true
             }
             "order_number" if item.license_order_number.is_none() => {
@@ -646,6 +688,53 @@ fn apply_1password_field(item: &mut ImportedItem, field: &JsonValue) {
             }
             "order_total" if item.license_order_total.is_none() => {
                 item.license_order_total = Some(value.clone());
+                true
+            }
+            _ => false,
+        },
+        ItemType::Passport => match designation_lower.as_str() {
+            "type" if item.passport_type.is_none() => {
+                item.passport_type = Some(value.clone());
+                true
+            }
+            "issuing_country" if item.passport_issuing_country.is_none() => {
+                item.passport_issuing_country = Some(value.clone());
+                true
+            }
+            "number" if item.passport_number.is_none() => {
+                item.passport_number = Some(value.clone());
+                true
+            }
+            "fullname" | "full_name" if item.passport_full_name.is_none() => {
+                item.passport_full_name = Some(value.clone());
+                true
+            }
+            "sex" if item.passport_sex.is_none() => {
+                item.passport_sex = Some(value.clone());
+                true
+            }
+            "nationality" if item.passport_nationality.is_none() => {
+                item.passport_nationality = Some(value.clone());
+                true
+            }
+            "issuing_authority" if item.passport_issuing_authority.is_none() => {
+                item.passport_issuing_authority = Some(value.clone());
+                true
+            }
+            "birthdate" | "birth_date" if item.passport_birth_date.is_none() => {
+                item.passport_birth_date = Some(normalize_import_date(&value));
+                true
+            }
+            "birthplace" | "birth_place" if item.passport_birth_place.is_none() => {
+                item.passport_birth_place = Some(value.clone());
+                true
+            }
+            "issue_date" if item.passport_issue_date.is_none() => {
+                item.passport_issue_date = Some(normalize_import_date(&value));
+                true
+            }
+            "expiry_date" if item.passport_expiry_date.is_none() => {
+                item.passport_expiry_date = Some(normalize_import_date(&value));
                 true
             }
             _ => false,
@@ -732,6 +821,23 @@ fn add_remaining_direct_fields(item: &mut ImportedItem, content: &JsonValue) {
         "orderNumber",
         "order_total",
         "orderTotal",
+        "issuing_country",
+        "issuingCountry",
+        "number",
+        "fullname",
+        "fullName",
+        "sex",
+        "nationality",
+        "issuing_authority",
+        "issuingAuthority",
+        "birthdate",
+        "birthDate",
+        "birthplace",
+        "birthPlace",
+        "issue_date",
+        "issueDate",
+        "expiry_date",
+        "expiryDate",
     ];
     for (name, raw) in object {
         if OMIT.contains(&name.as_str()) || raw.is_null() || raw.is_array() || raw.is_object() {
@@ -799,6 +905,17 @@ fn remove_custom_fields_duplicating_regular_fields(item: &mut ImportedItem) {
         item.license_purchase_date.as_deref(),
         item.license_order_number.as_deref(),
         item.license_order_total.as_deref(),
+        item.passport_type.as_deref(),
+        item.passport_issuing_country.as_deref(),
+        item.passport_number.as_deref(),
+        item.passport_full_name.as_deref(),
+        item.passport_sex.as_deref(),
+        item.passport_nationality.as_deref(),
+        item.passport_issuing_authority.as_deref(),
+        item.passport_birth_date.as_deref(),
+        item.passport_birth_place.as_deref(),
+        item.passport_issue_date.as_deref(),
+        item.passport_expiry_date.as_deref(),
     ]
     .into_iter()
     .flatten()
@@ -1058,6 +1175,72 @@ fn apply_import(db: &mut keepass::Database, parsed: ParsedImport) -> (usize, usi
             item.license_order_total.as_deref(),
             false,
         );
+        set_field(
+            &mut entry,
+            "passport.type",
+            item.passport_type.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.issuingCountry",
+            item.passport_issuing_country.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.number",
+            item.passport_number.as_deref(),
+            true,
+        );
+        set_field(
+            &mut entry,
+            "passport.fullName",
+            item.passport_full_name.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.sex",
+            item.passport_sex.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.nationality",
+            item.passport_nationality.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.issuingAuthority",
+            item.passport_issuing_authority.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.birthDate",
+            item.passport_birth_date.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.birthPlace",
+            item.passport_birth_place.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.issueDate",
+            item.passport_issue_date.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "passport.expiryDate",
+            item.passport_expiry_date.as_deref(),
+            false,
+        );
         entry.tags = item.tags;
         set_custom_data(&mut entry, "kagi.itemType", item_type_name(&item.item_type));
         set_custom_data(
@@ -1126,6 +1309,7 @@ fn item_type_name(item_type: &ItemType) -> &'static str {
         ItemType::Identity => "identity",
         ItemType::Card => "card",
         ItemType::SoftwareLicense => "software_license",
+        ItemType::Passport => "passport",
     }
 }
 
@@ -1424,10 +1608,11 @@ mod tests {
             serde_json::json!({"title":"Person","typeName":"identities.Identity","secureContents":{"firstname":"Ada","lastname":"Lovelace","email":"ada@example.com","address1":"1 Main St","city":"London"}}),
             serde_json::json!({"title":"Card","typeName":"wallet.financial.CreditCard","secureContents":{"ccnum":"4111111111111111","cvv":"123","cardholder":"Ada","expiry":"203012"}}),
             serde_json::json!({"title":"Editor Pro","typeName":"wallet.computer.License","secureContents":{"order_date":1704067200,"sections":[{"fields":[{"n":"product_version","t":"version","v":"4.2"},{"n":"reg_code","t":"license key","k":"concealed","v":"AAAA-BBBB"}]},{"name":"customer","fields":[{"n":"reg_name","t":"licensed to","v":"Ada"},{"n":"reg_email","t":"registered email","v":"ada@example.com"}]},{"name":"order","fields":[{"n":"order_date","t":"purchase date","k":"date","v":1704067200},{"n":"order_number","t":"order number","v":"ORDER-1"}]}]}}),
+            serde_json::json!({"title":"US Passport","typeName":"wallet.government.Passport","secureContents":{"sections":[{"fields":[{"n":"type","t":"type","v":"Passport"},{"n":"issuing_country","t":"issuing country","v":"United States"},{"n":"number","t":"number","v":"123456789"},{"n":"fullname","t":"full name","v":"Ada Lovelace"},{"n":"sex","t":"sex","v":"female"},{"n":"nationality","t":"nationality","v":"American"},{"n":"issuing_authority","t":"issuing authority","v":"Department of State"},{"n":"birthdate","t":"date of birth","k":"date","v":-4865616000_i64},{"n":"birthplace","t":"place of birth","v":"London"},{"n":"issue_date","t":"issued on","k":"date","v":1704067200},{"n":"expiry_date","t":"expiry date","k":"date","v":2019686400}]}]}}),
         ];
         let path = write_export(&values, Some(("DOC1", b"attachment")));
         let parsed = parse_1pif(&path).unwrap();
-        assert_eq!(parsed.items.len(), 6);
+        assert_eq!(parsed.items.len(), 7);
         assert_eq!(parsed.items[0].item_type, ItemType::Login);
         assert_eq!(parsed.items[0].username.as_deref(), Some("me@example.com"));
         assert!(parsed.items[0]
@@ -1452,6 +1637,28 @@ mod tests {
             Some("2024-01-01")
         );
         assert!(parsed.items[5].custom_fields.is_empty());
+        assert_eq!(parsed.items[6].item_type, ItemType::Passport);
+        assert_eq!(
+            parsed.items[6].passport_issuing_country.as_deref(),
+            Some("United States")
+        );
+        assert_eq!(
+            parsed.items[6].passport_number.as_deref(),
+            Some("123456789")
+        );
+        assert_eq!(
+            parsed.items[6].passport_full_name.as_deref(),
+            Some("Ada Lovelace")
+        );
+        assert_eq!(
+            parsed.items[6].passport_issue_date.as_deref(),
+            Some("2024-01-01")
+        );
+        assert_eq!(
+            parsed.items[6].passport_expiry_date.as_deref(),
+            Some("2034-01-01")
+        );
+        assert!(parsed.items[6].custom_fields.is_empty());
     }
 
     #[test]

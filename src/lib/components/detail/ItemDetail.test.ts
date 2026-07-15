@@ -319,6 +319,56 @@ describe("software license workflow", () => {
   });
 });
 
+describe("passport workflow", () => {
+  it("reveals and saves passport fields", async () => {
+    const entry = passwordEntry({
+      id: "passport-1",
+      type: "passport",
+      title: "US Passport",
+      url: undefined,
+      hasPassword: false,
+      passport: {
+        type: "Passport",
+        issuingCountry: "United States",
+        hasNumber: true,
+        fullName: "Ada Lovelace",
+        birthDate: "1815-12-10",
+        expiryDate: "2030-01-01",
+      },
+    });
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue(entry);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Reveal number" }));
+    expect(mocks.entryRevealField).toHaveBeenCalledWith("passport-1", "passportNumber");
+
+    await fireEvent.click(screen.getByRole("button", { name: "Edit entry" }));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("Passport number")).toHaveValue("stored-password"),
+    );
+    await fireEvent.input(screen.getByPlaceholderText("Passport number"), {
+      target: { value: "NEW-PASSPORT-NUMBER" },
+    });
+    await fireEvent.input(screen.getByLabelText("Passport expiry date"), {
+      target: { value: "2035-01-01" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith(
+      "passport-1",
+      expect.objectContaining({
+        passportIssuingCountry: "United States",
+        passportNumber: "NEW-PASSPORT-NUMBER",
+        passportFullName: "Ada Lovelace",
+        passportBirthDate: "1815-12-10",
+        passportExpiryDate: "2035-01-01",
+      }),
+    );
+  });
+});
+
 describe("password entry workflow", () => {
   it("shows password and URL editors for a new password entry", async () => {
     selectEntry(passwordEntry({ hasPassword: false, url: undefined }), true);

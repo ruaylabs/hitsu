@@ -301,6 +301,49 @@
                 </FieldGroup>
               {/if}
 
+              {#if detailEntry.passport}
+                {@const passport = detailEntry.passport}
+                <FieldGroup>
+                  {#if passport.type}
+                    <Field label="Type" value={passport.type} />
+                  {/if}
+                  {#if passport.issuingCountry}
+                    <Field label="Issuing country" value={passport.issuingCountry} />
+                  {/if}
+                  {#if passport.hasNumber}
+                    <PasswordField
+                      label="Number"
+                      reveal={() => entriesBridge.entryRevealField(entryId, "passportNumber", selectedVersion ?? undefined)}
+                      copy={() => clipboard.copySecretField(entryId, "passportNumber", selectedVersion ?? undefined)}
+                    />
+                  {/if}
+                  {#if passport.fullName}
+                    <Field label="Full name" value={passport.fullName} />
+                  {/if}
+                  {#if passport.sex}
+                    <Field label="Sex" value={passport.sex} />
+                  {/if}
+                  {#if passport.nationality}
+                    <Field label="Nationality" value={passport.nationality} />
+                  {/if}
+                  {#if passport.issuingAuthority}
+                    <Field label="Issuing authority" value={passport.issuingAuthority} />
+                  {/if}
+                  {#if passport.birthDate}
+                    <Field label="Date of birth" value={passport.birthDate} />
+                  {/if}
+                  {#if passport.birthPlace}
+                    <Field label="Place of birth" value={passport.birthPlace} />
+                  {/if}
+                  {#if passport.issueDate}
+                    <Field label="Issued on" value={passport.issueDate} />
+                  {/if}
+                  {#if passport.expiryDate}
+                    <Field label="Expiry date" value={passport.expiryDate} />
+                  {/if}
+                </FieldGroup>
+              {/if}
+
               {#if detailEntry.tags.length > 0}
                 <div class="tags-display">
                   {#each detailEntry.tags as tag}
