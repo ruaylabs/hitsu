@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPES } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
@@ -18,7 +19,27 @@
     return counts;
   });
 
+  const TAGS_COLLAPSED_KEY = "kagi:sidebar-tags-collapsed";
+
   let tags = $derived([...new Set(activeEntries.flatMap((e) => e.tags))].sort());
+  let tagsCollapsed = $state(false);
+
+  onMount(() => {
+    try {
+      tagsCollapsed = localStorage.getItem(TAGS_COLLAPSED_KEY) === "true";
+    } catch {
+      // Sidebar persistence is optional.
+    }
+  });
+
+  function toggleTags() {
+    tagsCollapsed = !tagsCollapsed;
+    try {
+      localStorage.setItem(TAGS_COLLAPSED_KEY, String(tagsCollapsed));
+    } catch {
+      // Sidebar persistence is optional.
+    }
+  }
 
   const tagColors: Record<string, string> = {
     work: "var(--tag-work)",
@@ -87,7 +108,7 @@
   </SidebarSection>
 
   {#if tags.length > 0}
-    <SidebarSection label="Tags">
+    <SidebarSection label="Tags" collapsed={tagsCollapsed} ontoggle={toggleTags}>
       {#each tags as tag}
         <SidebarItem
           label={tag}

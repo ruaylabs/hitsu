@@ -12,6 +12,7 @@ const entries: EntrySummary[] = [
 ];
 
 beforeEach(() => {
+  localStorage.clear();
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
@@ -40,5 +41,31 @@ describe("Sidebar", () => {
     await fireEvent.click(recycleBin);
 
     expect(selection.filter).toEqual({ kind: "trash" });
+  });
+
+  it("persists the collapsed tags state", async () => {
+    vault.setEntries([{ ...entries[0], tags: ["work"] }]);
+    const sidebar = render(Sidebar);
+
+    const collapseButton = screen.getByRole("button", { name: "Collapse Tags" });
+    expect(screen.getByRole("tab", { name: "work" })).toBeInTheDocument();
+    expect(collapseButton).toHaveAttribute("aria-expanded", "true");
+
+    await fireEvent.click(collapseButton);
+
+    expect(screen.queryByRole("tab", { name: "work" })).not.toBeInTheDocument();
+    expect(localStorage.getItem("kagi:sidebar-tags-collapsed")).toBe("true");
+    sidebar.unmount();
+
+    render(Sidebar);
+
+    const expandButton = await screen.findByRole("button", { name: "Expand Tags" });
+    expect(expandButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("tab", { name: "work" })).not.toBeInTheDocument();
+
+    await fireEvent.click(expandButton);
+
+    expect(screen.getByRole("tab", { name: "work" })).toBeInTheDocument();
+    expect(localStorage.getItem("kagi:sidebar-tags-collapsed")).toBe("false");
   });
 });
