@@ -524,18 +524,12 @@ async fn saved_password_is_protected_on_disk() {
     let tv = setup();
     let state = tv.state();
 
-    let entry = entry_create(
-        state.clone(),
-        "login".to_string(),
-        EntryDraft {
-            title: "Bank".to_string(),
-            username: Some("u".to_string()),
-            password: Some("p4ssw0rd".to_string()),
-            ..draft("")
-        },
-    )
-    .await
-    .unwrap();
+    let mut entry_draft = draft("Bank");
+    entry_draft.username = Some("u".to_string());
+    entry_draft.password = Some("p4ssw0rd".to_string());
+    let entry = entry_create(state.clone(), "login".to_string(), entry_draft)
+        .await
+        .unwrap();
     entry_update(
         state.clone(),
         entry.id.clone(),

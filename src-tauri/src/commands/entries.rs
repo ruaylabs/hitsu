@@ -478,7 +478,7 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
 pub async fn entry_create(
     state: State<'_, AppState>,
     item_type: String,
-    draft: EntryDraft,
+    mut draft: EntryDraft,
 ) -> KagiResult<Entry> {
     let mut vaults = state.vaults.lock();
 
@@ -530,13 +530,13 @@ pub async fn entry_create(
     Ok(Entry {
         id,
         item_type: item_type_enum,
-        title: draft.title,
+        title: std::mem::take(&mut draft.title),
         subtitle,
-        url: draft.url,
-        username: draft.username,
+        url: draft.url.take(),
+        username: draft.username.take(),
         has_password: draft.password.as_deref().is_some_and(|p| !p.is_empty()),
         has_totp: draft.totp.as_deref().is_some_and(|t| !t.is_empty()),
-        notes: draft.notes,
+        notes: draft.notes.take(),
         tags: Vec::new(),
         favorite: false,
         trashed: false,

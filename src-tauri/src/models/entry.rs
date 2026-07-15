@@ -22,7 +22,7 @@ impl std::fmt::Debug for EntryDraft {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Zeroize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryDraft {
     pub title: String,
@@ -555,10 +555,8 @@ mod tests {
             notes: None,
             totp: None,
         };
-        let without_password = EntryDraft {
-            password: None,
-            ..with_password.clone()
-        };
+        let mut without_password = with_password.clone();
+        without_password.password = None;
         let with = format!("{with_password:?}");
         let without = format!("{without_password:?}");
         assert!(with.contains("Some(<redacted>)"));
