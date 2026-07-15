@@ -135,6 +135,22 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
     let icon_hint = read_icon_hint(entry_ref);
     let favorite = read_favorite(entry_ref);
     let has_totp = read_totp_seed(entry_ref).is_some();
+    let subtitle = match item_type {
+        ItemType::Card => entry_ref
+            .get("card.number")
+            .and_then(mask_card_number)
+            .unwrap_or(username.clone()),
+        ItemType::SoftwareLicense => entry_ref
+            .get("license.version")
+            .unwrap_or(&username)
+            .to_string(),
+        ItemType::Passport => entry_ref
+            .get("passport.fullName")
+            .or_else(|| entry_ref.get("passport.issuingCountry"))
+            .unwrap_or(&username)
+            .to_string(),
+        _ => username.clone(),
+    };
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -231,7 +247,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         id,
         item_type,
         title,
-        subtitle: username.clone(),
+        subtitle,
         url,
         username: Some(username),
         has_password,
@@ -1303,6 +1319,25 @@ mod tests {
         assert_eq!(entry.fields["custom.API key"].get(), "secret");
         assert!(entry.fields["custom.API key"].is_protected());
         assert_eq!(entry.fields["PluginData"].get(), "preserved");
+    }
+
+    #[test]
+    fn full_card_entry_keeps_masked_number_subtitle() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            entry.set_unprotected(keepass::db::fields::TITLE, "Visa");
+            entry.set_protected("card.number", "4111111111111111");
+            super::set_custom_data(&mut entry, "kagi.itemType", Some("card"));
+        }
+
+        let mapped = map_entry_to_full(&db.entry(entry_id).unwrap(), false);
+        assert_eq!(mapped.item_type, ItemType::Card);
+        assert_eq!(mapped.subtitle, "4111 •••• 1111");
     }
 
     #[test]
