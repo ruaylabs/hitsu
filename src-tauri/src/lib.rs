@@ -76,6 +76,7 @@ pub fn run() {
             commands::vault::vault_change_password,
             commands::vault::vault_lock,
             commands::vault::vault_upgrade_kdf,
+            commands::import::vault_import_1pif,
             commands::prefs::prefs_get,
             commands::prefs::prefs_set_last_vault,
             commands::prefs::prefs_set_security,

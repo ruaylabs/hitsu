@@ -16,6 +16,8 @@
     | null = $state(null);
 
   let statusMsg = $state("");
+  let statusError = $state(false);
+  let importing = $state(false);
   let recentVaults = $state<string[]>([]);
 
   async function handleOpen() {
@@ -28,6 +30,7 @@
       selectedPath = result;
       dialog = { kind: "open" };
     } catch (e) {
+      statusError = true;
       statusMsg = String(e);
     }
   }
@@ -55,6 +58,7 @@
       await vault.open(selectedPath, password);
       app.view = "main";
     } catch (e) {
+      statusError = true;
       statusMsg = String(e);
     }
   }
@@ -65,6 +69,7 @@
       await vault.create(selectedPath, password);
       app.view = "main";
     } catch (e) {
+      statusError = true;
       statusMsg = String(e);
     }
   }
@@ -82,6 +87,7 @@
       selectedPath = result;
       dialog = { kind: "create" };
     } catch (e) {
+      statusError = true;
       statusMsg = String(e);
     }
   }
@@ -97,9 +103,35 @@
     dialog = null;
     try {
       await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
+      statusError = false;
       statusMsg = "Password changed successfully";
     } catch (e) {
+      statusError = true;
       statusMsg = String(e);
+    }
+  }
+
+  async function handleImport1pif() {
+    importing = true;
+    statusMsg = "";
+    try {
+      const report = await vaultBridge.vaultImport1pif();
+      if (!report) return;
+      vault.setEntries(report.entries);
+      if (vault.meta) {
+        vault.setMeta({ ...vault.meta, itemCount: report.entries.length, entries: report.entries });
+      }
+      statusError = false;
+      const attachments = report.importedAttachments
+        ? ` and ${report.importedAttachments} attachment${report.importedAttachments === 1 ? "" : "s"}`
+        : "";
+      const skipped = report.skippedItems ? ` (${report.skippedItems} skipped)` : "";
+      statusMsg = `Imported ${report.importedItems} item${report.importedItems === 1 ? "" : "s"}${attachments}${skipped}.`;
+    } catch (e) {
+      statusError = true;
+      statusMsg = String(e);
+    } finally {
+      importing = false;
     }
   }
 </script>
@@ -184,11 +216,15 @@
               <Icon name="exchange" size={14} />
               Change master password…
             </button>
+            <button class="settings-btn" onclick={handleImport1pif} disabled={importing}>
+              <Icon name="database-import" size={14} />
+              {importing ? "Importing…" : "Import 1Password 7 (.1pif)…"}
+            </button>
           {/if}
         </div>
 
         {#if statusMsg}
-          <span class="status-msg">{statusMsg}</span>
+          <span class="status-msg" class:error={statusError}>{statusMsg}</span>
         {/if}
       </section>
 
@@ -391,14 +427,23 @@
     transition: background 0.1s;
   }
 
-  .settings-btn:hover {
+  .settings-btn:hover:not(:disabled) {
     background: var(--border);
+  }
+
+  .settings-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
   }
 
   .status-msg {
     font-size: 12px;
-    color: var(--danger);
+    color: var(--text-secondary);
     padding: 4px 0;
+  }
+
+  .status-msg.error {
+    color: var(--danger);
   }
 
   .empty-text {
