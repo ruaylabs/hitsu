@@ -14,10 +14,9 @@ body {
   vertical-align: middle;
 }
 
-/* Visible keyboard focus for native and ARIA interactive controls. */
-:where(button, input, textarea, select, a[href], [role="button"], [role="tab"]):focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 2px;
+/* Focus is communicated by each control's existing selected/active styling. */
+:focus-visible {
+  outline: none;
 }
 
 /* Selection highlighting */
