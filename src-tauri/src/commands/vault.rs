@@ -639,7 +639,7 @@ pub async fn vault_create(
             ensure_recycle_bin(&mut db);
 
             // Pin the KDF and format explicitly instead of trusting the
-            // library defaults (item 3 in IMPROVEMENT_PLAN.md).
+            // library defaults.
             db.config.kdf_config = default_kdf_config();
             ensure_kdbx4(&mut db);
 

@@ -69,9 +69,8 @@ impl serde::Serialize for KagiError {
         // log the full detail locally, send only the sanitized message.
         // LOGGING RULE: never log secret-bearing values here or anywhere —
         // no passwords, key material, TOTP seeds/URIs, or entry field values.
-        // TODO: consider replacing stderr logging with `tracing` (leveled,
-        // RUST_LOG-filterable) once more diagnostics land, e.g. the async
-        // save-queue work in IMPROVEMENT_PLAN.md item 12.
+        // TODO: consider replacing stderr logging with `tracing` (leveled and
+        // RUST_LOG-filterable) once more diagnostics land.
         eprintln!("command failed: {self}");
         serializer.serialize_str(&self.user_message())
     }
