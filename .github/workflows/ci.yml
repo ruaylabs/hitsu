@@ -106,6 +106,8 @@ jobs:
   e2e:
     needs: [svelte, rust]
     runs-on: ubuntu-24.04
+    env:
+      TAURI_DRIVER_VERSION: 2.0.6
     steps:
       - uses: actions/checkout@v6.0.3
 
@@ -122,6 +124,13 @@ jobs:
         with:
           cache: true
 
+      - name: Cache tauri-driver
+        id: cache-tauri-driver
+        uses: actions/cache@v6
+        with:
+          path: ~/.cargo/bin/tauri-driver
+          key: ${{ runner.os }}-${{ runner.arch }}-tauri-driver-${{ env.TAURI_DRIVER_VERSION }}-${{ hashFiles('rust-toolchain.toml') }}
+
       - name: Install Tauri and WebDriver dependencies
         run: |
           sudo apt-get update
@@ -133,7 +142,10 @@ jobs:
             libwebkit2gtk-4.1-dev \
             webkit2gtk-driver \
             xvfb
-          cargo install tauri-driver --locked
+
+      - name: Install tauri-driver
+        if: steps.cache-tauri-driver.outputs.cache-hit != 'true'
+        run: cargo install tauri-driver --version "$TAURI_DRIVER_VERSION" --locked
 
       - run: pnpm install --frozen-lockfile
 
