@@ -252,6 +252,55 @@
                 </FieldGroup>
               {/if}
 
+              {#if detailEntry.softwareLicense}
+                {@const license = detailEntry.softwareLicense}
+                <FieldGroup>
+                  {#if license.version}
+                    <Field label="Version" value={license.version} />
+                  {/if}
+                  {#if license.hasLicenseKey}
+                    <PasswordField
+                      label="License key"
+                      reveal={() => entriesBridge.entryRevealField(entryId, "licenseKey", selectedVersion ?? undefined)}
+                      copy={() => clipboard.copySecretField(entryId, "licenseKey", selectedVersion ?? undefined)}
+                    />
+                  {/if}
+                  {#if license.licensedTo}
+                    <Field label="Licensed to" value={license.licensedTo} />
+                  {/if}
+                  {#if license.registeredEmail}
+                    <Field label="Registered email" value={license.registeredEmail} />
+                  {/if}
+                  {#if license.company}
+                    <Field label="Company" value={license.company} />
+                  {/if}
+                  {#if license.downloadPage}
+                    <Field label="Download page" value={license.downloadPage} />
+                  {/if}
+                  {#if license.publisher}
+                    <Field label="Publisher" value={license.publisher} />
+                  {/if}
+                  {#if license.website}
+                    <Field label="Website" value={license.website} />
+                  {/if}
+                  {#if license.retailPrice}
+                    <Field label="Retail price" value={license.retailPrice} />
+                  {/if}
+                  {#if license.supportEmail}
+                    <Field label="Support email" value={license.supportEmail} />
+                  {/if}
+                  {#if license.purchaseDate}
+                    <Field label="Purchase date" value={license.purchaseDate} />
+                  {/if}
+                  {#if license.orderNumber}
+                    <Field label="Order number" value={license.orderNumber} />
+                  {/if}
+                  {#if license.orderTotal}
+                    <Field label="Order total" value={license.orderTotal} />
+                  {/if}
+                </FieldGroup>
+              {/if}
+
               {#if detailEntry.tags.length > 0}
                 <div class="tags-display">
                   {#each detailEntry.tags as tag}

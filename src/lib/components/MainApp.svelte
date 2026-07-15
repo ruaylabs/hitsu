@@ -15,6 +15,7 @@
   import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
   import EntryCommandPalette from "$lib/components/ui/EntryCommandPalette.svelte";
   import ShortcutsDialog from "$lib/components/ui/ShortcutsDialog.svelte";
+  import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { app } from "$lib/stores/app.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
@@ -120,7 +121,9 @@
   async function createEntry(type: ItemType) {
     showCommandPalette = false;
     try {
-      const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
+      const entry = await entriesBridge.entryCreate(type, {
+        title: `New ${ENTRY_TYPE_BY_TYPE[type].label}`,
+      });
       vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = { kind: "type", type };
       selection.selectedId = entry.id;

@@ -63,6 +63,19 @@ struct ImportedItem {
     card_exp_year: Option<String>,
     card_cvv: Option<String>,
     card_pin: Option<String>,
+    license_version: Option<String>,
+    license_key: Option<String>,
+    license_licensed_to: Option<String>,
+    license_registered_email: Option<String>,
+    license_company: Option<String>,
+    license_download_page: Option<String>,
+    license_publisher: Option<String>,
+    license_website: Option<String>,
+    license_retail_price: Option<String>,
+    license_support_email: Option<String>,
+    license_purchase_date: Option<String>,
+    license_order_number: Option<String>,
+    license_order_total: Option<String>,
     custom_fields: Vec<ImportedField>,
     attachments: Vec<ImportedAttachment>,
     created_at: Option<chrono::NaiveDateTime>,
@@ -344,6 +357,19 @@ fn parse_record(
         card_exp_year: None,
         card_cvv: None,
         card_pin: None,
+        license_version: None,
+        license_key: None,
+        license_licensed_to: None,
+        license_registered_email: None,
+        license_company: None,
+        license_download_page: None,
+        license_publisher: None,
+        license_website: None,
+        license_retail_price: None,
+        license_support_email: None,
+        license_purchase_date: None,
+        license_order_number: None,
+        license_order_total: None,
         custom_fields: Vec::new(),
         attachments: Vec::new(),
         created_at: timestamp_at(record, &["createdAt"])
@@ -401,6 +427,8 @@ fn classify(record: &JsonValue, content: &JsonValue, type_name: &str) -> (ItemTy
     let category = string_at(record, &["category"]).unwrap_or_default();
     if lower.contains("secure-note") || lower.contains("securenote") || category == "003" {
         (ItemType::Note, false)
+    } else if lower.contains("computer.license") || category == "100" {
+        (ItemType::SoftwareLicense, false)
     } else if lower.contains("creditcard") || category == "002" {
         (ItemType::Card, false)
     } else if lower.contains("identit") || category == "004" {
@@ -442,6 +470,23 @@ fn apply_direct_fields(item: &mut ImportedItem, content: &JsonValue) {
             if let (Some(year), Some(month), Some(day)) = (year, month, day) {
                 item.dob = Some(format!("{year}-{:0>2}-{:0>2}", month, day));
             }
+        }
+        ItemType::SoftwareLicense => {
+            item.license_version = first_string(content, &["product_version", "version"]);
+            item.license_key = first_string(content, &["reg_code", "licenseKey"]);
+            item.license_licensed_to = first_string(content, &["reg_name", "licensedTo"]);
+            item.license_registered_email =
+                first_string(content, &["reg_email", "registeredEmail"]);
+            item.license_company = first_string(content, &["company"]);
+            item.license_download_page = first_string(content, &["download_link", "downloadPage"]);
+            item.license_publisher = first_string(content, &["publisher_name", "publisher"]);
+            item.license_website = first_string(content, &["publisher_website", "website"]);
+            item.license_retail_price = first_string(content, &["retail_price", "retailPrice"]);
+            item.license_support_email = first_string(content, &["support_email", "supportEmail"]);
+            item.license_purchase_date = first_string(content, &["order_date", "purchaseDate"])
+                .map(|value| normalize_import_date(&value));
+            item.license_order_number = first_string(content, &["order_number", "orderNumber"]);
+            item.license_order_total = first_string(content, &["order_total", "orderTotal"]);
         }
         _ => {}
     }
@@ -550,6 +595,61 @@ fn apply_1password_field(item: &mut ImportedItem, field: &JsonValue) {
             }
             _ => false,
         },
+        ItemType::SoftwareLicense => match designation_lower.as_str() {
+            "product_version" | "version" if item.license_version.is_none() => {
+                item.license_version = Some(value.clone());
+                true
+            }
+            "reg_code" | "license_key" if item.license_key.is_none() => {
+                item.license_key = Some(value.clone());
+                true
+            }
+            "reg_name" | "licensed_to" if item.license_licensed_to.is_none() => {
+                item.license_licensed_to = Some(value.clone());
+                true
+            }
+            "reg_email" | "registered_email" if item.license_registered_email.is_none() => {
+                item.license_registered_email = Some(value.clone());
+                true
+            }
+            "company" if item.license_company.is_none() => {
+                item.license_company = Some(value.clone());
+                true
+            }
+            "download_link" | "download_page" if item.license_download_page.is_none() => {
+                item.license_download_page = Some(value.clone());
+                true
+            }
+            "publisher_name" | "publisher" if item.license_publisher.is_none() => {
+                item.license_publisher = Some(value.clone());
+                true
+            }
+            "publisher_website" | "website" if item.license_website.is_none() => {
+                item.license_website = Some(value.clone());
+                true
+            }
+            "retail_price" if item.license_retail_price.is_none() => {
+                item.license_retail_price = Some(value.clone());
+                true
+            }
+            "support_email" if item.license_support_email.is_none() => {
+                item.license_support_email = Some(value.clone());
+                true
+            }
+            "order_date" | "purchase_date" if item.license_purchase_date.is_none() => {
+                item.license_purchase_date = Some(value.clone());
+                true
+            }
+            "order_number" if item.license_order_number.is_none() => {
+                item.license_order_number = Some(value.clone());
+                true
+            }
+            "order_total" if item.license_order_total.is_none() => {
+                item.license_order_total = Some(value.clone());
+                true
+            }
+            _ => false,
+        },
         ItemType::Note => false,
     };
     // IDs containing `;opid=__` are 1Password's captured HTML form-control
@@ -608,6 +708,30 @@ fn add_remaining_direct_fields(item: &mut ImportedItem, content: &JsonValue) {
         "birthdate_yy",
         "birthdate_mm",
         "birthdate_dd",
+        "product_version",
+        "version",
+        "reg_code",
+        "licenseKey",
+        "reg_name",
+        "licensedTo",
+        "reg_email",
+        "registeredEmail",
+        "download_link",
+        "downloadPage",
+        "publisher_name",
+        "publisher",
+        "publisher_website",
+        "website",
+        "retail_price",
+        "retailPrice",
+        "support_email",
+        "supportEmail",
+        "order_date",
+        "purchaseDate",
+        "order_number",
+        "orderNumber",
+        "order_total",
+        "orderTotal",
     ];
     for (name, raw) in object {
         if OMIT.contains(&name.as_str()) || raw.is_null() || raw.is_array() || raw.is_object() {
@@ -662,6 +786,19 @@ fn remove_custom_fields_duplicating_regular_fields(item: &mut ImportedItem) {
         item.card_exp_year.as_deref(),
         item.card_cvv.as_deref(),
         item.card_pin.as_deref(),
+        item.license_version.as_deref(),
+        item.license_key.as_deref(),
+        item.license_licensed_to.as_deref(),
+        item.license_registered_email.as_deref(),
+        item.license_company.as_deref(),
+        item.license_download_page.as_deref(),
+        item.license_publisher.as_deref(),
+        item.license_website.as_deref(),
+        item.license_retail_price.as_deref(),
+        item.license_support_email.as_deref(),
+        item.license_purchase_date.as_deref(),
+        item.license_order_number.as_deref(),
+        item.license_order_total.as_deref(),
     ]
     .into_iter()
     .flatten()
@@ -848,6 +985,79 @@ fn apply_import(db: &mut keepass::Database, parsed: ParsedImport) -> (usize, usi
         );
         set_field(&mut entry, "card.cvv", item.card_cvv.as_deref(), true);
         set_field(&mut entry, "card.pin", item.card_pin.as_deref(), true);
+        set_field(
+            &mut entry,
+            "license.version",
+            item.license_version.as_deref(),
+            false,
+        );
+        set_field(&mut entry, "license.key", item.license_key.as_deref(), true);
+        set_field(
+            &mut entry,
+            "license.licensedTo",
+            item.license_licensed_to.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.registeredEmail",
+            item.license_registered_email.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.company",
+            item.license_company.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.downloadPage",
+            item.license_download_page.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.publisher",
+            item.license_publisher.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.website",
+            item.license_website.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.retailPrice",
+            item.license_retail_price.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.supportEmail",
+            item.license_support_email.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.purchaseDate",
+            item.license_purchase_date.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.orderNumber",
+            item.license_order_number.as_deref(),
+            false,
+        );
+        set_field(
+            &mut entry,
+            "license.orderTotal",
+            item.license_order_total.as_deref(),
+            false,
+        );
         entry.tags = item.tags;
         set_custom_data(&mut entry, "kagi.itemType", item_type_name(&item.item_type));
         set_custom_data(
@@ -915,6 +1125,7 @@ fn item_type_name(item_type: &ItemType) -> &'static str {
         ItemType::Note => "note",
         ItemType::Identity => "identity",
         ItemType::Card => "card",
+        ItemType::SoftwareLicense => "software_license",
     }
 }
 
@@ -1025,6 +1236,21 @@ fn timestamp_at(value: &JsonValue, path: &[&str]) -> Option<chrono::NaiveDateTim
         0,
     )
     .map(|date| date.naive_utc())
+}
+
+fn normalize_import_date(value: &str) -> String {
+    value
+        .parse::<i64>()
+        .ok()
+        .and_then(|timestamp| {
+            let seconds = if timestamp > 10_000_000_000 {
+                timestamp / 1000
+            } else {
+                timestamp
+            };
+            chrono::DateTime::from_timestamp(seconds, 0)
+        })
+        .map_or_else(|| value.to_string(), |date| date.date_naive().to_string())
 }
 
 fn first_url(record: &JsonValue, content: &JsonValue) -> Option<String> {
@@ -1197,10 +1423,11 @@ mod tests {
             serde_json::json!({"title":"Note","typeName":"securenotes.SecureNote","secureContents":{"notesPlain":"hello"}}),
             serde_json::json!({"title":"Person","typeName":"identities.Identity","secureContents":{"firstname":"Ada","lastname":"Lovelace","email":"ada@example.com","address1":"1 Main St","city":"London"}}),
             serde_json::json!({"title":"Card","typeName":"wallet.financial.CreditCard","secureContents":{"ccnum":"4111111111111111","cvv":"123","cardholder":"Ada","expiry":"203012"}}),
+            serde_json::json!({"title":"Editor Pro","typeName":"wallet.computer.License","secureContents":{"order_date":1704067200,"sections":[{"fields":[{"n":"product_version","t":"version","v":"4.2"},{"n":"reg_code","t":"license key","k":"concealed","v":"AAAA-BBBB"}]},{"name":"customer","fields":[{"n":"reg_name","t":"licensed to","v":"Ada"},{"n":"reg_email","t":"registered email","v":"ada@example.com"}]},{"name":"order","fields":[{"n":"order_date","t":"purchase date","k":"date","v":1704067200},{"n":"order_number","t":"order number","v":"ORDER-1"}]}]}}),
         ];
         let path = write_export(&values, Some(("DOC1", b"attachment")));
         let parsed = parse_1pif(&path).unwrap();
-        assert_eq!(parsed.items.len(), 5);
+        assert_eq!(parsed.items.len(), 6);
         assert_eq!(parsed.items[0].item_type, ItemType::Login);
         assert_eq!(parsed.items[0].username.as_deref(), Some("me@example.com"));
         assert!(parsed.items[0]
@@ -1216,6 +1443,15 @@ mod tests {
         assert_eq!(parsed.items[4].item_type, ItemType::Card);
         assert_eq!(parsed.items[4].card_exp_year.as_deref(), Some("2030"));
         assert_eq!(parsed.items[4].card_exp_month.as_deref(), Some("12"));
+        assert_eq!(parsed.items[5].item_type, ItemType::SoftwareLicense);
+        assert_eq!(parsed.items[5].license_version.as_deref(), Some("4.2"));
+        assert_eq!(parsed.items[5].license_key.as_deref(), Some("AAAA-BBBB"));
+        assert_eq!(parsed.items[5].license_licensed_to.as_deref(), Some("Ada"));
+        assert_eq!(
+            parsed.items[5].license_purchase_date.as_deref(),
+            Some("2024-01-01")
+        );
+        assert!(parsed.items[5].custom_fields.is_empty());
     }
 
     #[test]

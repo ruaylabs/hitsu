@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENTRY_TYPE_BY_TYPE, ENTRY_TYPES } from "$lib/entryTypes";
 
-const EXPECTED_TYPES = ["login", "password", "note", "identity", "card"];
+const EXPECTED_TYPES = ["login", "password", "note", "identity", "card", "software_license"];
 
 describe("entry type metadata", () => {
   it("defines every entry type once and indexes each definition", () => {

@@ -93,6 +93,19 @@ export interface EntryPatch {
   cardExpYear?: string | null;
   cardCvv?: string | null;
   cardPin?: string | null;
+  licenseVersion?: string | null;
+  licenseKey?: string | null;
+  licenseLicensedTo?: string | null;
+  licenseRegisteredEmail?: string | null;
+  licenseCompany?: string | null;
+  licenseDownloadPage?: string | null;
+  licensePublisher?: string | null;
+  licenseWebsite?: string | null;
+  licenseRetailPrice?: string | null;
+  licenseSupportEmail?: string | null;
+  licensePurchaseDate?: string | null;
+  licenseOrderNumber?: string | null;
+  licenseOrderTotal?: string | null;
   customFields?: CustomField[];
 }
 
@@ -121,6 +134,19 @@ export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry>
       cardExpYear: patch.cardExpYear ?? null,
       cardCvv: patch.cardCvv ?? null,
       cardPin: patch.cardPin ?? null,
+      licenseVersion: patch.licenseVersion ?? null,
+      licenseKey: patch.licenseKey ?? null,
+      licenseLicensedTo: patch.licenseLicensedTo ?? null,
+      licenseRegisteredEmail: patch.licenseRegisteredEmail ?? null,
+      licenseCompany: patch.licenseCompany ?? null,
+      licenseDownloadPage: patch.licenseDownloadPage ?? null,
+      licensePublisher: patch.licensePublisher ?? null,
+      licenseWebsite: patch.licenseWebsite ?? null,
+      licenseRetailPrice: patch.licenseRetailPrice ?? null,
+      licenseSupportEmail: patch.licenseSupportEmail ?? null,
+      licensePurchaseDate: patch.licensePurchaseDate ?? null,
+      licenseOrderNumber: patch.licenseOrderNumber ?? null,
+      licenseOrderTotal: patch.licenseOrderTotal ?? null,
       customFields: patch.customFields ?? null,
     },
   });

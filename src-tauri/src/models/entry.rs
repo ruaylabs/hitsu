@@ -61,6 +61,19 @@ impl std::fmt::Debug for EntryPatch {
             .field("card_exp_year", &self.card_exp_year)
             .field("card_cvv", &redacted_opt(&self.card_cvv))
             .field("card_pin", &redacted_opt(&self.card_pin))
+            .field("license_version", &self.license_version)
+            .field("license_key", &redacted_opt(&self.license_key))
+            .field("license_licensed_to", &self.license_licensed_to)
+            .field("license_registered_email", &self.license_registered_email)
+            .field("license_company", &self.license_company)
+            .field("license_download_page", &self.license_download_page)
+            .field("license_publisher", &self.license_publisher)
+            .field("license_website", &self.license_website)
+            .field("license_retail_price", &self.license_retail_price)
+            .field("license_support_email", &self.license_support_email)
+            .field("license_purchase_date", &self.license_purchase_date)
+            .field("license_order_number", &self.license_order_number)
+            .field("license_order_total", &self.license_order_total)
             .field("custom_fields", &self.custom_fields)
             .finish()
     }
@@ -90,6 +103,19 @@ pub struct EntryPatch {
     pub card_exp_year: Option<String>,
     pub card_cvv: Option<String>,
     pub card_pin: Option<String>,
+    pub license_version: Option<String>,
+    pub license_key: Option<String>,
+    pub license_licensed_to: Option<String>,
+    pub license_registered_email: Option<String>,
+    pub license_company: Option<String>,
+    pub license_download_page: Option<String>,
+    pub license_publisher: Option<String>,
+    pub license_website: Option<String>,
+    pub license_retail_price: Option<String>,
+    pub license_support_email: Option<String>,
+    pub license_purchase_date: Option<String>,
+    pub license_order_number: Option<String>,
+    pub license_order_total: Option<String>,
     pub custom_fields: Option<Vec<CustomField>>,
 }
 
@@ -125,6 +151,8 @@ pub struct Entry {
     pub identity: Option<IdentityFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<CardFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub software_license: Option<SoftwareLicenseFields>,
     pub attachments: Vec<AttachmentMeta>,
     pub custom_fields: Vec<CustomField>,
     pub modified_at: String,
@@ -224,6 +252,38 @@ pub struct IdentityFields {
     pub dob: Option<String>,
 }
 
+/// Software-license fields as shown in the detail view. The license key stays
+/// backend-side and is represented only by `has_license_key`.
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareLicenseFields {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    pub has_license_key: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub licensed_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registered_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub company: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_page: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub website: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retail_price: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub support_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purchase_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_total: Option<String>,
+}
+
 /// Card fields as shown in the detail view: the number is pre-masked and
 /// CVV/PIN are reduced to presence flags (see [`Entry`]).
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -256,6 +316,7 @@ pub enum SecretField {
     CardNumber,
     CardCvv,
     CardPin,
+    LicenseKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -338,6 +399,19 @@ mod tests {
             card_exp_year: Some("2030".into()),
             card_cvv: Some("123".into()),
             card_pin: Some("0000".into()),
+            license_version: None,
+            license_key: Some("LICENSE-KEY-SECRET".into()),
+            license_licensed_to: None,
+            license_registered_email: None,
+            license_company: None,
+            license_download_page: None,
+            license_publisher: None,
+            license_website: None,
+            license_retail_price: None,
+            license_support_email: None,
+            license_purchase_date: None,
+            license_order_number: None,
+            license_order_total: None,
             custom_fields: Some(vec![CustomField {
                 name: "Recovery answer".into(),
                 value: "custom-SECRET".into(),
@@ -366,6 +440,7 @@ mod tests {
             "4242424242424242",
             "123",
             "0000",
+            "LICENSE-KEY-SECRET",
             "custom-SECRET",
         ] {
             assert!(

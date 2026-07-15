@@ -44,6 +44,13 @@ export const ENTRY_TYPES = [
     icon: "credit-card",
     color: "#1d9e75",
   },
+  {
+    type: "software_license",
+    label: "Software License",
+    pluralLabel: "Software Licenses",
+    icon: "license",
+    color: "#ba7517",
+  },
 ] as const satisfies readonly EntryTypeMetadata[];
 
 export const ENTRY_TYPE_BY_TYPE = Object.fromEntries(

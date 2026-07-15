@@ -6,7 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryPatch, EntrySummary,
-    HistoryEntrySummary, IdentityFields, ItemType, SecretField,
+    HistoryEntrySummary, IdentityFields, ItemType, SecretField, SoftwareLicenseFields,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -14,7 +14,7 @@ use crate::state::{AppState, OpenVault};
 fn is_protected_key(key: &str) -> bool {
     matches!(
         key,
-        fields::PASSWORD | "card.cvv" | "card.pin" | "card.number"
+        fields::PASSWORD | "card.cvv" | "card.pin" | "card.number" | "license.key"
     )
 }
 
@@ -27,14 +27,16 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry, trashed: bool) -> EntryS
 
     let url = entry_ref.get_url().map(str::to_string);
 
-    // For card entries, show a masked card number as subtitle instead of username.
-    let subtitle = if item_type == ItemType::Card {
-        entry_ref
+    let subtitle = match item_type {
+        ItemType::Card => entry_ref
             .get("card.number")
             .and_then(mask_card_number)
-            .unwrap_or(username.clone())
-    } else {
-        username.clone()
+            .unwrap_or(username.clone()),
+        ItemType::SoftwareLicense => entry_ref
+            .get("license.version")
+            .unwrap_or(&username)
+            .to_string(),
+        _ => username.clone(),
     };
 
     EntrySummary {
@@ -170,6 +172,28 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         None
     };
 
+    let software_license = if item_type == ItemType::SoftwareLicense {
+        Some(SoftwareLicenseFields {
+            version: entry_ref.get("license.version").map(str::to_string),
+            has_license_key: entry_ref
+                .get("license.key")
+                .is_some_and(|value| !value.is_empty()),
+            licensed_to: entry_ref.get("license.licensedTo").map(str::to_string),
+            registered_email: entry_ref.get("license.registeredEmail").map(str::to_string),
+            company: entry_ref.get("license.company").map(str::to_string),
+            download_page: entry_ref.get("license.downloadPage").map(str::to_string),
+            publisher: entry_ref.get("license.publisher").map(str::to_string),
+            website: entry_ref.get("license.website").map(str::to_string),
+            retail_price: entry_ref.get("license.retailPrice").map(str::to_string),
+            support_email: entry_ref.get("license.supportEmail").map(str::to_string),
+            purchase_date: entry_ref.get("license.purchaseDate").map(str::to_string),
+            order_number: entry_ref.get("license.orderNumber").map(str::to_string),
+            order_total: entry_ref.get("license.orderTotal").map(str::to_string),
+        })
+    } else {
+        None
+    };
+
     Entry {
         id,
         item_type,
@@ -186,6 +210,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         icon_hint,
         identity,
         card,
+        software_license,
         attachments: Vec::new(),
         custom_fields: read_custom_fields(entry_ref),
         modified_at,
@@ -468,6 +493,7 @@ pub async fn entry_create(
         icon_hint: None,
         identity: None,
         card: None,
+        software_license: None,
         attachments: Vec::new(),
         custom_fields: Vec::new(),
         modified_at: now_rfc.clone(),
@@ -617,6 +643,23 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "card.expYear", &patch.card_exp_year);
     apply_opt(entry, "card.cvv", &patch.card_cvv);
     apply_opt(entry, "card.pin", &patch.card_pin);
+    apply_opt(entry, "license.version", &patch.license_version);
+    apply_opt(entry, "license.key", &patch.license_key);
+    apply_opt(entry, "license.licensedTo", &patch.license_licensed_to);
+    apply_opt(
+        entry,
+        "license.registeredEmail",
+        &patch.license_registered_email,
+    );
+    apply_opt(entry, "license.company", &patch.license_company);
+    apply_opt(entry, "license.downloadPage", &patch.license_download_page);
+    apply_opt(entry, "license.publisher", &patch.license_publisher);
+    apply_opt(entry, "license.website", &patch.license_website);
+    apply_opt(entry, "license.retailPrice", &patch.license_retail_price);
+    apply_opt(entry, "license.supportEmail", &patch.license_support_email);
+    apply_opt(entry, "license.purchaseDate", &patch.license_purchase_date);
+    apply_opt(entry, "license.orderNumber", &patch.license_order_number);
+    apply_opt(entry, "license.orderTotal", &patch.license_order_total);
 
     if let Some(custom_fields) = &patch.custom_fields {
         let existing = entry
@@ -801,6 +844,7 @@ fn read_secret_value(
             SecretField::CardNumber => e.get("card.number").map(str::to_string),
             SecretField::CardCvv => e.get("card.cvv").map(str::to_string),
             SecretField::CardPin => e.get("card.pin").map(str::to_string),
+            SecretField::LicenseKey => e.get("license.key").map(str::to_string),
         }
     };
 
@@ -1145,7 +1189,7 @@ mod tests {
         mask_card_number, read_attachments, read_totp_seed, safe_attachment_file_name,
         validate_custom_fields, write_attachment_file,
     };
-    use crate::models::{CustomField, EntryPatch};
+    use crate::models::{CustomField, EntryPatch, ItemType};
 
     #[test]
     fn recycle_bin_is_created_once_and_marks_moved_entries() {
@@ -1204,6 +1248,38 @@ mod tests {
         assert_eq!(entry.fields["custom.API key"].get(), "secret");
         assert!(entry.fields["custom.API key"].is_protected());
         assert_eq!(entry.fields["PluginData"].get(), "preserved");
+    }
+
+    #[test]
+    fn software_license_fields_roundtrip_and_key_is_sanitized() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            entry.set_unprotected(keepass::db::fields::TITLE, "Editor Pro");
+            super::set_custom_data(&mut entry, "kagi.itemType", Some("software_license"));
+        }
+
+        let mut patch = EntryPatch::default();
+        patch.license_version = Some("4.2".into());
+        patch.license_key = Some("AAAA-BBBB".into());
+        patch.license_licensed_to = Some("Ada".into());
+        patch.license_registered_email = Some("ada@example.com".into());
+        patch.license_purchase_date = Some("2024-01-01".into());
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+
+        let entry = db.entry(entry_id).unwrap();
+        assert!(entry.fields["license.key"].is_protected());
+        let mapped = map_entry_to_full(&entry, false);
+        assert_eq!(mapped.item_type, ItemType::SoftwareLicense);
+        let license = mapped.software_license.as_ref().unwrap();
+        assert_eq!(license.version.as_deref(), Some("4.2"));
+        assert!(license.has_license_key);
+        assert_eq!(license.licensed_to.as_deref(), Some("Ada"));
+        assert_eq!(license.purchase_date.as_deref(), Some("2024-01-01"));
     }
 
     #[test]

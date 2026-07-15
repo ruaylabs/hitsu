@@ -1,4 +1,4 @@
-export type ItemType = "login" | "password" | "note" | "identity" | "card";
+export type ItemType = "login" | "password" | "note" | "identity" | "card" | "software_license";
 
 /**
  * Detail view of an entry. Carries NO secret material: the backend reduces
@@ -22,6 +22,7 @@ export interface Entry {
   iconHint?: string;
   identity?: IdentityFields;
   card?: CardFields;
+  softwareLicense?: SoftwareLicenseFields;
   attachments: AttachmentMeta[];
   customFields: CustomField[];
   modifiedAt: string;
@@ -50,6 +51,22 @@ export interface IdentityFields {
   dob?: string;
 }
 
+export interface SoftwareLicenseFields {
+  version?: string;
+  hasLicenseKey: boolean;
+  licensedTo?: string;
+  registeredEmail?: string;
+  company?: string;
+  downloadPage?: string;
+  publisher?: string;
+  website?: string;
+  retailPrice?: string;
+  supportEmail?: string;
+  purchaseDate?: string;
+  orderNumber?: string;
+  orderTotal?: string;
+}
+
 export interface CardFields {
   holder?: string;
   /** Pre-masked by the backend, e.g. "4111 •••• 1111". */
@@ -63,7 +80,7 @@ export interface CardFields {
 }
 
 /** A secret field that can be revealed or copied on demand. */
-export type SecretField = "password" | "totp" | "cardNumber" | "cardCvv" | "cardPin";
+export type SecretField = "password" | "totp" | "cardNumber" | "cardCvv" | "cardPin" | "licenseKey";
 
 export interface EntrySummary {
   id: string;

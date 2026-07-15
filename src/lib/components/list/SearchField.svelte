@@ -3,7 +3,7 @@
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import type { ItemType } from "$lib/bridge/types";
-  import { ENTRY_TYPES } from "$lib/entryTypes";
+  import { ENTRY_TYPE_BY_TYPE, ENTRY_TYPES } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -50,7 +50,9 @@
 
   async function createEntry(type: ItemType) {
     try {
-      const entry = await entriesBridge.entryCreate(type, { title: `New ${type}` });
+      const entry = await entriesBridge.entryCreate(type, {
+        title: `New ${ENTRY_TYPE_BY_TYPE[type].label}`,
+      });
       vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = { kind: "type", type };
       selection.selectedId = entry.id;

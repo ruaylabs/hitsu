@@ -272,6 +272,53 @@ describe("identity entry workflow", () => {
   });
 });
 
+describe("software license workflow", () => {
+  it("reveals and saves license fields", async () => {
+    const entry = passwordEntry({
+      id: "license-1",
+      type: "software_license",
+      title: "Editor Pro",
+      url: undefined,
+      hasPassword: false,
+      softwareLicense: {
+        version: "4.2",
+        hasLicenseKey: true,
+        licensedTo: "Ada",
+        registeredEmail: "ada@example.com",
+        purchaseDate: "2024-01-01",
+      },
+    });
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue(entry);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Reveal license key" }));
+    expect(mocks.entryRevealField).toHaveBeenCalledWith("license-1", "licenseKey");
+
+    await fireEvent.click(screen.getByRole("button", { name: "Edit entry" }));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("License key")).toHaveValue("stored-password"),
+    );
+    await fireEvent.input(screen.getByPlaceholderText("Version"), { target: { value: "5.0" } });
+    await fireEvent.input(screen.getByPlaceholderText("License key"), {
+      target: { value: "NEW-LICENSE-KEY" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith(
+      "license-1",
+      expect.objectContaining({
+        licenseVersion: "5.0",
+        licenseKey: "NEW-LICENSE-KEY",
+        licenseLicensedTo: "Ada",
+        licenseRegisteredEmail: "ada@example.com",
+        licensePurchaseDate: "2024-01-01",
+      }),
+    );
+  });
+});
+
 describe("password entry workflow", () => {
   it("shows password and URL editors for a new password entry", async () => {
     selectEntry(passwordEntry({ hasPassword: false, url: undefined }), true);

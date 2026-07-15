@@ -13,5 +13,6 @@ describe("SearchField", () => {
     expect(screen.getByRole("menuitem", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Identity" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Card" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Software License" })).toBeInTheDocument();
   });
 });

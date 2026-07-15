@@ -150,6 +150,20 @@
   let editCardExpYear = $state("");
   let editCardCvv = $state("");
   let editCardPin = $state("");
+  // Software license fields
+  let editLicenseVersion = $state("");
+  let editLicenseKey = $state("");
+  let editLicenseLicensedTo = $state("");
+  let editLicenseRegisteredEmail = $state("");
+  let editLicenseCompany = $state("");
+  let editLicenseDownloadPage = $state("");
+  let editLicensePublisher = $state("");
+  let editLicenseWebsite = $state("");
+  let editLicenseRetailPrice = $state("");
+  let editLicenseSupportEmail = $state("");
+  let editLicensePurchaseDate = $state("");
+  let editLicenseOrderNumber = $state("");
+  let editLicenseOrderTotal = $state("");
 
   // Validation errors for card fields
   let cardNumberError = $state("");
@@ -183,6 +197,19 @@
       cardExpYear: editCardExpYear,
       cardCvv: editCardCvv,
       cardPin: editCardPin,
+      licenseVersion: editLicenseVersion,
+      licenseKey: editLicenseKey,
+      licenseLicensedTo: editLicenseLicensedTo,
+      licenseRegisteredEmail: editLicenseRegisteredEmail,
+      licenseCompany: editLicenseCompany,
+      licenseDownloadPage: editLicenseDownloadPage,
+      licensePublisher: editLicensePublisher,
+      licenseWebsite: editLicenseWebsite,
+      licenseRetailPrice: editLicenseRetailPrice,
+      licenseSupportEmail: editLicenseSupportEmail,
+      licensePurchaseDate: editLicensePurchaseDate,
+      licenseOrderNumber: editLicenseOrderNumber,
+      licenseOrderTotal: editLicenseOrderTotal,
     });
   }
 
@@ -257,28 +284,43 @@
     editCardType = e.card?.type ?? "";
     editCardExpMonth = e.card?.expMonth?.toString() ?? "";
     editCardExpYear = e.card?.expYear?.toString() ?? "";
+    editLicenseVersion = e.softwareLicense?.version ?? "";
+    editLicenseLicensedTo = e.softwareLicense?.licensedTo ?? "";
+    editLicenseRegisteredEmail = e.softwareLicense?.registeredEmail ?? "";
+    editLicenseCompany = e.softwareLicense?.company ?? "";
+    editLicenseDownloadPage = e.softwareLicense?.downloadPage ?? "";
+    editLicensePublisher = e.softwareLicense?.publisher ?? "";
+    editLicenseWebsite = e.softwareLicense?.website ?? "";
+    editLicenseRetailPrice = e.softwareLicense?.retailPrice ?? "";
+    editLicenseSupportEmail = e.softwareLicense?.supportEmail ?? "";
+    editLicensePurchaseDate = e.softwareLicense?.purchaseDate ?? "";
+    editLicenseOrderNumber = e.softwareLicense?.orderNumber ?? "";
+    editLicenseOrderTotal = e.softwareLicense?.orderTotal ?? "";
     // Secrets are not in the Entry DTO — fetch the ones that exist so the
     // form is prefilled and an untouched save round-trips them unchanged.
-    const [password, totp, cardNumber, cardCvv, cardPin, customFields] = await Promise.all([
-      e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
-      e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
-      e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
-      e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
-      e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
-      Promise.all(
-        e.customFields.map(async (field) => ({
-          ...field,
-          value: field.protected
-            ? await entriesBridge.entryRevealCustomField(e.id, field.name)
-            : field.value,
-        })),
-      ),
-    ]);
+    const [password, totp, cardNumber, cardCvv, cardPin, licenseKey, customFields] =
+      await Promise.all([
+        e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
+        e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
+        e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
+        e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
+        e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
+        e.softwareLicense?.hasLicenseKey ? entriesBridge.entryRevealField(e.id, "licenseKey") : "",
+        Promise.all(
+          e.customFields.map(async (field) => ({
+            ...field,
+            value: field.protected
+              ? await entriesBridge.entryRevealCustomField(e.id, field.name)
+              : field.value,
+          })),
+        ),
+      ]);
     editPassword = password;
     editTotp = totp;
     editCardNumber = cardNumber;
     editCardCvv = cardCvv;
     editCardPin = cardPin;
+    editLicenseKey = licenseKey;
     editCustomFields = customFields;
     initialEditSnapshot = editSnapshot();
     clearCardErrors();
@@ -417,6 +459,19 @@
         cardExpYear: editCardExpYear,
         cardCvv: editCardCvv,
         cardPin: editCardPin,
+        licenseVersion: editLicenseVersion,
+        licenseKey: editLicenseKey,
+        licenseLicensedTo: editLicenseLicensedTo,
+        licenseRegisteredEmail: editLicenseRegisteredEmail,
+        licenseCompany: editLicenseCompany,
+        licenseDownloadPage: editLicenseDownloadPage,
+        licensePublisher: editLicensePublisher,
+        licenseWebsite: editLicenseWebsite,
+        licenseRetailPrice: editLicenseRetailPrice,
+        licenseSupportEmail: editLicenseSupportEmail,
+        licensePurchaseDate: editLicensePurchaseDate,
+        licenseOrderNumber: editLicenseOrderNumber,
+        licenseOrderTotal: editLicenseOrderTotal,
         customFields: editCustomFields.map((field) => ({
           ...field,
           name: field.name.trim(),
@@ -966,6 +1021,127 @@
               {/if}
             </div>
           </DetailFieldRow>
+        {:else if entry.type === "software_license"}
+          <DetailFieldRow label="Version">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Version"
+              autocomplete="off"
+              bind:value={editLicenseVersion}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="License key">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="License key"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={editLicenseKey}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Licensed to">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Licensed to"
+              autocomplete="off"
+              bind:value={editLicenseLicensedTo}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Registered email">
+            <input
+              class="control control--compact edit-input"
+              type="email"
+              placeholder="Registered email"
+              autocomplete="off"
+              bind:value={editLicenseRegisteredEmail}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Company">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Company"
+              autocomplete="off"
+              bind:value={editLicenseCompany}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Download page">
+            <input
+              class="control control--compact edit-input"
+              type="url"
+              placeholder="Download page"
+              autocomplete="off"
+              bind:value={editLicenseDownloadPage}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Publisher">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Publisher"
+              autocomplete="off"
+              bind:value={editLicensePublisher}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Website">
+            <input
+              class="control control--compact edit-input"
+              type="url"
+              placeholder="Website"
+              autocomplete="off"
+              bind:value={editLicenseWebsite}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Retail price">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Retail price"
+              autocomplete="off"
+              bind:value={editLicenseRetailPrice}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Support email">
+            <input
+              class="control control--compact edit-input"
+              type="email"
+              placeholder="Support email"
+              autocomplete="off"
+              bind:value={editLicenseSupportEmail}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Purchase date">
+            <input
+              class="control control--compact edit-input"
+              type="date"
+              aria-label="Purchase date"
+              autocomplete="off"
+              bind:value={editLicensePurchaseDate}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Order number">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Order number"
+              autocomplete="off"
+              bind:value={editLicenseOrderNumber}
+            />
+          </DetailFieldRow>
+          <DetailFieldRow label="Order total">
+            <input
+              class="control control--compact edit-input"
+              type="text"
+              placeholder="Order total"
+              autocomplete="off"
+              bind:value={editLicenseOrderTotal}
+            />
+          </DetailFieldRow>
         {/if}
       </FieldGroup>
     {:else if entry.type === "password"}
@@ -1087,6 +1263,79 @@
             reveal={() => entriesBridge.entryRevealField(entry.id, "cardPin")}
             copy={() => clipboard.copySecretField(entry.id, "cardPin")}
           />
+        {/if}
+      </FieldGroup>
+    {/if}
+
+    {#if !editing && entry.type === "software_license" && entry.softwareLicense}
+      {@const license = entry.softwareLicense}
+      <FieldGroup>
+        {#if license.version}
+          <Field label="Version" value={license.version} />
+        {/if}
+        {#if license.hasLicenseKey}
+          <PasswordField
+            label="License key"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "licenseKey")}
+            copy={() => clipboard.copySecretField(entry.id, "licenseKey")}
+          />
+        {/if}
+      </FieldGroup>
+      <FieldGroup>
+        {#if license.licensedTo}
+          <Field label="Licensed to" value={license.licensedTo} />
+        {/if}
+        {#if license.registeredEmail}
+          <Field
+            label="Registered email"
+            value={license.registeredEmail}
+            onCopy={() => clipboard.copyPlain(license.registeredEmail!)}
+          />
+        {/if}
+        {#if license.company}
+          <Field label="Company" value={license.company} />
+        {/if}
+      </FieldGroup>
+      <FieldGroup>
+        {#if license.downloadPage}
+          <Field
+            label="Download page"
+            value={license.downloadPage}
+            onOpenUrl={() => openEntryUrl(license.downloadPage!)}
+            onCopy={() => clipboard.copyPlain(license.downloadPage!)}
+          />
+        {/if}
+        {#if license.publisher}
+          <Field label="Publisher" value={license.publisher} />
+        {/if}
+        {#if license.website}
+          <Field
+            label="Website"
+            value={license.website}
+            onOpenUrl={() => openEntryUrl(license.website!)}
+            onCopy={() => clipboard.copyPlain(license.website!)}
+          />
+        {/if}
+        {#if license.retailPrice}
+          <Field label="Retail price" value={license.retailPrice} />
+        {/if}
+        {#if license.supportEmail}
+          <Field
+            label="Support email"
+            value={license.supportEmail}
+            onCopy={() => clipboard.copyPlain(license.supportEmail!)}
+          />
+        {/if}
+      </FieldGroup>
+      <FieldGroup>
+        {#if license.purchaseDate}
+          <Field label="Purchase date" value={license.purchaseDate} />
+        {/if}
+        {#if license.orderNumber}
+          <Field label="Order number" value={license.orderNumber} />
+        {/if}
+        {#if license.orderTotal}
+          <Field label="Order total" value={license.orderTotal} />
         {/if}
       </FieldGroup>
     {/if}
