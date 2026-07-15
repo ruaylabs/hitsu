@@ -36,23 +36,37 @@ describe("AttachmentList errors", () => {
   it("reports upload failures without notifying the parent", async () => {
     const onchange = vi.fn();
     mocks.add.mockRejectedValue(new Error("Upload failed"));
-    const { container } = render(AttachmentList, {
+    render(AttachmentList, {
       entryId: "entry-1",
       attachments: [],
       onchange,
     });
-    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
-    if (!input) throw new Error("file input was not rendered");
 
-    await fireEvent.change(input, {
-      target: { files: [new File(["recovery"], "recovery.txt", { type: "text/plain" })] },
-    });
+    await fireEvent.click(screen.getByRole("button", { name: "Add attachment" }));
 
     await waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
         "Failed to add attachment: Error: Upload failed",
       ),
     );
+    expect(mocks.add).toHaveBeenCalledWith("entry-1");
+    expect(onchange).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when attachment selection is cancelled", async () => {
+    const onchange = vi.fn();
+    mocks.add.mockResolvedValue(null);
+    render(AttachmentList, {
+      entryId: "entry-1",
+      attachments: [],
+      onchange,
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Add attachment" }));
+
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledWith("entry-1"));
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
     expect(onchange).not.toHaveBeenCalled();
   });
 

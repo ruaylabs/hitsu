@@ -17,8 +17,6 @@
     onchange?: () => void;
   } = $props();
 
-  let fileInput: HTMLInputElement | undefined = $state();
-
   async function download(att: AttachmentMeta) {
     try {
       const bytes = await entriesBridge.entryAttachmentSave(entryId, att.name);
@@ -29,28 +27,14 @@
     }
   }
 
-  function pickFile() {
-    fileInput?.click();
-  }
-
-  async function onFilePicked(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
+  async function pickFile() {
     try {
-      // Read file as base64
-      const b64 = await fileToBase64(file);
-      // Strip data URL prefix if present
-      const raw = b64.includes(",") ? b64.split(",")[1] : b64;
-      await entriesBridge.entryAttachmentAdd(entryId, file.name, raw);
-      toast.success(`Added ${file.name}`);
+      const attachment = await entriesBridge.entryAttachmentAdd(entryId);
+      if (attachment === null) return; // user cancelled the Rust-owned native dialog
+      toast.success(`Added ${attachment.name}`);
       onchange?.();
     } catch (e) {
       toast.error(`Failed to add attachment: ${e}`);
-    } finally {
-      // Reset so the same file can be picked again
-      input.value = "";
     }
   }
 
@@ -76,15 +60,6 @@
       toast.error(`Failed to remove ${att.name}: ${e}`);
     }
   }
-
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
 </script>
 
 <div class="attachments-section">
@@ -95,8 +70,6 @@
       <span>Add</span>
     </button>
   </div>
-
-  <input type="file" bind:this={fileInput} onchange={onFilePicked} style="display: none" />
 
   {#if attachments.length > 0}
     <div class="attachments-list">

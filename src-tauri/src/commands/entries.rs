@@ -1,4 +1,3 @@
-use base64::Engine;
 use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, GroupId, Value};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
@@ -1168,29 +1167,59 @@ pub async fn entry_attachment_save(
     Ok(Some(bytes_written))
 }
 
-/// Add an attachment to an entry. `data_b64` is base64-encoded binary data.
+fn read_attachment_file(
+    path: &std::path::Path,
+) -> KagiResult<(String, zeroize::Zeroizing<Vec<u8>>)> {
+    let name = path
+        .file_name()
+        .map(|name| safe_attachment_file_name(&name.to_string_lossy()))
+        .ok_or_else(|| KagiError::Custom("The selected attachment has no file name".into()))?;
+    let data = zeroize::Zeroizing::new(std::fs::read(path)?);
+    Ok((name, data))
+}
+
+/// Select and add an attachment using a Rust-owned native open dialog.
+///
+/// The path and attachment bytes stay in the backend. `None` means the user
+/// cancelled the native dialog.
 #[tauri::command]
 pub async fn entry_attachment_add(
+    app: AppHandle,
     state: State<'_, AppState>,
     id: String,
-    name: String,
-    data_b64: String,
-) -> KagiResult<AttachmentMeta> {
-    let _save_guard = state.save_lock.lock().await;
+) -> KagiResult<Option<AttachmentMeta>> {
+    let entry_id = EntryId::from_uuid(
+        uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
+    );
 
+    // Validate before opening a dialog. Revalidate after reading because the
+    // vault may be locked or replaced while the dialog is open.
+    {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        vault
+            .db
+            .entry(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+    }
+
+    let Some(selected) = app.dialog().file().blocking_pick_file() else {
+        return Ok(None);
+    };
+    let selected_path = selected
+        .into_path()
+        .map_err(|_| KagiError::Custom("The selected attachment is not a local file".into()))?;
+
+    let (name, mut data) =
+        tauri::async_runtime::spawn_blocking(move || read_attachment_file(&selected_path))
+            .await
+            .map_err(KagiError::from_join)??;
+    let size_bytes = data.len() as u64;
+
+    let _save_guard = state.save_lock.lock().await;
     let (meta, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
-
-        let entry_id = EntryId::from_uuid(
-            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-        );
-
-        let data = base64::engine::general_purpose::STANDARD
-            .decode(&data_b64)
-            .map_err(|e| KagiError::Custom(format!("Invalid base64 data: {e}")))?;
-        let size_bytes = data.len() as u64;
 
         let meta = {
             let mut em = vault
@@ -1198,7 +1227,9 @@ pub async fn entry_attachment_add(
                 .entry_mut(entry_id)
                 .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
 
-            em.add_attachment(name.clone(), Value::unprotected(data));
+            // Move the selected bytes into the database without leaving an
+            // additional unsanitized buffer behind.
+            em.add_attachment(name.clone(), Value::unprotected(std::mem::take(&mut *data)));
             em.times.last_modification = Some(chrono::Utc::now().naive_utc());
 
             AttachmentMeta {
@@ -1214,7 +1245,7 @@ pub async fn entry_attachment_add(
 
     let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
     state.commit_disk_hash(&path, new_disk_hash);
-    Ok(meta)
+    Ok(Some(meta))
 }
 
 /// Remove an attachment from an entry.
@@ -1257,8 +1288,8 @@ pub async fn entry_attachment_remove(
 mod tests {
     use super::{
         apply_patch, build_entry_summaries, ensure_recycle_bin, map_entry_to_full,
-        mask_card_number, read_attachments, read_totp_seed, safe_attachment_file_name,
-        validate_custom_fields, write_attachment_file,
+        mask_card_number, read_attachment_file, read_attachments, read_totp_seed,
+        safe_attachment_file_name, validate_custom_fields, write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, ItemType};
 
@@ -1441,6 +1472,20 @@ mod tests {
         for name in ["", ".", "..", "../..", "\n\r\t"] {
             assert_eq!(safe_attachment_file_name(name), "attachment");
         }
+    }
+
+    #[test]
+    fn attachment_file_read_returns_name_and_bytes() {
+        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("upload.txt");
+        std::fs::write(&path, b"sensitive attachment").unwrap();
+
+        let (name, data) = read_attachment_file(&path).unwrap();
+        assert_eq!(name, "upload.txt");
+        assert_eq!(data.as_slice(), b"sensitive attachment");
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

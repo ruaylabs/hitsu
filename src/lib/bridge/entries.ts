@@ -223,13 +223,10 @@ export async function entryAttachmentSave(id: string, name: string): Promise<num
   return invoke<number | null>("entry_attachment_save", { id, name });
 }
 
-/** Add an attachment to an entry. `dataB64` is base64-encoded binary data. */
-export async function entryAttachmentAdd(
-  id: string,
-  name: string,
-  dataB64: string,
-): Promise<AttachmentMeta> {
-  return invoke<AttachmentMeta>("entry_attachment_add", { id, name, dataB64 });
+/** Ask the Rust backend to choose and add an attachment.
+ * Returns its metadata, or null when the native dialog is cancelled. */
+export async function entryAttachmentAdd(id: string): Promise<AttachmentMeta | null> {
+  return invoke<AttachmentMeta | null>("entry_attachment_add", { id });
 }
 
 /** Remove an attachment from an entry. */
