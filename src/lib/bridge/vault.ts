@@ -1,10 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { EntrySummary, VaultMeta } from "./types";
 
+export interface SkippedImportEntry {
+  title: string;
+  reason: string;
+}
+
 export interface ImportReport {
   importedItems: number;
   importedAttachments: number;
   skippedItems: number;
+  skippedEntries: SkippedImportEntry[];
   entries: EntrySummary[];
 }
 

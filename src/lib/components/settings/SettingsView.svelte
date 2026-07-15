@@ -1,10 +1,12 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
+  import type { SkippedImportEntry } from "$lib/bridge/vault";
   import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
@@ -13,11 +15,13 @@
     | { kind: "create" }
     | { kind: "change-password" }
     | { kind: "new-password" }
+    | { kind: "import-details" }
     | null = $state(null);
 
   let statusMsg = $state("");
   let statusError = $state(false);
   let importing = $state(false);
+  let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
 
   async function handleOpen() {
@@ -113,6 +117,7 @@
 
   async function handleImport1pif() {
     importing = true;
+    skippedEntries = [];
     statusMsg = "";
     try {
       const report = await vaultBridge.vaultImport1pif();
@@ -122,6 +127,7 @@
         vault.setMeta({ ...vault.meta, itemCount: report.entries.length, entries: report.entries });
       }
       statusError = false;
+      skippedEntries = report.skippedEntries;
       const attachments = report.importedAttachments
         ? ` and ${report.importedAttachments} attachment${report.importedAttachments === 1 ? "" : "s"}`
         : "";
@@ -138,7 +144,23 @@
 
 <div class="settings-overlay" role="dialog" aria-label="Settings">
   {#if dialog}
-    {#if dialog.kind === "open"}
+    {#if dialog.kind === "import-details"}
+      <Dialog
+        title="Entries not imported"
+        onclose={() => (dialog = null)}
+        bodyOverflow="auto"
+        bodyMaxHeight="50vh"
+      >
+        <ul class="skipped-list">
+          {#each skippedEntries as entry}
+            <li>
+              <span class="skipped-title">{entry.title}</span>
+              <span class="skipped-reason">{entry.reason}</span>
+            </li>
+          {/each}
+        </ul>
+      </Dialog>
+    {:else if dialog.kind === "open"}
       <PasswordDialog
         title="Open vault"
         confirmLabel="Open"
@@ -224,7 +246,14 @@
         </div>
 
         {#if statusMsg}
-          <span class="status-msg" class:error={statusError}>{statusMsg}</span>
+          <div class="status-row">
+            <span class="status-msg" class:error={statusError}>{statusMsg}</span>
+            {#if skippedEntries.length > 0}
+              <button class="details-btn" onclick={() => (dialog = { kind: "import-details" })}>
+                View details
+              </button>
+            {/if}
+          </div>
         {/if}
       </section>
 
@@ -436,6 +465,12 @@
     opacity: 0.65;
   }
 
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .status-msg {
     font-size: 12px;
     color: var(--text-secondary);
@@ -444,6 +479,43 @@
 
   .status-msg.error {
     color: var(--danger);
+  }
+
+  .details-btn {
+    color: var(--accent);
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .details-btn:hover {
+    color: var(--text-accent);
+  }
+
+  .skipped-list {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  .skipped-list li + li {
+    margin-top: 10px;
+  }
+
+  .skipped-title,
+  .skipped-reason {
+    display: block;
+  }
+
+  .skipped-title {
+    font-weight: 500;
+  }
+
+  .skipped-reason {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 12px;
   }
 
   .empty-text {

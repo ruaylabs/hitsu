@@ -23,7 +23,15 @@ pub struct ImportReport {
     pub imported_items: usize,
     pub imported_attachments: usize,
     pub skipped_items: usize,
+    pub skipped_entries: Vec<SkippedImportEntry>,
     pub entries: Vec<EntrySummary>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedImportEntry {
+    pub title: String,
+    pub reason: String,
 }
 
 struct ImportedAttachment {
@@ -95,7 +103,7 @@ struct ImportedItem {
 
 struct ParsedImport {
     items: Vec<ImportedItem>,
-    skipped: usize,
+    skipped_entries: Vec<SkippedImportEntry>,
 }
 
 #[derive(Clone)]
@@ -208,11 +216,28 @@ fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
 
     let files = index_attachment_files(&source)?;
     let mut items = Vec::new();
-    let mut skipped = 0;
+    let mut skipped_entries = Vec::new();
     for record in records {
         match parse_record(&record, &folders, &files) {
             Some(item) => items.push(item),
-            None => skipped += 1,
+            None => {
+                let type_name = string_at(&record, &["typeName"]).unwrap_or_default();
+                let reason = if bool_at(&record, &["trashed"]).unwrap_or(false)
+                    || string_at(&record, &["category"]).as_deref() == Some("099")
+                {
+                    "Item is in the 1Password trash"
+                } else if type_name.to_ascii_lowercase().contains("folder") {
+                    "Folders aren't imported"
+                } else {
+                    "The item couldn't be converted"
+                };
+                skipped_entries.push(SkippedImportEntry {
+                    title: string_at(&record, &["title"])
+                        .or_else(|| string_at(&record, &["overview", "title"]))
+                        .unwrap_or_else(|| "Untitled item".into()),
+                    reason: reason.into(),
+                });
+            }
         }
     }
 
@@ -242,20 +267,27 @@ fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
         remove.insert(index);
     }
     if !remove.is_empty() {
+        skipped_entries.extend(
+            items
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| remove.contains(index))
+                .map(|(_, item)| SkippedImportEntry {
+                    title: item.title.clone(),
+                    reason: "Attachment was merged into its parent entry".into(),
+                }),
+        );
         items = items
             .into_iter()
             .enumerate()
             .filter_map(|(index, item)| (!remove.contains(&index)).then_some(item))
             .collect();
-        skipped += remove.len();
     }
 
-    if items.is_empty() {
-        return Err(KagiError::Custom(
-            "No importable 1Password items were found".into(),
-        ));
-    }
-    Ok(ParsedImport { items, skipped })
+    Ok(ParsedImport {
+        items,
+        skipped_entries,
+    })
 }
 
 fn index_attachment_files(source: &ImportSource) -> KagiResult<Vec<PathBuf>> {
@@ -1033,9 +1065,13 @@ fn load_attachment(spec: AttachmentSpec, files: &[PathBuf]) -> Option<ImportedAt
     Some(ImportedAttachment { name, data })
 }
 
-fn apply_import(db: &mut keepass::Database, parsed: ParsedImport) -> (usize, usize, usize) {
+fn apply_import(
+    db: &mut keepass::Database,
+    parsed: ParsedImport,
+) -> (usize, usize, Vec<SkippedImportEntry>) {
     let mut imported_items = 0;
     let mut imported_attachments = 0;
+    let mut skipped_entries = parsed.skipped_entries;
     for item in parsed.items {
         let preferred_id = item
             .source_id
@@ -1046,6 +1082,10 @@ fn apply_import(db: &mut keepass::Database, parsed: ParsedImport) -> (usize, usi
         let entry_id = preferred_id.unwrap_or_else(|| EntryId::from_uuid(uuid::Uuid::new_v4()));
         let mut root = db.root_mut();
         let Ok(mut entry) = root.add_entry_with_id(entry_id) else {
+            skipped_entries.push(SkippedImportEntry {
+                title: item.title,
+                reason: "Kagi couldn't create this entry".into(),
+            });
             continue;
         };
         entry.set_unprotected(fields::TITLE, &item.title);
@@ -1277,7 +1317,7 @@ fn apply_import(db: &mut keepass::Database, parsed: ParsedImport) -> (usize, usi
         entry.times.last_modification = Some(item.updated_at.unwrap_or(now));
         imported_items += 1;
     }
-    (imported_items, imported_attachments, parsed.skipped)
+    (imported_items, imported_attachments, skipped_entries)
 }
 
 fn set_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>, protected: bool) {
@@ -1345,7 +1385,8 @@ pub async fn vault_import_1pif(
             vault.disk_hash,
         )
     };
-    let (imported_items, imported_attachments, skipped_items) = apply_import(&mut db, parsed);
+    let (imported_items, imported_attachments, skipped_entries) = apply_import(&mut db, parsed);
+    let skipped_items = skipped_entries.len();
     let entries = build_entry_summaries(&db);
 
     let save_db = db.clone();
@@ -1376,6 +1417,7 @@ pub async fn vault_import_1pif(
         imported_items,
         imported_attachments,
         skipped_items,
+        skipped_entries,
         entries,
     }))
 }
@@ -1719,6 +1761,13 @@ mod tests {
         .unwrap();
         let parsed = parse_1pif(&path).unwrap();
         assert_eq!(parsed.items.len(), 1);
-        assert_eq!(parsed.skipped, 2);
+        assert_eq!(parsed.skipped_entries.len(), 2);
+        assert_eq!(parsed.skipped_entries[0].title, "Work");
+        assert_eq!(parsed.skipped_entries[0].reason, "Folders aren't imported");
+        assert_eq!(parsed.skipped_entries[1].title, "Deleted");
+        assert_eq!(
+            parsed.skipped_entries[1].reason,
+            "Item is in the 1Password trash"
+        );
     }
 }
