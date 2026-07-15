@@ -330,7 +330,7 @@ fn read_custom_fields(entry: &keepass::db::Entry) -> Vec<CustomField> {
             })
         })
         .collect::<Vec<_>>();
-    custom_fields.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    custom_fields.sort_by_key(|field| field.name.to_lowercase());
     custom_fields
 }
 
