@@ -1,6 +1,7 @@
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
+mod auto_lock;
 #[cfg(unix)]
 pub mod browser_ipc;
 pub mod prefs;
@@ -18,6 +19,42 @@ use state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     hardening::apply();
+
+    let command_handler: Box<tauri::ipc::InvokeHandler<tauri::Wry>> =
+        Box::new(tauri::generate_handler![
+            commands::vault::vault_open,
+            commands::vault::vault_create,
+            commands::vault::vault_change_password,
+            commands::vault::vault_lock,
+            commands::vault::vault_upgrade_kdf,
+            commands::import::vault_import_1pif,
+            commands::prefs::prefs_get,
+            commands::prefs::prefs_set_last_vault,
+            commands::prefs::prefs_set_security,
+            commands::prefs::prefs_set_kdf_dismissed,
+            commands::entries::entry_get,
+            commands::entries::entry_create,
+            commands::entries::entry_update,
+            commands::entries::entry_delete,
+            commands::entries::entry_restore,
+            commands::entries::entry_delete_permanent,
+            commands::entries::entry_discard,
+            commands::entries::entry_reveal_field,
+            commands::entries::entry_copy_field,
+            commands::entries::entry_reveal_custom_field,
+            commands::entries::entry_copy_custom_field,
+            commands::entries::entry_history_list,
+            commands::entries::entry_history_get,
+            commands::entries::entry_attachment_save,
+            commands::entries::entry_attachment_add,
+            commands::entries::entry_attachment_remove,
+            commands::clipboard::clipboard_copy,
+            commands::clipboard::clipboard_copy_with_timeout,
+            commands::clipboard::clipboard_clear,
+            commands::generator::generate_password,
+            commands::idle::idle_activity,
+            commands::totp::totp_compute,
+        ]);
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -57,6 +94,10 @@ pub fn run() {
                 .build()?;
 
             app.set_menu(menu)?;
+
+            let state = app.state::<AppState>();
+            state.configure_idle_lock(prefs::Preferences::load(app.handle()).idle_lock_minutes);
+            auto_lock::start(app.handle().clone());
             session_lock::start(app.handle().clone());
             #[cfg(unix)]
             if let Err(error) = browser_ipc::start(app.handle().clone()) {
@@ -70,39 +111,16 @@ pub fn run() {
             }
         })
         .manage(AppState::new())
-        .invoke_handler(tauri::generate_handler![
-            commands::vault::vault_open,
-            commands::vault::vault_create,
-            commands::vault::vault_change_password,
-            commands::vault::vault_lock,
-            commands::vault::vault_upgrade_kdf,
-            commands::import::vault_import_1pif,
-            commands::prefs::prefs_get,
-            commands::prefs::prefs_set_last_vault,
-            commands::prefs::prefs_set_security,
-            commands::prefs::prefs_set_kdf_dismissed,
-            commands::entries::entry_get,
-            commands::entries::entry_create,
-            commands::entries::entry_update,
-            commands::entries::entry_delete,
-            commands::entries::entry_restore,
-            commands::entries::entry_delete_permanent,
-            commands::entries::entry_discard,
-            commands::entries::entry_reveal_field,
-            commands::entries::entry_copy_field,
-            commands::entries::entry_reveal_custom_field,
-            commands::entries::entry_copy_custom_field,
-            commands::entries::entry_history_list,
-            commands::entries::entry_history_get,
-            commands::entries::entry_attachment_save,
-            commands::entries::entry_attachment_add,
-            commands::entries::entry_attachment_remove,
-            commands::clipboard::clipboard_copy,
-            commands::clipboard::clipboard_copy_with_timeout,
-            commands::clipboard::clipboard_clear,
-            commands::generator::generate_password,
-            commands::totp::totp_compute,
-        ])
+        .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            // Refresh before dispatch so every frontend command counts as
+            // backend activity, including commands that ultimately fail.
+            invoke
+                .message
+                .webview_ref()
+                .state::<AppState>()
+                .reset_idle_lock();
+            command_handler(invoke)
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

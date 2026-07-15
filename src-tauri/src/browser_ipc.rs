@@ -75,6 +75,9 @@ fn handle_connection(app: &AppHandle, mut stream: UnixStream) {
 
 fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     let state = app.state::<AppState>();
+    // Native-messaging requests are backend IPC too; an actively used browser
+    // integration must refresh the same watchdog as webview commands.
+    state.reset_idle_lock();
     let vaults = state.vaults.lock();
     let Some((_vault_id, vault)) = vaults.iter().next() else {
         return json!({ "ok": false, "error": "Kagi is locked" });

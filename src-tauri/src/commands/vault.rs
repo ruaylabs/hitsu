@@ -534,6 +534,8 @@ pub async fn vault_open(
             disk_hash,
         },
     );
+    drop(vaults);
+    state.arm_idle_lock();
 
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
@@ -688,6 +690,8 @@ pub async fn vault_create(
             disk_hash,
         },
     );
+    drop(vaults);
+    state.arm_idle_lock();
 
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
@@ -787,10 +791,10 @@ pub(crate) fn lock_open_vaults(state: &AppState) {
     // so they don't linger after the vault is locked.
     super::clipboard::clear_clipboard_sync();
 
-    let mut vaults = state.vaults.lock();
     // Clear all open vaults — this drops each OpenVault, which zeroizes
-    // the master-key buffer via Zeroizing's Drop impl.
-    vaults.clear();
+    // the master-key buffer via Zeroizing's Drop impl — and disarm the
+    // watchdog until another vault opens.
+    state.lock_open_vaults();
 }
 
 #[tauri::command]

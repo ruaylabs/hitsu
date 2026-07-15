@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { vault } from "$lib/stores/vault.svelte";
 
 const DEFAULT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
@@ -53,6 +54,9 @@ export function startIdleTimer(idleTimeoutMs = DEFAULT_IDLE_MS) {
     if (activityDirty) {
       lastActivity = now;
       activityDirty = false;
+      // Keep the independent backend watchdog aligned with real user input.
+      // If the webview hangs, these heartbeats stop and the backend still locks.
+      if (idleTimeoutMs > 0) void invoke("idle_activity").catch(() => {});
     }
     if (idleTimeoutMs > 0 && now - lastActivity >= idleTimeoutMs) {
       await vault.lock();

@@ -257,6 +257,9 @@
       listen("vault://session-locked", () => {
         vault.sessionLocked();
       }),
+      listen("vault://idle-locked", () => {
+        vault.sessionLocked();
+      }),
     ];
     return () => {
       for (const unlisten of listeners) unlisten.then((fn) => fn());

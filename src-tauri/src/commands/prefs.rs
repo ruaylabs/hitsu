@@ -1,7 +1,8 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 
 use crate::error::KagiResult;
 use crate::prefs::Preferences;
+use crate::state::AppState;
 
 #[tauri::command]
 pub async fn prefs_get(app: AppHandle) -> KagiResult<Preferences> {
@@ -24,13 +25,16 @@ pub async fn prefs_set_last_vault(app: AppHandle, path: String) -> KagiResult<()
 #[tauri::command]
 pub async fn prefs_set_security(
     app: AppHandle,
+    state: State<'_, AppState>,
     idle_lock_minutes: u32,
     clipboard_clear_seconds: u32,
 ) -> KagiResult<()> {
     let mut prefs = Preferences::load(&app);
     prefs.idle_lock_minutes = idle_lock_minutes;
     prefs.clipboard_clear_seconds = clipboard_clear_seconds;
-    prefs.save(&app)
+    prefs.save(&app)?;
+    state.configure_idle_lock(idle_lock_minutes);
+    Ok(())
 }
 
 #[tauri::command]
