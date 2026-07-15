@@ -48,6 +48,11 @@ export const config = {
   port: 4444,
   path: "/",
   logLevel: "warn",
+  // Vault writes run Argon2 and can exceed WebdriverIO's 5-second default on
+  // shared CI runners. Keep element waits below Mocha's overall timeout while
+  // allowing the native save to complete before asserting on the detail view.
+  waitforTimeout: 20_000,
+  waitforInterval: 100,
   capabilities: [
     {
       maxInstances: 1,
