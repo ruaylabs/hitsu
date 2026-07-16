@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { Entry } from "$lib/bridge/types";
-  import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import EntryIcon from "../list/EntryIcon.svelte";
   import IconButton from "../ui/IconButton.svelte";
 
@@ -30,11 +29,6 @@
     <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={48} />
     <div class="detail-header-text">
       <h1 class="detail-title">{entry.title}</h1>
-      {#if entry.url}
-        <button class="detail-url" onclick={() => openHttpUrl(entry.url!)} title={entry.url}>
-          {entry.url}
-        </button>
-      {/if}
     </div>
   </div>
   {#if !readOnly}
@@ -108,27 +102,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .detail-url {
-    display: block;
-    font-size: 12.5px;
-    color: var(--text-accent);
-    margin-top: 3px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    font: inherit;
-    text-align: left;
-    width: 100%;
-  }
-
-  .detail-url:hover {
-    text-decoration: underline;
   }
 
   .detail-header-actions {

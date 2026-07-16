@@ -614,6 +614,13 @@ describe("password entry workflow", () => {
     expect(mocks.clipboardCopy).toHaveBeenCalledWith("https://example.com");
   });
 
+  it("shows a URL in its field but not in the entry header", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+
+    expect(await screen.findAllByRole("button", { name: "https://example.com" })).toHaveLength(1);
+  });
+
   it("cancels editing without persisting changes", async () => {
     selectEntry(passwordEntry());
     render(ItemDetail);
