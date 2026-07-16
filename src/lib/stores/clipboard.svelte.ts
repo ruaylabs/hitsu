@@ -21,6 +21,12 @@ function startCountdown(secs: number) {
   }, 1000);
 }
 
+async function copyAndTrack(copy: () => Promise<void>, timeoutSecs = 0) {
+  stop();
+  await copy();
+  startCountdown(timeoutSecs);
+}
+
 export const clipboard = {
   get remainingMs() {
     return remainingMs;
@@ -40,13 +46,13 @@ export const clipboard = {
    *  fails the error is surfaced and the copy does not proceed silently. */
   async copy(value: string, timeoutSecs?: number) {
     const secs = timeoutSecs ?? defaultTimeoutSecs;
-    stop();
-    if (secs > 0) {
-      await clipboardBridge.clipboardCopyWithTimeout(value, secs);
-      startCountdown(secs);
-    } else {
-      await clipboardBridge.clipboardCopy(value);
-    }
+    await copyAndTrack(
+      () =>
+        secs > 0
+          ? clipboardBridge.clipboardCopyWithTimeout(value, secs)
+          : clipboardBridge.clipboardCopy(value),
+      secs,
+    );
   },
   /** Copy an entry's secret field (password, CVV, card number, …) with the
    *  auto-clear countdown. The plaintext is read and copied inside the Rust
@@ -54,23 +60,18 @@ export const clipboard = {
    *  from a history revision. */
   async copySecretField(id: string, field: SecretField, version?: number) {
     const secs = defaultTimeoutSecs;
-    stop();
-    await entriesBridge.entryCopyField(id, field, secs, version);
-    startCountdown(secs);
+    await copyAndTrack(() => entriesBridge.entryCopyField(id, field, secs, version), secs);
   },
   /** Copy a protected custom field without exposing it to the webview. */
   async copyCustomField(id: string, name: string) {
     const secs = defaultTimeoutSecs;
-    stop();
-    await entriesBridge.entryCopyCustomField(id, name, secs);
-    startCountdown(secs);
+    await copyAndTrack(() => entriesBridge.entryCopyCustomField(id, name, secs), secs);
   },
   /** Copy a plain value (username, URL) without auto-clear.
    *  Does NOT fall back to the WebView clipboard API — if the Rust command
    *  fails the error is surfaced and the copy does not proceed silently. */
   async copyPlain(value: string) {
-    stop();
-    await clipboardBridge.clipboardCopy(value);
+    await copyAndTrack(() => clipboardBridge.clipboardCopy(value));
   },
   cancel() {
     stop();

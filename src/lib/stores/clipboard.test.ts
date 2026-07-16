@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   copyWithTimeout: vi.fn(),
   clear: vi.fn(),
   copyField: vi.fn(),
+  copyCustomField: vi.fn(),
 }));
 
 vi.mock("$lib/bridge/clipboard", () => ({
@@ -16,13 +17,17 @@ vi.mock("$lib/bridge/clipboard", () => ({
 
 vi.mock("$lib/bridge/entries", () => ({
   entryCopyField: mocks.copyField,
+  entryCopyCustomField: mocks.copyCustomField,
 }));
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   clipboard.defaultTimeoutSecs = 2;
+  mocks.copy.mockResolvedValue(undefined);
+  mocks.copyWithTimeout.mockResolvedValue(undefined);
   mocks.copyField.mockResolvedValue(undefined);
+  mocks.copyCustomField.mockResolvedValue(undefined);
   mocks.clear.mockResolvedValue(undefined);
 });
 
@@ -42,6 +47,21 @@ describe("clipboard store", () => {
     expect(clipboard.remainingMs).toBe(1000);
 
     vi.advanceTimersByTime(1000);
+    expect(clipboard.active).toBe(false);
+  });
+
+  it("uses the same countdown flow for custom fields", async () => {
+    await clipboard.copyCustomField("entry-1", "API key");
+
+    expect(mocks.copyCustomField).toHaveBeenCalledWith("entry-1", "API key", 2);
+    expect(clipboard.remainingMs).toBe(2000);
+  });
+
+  it("stops a secret countdown when copying a plain value", async () => {
+    await clipboard.copySecretField("entry-1", "password");
+    await clipboard.copyPlain("username");
+
+    expect(mocks.copy).toHaveBeenCalledWith("username");
     expect(clipboard.active).toBe(false);
   });
 
