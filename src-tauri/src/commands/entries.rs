@@ -1300,6 +1300,10 @@ pub async fn entry_copy_custom_field(
     super::clipboard::copy_secret(value, timeout_secs)
 }
 
+fn sort_history_revisions_newest_first(revisions: &mut [HistoryEntrySummary]) {
+    revisions.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+}
+
 #[tauri::command]
 pub async fn entry_history_list(
     state: State<'_, AppState>,
@@ -1319,7 +1323,7 @@ pub async fn entry_history_list(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    Ok(history
+    let mut revisions = history
         .get_entries()
         .iter()
         .enumerate()
@@ -1336,7 +1340,12 @@ pub async fn entry_history_list(
                 title,
             }
         })
-        .collect())
+        .collect::<Vec<_>>();
+
+    // KeePass files do not consistently preserve history insertion order.
+    // Keep `version` as the underlying history index, but display newest first.
+    sort_history_revisions_newest_first(&mut revisions);
+    Ok(revisions)
 }
 
 #[tauri::command]
@@ -1579,10 +1588,42 @@ mod tests {
         apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
         entry_matches_search, map_entry_to_full, mask_card_number, parse_entry_id,
         read_attachment_file, read_attachments, read_totp_seed, safe_attachment_file_name,
-        validate_custom_fields, validate_expiration, write_attachment_file,
+        sort_history_revisions_newest_first, validate_custom_fields, validate_expiration,
+        write_attachment_file,
     };
-    use crate::models::{CustomField, EntryPatch, ItemType};
+    use crate::models::{CustomField, EntryPatch, HistoryEntrySummary, ItemType};
     use keepass::db::fields;
+
+    #[test]
+    fn history_revisions_are_sorted_newest_first() {
+        let mut revisions = vec![
+            HistoryEntrySummary {
+                version: 0,
+                modified_at: "2025-01-01T00:00:00+00:00".into(),
+                title: "Oldest".into(),
+            },
+            HistoryEntrySummary {
+                version: 1,
+                modified_at: "2025-03-01T00:00:00+00:00".into(),
+                title: "Newest".into(),
+            },
+            HistoryEntrySummary {
+                version: 2,
+                modified_at: "2025-02-01T00:00:00+00:00".into(),
+                title: "Middle".into(),
+            },
+        ];
+
+        sort_history_revisions_newest_first(&mut revisions);
+
+        assert_eq!(
+            revisions
+                .iter()
+                .map(|revision| revision.version)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 0]
+        );
+    }
 
     #[test]
     fn entry_id_parser_preserves_valid_ids_and_normalizes_errors() {
