@@ -74,17 +74,7 @@ export interface EntryDraft {
 }
 
 export async function entryCreate(itemType: string, draft: EntryDraft): Promise<Entry> {
-  return invoke<Entry>("entry_create", {
-    itemType,
-    draft: {
-      title: draft.title,
-      username: draft.username ?? null,
-      password: draft.password ?? null,
-      url: draft.url ?? null,
-      notes: draft.notes ?? null,
-      totp: draft.totp ?? null,
-    },
-  });
+  return invoke<Entry>("entry_create", { itemType, draft });
 }
 
 export interface EntryPatch {

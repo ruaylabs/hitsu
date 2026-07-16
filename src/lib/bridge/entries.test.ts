@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { entryEditPayload, entryUpdate } from "./entries";
+import { entryCreate, entryEditPayload, entryUpdate } from "./entries";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -11,6 +11,15 @@ const invokeMock = vi.mocked(invoke);
 describe("entries bridge", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+  });
+
+  it("passes the create draft directly over IPC", async () => {
+    invokeMock.mockResolvedValue({});
+    const draft = { title: "New login", username: "alice" };
+
+    await entryCreate("login", draft);
+
+    expect(invokeMock).toHaveBeenCalledWith("entry_create", { itemType: "login", draft });
   });
 
   it("requests one edit payload for all protected fields", async () => {
