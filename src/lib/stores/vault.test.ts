@@ -37,6 +37,7 @@ beforeEach(() => {
   vault.setFolders([]);
   vault.setCreatingId(null);
   vault.setEditingId(null);
+  vault.setEditSessionActive(false);
 });
 
 describe("vault store", () => {
@@ -109,6 +110,53 @@ describe("vault store", () => {
     expect(foldersBridge.folderCreate).toHaveBeenCalledWith("work", "Clients");
     expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
     expect(vault.folders).toEqual([parent, { ...child, name: "Customers" }]);
+  });
+
+  it("installs external changes while preserving the current view", async () => {
+    const refreshedEntry = { ...secondEntry, title: "Changed in KeePassXC" };
+    const refreshedMeta: VaultMeta = {
+      path: "/tmp/test.kdbx",
+      name: "Test vault",
+      itemCount: 1,
+      syncProvider: "local",
+      entries: [refreshedEntry],
+      folders: [],
+    };
+    const refresh = vi.spyOn(vaultBridge, "vaultRefreshIfChanged").mockResolvedValue({
+      changed: true,
+      reloaded: true,
+      vault: refreshedMeta,
+    });
+    vault.setMeta({ ...refreshedMeta, entries: [secondEntry] });
+    vault.setEntries([secondEntry]);
+    selection.selectedId = secondEntry.id;
+    selection.search = "second";
+    selection.filter = { kind: "favorites" };
+    const revision = vault.revision;
+
+    const result = await vault.refreshIfChanged();
+
+    expect(refresh).toHaveBeenCalledWith(true);
+    expect(result.reloaded).toBe(true);
+    expect(vault.entries).toEqual([refreshedEntry]);
+    expect(vault.revision).toBe(revision + 1);
+    expect(selection.selectedId).toBe(secondEntry.id);
+    expect(selection.search).toBe("second");
+    expect(selection.filter).toEqual({ kind: "favorites" });
+  });
+
+  it("defers an external reload while an edit session is active", async () => {
+    const refresh = vi.spyOn(vaultBridge, "vaultRefreshIfChanged").mockResolvedValue({
+      changed: true,
+      reloaded: false,
+      vault: null,
+    });
+    vault.setEditSessionActive(true);
+
+    await vault.refreshIfChanged();
+
+    expect(refresh).toHaveBeenCalledWith(false);
+    expect(vault.externalChangePending).toBe(true);
   });
 
   it("locks frontend state when the backend lock rejects", async () => {

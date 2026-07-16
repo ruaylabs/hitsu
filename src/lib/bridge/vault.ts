@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { EntrySummary, VaultMeta } from "./types";
+import type { EntrySummary, VaultMeta, VaultRefreshResult } from "./types";
 
 export interface SkippedImportEntry {
   title: string;
@@ -32,6 +32,10 @@ export async function vaultChangePassword(oldPassword: string, newPassword: stri
 
 export async function vaultLock(): Promise<void> {
   return invoke<void>("vault_lock");
+}
+
+export async function vaultRefreshIfChanged(allowReload: boolean): Promise<VaultRefreshResult> {
+  return invoke<VaultRefreshResult>("vault_refresh_if_changed", { allowReload });
 }
 
 export async function vaultUpgradeKdf(): Promise<void> {

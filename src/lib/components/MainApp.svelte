@@ -277,6 +277,37 @@
     }
   }
 
+  let checkingExternalVault = false;
+  let deferredReloadStarted = false;
+
+  async function checkExternalVault() {
+    if (checkingExternalVault || vault.locked || !vault.meta) return;
+    checkingExternalVault = true;
+    const wasPending = vault.externalChangePending;
+    try {
+      const result = await vault.refreshIfChanged();
+      if (result.reloaded) {
+        toast.success("Vault reloaded with external changes");
+      } else if (result.changed && !wasPending) {
+        toast.info("Vault changed externally. Finish or discard your edit to reload it.", 8000);
+      }
+    } catch (error) {
+      console.error("Failed to reload external vault changes", error);
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      checkingExternalVault = false;
+    }
+  }
+
+  $effect(() => {
+    if (!vault.externalChangePending) {
+      deferredReloadStarted = false;
+    } else if (!vault.editSessionActive && !deferredReloadStarted) {
+      deferredReloadStarted = true;
+      void checkExternalVault();
+    }
+  });
+
   onMount(() => {
     const listeners = [
       listen("menu://settings", () => {
@@ -295,7 +326,7 @@
   });
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} onfocus={checkExternalVault} />
 
 {#if app.view === "settings"}
   <SettingsView />

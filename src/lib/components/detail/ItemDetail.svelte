@@ -64,6 +64,9 @@
   // Fetch the full entry whenever selection changes. Keyboard navigation uses
   // a short trailing debounce so rapidly skipped entries never reach the backend.
   $effect(() => {
+    // A disk reload can update the selected entry without changing its UUID.
+    // Depend on the vault revision so the detail projection is fetched again.
+    void vault.revision;
     const id = selection.selectedId;
     const fetchMode = selection.detailFetchMode;
     if (loadingTimer) clearTimeout(loadingTimer);
@@ -116,6 +119,7 @@
   // so fetch the plaintext when a card entry is selected. Falls back to the
   // backend-masked value until it arrives (or if the fetch fails).
   let cardNumberPlain = $state("");
+  let cardNumberRevision = -1;
   // Which entry id the fetched (or in-flight) number belongs to. Keyed on the
   // id, not the `_entry` object: `_entry` is reassigned on refetches of the
   // same entry (favorite toggle, save), and resetting/refetching then would
@@ -123,15 +127,17 @@
   let cardNumberEntryId: string | null = null;
   $effect(() => {
     const e = _entry;
+    const revision = vault.revision;
     const wantId = e?.type === "card" && e.card?.hasNumber ? e.id : null;
-    if (wantId === cardNumberEntryId) return;
+    if (wantId === cardNumberEntryId && revision === cardNumberRevision) return;
     cardNumberEntryId = wantId;
+    cardNumberRevision = revision;
     cardNumberPlain = "";
     if (wantId) {
       entriesBridge
         .entryRevealField(wantId, "cardNumber")
         .then((n) => {
-          if (cardNumberEntryId === wantId) cardNumberPlain = n;
+          if (cardNumberEntryId === wantId && cardNumberRevision === revision) cardNumberPlain = n;
         })
         .catch((err) => console.error("Failed to load card number", err));
     }
@@ -591,6 +597,11 @@
     pendingNavigation = null;
     navigate();
   }
+
+  $effect(() => {
+    vault.setEditSessionActive(editing);
+    return () => vault.setEditSessionActive(false);
+  });
 
   $effect(() => {
     if (!editing) return;

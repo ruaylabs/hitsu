@@ -10,7 +10,7 @@
 use std::io::Cursor;
 
 use kagi_lib::commands::entries::build_entry_summaries;
-use kagi_lib::commands::vault::{vault_create, vault_open};
+use kagi_lib::commands::vault::{vault_create, vault_open, vault_refresh_if_changed};
 use kagi_lib::models::EntrySummary;
 use kagi_lib::state::AppState;
 use keepass::db::fields;
@@ -147,6 +147,53 @@ async fn opening_a_second_vault_replaces_the_first() {
         1,
         "exactly one vault should be open after replacement"
     );
+}
+
+#[tokio::test]
+async fn external_changes_are_detected_and_reloaded() {
+    let fx = setup();
+    let state = fx.state();
+
+    vault_open(
+        state.clone(),
+        fx.path_a.to_string_lossy().to_string(),
+        PW.to_string(),
+    )
+    .await
+    .unwrap();
+
+    // Rewrite the same database, preserving its UUIDs as KeePassXC would.
+    let bytes = std::fs::read(&fx.path_a).unwrap();
+    let mut db =
+        keepass::Database::parse(&bytes, keepass::DatabaseKey::new().with_password(PW)).unwrap();
+    let entry_id = db.iter_all_entries().next().unwrap().id();
+    db.entry_mut(entry_id)
+        .unwrap()
+        .set_unprotected(fields::TITLE, "Changed in KeePassXC");
+    let mut updated = Cursor::new(Vec::new());
+    db.save(&mut updated, keepass::DatabaseKey::new().with_password(PW))
+        .unwrap();
+    std::fs::write(&fx.path_a, updated.into_inner()).unwrap();
+
+    let detected = vault_refresh_if_changed(state.clone(), false)
+        .await
+        .unwrap();
+    assert!(detected.changed);
+    assert!(!detected.reloaded);
+    assert_eq!(entries_list(state.clone())[0].title, "A1");
+
+    let refreshed = vault_refresh_if_changed(state.clone(), true).await.unwrap();
+    assert!(refreshed.changed);
+    assert!(refreshed.reloaded);
+    assert_eq!(
+        refreshed.vault.unwrap().entries[0].title,
+        "Changed in KeePassXC"
+    );
+    assert_eq!(entries_list(state.clone())[0].title, "Changed in KeePassXC");
+
+    let unchanged = vault_refresh_if_changed(state, true).await.unwrap();
+    assert!(!unchanged.changed);
+    assert!(!unchanged.reloaded);
 }
 
 #[tokio::test]

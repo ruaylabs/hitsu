@@ -145,6 +145,12 @@ export interface VaultMeta {
   folders: FolderSummary[];
 }
 
+export interface VaultRefreshResult {
+  changed: boolean;
+  reloaded: boolean;
+  vault: VaultMeta | null;
+}
+
 export interface Toast {
   id: string;
   kind: "info" | "success" | "warning" | "danger";

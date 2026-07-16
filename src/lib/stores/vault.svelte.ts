@@ -11,15 +11,36 @@ let folders = $state<FolderSummary[]>([]);
 let locked = $state(false);
 let editingId = $state<string | null>(null);
 let creatingId = $state<string | null>(null);
+let revision = $state(0);
+let editSessionActive = $state(false);
+let externalChangePending = $state(false);
 
 function installOpenVault(meta: VaultMeta) {
   vaultMeta = meta;
   entries = meta.entries;
   folders = meta.folders ?? [];
   locked = false;
+  revision += 1;
+  externalChangePending = false;
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
+}
+
+function installRefreshedVault(meta: VaultMeta) {
+  vaultMeta = meta;
+  entries = meta.entries;
+  folders = meta.folders ?? [];
+  revision += 1;
+  externalChangePending = false;
+
+  if (selection.selectedId && !entries.some((entry) => entry.id === selection.selectedId)) {
+    selection.selectedId = null;
+  }
+  const filter = selection.filter;
+  if (filter.kind === "folder" && !folders.some((folder) => folder.id === filter.folderId)) {
+    selection.filter = { kind: "all" };
+  }
 }
 
 function rememberVault(path: string) {
@@ -38,6 +59,8 @@ function clearUnlockedState() {
   selection.search = "";
   editingId = null;
   creatingId = null;
+  editSessionActive = false;
+  externalChangePending = false;
   locked = true;
   entries = [];
   folders = [];
@@ -68,8 +91,21 @@ export const vault = {
   setCreatingId(id: string | null) {
     creatingId = id;
   },
+  get revision() {
+    return revision;
+  },
+  get editSessionActive() {
+    return editSessionActive;
+  },
+  setEditSessionActive(active: boolean) {
+    editSessionActive = active;
+  },
+  get externalChangePending() {
+    return externalChangePending;
+  },
   setMeta(m: VaultMeta | null) {
     vaultMeta = m;
+    if (!m) externalChangePending = false;
   },
   /** Open and install a vault, then remember it for startup and recent-vault UI. */
   async open(path: string, password: string) {
@@ -89,6 +125,19 @@ export const vault = {
       installOpenVault(meta);
       rememberVault(path);
       return meta;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  },
+  async refreshIfChanged() {
+    try {
+      const result = await vaultBridge.vaultRefreshIfChanged(!editSessionActive);
+      if (result.reloaded && result.vault) {
+        installRefreshedVault(result.vault);
+      } else {
+        externalChangePending = result.changed;
+      }
+      return result;
     } catch (error) {
       throw normalizeError(error);
     }

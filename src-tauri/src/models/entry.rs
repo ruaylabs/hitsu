@@ -424,6 +424,14 @@ pub struct VaultMeta {
     pub folders: Vec<FolderSummary>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultRefreshResult {
+    pub changed: bool,
+    pub reloaded: bool,
+    pub vault: Option<VaultMeta>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -10,7 +10,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 use super::entries::{build_entry_summaries, build_folder_summaries, ensure_recycle_bin};
 use crate::error::{KagiError, KagiResult};
-use crate::models::VaultMeta;
+use crate::models::{VaultMeta, VaultRefreshResult};
 use crate::state::{AppState, OpenVault, VaultId};
 
 // Compile-time assertion: confirm the rust-argon2 re-export resolves
@@ -546,6 +546,112 @@ pub async fn vault_open(
         kdf_needs_upgrade,
         entries,
         folders,
+    })
+}
+
+type RefreshLoadResult = (bool, Option<(keepass::Database, [u8; 32])>);
+
+/// Check whether another application replaced the open vault file and,
+/// when allowed, reload the decrypted in-memory database from that file.
+/// The save lock prevents this from racing any Kagi writer.
+#[tauri::command]
+pub async fn vault_refresh_if_changed(
+    state: State<'_, AppState>,
+    allow_reload: bool,
+) -> KagiResult<VaultRefreshResult> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (path, key, expected_disk_hash, expected_root_id) = {
+        let vaults = state.vaults.lock();
+        let (_, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        (
+            vault.path.clone(),
+            vault.db_key.clone(),
+            vault.disk_hash,
+            vault.db.root().id(),
+        )
+    };
+
+    let refresh_path = path.clone();
+    let (changed, loaded) =
+        tauri::async_runtime::spawn_blocking(move || -> KagiResult<RefreshLoadResult> {
+            let bytes = std::fs::read(&refresh_path)?;
+            let disk_hash = crate::vault::sha256_bytes(&bytes);
+            if disk_hash == expected_disk_hash {
+                return Ok((false, None));
+            }
+            if !allow_reload {
+                return Ok((true, None));
+            }
+
+            let mut db = keepass::Database::parse(&bytes, key)?;
+            validate_kdf(&db.config.kdf_config)?;
+            ensure_kdbx4(&mut db);
+            if db.root().id() != expected_root_id {
+                return Err(KagiError::Custom(
+                    "The vault path now contains a different database. Lock and reopen it.".into(),
+                ));
+            }
+
+            // Do not install a snapshot if the external writer changed the
+            // file again while Argon2 and parsing were running.
+            let latest_hash = crate::vault::disk::sha256_file(&refresh_path)?;
+            if latest_hash != disk_hash {
+                return Err(KagiError::Custom(
+                    "The vault is still changing on disk. Try again shortly.".into(),
+                ));
+            }
+
+            Ok((true, Some((db, disk_hash))))
+        })
+        .await
+        .map_err(KagiError::from_join)??;
+
+    let Some((db, disk_hash)) = loaded else {
+        return Ok(VaultRefreshResult {
+            changed,
+            reloaded: false,
+            vault: None,
+        });
+    };
+
+    let name = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("Unnamed")
+        .to_string();
+    let meta = VaultMeta {
+        path: path.to_string_lossy().to_string(),
+        name,
+        item_count: db.num_entries(),
+        sync_provider: detect_sync_provider(&path),
+        kdf_needs_upgrade: needs_kdf_upgrade(&db.config.kdf_config),
+        entries: build_entry_summaries(&db),
+        folders: build_folder_summaries(&db),
+    };
+
+    let mut vaults = state.vaults.lock();
+    let Some((_, vault)) = vaults.iter_mut().next() else {
+        return Ok(VaultRefreshResult {
+            changed: true,
+            reloaded: false,
+            vault: None,
+        });
+    };
+    if vault.path != path || vault.disk_hash != expected_disk_hash {
+        return Ok(VaultRefreshResult {
+            changed: true,
+            reloaded: false,
+            vault: None,
+        });
+    }
+    vault.db = db;
+    vault.disk_hash = disk_hash;
+
+    Ok(VaultRefreshResult {
+        changed: true,
+        reloaded: true,
+        vault: Some(meta),
     })
 }
 
