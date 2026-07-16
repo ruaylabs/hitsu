@@ -33,6 +33,7 @@ pub fn run() {
             commands::prefs::prefs_set_security,
             commands::prefs::prefs_set_kdf_dismissed,
             commands::entries::entry_get,
+            commands::entries::entry_edit_payload,
             commands::entries::entry_create,
             commands::entries::entry_update,
             commands::entries::entry_delete,

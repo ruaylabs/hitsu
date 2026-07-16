@@ -119,7 +119,7 @@
       const nextEntry = filtered[next];
       const nextIndex = next;
       selection.requestNavigation(() => {
-        selection.selectedId = nextEntry.id;
+        selection.select(nextEntry.id, "keyboard");
         // The target row may not be in the DOM yet (windowed rendering), so
         // scroll it into range first, then focus after navigation is allowed
         // (immediately or after the unsaved-changes dialog is resolved).

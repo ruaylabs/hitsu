@@ -4,8 +4,8 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
-    AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryPatch, EntrySummary,
-    HistoryEntrySummary, IdentityFields, ItemType, PassportFields, SecretField,
+    AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryEditPayload, EntryPatch,
+    EntrySummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields, SecretField,
     SoftwareLicenseFields,
 };
 use crate::state::{AppState, OpenVault};
@@ -313,6 +313,13 @@ fn custom_field_storage_name(name: &str) -> String {
 }
 
 fn read_custom_fields(entry: &keepass::db::Entry) -> Vec<CustomField> {
+    read_custom_fields_with_secrets(entry, false)
+}
+
+fn read_custom_fields_with_secrets(
+    entry: &keepass::db::Entry,
+    include_protected_values: bool,
+) -> Vec<CustomField> {
     let mut custom_fields = entry
         .fields
         .iter()
@@ -320,7 +327,7 @@ fn read_custom_fields(entry: &keepass::db::Entry) -> Vec<CustomField> {
             let display_name = name.strip_prefix(CUSTOM_FIELD_PREFIX)?;
             Some(CustomField {
                 name: display_name.to_string(),
-                value: if value.is_protected() {
+                value: if value.is_protected() && !include_protected_values {
                     String::new()
                 } else {
                     value.get().clone()
@@ -331,6 +338,20 @@ fn read_custom_fields(entry: &keepass::db::Entry) -> Vec<CustomField> {
         .collect::<Vec<_>>();
     custom_fields.sort_by_key(|field| field.name.to_lowercase());
     custom_fields
+}
+
+fn build_entry_edit_payload(entry: &keepass::db::Entry) -> EntryEditPayload {
+    let value = |key: &str| entry.get(key).unwrap_or_default().to_string();
+    EntryEditPayload {
+        password: value(fields::PASSWORD),
+        totp: read_totp_seed(entry).unwrap_or_default(),
+        card_number: value("card.number"),
+        card_cvv: value("card.cvv"),
+        card_pin: value("card.pin"),
+        license_key: value("license.key"),
+        passport_number: value("passport.number"),
+        custom_fields: read_custom_fields_with_secrets(entry, true),
+    }
 }
 
 /// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
@@ -471,6 +492,18 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
     let mut entry = map_entry_to_full(&entry_ref, trashed);
     entry.attachments = read_attachments(&entry_ref);
     Ok(entry)
+}
+
+#[tauri::command]
+pub async fn entry_edit_payload(
+    state: State<'_, AppState>,
+    id: String,
+) -> KagiResult<EntryEditPayload> {
+    let vaults = state.vaults.lock();
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let entry_ref =
+        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+    Ok(build_entry_edit_payload(&entry_ref))
 }
 
 #[tauri::command]
@@ -1287,9 +1320,9 @@ pub async fn entry_attachment_remove(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_patch, build_entry_summaries, ensure_recycle_bin, map_entry_to_full,
-        mask_card_number, read_attachment_file, read_attachments, read_totp_seed,
-        safe_attachment_file_name, validate_custom_fields, write_attachment_file,
+        apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
+        map_entry_to_full, mask_card_number, read_attachment_file, read_attachments,
+        read_totp_seed, safe_attachment_file_name, validate_custom_fields, write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, ItemType};
 
@@ -1350,6 +1383,40 @@ mod tests {
         assert_eq!(entry.fields["custom.API key"].get(), "secret");
         assert!(entry.fields["custom.API key"].is_protected());
         assert_eq!(entry.fields["PluginData"].get(), "preserved");
+    }
+
+    #[test]
+    fn edit_payload_reads_all_secrets_in_one_projection() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            entry.set_protected(keepass::db::fields::PASSWORD, "password-secret");
+            entry.set_protected("card.number", "4111111111111111");
+            entry.set_protected("card.cvv", "123");
+            entry.set_protected("card.pin", "4567");
+            entry.set_protected("license.key", "license-secret");
+            entry.set_protected("passport.number", "passport-secret");
+            entry.set_protected("custom.API key", "custom-secret");
+            entry.set_unprotected("custom.Environment", "Production");
+            super::write_totp_seed(&mut entry, "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP");
+        }
+
+        let payload = build_entry_edit_payload(&db.entry(entry_id).unwrap());
+        assert_eq!(payload.password, "password-secret");
+        assert_eq!(payload.card_number, "4111111111111111");
+        assert_eq!(payload.card_cvv, "123");
+        assert_eq!(payload.card_pin, "4567");
+        assert_eq!(payload.license_key, "license-secret");
+        assert_eq!(payload.passport_number, "passport-secret");
+        assert_eq!(payload.totp, "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP");
+        assert_eq!(payload.custom_fields[0].name, "API key");
+        assert_eq!(payload.custom_fields[0].value, "custom-secret");
+        assert!(payload.custom_fields[0].protected);
+        assert_eq!(payload.custom_fields[1].value, "Production");
     }
 
     #[test]

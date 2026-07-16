@@ -144,6 +144,22 @@ pub struct EntryPatch {
     pub custom_fields: Option<Vec<CustomField>>,
 }
 
+/// Secret-bearing values required to populate the edit form. This DTO is
+/// fetched only when an entry contains protected fields and is zeroized as
+/// soon as the command response is dropped.
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryEditPayload {
+    pub password: String,
+    pub totp: String,
+    pub card_number: String,
+    pub card_cvv: String,
+    pub card_pin: String,
+    pub license_key: String,
+    pub passport_number: String,
+    pub custom_fields: Vec<CustomField>,
+}
+
 /// Detail view of an entry sent to the webview.
 ///
 /// Deliberately carries **no secret material**: passwords, TOTP URIs, card

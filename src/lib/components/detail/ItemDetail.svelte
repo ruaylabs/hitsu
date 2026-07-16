@@ -33,6 +33,7 @@
   let entryLoading = $state(false);
   let entryError = $state("");
 
+  const KEYBOARD_DETAIL_DEBOUNCE_MS = 80;
   let fetchId = 0;
   let loadingTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -57,44 +58,55 @@
     }
   }
 
-  // Fetch the full entry whenever selection changes
+  // Fetch the full entry whenever selection changes. Keyboard navigation uses
+  // a short trailing debounce so rapidly skipped entries never reach the backend.
   $effect(() => {
     const id = selection.selectedId;
+    const fetchMode = selection.detailFetchMode;
+    if (loadingTimer) clearTimeout(loadingTimer);
     if (!id) {
+      ++fetchId;
       _entry = undefined;
       entryLoading = false;
       entryError = "";
       return;
     }
+
     const thisFetch = ++fetchId;
-    // Keep previous entry visible during refetch; only show "Loading…" after a
-    // short delay and only when we have no prior data to display.
-    // untrack: this effect must depend only on the selected id — reading
-    // `_entry` tracked would make the `_entry = e` assignment below re-trigger
-    // the effect, refetching in a loop on every completion.
-    if (loadingTimer) clearTimeout(loadingTimer);
-    if (!untrack(() => _entry)) {
-      loadingTimer = setTimeout(() => {
-        if (thisFetch === fetchId) entryLoading = true;
-      }, 120);
-    }
+    entryLoading = false;
     entryError = "";
-    entriesBridge
-      .entryGet(id)
-      .then((e) => {
-        if (thisFetch === fetchId) {
-          if (loadingTimer) clearTimeout(loadingTimer);
-          installUpdatedEntry(e);
-          entryLoading = false;
-        }
-      })
-      .catch((err) => {
-        if (thisFetch === fetchId) {
-          if (loadingTimer) clearTimeout(loadingTimer);
-          entryError = err instanceof Error ? err.message : String(err);
-          entryLoading = false;
-        }
-      });
+    const startFetch = () => {
+      // Keep previous entry visible during refetch; only show "Loading…" after
+      // a short delay and only when we have no prior data to display.
+      // untrack prevents `_entry` assignments from becoming effect dependencies.
+      if (!untrack(() => _entry)) {
+        loadingTimer = setTimeout(() => {
+          if (thisFetch === fetchId) entryLoading = true;
+        }, 120);
+      }
+      entriesBridge
+        .entryGet(id)
+        .then((e) => {
+          if (thisFetch === fetchId) {
+            if (loadingTimer) clearTimeout(loadingTimer);
+            installUpdatedEntry(e);
+            entryLoading = false;
+          }
+        })
+        .catch((err) => {
+          if (thisFetch === fetchId) {
+            if (loadingTimer) clearTimeout(loadingTimer);
+            entryError = err instanceof Error ? err.message : String(err);
+            entryLoading = false;
+          }
+        });
+    };
+
+    if (fetchMode === "keyboard") {
+      const debounce = setTimeout(startFetch, KEYBOARD_DETAIL_DEBOUNCE_MS);
+      return () => clearTimeout(debounce);
+    }
+    startFetch();
   });
 
   // Card numbers are shown in full by default (unlike password/CVV/PIN),
@@ -368,34 +380,24 @@
     editPassportBirthPlace = e.passport?.birthPlace ?? "";
     editPassportIssueDate = e.passport?.issueDate ?? "";
     editPassportExpiryDate = e.passport?.expiryDate ?? "";
-    // Secrets are not in the Entry DTO — fetch the ones that exist so the
-    // form is prefilled and an untouched save round-trips them unchanged.
-    const [password, totp, cardNumber, cardCvv, cardPin, licenseKey, passportNumber, customFields] =
-      await Promise.all([
-        e.hasPassword ? entriesBridge.entryRevealField(e.id, "password") : "",
-        e.hasTotp ? entriesBridge.entryRevealField(e.id, "totp") : "",
-        e.card?.hasNumber ? entriesBridge.entryRevealField(e.id, "cardNumber") : "",
-        e.card?.hasCvv ? entriesBridge.entryRevealField(e.id, "cardCvv") : "",
-        e.card?.hasPin ? entriesBridge.entryRevealField(e.id, "cardPin") : "",
-        e.softwareLicense?.hasLicenseKey ? entriesBridge.entryRevealField(e.id, "licenseKey") : "",
-        e.passport?.hasNumber ? entriesBridge.entryRevealField(e.id, "passportNumber") : "",
-        Promise.all(
-          e.customFields.map(async (field) => ({
-            ...field,
-            value: field.protected
-              ? await entriesBridge.entryRevealCustomField(e.id, field.name)
-              : field.value,
-          })),
-        ),
-      ]);
-    editPassword = password;
-    editTotp = totp;
-    editCardNumber = cardNumber;
-    editCardCvv = cardCvv;
-    editCardPin = cardPin;
-    editLicenseKey = licenseKey;
-    editPassportNumber = passportNumber;
-    editCustomFields = customFields;
+    // Fetch all protected edit values with one backend lock and entry lookup.
+    // Entries without protected values can use their existing safe DTO directly.
+    const needsSecretPayload =
+      e.hasPassword ||
+      e.hasTotp ||
+      Boolean(e.card?.hasNumber || e.card?.hasCvv || e.card?.hasPin) ||
+      Boolean(e.softwareLicense?.hasLicenseKey) ||
+      Boolean(e.passport?.hasNumber) ||
+      e.customFields.some((field) => field.protected);
+    const payload = needsSecretPayload ? await entriesBridge.entryEditPayload(e.id) : null;
+    editPassword = payload?.password ?? "";
+    editTotp = payload?.totp ?? "";
+    editCardNumber = payload?.cardNumber ?? "";
+    editCardCvv = payload?.cardCvv ?? "";
+    editCardPin = payload?.cardPin ?? "";
+    editLicenseKey = payload?.licenseKey ?? "";
+    editPassportNumber = payload?.passportNumber ?? "";
+    editCustomFields = (payload?.customFields ?? e.customFields).map((field) => ({ ...field }));
     initialEditForm = captureEditForm();
     clearCardErrors();
   }

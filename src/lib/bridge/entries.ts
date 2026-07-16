@@ -21,6 +21,22 @@ export async function entryGet(id: string): Promise<Entry> {
   return invoke<Entry>("entry_get", { id });
 }
 
+export interface EntryEditPayload {
+  password: string;
+  totp: string;
+  cardNumber: string;
+  cardCvv: string;
+  cardPin: string;
+  licenseKey: string;
+  passportNumber: string;
+  customFields: CustomField[];
+}
+
+/** Fetch all protected values needed by the edit form in one backend lookup. */
+export async function entryEditPayload(id: string): Promise<EntryEditPayload> {
+  return invoke<EntryEditPayload>("entry_edit_payload", { id });
+}
+
 /**
  * Fetch a secret field's plaintext. Only call on explicit user action
  * (reveal button, populating the edit form) — never eagerly.

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Entry, EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
@@ -9,6 +10,7 @@ import ItemDetail from "./ItemDetail.svelte";
 
 const mocks = vi.hoisted(() => ({
   entryGet: vi.fn(),
+  entryEditPayload: vi.fn(),
   entryRevealField: vi.fn(),
   entryUpdate: vi.fn(),
   entryDiscard: vi.fn(),
@@ -24,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("$lib/bridge/entries", () => ({
   entryGet: mocks.entryGet,
+  entryEditPayload: mocks.entryEditPayload,
   entryRevealField: mocks.entryRevealField,
   entryUpdate: mocks.entryUpdate,
   entryDiscard: mocks.entryDiscard,
@@ -108,6 +111,16 @@ beforeEach(() => {
   vault.setEditingId(null);
   clipboard.defaultTimeoutSecs = 0;
   saveStatus.markSaved();
+  mocks.entryEditPayload.mockResolvedValue({
+    password: "stored-password",
+    totp: "",
+    cardNumber: "",
+    cardCvv: "",
+    cardPin: "",
+    licenseKey: "stored-password",
+    passportNumber: "stored-password",
+    customFields: [],
+  });
   mocks.entryRevealField.mockResolvedValue("stored-password");
   mocks.entryDiscard.mockResolvedValue(undefined);
   mocks.entryCopyField.mockResolvedValue(undefined);
@@ -201,6 +214,26 @@ describe("custom fields", () => {
 });
 
 describe("entry refreshes", () => {
+  it("debounces detail fetches during rapid keyboard navigation", async () => {
+    vi.useFakeTimers();
+    const first = passwordEntry({ id: "password-1", title: "First" });
+    const second = passwordEntry({ id: "password-2", title: "Second" });
+    mocks.entryGet.mockResolvedValue(second);
+    vault.setEntries([summary(first), summary(second)]);
+    render(ItemDetail);
+
+    selection.select(first.id, "keyboard");
+    await tick();
+    selection.select(second.id, "keyboard");
+    await tick();
+    expect(mocks.entryGet).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(80);
+    expect(mocks.entryGet).toHaveBeenCalledOnce();
+    expect(mocks.entryGet).toHaveBeenCalledWith(second.id);
+    vi.useRealTimers();
+  });
+
   it("ignores an attachment refresh after selection changes", async () => {
     const first = passwordEntry({
       attachments: [{ id: "notes.txt", name: "notes.txt", sizeBytes: 12 }],
@@ -418,6 +451,9 @@ describe("password entry workflow", () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText("Password")).toHaveValue("stored-password"),
     );
+    expect(mocks.entryEditPayload).toHaveBeenCalledOnce();
+    expect(mocks.entryEditPayload).toHaveBeenCalledWith("password-1");
+    expect(mocks.entryRevealField).not.toHaveBeenCalled();
     await fireEvent.input(screen.getByPlaceholderText("Title"), {
       target: { value: "Updated title" },
     });

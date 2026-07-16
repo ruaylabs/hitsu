@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { entryUpdate } from "./entries";
+import { entryEditPayload, entryUpdate } from "./entries";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -11,6 +11,14 @@ const invokeMock = vi.mocked(invoke);
 describe("entries bridge", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+  });
+
+  it("requests one edit payload for all protected fields", async () => {
+    invokeMock.mockResolvedValue({});
+
+    await entryEditPayload("entry-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("entry_edit_payload", { id: "entry-1" });
   });
 
   it("passes only the supplied update fields over IPC", async () => {
