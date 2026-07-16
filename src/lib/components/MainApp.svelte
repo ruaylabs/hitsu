@@ -11,8 +11,10 @@
   import ItemList from "$lib/components/list/ItemList.svelte";
   import SettingsView from "$lib/components/settings/SettingsView.svelte";
   import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import ConfirmDialog from "$lib/components/ui/ConfirmDialog.svelte";
+  import Dialog from "$lib/components/ui/Dialog.svelte";
   import EntryCommandPalette from "$lib/components/ui/EntryCommandPalette.svelte";
   import ShortcutsDialog from "$lib/components/ui/ShortcutsDialog.svelte";
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
@@ -249,6 +251,30 @@
     }
   });
 
+  async function deferKdfUpgrade() {
+    showKdfUpgrade = false;
+    const path = vault.meta?.path;
+    if (!path) return;
+
+    kdfUpgradeDismissedVaults = [...kdfUpgradeDismissedVaults, path];
+    try {
+      await prefsBridge.prefsSetKdfDismissed(path, true);
+    } catch (error) {
+      console.error("Failed to persist KDF dismissal", error);
+    }
+  }
+
+  async function upgradeKdf() {
+    try {
+      await vaultBridge.vaultUpgradeKdf();
+      showKdfUpgrade = false;
+      toast.success("Vault security upgraded");
+    } catch (error) {
+      console.error("KDF upgrade failed", error);
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   onMount(() => {
     const listeners = [
       listen("menu://settings", () => {
@@ -327,51 +353,24 @@
 {/if}
 
 {#if showKdfUpgrade}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="kdf-overlay" onclick={() => (showKdfUpgrade = false)}>
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="kdf-dialog" onclick={(e) => e.stopPropagation()}>
-      <h2>Upgrade vault security?</h2>
-      <p>
+  <Dialog
+    title="Upgrade vault security?"
+    onclose={() => (showKdfUpgrade = false)}
+    onconfirm={upgradeKdf}
+    size="md"
+  >
+    {#snippet children()}
+      <p class="kdf-message">
         This vault uses a weak KDF configuration (less than 64 MiB memory). Upgrade to Argon2id with
         64 MiB for better protection against brute-force attacks?
       </p>
-      <div class="kdf-actions">
-        <button
-          class="btn"
-          onclick={async () => {
-            showKdfUpgrade = false;
-            const path = vault.meta?.path;
-            if (path) {
-              kdfUpgradeDismissedVaults = [...kdfUpgradeDismissedVaults, path];
-              try {
-                await prefsBridge.prefsSetKdfDismissed(path, true);
-              } catch (e) {
-                console.error("Failed to persist KDF dismissal", e);
-              }
-            }
-          }}
-        >
-          Later
-        </button>
-        <button
-          class="btn btn-primary"
-          onclick={async () => {
-            try {
-              await vaultBridge.vaultUpgradeKdf();
-              showKdfUpgrade = false;
-              toast.success("Vault security upgraded");
-            } catch (e) {
-              console.error("KDF upgrade failed", e);
-              toast.error(e instanceof Error ? e.message : String(e));
-            }
-          }}
-        >
-          Upgrade
-        </button>
-      </div>
-    </div>
-  </div>
+    {/snippet}
+
+    {#snippet footer()}
+      <Button onclick={deferKdfUpgrade}>Later</Button>
+      <Button variant="primary" onclick={upgradeKdf}>Upgrade</Button>
+    {/snippet}
+  </Dialog>
 {/if}
 
 {#if showShortcuts}
@@ -437,52 +436,10 @@
     background: var(--accent);
   }
 
-  .kdf-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-blocking-overlay);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--backdrop-strong);
-  }
-
-  .kdf-dialog {
-    background: var(--surface-0);
-    border-radius: 12px;
-    padding: 24px;
-    width: 400px;
-    max-width: 90vw;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  .kdf-dialog h2 {
-    margin: 0 0 12px 0;
-    font-size: 1.2rem;
-  }
-
-  .kdf-dialog p {
-    margin: 0 0 20px 0;
+  .kdf-message {
+    margin: 0;
     color: var(--text-secondary);
+    font-size: 13.5px;
     line-height: 1.5;
-  }
-
-  .kdf-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-
-  .kdf-actions .btn {
-    padding: 8px 20px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-
-  .kdf-actions .btn-primary {
-    background: var(--accent);
-    color: white;
   }
 </style>
