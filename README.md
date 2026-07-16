@@ -68,6 +68,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 - Real-time search across notes, custom fields, identity, card, and other non-protected fields
 - Sidebar filters (All, Favorites, Recycle Bin, by type, by tag)
+- Optional nested KDBX folder navigation and entry moving (disabled by default)
 - Arrow-key navigation with Home/End jumps
 - Keyboard shortcuts (⌘N new entry, ⌘⌫ delete, ⌘F search, ⌘⇧F favorites, ⌘, settings)
 

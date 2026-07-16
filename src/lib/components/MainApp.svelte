@@ -20,6 +20,7 @@
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { app } from "$lib/stores/app.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { features } from "$lib/stores/features.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
@@ -237,6 +238,7 @@
   onMount(async () => {
     try {
       const prefs = await prefsBridge.prefsGet();
+      features.hydrate(prefs);
       kdfUpgradeDismissedVaults = prefs.kdfUpgradeDismissedVaults ?? [];
     } catch {
       // Non-fatal — worst case the upgrade prompt shows again.

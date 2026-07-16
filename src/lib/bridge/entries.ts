@@ -13,6 +13,7 @@ export function toSummary(entry: Entry): EntrySummary {
     tags: entry.tags,
     favorite: entry.favorite,
     trashed: entry.trashed,
+    folderId: entry.folderId,
     iconHint: entry.iconHint,
   };
 }
@@ -134,6 +135,10 @@ export interface EntryPatch {
 
 export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry> {
   return invoke<Entry>("entry_update", { id, patch });
+}
+
+export async function entryMove(id: string, folderId: string | null): Promise<Entry> {
+  return invoke<Entry>("entry_move", { id, folderId });
 }
 
 export interface HistoryEntrySummary {

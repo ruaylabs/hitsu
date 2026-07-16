@@ -19,8 +19,9 @@ use std::io::Cursor;
 use sha2::{Digest, Sha256};
 
 use kagi_lib::commands::entries::{
-    build_entry_summaries, entry_create, entry_delete, entry_delete_permanent, entry_discard,
-    entry_get, entry_restore, entry_reveal_field, entry_update,
+    build_entry_summaries, build_folder_summaries, entry_create, entry_delete,
+    entry_delete_permanent, entry_discard, entry_get, entry_move, entry_restore,
+    entry_reveal_field, entry_update, folder_create, folder_rename,
 };
 use kagi_lib::models::{EntryDraft, EntryPatch, EntrySummary, ItemType, SecretField};
 use kagi_lib::state::{AppState, OpenVault};
@@ -329,6 +330,88 @@ async fn entry_expiration_persists_and_clears() {
     let disk_entry = disk.iter_all_entries().next().unwrap();
     assert_eq!(disk_entry.times.expires, Some(false));
     assert!(disk_entry.times.expiry.is_none());
+}
+
+#[tokio::test]
+async fn entry_moves_between_nested_kdbx_folders() {
+    let tv = setup();
+    let state = tv.state();
+    let (parent_id, child_id) = {
+        let mut vaults = state.vaults.lock();
+        let vault = vaults.values_mut().next().unwrap();
+        let mut root = vault.db.root_mut();
+        let mut parent = root.add_group();
+        parent.name = "Work".into();
+        let parent_id = parent.id();
+        let mut child = parent.add_group();
+        child.name = "Clients".into();
+        (parent_id, child.id())
+    };
+
+    let folders = {
+        let vaults = state.vaults.lock();
+        build_folder_summaries(&vaults.values().next().unwrap().db)
+    };
+    assert_eq!(folders.len(), 2);
+    assert_eq!(
+        folders
+            .iter()
+            .find(|folder| folder.name == "Clients")
+            .unwrap()
+            .parent_id
+            .as_deref(),
+        Some(parent_id.uuid().to_string().as_str())
+    );
+
+    let entry = entry_create(state.clone(), "login".to_string(), draft("Client login"))
+        .await
+        .unwrap();
+    let moved = entry_move(
+        state.clone(),
+        entry.id.clone(),
+        Some(child_id.uuid().to_string()),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        moved.folder_id.as_deref(),
+        Some(child_id.uuid().to_string().as_str())
+    );
+
+    let disk = tv.reload_disk();
+    let disk_entry = disk.iter_all_entries().next().unwrap();
+    assert_eq!(disk_entry.parent().name, "Clients");
+
+    let moved_to_root = entry_move(state, entry.id.clone(), None).await.unwrap();
+    assert!(moved_to_root.folder_id.is_none());
+}
+
+#[tokio::test]
+async fn folders_can_be_created_at_any_level_and_renamed() {
+    let tv = setup();
+    let state = tv.state();
+
+    let parent = folder_create(state.clone(), None, " Work ".into())
+        .await
+        .unwrap();
+    let child = folder_create(state.clone(), Some(parent.id.clone()), "Clients".into())
+        .await
+        .unwrap();
+    assert_eq!(child.parent_id.as_deref(), Some(parent.id.as_str()));
+
+    let renamed = folder_rename(state, child.id.clone(), "Customers".into())
+        .await
+        .unwrap();
+    assert_eq!(renamed.name, "Customers");
+    assert_eq!(renamed.parent_id.as_deref(), Some(parent.id.as_str()));
+
+    let disk = tv.reload_disk();
+    let disk_child = disk
+        .iter_all_groups()
+        .find(|group| group.id().uuid().to_string() == child.id)
+        .unwrap();
+    assert_eq!(disk_child.name, "Customers");
+    assert_eq!(disk_child.parent().unwrap().name, "Work");
 }
 
 #[tokio::test]

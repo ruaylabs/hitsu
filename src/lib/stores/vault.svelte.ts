@@ -1,11 +1,13 @@
+import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
-import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
+import type { EntrySummary, FolderSummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 
 let vaultMeta = $state<VaultMeta | null>(null);
 let entries = $state<EntrySummary[]>([]);
+let folders = $state<FolderSummary[]>([]);
 let locked = $state(false);
 let editingId = $state<string | null>(null);
 let creatingId = $state<string | null>(null);
@@ -13,6 +15,7 @@ let creatingId = $state<string | null>(null);
 function installOpenVault(meta: VaultMeta) {
   vaultMeta = meta;
   entries = meta.entries;
+  folders = meta.folders ?? [];
   locked = false;
   selection.selectedId = null;
   selection.search = "";
@@ -37,6 +40,7 @@ function clearUnlockedState() {
   creatingId = null;
   locked = true;
   entries = [];
+  folders = [];
 }
 
 export const vault = {
@@ -45,6 +49,9 @@ export const vault = {
   },
   get meta() {
     return vaultMeta;
+  },
+  get folders() {
+    return folders;
   },
   get locked() {
     return locked;
@@ -88,6 +95,33 @@ export const vault = {
   },
   setEntries(data: EntrySummary[]) {
     entries = data;
+  },
+  setFolders(data: FolderSummary[]) {
+    folders = data;
+  },
+  async createFolder(parentId: string | null, name: string) {
+    const folder = await foldersBridge.folderCreate(parentId, name);
+    folders = [...folders, folder];
+    return folder;
+  },
+  async renameFolder(id: string, name: string) {
+    const updated = await foldersBridge.folderRename(id, name);
+    folders = folders.map((folder) => (folder.id === id ? updated : folder));
+    return updated;
+  },
+  folderIdsWithin(id: string) {
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const folder of folders) {
+        if (folder.parentId && ids.has(folder.parentId) && !ids.has(folder.id)) {
+          ids.add(folder.id);
+          changed = true;
+        }
+      }
+    }
+    return ids;
   },
   async lock() {
     if (locked) return;

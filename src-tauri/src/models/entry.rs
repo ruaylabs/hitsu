@@ -189,6 +189,8 @@ pub struct Entry {
     pub favorite: bool,
     pub trashed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub identity: Option<IdentityFields>,
@@ -235,6 +237,15 @@ pub struct HistoryEntrySummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FolderSummary {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EntrySummary {
     pub id: String,
     #[serde(rename = "type")]
@@ -248,6 +259,8 @@ pub struct EntrySummary {
     pub tags: Vec<String>,
     pub favorite: bool,
     pub trashed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
 }
@@ -408,6 +421,7 @@ pub struct VaultMeta {
     /// Entry summaries returned inline from vault_open so the frontend
     /// doesn't need a second entries_list round-trip after unlock.
     pub entries: Vec<EntrySummary>,
+    pub folders: Vec<FolderSummary>,
 }
 
 #[cfg(test)]

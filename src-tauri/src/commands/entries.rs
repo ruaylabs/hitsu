@@ -5,8 +5,8 @@ use tauri_plugin_dialog::DialogExt;
 use crate::error::{KagiError, KagiResult};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryEditPayload, EntryPatch,
-    EntrySummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields, SecretField,
-    SoftwareLicenseFields,
+    EntrySummary, FolderSummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields,
+    SecretField, SoftwareLicenseFields,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -23,7 +23,7 @@ fn is_protected_key(key: &str) -> bool {
     )
 }
 
-fn map_entry_to_summary(entry_ref: &keepass::db::Entry, trashed: bool) -> EntrySummary {
+fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) -> EntrySummary {
     let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
     let item_type = read_item_type(entry_ref);
@@ -59,6 +59,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::Entry, trashed: bool) -> EntryS
         tags: entry_ref.tags.clone(),
         favorite,
         trashed,
+        folder_id: entry_folder_id(entry_ref, trashed),
         icon_hint,
     }
 }
@@ -90,6 +91,35 @@ pub fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary> {
     db.iter_all_entries()
         .map(|e| map_entry_to_summary(&e, entry_is_trashed(db, &e)))
         .collect()
+}
+
+pub fn build_folder_summaries(db: &keepass::Database) -> Vec<FolderSummary> {
+    let root_id = db.root().id();
+    let mut folders = db
+        .iter_all_groups()
+        .filter(|group| group.id() != root_id && !group_is_in_recycle_bin(db, group.id()))
+        .map(|group| FolderSummary {
+            id: group.id().uuid().to_string(),
+            name: group.name.clone(),
+            parent_id: group
+                .parent()
+                .filter(|parent| parent.id() != root_id)
+                .map(|parent| parent.id().uuid().to_string()),
+        })
+        .collect::<Vec<_>>();
+    folders.sort_by(|left, right| {
+        left.name
+            .to_lowercase()
+            .cmp(&right.name.to_lowercase())
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    folders
+}
+
+fn entry_folder_id(entry: &keepass::db::EntryRef<'_>, trashed: bool) -> Option<String> {
+    let parent = entry.parent();
+    (!trashed && parent.id() != entry.database().root().id())
+        .then(|| parent.id().uuid().to_string())
 }
 
 fn entry_matches_search(entry: &keepass::db::Entry, query: &str) -> bool {
@@ -148,7 +178,11 @@ pub(crate) fn read_attachments(entry_ref: &keepass::db::EntryRef<'_>) -> Vec<Att
 
 /// Map a KDBX entry to the webview detail model. Secrets are reduced to
 /// presence flags / masked values here — see the `Entry` doc comment.
-fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
+fn map_entry_to_full(
+    entry_ref: &keepass::db::Entry,
+    trashed: bool,
+    folder_id: Option<String>,
+) -> Entry {
     let id = entry_ref.id().uuid().to_string();
     let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
@@ -281,6 +315,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         tags,
         favorite,
         trashed,
+        folder_id,
         icon_hint,
         identity,
         card,
@@ -385,6 +420,30 @@ fn parse_entry_id(id: &str) -> KagiResult<EntryId> {
     uuid::Uuid::parse_str(id)
         .map(EntryId::from_uuid)
         .map_err(|_| KagiError::EntryNotFound(id.to_string()))
+}
+
+fn folder_destination(db: &keepass::Database, folder_id: &str) -> KagiResult<GroupId> {
+    if folder_id.is_empty() {
+        return Ok(db.root().id());
+    }
+    let id = uuid::Uuid::parse_str(folder_id)
+        .map(GroupId::from_uuid)
+        .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+    if db.group(id).is_none() || group_is_in_recycle_bin(db, id) {
+        return Err(KagiError::Custom("Folder not found".into()));
+    }
+    Ok(id)
+}
+
+fn validate_folder_name(name: &str) -> KagiResult<String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(KagiError::Custom("Folder name cannot be empty".into()));
+    }
+    if name.len() > 255 {
+        return Err(KagiError::Custom("Folder name is too long".into()));
+    }
+    Ok(name.to_string())
 }
 
 /// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
@@ -519,7 +578,8 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
     let trashed = entry_is_trashed(&vault.db, &entry_ref);
-    let mut entry = map_entry_to_full(&entry_ref, trashed);
+    let folder_id = entry_folder_id(&entry_ref, trashed);
+    let mut entry = map_entry_to_full(&entry_ref, trashed, folder_id);
     entry.attachments = read_attachments(&entry_ref);
     Ok(entry)
 }
@@ -614,6 +674,7 @@ pub async fn entry_create(
         tags: Vec::new(),
         favorite: false,
         trashed: false,
+        folder_id: None,
         icon_hint: None,
         identity: None,
         card: None,
@@ -667,7 +728,8 @@ pub async fn entry_update(
             .entry(entry_id)
             .ok_or(KagiError::EntryNotFound(id))?;
         let trashed = entry_is_trashed(&vault.db, &entry_ref);
-        let mut updated = map_entry_to_full(&entry_ref, trashed);
+        let folder_id = entry_folder_id(&entry_ref, trashed);
+        let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
         updated.attachments = read_attachments(&entry_ref);
         let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
         (updated, db, key, path, expected_disk_hash)
@@ -878,6 +940,142 @@ fn validate_custom_fields(patch: &EntryPatch) -> KagiResult<()> {
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn folder_create(
+    state: State<'_, AppState>,
+    parent_id: Option<String>,
+    name: String,
+) -> KagiResult<FolderSummary> {
+    let _save_guard = state.save_lock.lock().await;
+    let name = validate_folder_name(&name)?;
+
+    let (folder, db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let destination = folder_destination(&vault.db, parent_id.as_deref().unwrap_or(""))?;
+        let root_id = vault.db.root().id();
+        let folder = {
+            let mut parent = vault
+                .db
+                .group_mut(destination)
+                .ok_or_else(|| KagiError::Custom("Folder not found".into()))?;
+            let mut group = parent.add_group();
+            group.name = name.clone();
+            FolderSummary {
+                id: group.id().uuid().to_string(),
+                name,
+                parent_id: (destination != root_id).then(|| destination.uuid().to_string()),
+            }
+        };
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (folder, db, key, path, expected_disk_hash)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(folder)
+}
+
+#[tauri::command]
+pub async fn folder_rename(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> KagiResult<FolderSummary> {
+    let _save_guard = state.save_lock.lock().await;
+    let name = validate_folder_name(&name)?;
+
+    let (folder, db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let folder_id = uuid::Uuid::parse_str(&id)
+            .map(GroupId::from_uuid)
+            .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+        if folder_id == vault.db.root().id()
+            || vault.db.group(folder_id).is_none()
+            || group_is_in_recycle_bin(&vault.db, folder_id)
+        {
+            return Err(KagiError::Custom("Folder not found".into()));
+        }
+        let root_id = vault.db.root().id();
+        let parent_id = vault.db.group(folder_id).and_then(|group| {
+            group
+                .parent()
+                .filter(|parent| parent.id() != root_id)
+                .map(|parent| parent.id().uuid().to_string())
+        });
+        {
+            let mut group = vault
+                .db
+                .group_mut(folder_id)
+                .ok_or_else(|| KagiError::Custom("Folder not found".into()))?;
+            group.name = name.clone();
+            group.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
+        let folder = FolderSummary {
+            id,
+            name,
+            parent_id,
+        };
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (folder, db, key, path, expected_disk_hash)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(folder)
+}
+
+#[tauri::command]
+pub async fn entry_move(
+    state: State<'_, AppState>,
+    id: String,
+    folder_id: Option<String>,
+) -> KagiResult<Entry> {
+    let _save_guard = state.save_lock.lock().await;
+
+    let (updated, db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let entry_id = parse_entry_id(&id)?;
+        let destination = folder_destination(&vault.db, folder_id.as_deref().unwrap_or(""))?;
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        if entry_is_trashed(&vault.db, &entry_ref) {
+            return Err(KagiError::Custom(
+                "Entries in the Recycle Bin cannot be moved".into(),
+            ));
+        }
+
+        let mut entry = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        entry
+            .move_to(destination)
+            .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+        let now = chrono::Utc::now().naive_utc();
+        entry.times.location_changed = Some(now);
+        entry.times.last_modification = Some(now);
+
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        let folder_id = entry_folder_id(&entry_ref, false);
+        let mut updated = map_entry_to_full(&entry_ref, false, folder_id);
+        updated.attachments = read_attachments(&entry_ref);
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (updated, db, key, path, expected_disk_hash)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -1164,7 +1362,8 @@ pub async fn entry_history_get(
         .get(version as usize)
         .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", version)))?;
 
-    let mut result = map_entry_to_full(history_entry, entry_is_trashed(&vault.db, &entry_ref));
+    let mut result =
+        map_entry_to_full(history_entry, entry_is_trashed(&vault.db, &entry_ref), None);
     result.id = id;
     Ok(result)
 }
@@ -1479,7 +1678,7 @@ mod tests {
         apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
 
         let entry = db.entry(entry_id).unwrap();
-        let mapped = map_entry_to_full(&entry, false);
+        let mapped = map_entry_to_full(&entry, false, None);
         assert_eq!(mapped.custom_fields[0].name, "API key");
         assert_eq!(mapped.custom_fields[0].value, "");
         assert!(mapped.custom_fields[0].protected);
@@ -1544,7 +1743,7 @@ mod tests {
             "2030-05-20 23:59:59"
         );
         assert_eq!(
-            map_entry_to_full(&entry, false).expires_at.as_deref(),
+            map_entry_to_full(&entry, false, None).expires_at.as_deref(),
             Some("2030-05-20")
         );
 
@@ -1553,7 +1752,7 @@ mod tests {
         let entry = db.entry(entry_id).unwrap();
         assert_eq!(entry.times.expires, Some(false));
         assert!(entry.times.expiry.is_none());
-        assert!(map_entry_to_full(&entry, false).expires_at.is_none());
+        assert!(map_entry_to_full(&entry, false, None).expires_at.is_none());
 
         patch.expires_at = Some("05/20/2030".into());
         assert!(validate_expiration(&patch).is_err());
@@ -1573,7 +1772,7 @@ mod tests {
             super::set_custom_data(&mut entry, "kagi.itemType", Some("card"));
         }
 
-        let mapped = map_entry_to_full(&db.entry(entry_id).unwrap(), false);
+        let mapped = map_entry_to_full(&db.entry(entry_id).unwrap(), false, None);
         assert_eq!(mapped.item_type, ItemType::Card);
         assert_eq!(mapped.subtitle, "4111 •••• 1111");
     }
@@ -1601,7 +1800,7 @@ mod tests {
 
         let entry = db.entry(entry_id).unwrap();
         assert!(entry.fields["license.key"].is_protected());
-        let mapped = map_entry_to_full(&entry, false);
+        let mapped = map_entry_to_full(&entry, false, None);
         assert_eq!(mapped.item_type, ItemType::SoftwareLicense);
         let license = mapped.software_license.as_ref().unwrap();
         assert_eq!(license.version.as_deref(), Some("4.2"));
@@ -1633,7 +1832,7 @@ mod tests {
 
         let entry = db.entry(entry_id).unwrap();
         assert!(entry.fields["passport.number"].is_protected());
-        let mapped = map_entry_to_full(&entry, false);
+        let mapped = map_entry_to_full(&entry, false, None);
         assert_eq!(mapped.item_type, ItemType::Passport);
         let passport = mapped.passport.as_ref().unwrap();
         assert!(passport.has_number);

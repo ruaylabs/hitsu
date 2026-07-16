@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { ItemType } from "$lib/bridge/types";
+  import type { FolderSummary, ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPES } from "$lib/entryTypes";
+  import { features } from "$lib/stores/features.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import Button from "../ui/Button.svelte";
+  import Dialog from "../ui/Dialog.svelte";
   import SidebarItem from "./SidebarItem.svelte";
   import SidebarSection from "./SidebarSection.svelte";
 
@@ -11,6 +14,79 @@
   let allCount = $derived(activeEntries.length);
   let favoritesCount = $derived(activeEntries.filter((e) => e.favorite).length);
   let trashCount = $derived(vault.entries.filter((e) => e.trashed).length);
+  type FolderRow = FolderSummary & { depth: number };
+
+  function flattenFolders(folders: FolderSummary[]): FolderRow[] {
+    const rows: FolderRow[] = [];
+    const seen = new Set<string>();
+    const visit = (parentId: string | undefined, depth: number) => {
+      for (const folder of folders
+        .filter((candidate) => candidate.parentId === parentId)
+        .sort((left, right) => left.name.localeCompare(right.name))) {
+        if (seen.has(folder.id)) continue;
+        seen.add(folder.id);
+        rows.push({ ...folder, depth });
+        visit(folder.id, depth + 1);
+      }
+    };
+    visit(undefined, 0);
+    for (const folder of folders) {
+      if (!seen.has(folder.id)) rows.push({ ...folder, depth: 0 });
+    }
+    return rows;
+  }
+
+  let folderRows = $derived(flattenFolders(vault.folders));
+  let folderDialog = $state<
+    | { mode: "create"; parentId?: string; parentName?: string }
+    | { mode: "rename"; folder: FolderSummary }
+    | null
+  >(null);
+  let folderName = $state("");
+  let folderError = $state("");
+  let savingFolder = $state(false);
+
+  function openCreateFolder(parent?: FolderSummary) {
+    folderName = "";
+    folderError = "";
+    folderDialog = {
+      mode: "create",
+      parentId: parent?.id,
+      parentName: parent?.name,
+    };
+  }
+
+  function openRenameFolder(folder: FolderSummary) {
+    folderName = folder.name;
+    folderError = "";
+    folderDialog = { mode: "rename", folder };
+  }
+
+  async function saveFolder() {
+    const action = folderDialog;
+    const name = folderName.trim();
+    if (!action || !name || savingFolder) return;
+    savingFolder = true;
+    folderError = "";
+    try {
+      if (action.mode === "create") {
+        await vault.createFolder(action.parentId ?? null, name);
+      } else {
+        await vault.renameFolder(action.folder.id, name);
+      }
+      folderDialog = null;
+    } catch (error) {
+      folderError = error instanceof Error ? error.message : String(error);
+    } finally {
+      savingFolder = false;
+    }
+  }
+
+  function folderCount(folderId: string) {
+    const folderIds = vault.folderIdsWithin(folderId);
+    return activeEntries.filter((entry) => entry.folderId && folderIds.has(entry.folderId)).length;
+  }
+
   let typeCounts = $derived.by(() => {
     const counts: Partial<Record<ItemType, number>> = {};
     for (const entry of activeEntries) {
@@ -61,11 +137,13 @@
   function isSelected(kind: "all" | "favorites" | "trash"): boolean;
   function isSelected(kind: "type", type: ItemType): boolean;
   function isSelected(kind: "tag", tag: string): boolean;
+  function isSelected(kind: "folder", folderId: string): boolean;
   function isSelected(kind: string, value?: string): boolean {
     const f = selection.filter;
     if (!value) return f.kind === kind;
     if (kind === "type") return f.kind === "type" && f.type === value;
     if (kind === "tag") return f.kind === "tag" && f.tag === value;
+    if (kind === "folder") return f.kind === "folder" && f.folderId === value;
     return false;
   }
 </script>
@@ -95,6 +173,23 @@
     />
   </SidebarSection>
 
+  {#if features.foldersEnabled}
+    <SidebarSection label="Folders" onadd={() => openCreateFolder()} addLabel="Add root folder">
+      {#each folderRows as folder (folder.id)}
+        <SidebarItem
+          label={folder.name}
+          icon="folder"
+          count={folderCount(folder.id)}
+          indent={folder.depth}
+          selected={isSelected("folder", folder.id)}
+          onclick={() => selectFilter({ kind: "folder", folderId: folder.id })}
+          onadd={() => openCreateFolder(folder)}
+          onedit={() => openRenameFolder(folder)}
+        />
+      {/each}
+    </SidebarSection>
+  {/if}
+
   <SidebarSection label="Types">
     {#each ENTRY_TYPES as item (item.type)}
       <SidebarItem
@@ -121,11 +216,52 @@
   {/if}
 </aside>
 
+{#if folderDialog}
+  <Dialog
+    title={folderDialog.mode === "rename"
+      ? "Rename folder"
+      : folderDialog.parentName
+        ? `New folder in ${folderDialog.parentName}`
+        : "New folder"}
+    size="sm"
+    onclose={() => (folderDialog = null)}
+    onconfirm={saveFolder}
+  >
+    <div class="folder-form">
+      <label class="control-label" for="folder-name">Name</label>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        id="folder-name"
+        class="control control--compact"
+        bind:value={folderName}
+        autocomplete="off"
+        autofocus
+      />
+      {#if folderError}
+        <p class="control-error">{folderError}</p>
+      {/if}
+    </div>
+
+    {#snippet footer()}
+      <Button onclick={() => (folderDialog = null)}>Cancel</Button>
+      <Button variant="primary" onclick={saveFolder} disabled={savingFolder || !folderName.trim()}>
+        {savingFolder ? "Saving…" : folderDialog?.mode === "rename" ? "Rename" : "Create"}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 <style>
   .sidebar {
     width: 100%;
     background: var(--surface-1);
     padding: 14px 8px;
     overflow-y: auto;
+  }
+
+  .folder-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 </style>

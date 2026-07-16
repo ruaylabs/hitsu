@@ -69,6 +69,24 @@ describe("ItemList", () => {
     expect(screen.getAllByRole("option")).toHaveLength(1);
   });
 
+  it("filters a folder recursively", async () => {
+    vault.setFolders([
+      { id: "work", name: "Work" },
+      { id: "clients", name: "Clients", parentId: "work" },
+    ]);
+    vault.setEntries([
+      { ...makeEntries(1)[0], id: "work-entry", folderId: "work" },
+      { ...makeEntries(1)[0], id: "client-entry", title: "Client", folderId: "clients" },
+      { ...makeEntries(1)[0], id: "root-entry", title: "Root" },
+    ]);
+    selection.filter = { kind: "folder", folderId: "work" };
+    render(ItemList);
+
+    expect(await screen.findByRole("option", { name: /Entry 0/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Client/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Root/ })).not.toBeInTheDocument();
+  });
+
   it("shows the empty state when nothing matches", async () => {
     vault.setEntries(makeEntries(5));
     render(ItemList);

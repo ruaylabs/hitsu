@@ -3,6 +3,7 @@ import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Entry, EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
+import { features } from "$lib/stores/features.svelte";
 import { saveStatus } from "$lib/stores/saveStatus.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
@@ -13,12 +14,15 @@ const mocks = vi.hoisted(() => ({
   entryEditPayload: vi.fn(),
   entryRevealField: vi.fn(),
   entryUpdate: vi.fn(),
+  entryMove: vi.fn(),
   entryDiscard: vi.fn(),
   entryDelete: vi.fn(),
   entryCopyField: vi.fn(),
   entryRevealCustomField: vi.fn(),
   entryCopyCustomField: vi.fn(),
   entryAttachmentRemove: vi.fn(),
+  folderCreate: vi.fn(),
+  folderRename: vi.fn(),
   clipboardCopy: vi.fn(),
   clipboardClear: vi.fn(),
   openUrl: vi.fn(),
@@ -29,6 +33,7 @@ vi.mock("$lib/bridge/entries", () => ({
   entryEditPayload: mocks.entryEditPayload,
   entryRevealField: mocks.entryRevealField,
   entryUpdate: mocks.entryUpdate,
+  entryMove: mocks.entryMove,
   entryDiscard: mocks.entryDiscard,
   entryDelete: mocks.entryDelete,
   entryCopyField: mocks.entryCopyField,
@@ -44,8 +49,14 @@ vi.mock("$lib/bridge/entries", () => ({
     username: entry.username,
     tags: entry.tags,
     favorite: entry.favorite,
+    folderId: entry.folderId,
     iconHint: entry.iconHint,
   }),
+}));
+
+vi.mock("$lib/bridge/folders", () => ({
+  folderCreate: mocks.folderCreate,
+  folderRename: mocks.folderRename,
 }));
 
 vi.mock("$lib/bridge/clipboard", () => ({
@@ -89,6 +100,7 @@ function summary(entry: Entry): EntrySummary {
     username: entry.username,
     tags: entry.tags,
     favorite: entry.favorite,
+    folderId: entry.folderId,
     iconHint: entry.iconHint,
   };
 }
@@ -107,6 +119,15 @@ beforeEach(() => {
   selection.search = "";
   selection.filter = { kind: "all" };
   vault.setEntries([]);
+  vault.setFolders([]);
+  features.hydrate({
+    lastVault: null,
+    recentVaults: [],
+    idleLockMinutes: 5,
+    clipboardClearSeconds: 15,
+    foldersEnabled: false,
+    kdfUpgradeDismissedVaults: [],
+  });
   vault.setCreatingId(null);
   vault.setEditingId(null);
   clipboard.defaultTimeoutSecs = 0;
@@ -123,10 +144,13 @@ beforeEach(() => {
   });
   mocks.entryRevealField.mockResolvedValue("stored-password");
   mocks.entryDiscard.mockResolvedValue(undefined);
+  mocks.entryMove.mockResolvedValue(passwordEntry());
   mocks.entryCopyField.mockResolvedValue(undefined);
   mocks.entryRevealCustomField.mockResolvedValue("protected-value");
   mocks.entryCopyCustomField.mockResolvedValue(undefined);
   mocks.entryAttachmentRemove.mockResolvedValue(undefined);
+  mocks.folderCreate.mockResolvedValue({ id: "new-folder", name: "New folder" });
+  mocks.folderRename.mockResolvedValue({ id: "new-folder", name: "Renamed folder" });
   mocks.clipboardCopy.mockResolvedValue(undefined);
   mocks.clipboardClear.mockResolvedValue(undefined);
 });
@@ -518,6 +542,62 @@ describe("password entry workflow", () => {
 
     const warning = await screen.findByText(/Expired on/);
     expect(warning.closest('[role="status"]')).toHaveClass("due");
+  });
+
+  it("moves an entry through the folder dialog when folders are enabled", async () => {
+    features.hydrate({
+      lastVault: null,
+      recentVaults: [],
+      idleLockMinutes: 5,
+      clipboardClearSeconds: 15,
+      foldersEnabled: true,
+      kdfUpgradeDismissedVaults: [],
+    });
+    vault.setFolders([
+      { id: "personal", name: "Personal" },
+      { id: "work", name: "Work" },
+    ]);
+    const entry = passwordEntry({ folderId: "personal" });
+    const moved = { ...entry, folderId: "work" };
+    mocks.entryMove.mockResolvedValue(moved);
+    selectEntry(entry);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Move entry" }));
+    const destination = screen.getByLabelText("Destination");
+    await fireEvent.change(destination, { target: { value: "work" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Move" }));
+
+    await waitFor(() => expect(mocks.entryMove).toHaveBeenCalledWith("password-1", "work"));
+    expect(vault.entries[0].folderId).toBe("work");
+    expect(screen.queryByRole("dialog", { name: "Move entry" })).not.toBeInTheDocument();
+  });
+
+  it("creates a nested destination from the move dialog", async () => {
+    features.hydrate({
+      lastVault: null,
+      recentVaults: [],
+      idleLockMinutes: 5,
+      clipboardClearSeconds: 15,
+      foldersEnabled: true,
+      kdfUpgradeDismissedVaults: [],
+    });
+    vault.setFolders([{ id: "work", name: "Work" }]);
+    selectEntry(passwordEntry());
+    mocks.folderCreate.mockResolvedValue({ id: "clients", name: "Clients", parentId: "work" });
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Move entry" }));
+    await fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "work" } });
+    await fireEvent.click(screen.getByRole("button", { name: "New folder" }));
+    await fireEvent.input(screen.getByPlaceholderText("Folder name"), {
+      target: { value: "Clients" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(mocks.folderCreate).toHaveBeenCalledWith("work", "Clients"));
+    expect(screen.getByLabelText("Destination")).toHaveValue("clients");
+    expect(vault.folders).toContainEqual({ id: "clients", name: "Clients", parentId: "work" });
   });
 
   it("supports password copy and opening or copying the URL", async () => {

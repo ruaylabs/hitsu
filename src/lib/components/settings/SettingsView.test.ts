@@ -5,6 +5,7 @@ import SettingsView from "./SettingsView.svelte";
 
 const mocks = vi.hoisted(() => ({
   import1pif: vi.fn(),
+  setFoldersEnabled: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -16,9 +17,11 @@ vi.mock("$lib/bridge/prefs", () => ({
   prefsGet: vi.fn().mockResolvedValue({
     idleLockMinutes: 5,
     clipboardClearSeconds: 15,
+    foldersEnabled: false,
     recentVaults: [],
   }),
   prefsSetSecurity: vi.fn(),
+  prefsSetFoldersEnabled: mocks.setFoldersEnabled,
 }));
 
 vi.mock("$lib/bridge/vault", () => ({
@@ -33,6 +36,7 @@ describe("SettingsView import details", () => {
       itemCount: 0,
       syncProvider: "local",
       entries: [],
+      folders: [],
     });
     vault.setEntries([]);
     mocks.import1pif.mockResolvedValue({
@@ -45,6 +49,16 @@ describe("SettingsView import details", () => {
       ],
       entries: [],
     });
+  });
+
+  it("enables optional folder support", async () => {
+    render(SettingsView);
+
+    const toggle = await screen.findByRole("switch", { name: "Enable folders" });
+    expect(toggle).not.toBeChecked();
+    await fireEvent.click(toggle);
+
+    expect(mocks.setFoldersEnabled).toHaveBeenCalledWith(true);
   });
 
   it("shows skipped entry names in a simple list", async () => {

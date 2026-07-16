@@ -42,6 +42,9 @@
       items = items.filter((e) => e.type === f.type);
     } else if (f.kind === "tag") {
       items = items.filter((e) => e.tags.includes(f.tag));
+    } else if (f.kind === "folder") {
+      const folderIds = vault.folderIdsWithin(f.folderId);
+      items = items.filter((entry) => entry.folderId && folderIds.has(entry.folderId));
     }
     if (selection.search) {
       if (searchMatchIds === null) {

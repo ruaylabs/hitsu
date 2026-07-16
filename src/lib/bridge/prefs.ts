@@ -5,6 +5,7 @@ export interface Preferences {
   recentVaults: string[];
   idleLockMinutes: number;
   clipboardClearSeconds: number;
+  foldersEnabled: boolean;
   kdfUpgradeDismissedVaults: string[];
 }
 
@@ -21,6 +22,10 @@ export async function prefsSetSecurity(
   clipboardClearSeconds: number,
 ): Promise<void> {
   return invoke<void>("prefs_set_security", { idleLockMinutes, clipboardClearSeconds });
+}
+
+export async function prefsSetFoldersEnabled(enabled: boolean): Promise<void> {
+  return invoke<void>("prefs_set_folders_enabled", { enabled });
 }
 
 export async function prefsSetKdfDismissed(path: string, dismissed: boolean): Promise<void> {

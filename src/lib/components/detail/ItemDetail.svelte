@@ -5,6 +5,7 @@
   import type { CustomField, Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { features } from "$lib/stores/features.svelte";
   import { saveStatus } from "$lib/stores/saveStatus.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
@@ -12,7 +13,9 @@
   import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
+  import Button from "../ui/Button.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
+  import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import TagInput from "../ui/TagInput.svelte";
@@ -137,6 +140,14 @@
   let editing = $state(false);
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
+  let showMoveDialog = $state(false);
+  let moveFolderId = $state("");
+  let movingEntry = $state(false);
+  let moveError = $state("");
+  let addingMoveFolder = $state(false);
+  let newMoveFolderName = $state("");
+  let creatingMoveFolder = $state(false);
+  let newMoveFolderError = $state("");
   let showGenerator = $state(false);
   let showTotpSetup = $state(false);
   let editTitle = $state("");
@@ -602,6 +613,69 @@
     });
   });
 
+  function folderPath(folderId: string) {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    let current = vault.folders.find((folder) => folder.id === folderId);
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      names.unshift(current.name);
+      current = current.parentId
+        ? vault.folders.find((folder) => folder.id === current?.parentId)
+        : undefined;
+    }
+    return names.join(" / ");
+  }
+
+  let moveFolders = $derived(
+    [...vault.folders].sort((left, right) =>
+      folderPath(left.id).localeCompare(folderPath(right.id)),
+    ),
+  );
+
+  function openMoveDialog() {
+    if (!_entry) return;
+    moveFolderId = _entry.folderId ?? "";
+    moveError = "";
+    addingMoveFolder = false;
+    newMoveFolderName = "";
+    newMoveFolderError = "";
+    showMoveDialog = true;
+  }
+
+  async function createMoveFolder() {
+    const name = newMoveFolderName.trim();
+    if (!name || creatingMoveFolder) return;
+    creatingMoveFolder = true;
+    newMoveFolderError = "";
+    try {
+      const folder = await vault.createFolder(moveFolderId || null, name);
+      moveFolderId = folder.id;
+      addingMoveFolder = false;
+      newMoveFolderName = "";
+    } catch (error) {
+      newMoveFolderError = error instanceof Error ? error.message : String(error);
+    } finally {
+      creatingMoveFolder = false;
+    }
+  }
+
+  async function moveEntry() {
+    if (!_entry || movingEntry) return;
+    movingEntry = true;
+    moveError = "";
+    try {
+      const updated = await entriesBridge.entryMove(_entry.id, moveFolderId || null);
+      installUpdatedEntry(updated);
+      showMoveDialog = false;
+      toast.success("Entry moved");
+    } catch (error) {
+      moveError = error instanceof Error ? error.message : String(error);
+    } finally {
+      movingEntry = false;
+    }
+  }
+
   function localDateString() {
     const now = new Date();
     const year = now.getFullYear();
@@ -757,6 +831,8 @@
         {entry}
         onFavorite={toggleFavorite}
         onEdit={startEdit}
+        onMove={openMoveDialog}
+        showMove={features.foldersEnabled && !entry.trashed}
         onTotpSetup={() => (showTotpSetup = true)}
         showTotpSetup={entry.type === "login" && !entry.hasTotp}
         readOnly={entry.trashed}
@@ -981,7 +1057,7 @@
             </div>
           </DetailFieldRow>
           <DetailFieldRow label="Type">
-            <select class="control control--compact edit-select" bind:value={editCardType}>
+            <select class="control control--compact control--select" bind:value={editCardType}>
               <option value="">Select brand</option>
               {#each Object.entries(CARD_BRANDS) as [ key, name ]}
                 <option value={key}>{name}</option>
@@ -1699,6 +1775,91 @@
   <HistoryDialog entryId={_entry.id} onclose={() => (showHistory = false)} />
 {/if}
 
+{#if showMoveDialog && _entry}
+  <Dialog
+    title="Move entry"
+    onclose={() => (showMoveDialog = false)}
+    onconfirm={addingMoveFolder ? createMoveFolder : moveEntry}
+    size="sm"
+  >
+    <div class="move-entry-content">
+      <div class="move-destination-heading">
+        <label for="move-folder">Destination</label>
+        <button
+          type="button"
+          class="new-folder-button"
+          onclick={() => {
+            addingMoveFolder = !addingMoveFolder;
+            newMoveFolderName = "";
+            newMoveFolderError = "";
+          }}
+        >
+          <Icon name="folder-plus" size={13} />
+          New folder
+        </button>
+      </div>
+      <select
+        id="move-folder"
+        class="control control--compact control--select"
+        bind:value={moveFolderId}
+      >
+        <option value="">Vault root</option>
+        {#each moveFolders as folder (folder.id)}
+          <option value={folder.id}>{folderPath(folder.id)}</option>
+        {/each}
+      </select>
+      {#if addingMoveFolder}
+        <div class="new-folder-form">
+          <label class="control-label" for="new-move-folder">
+            Create in {moveFolderId ? folderPath(moveFolderId) : "Vault root"}
+          </label>
+          <div class="new-folder-row">
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              id="new-move-folder"
+              class="control control--compact"
+              bind:value={newMoveFolderName}
+              placeholder="Folder name"
+              autocomplete="off"
+              autofocus
+              onkeydown={(event) => {
+                if (event.key === "Enter") {
+                  event.stopPropagation();
+                  void createMoveFolder();
+                }
+              }}
+            />
+            <Button
+              variant="outline"
+              onclick={createMoveFolder}
+              disabled={creatingMoveFolder || !newMoveFolderName.trim()}
+            >
+              {creatingMoveFolder ? "Creating…" : "Create"}
+            </Button>
+          </div>
+          {#if newMoveFolderError}
+            <p class="control-error">{newMoveFolderError}</p>
+          {/if}
+        </div>
+      {/if}
+      {#if moveError}
+        <p class="save-error">{moveError}</p>
+      {/if}
+    </div>
+
+    {#snippet footer()}
+      <Button onclick={() => (showMoveDialog = false)}>Cancel</Button>
+      <Button
+        variant="primary"
+        onclick={moveEntry}
+        disabled={movingEntry || moveFolderId === (_entry?.folderId ?? "")}
+      >
+        {movingEntry ? "Moving…" : "Move"}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if showTotpSetup && _entry}
   <TotpSetupDialog
     oncancel={() => (showTotpSetup = false)}
@@ -1718,6 +1879,48 @@
 {/if}
 
 <style>
+  .move-entry-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .move-entry-content .save-error {
+    margin-bottom: 0;
+  }
+
+  .move-destination-heading,
+  .new-folder-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .new-folder-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-accent);
+    font-size: 12px;
+  }
+
+  .new-folder-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+  }
+
+  .new-folder-row .control {
+    min-width: 0;
+  }
+
   .detail-pane {
     padding: 22px 24px;
     min-width: 0;
@@ -1792,16 +1995,6 @@
 
   .card-input-wrap .edit-input {
     width: 100%;
-  }
-
-  .edit-select {
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a09a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    padding-right: 28px;
   }
 
   .password-edit-col {

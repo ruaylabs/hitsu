@@ -26,6 +26,7 @@ export interface Entry {
   tags: string[];
   favorite: boolean;
   trashed?: boolean;
+  folderId?: string;
   iconHint?: string;
   identity?: IdentityFields;
   card?: CardFields;
@@ -112,6 +113,12 @@ export type SecretField =
   | "licenseKey"
   | "passportNumber";
 
+export interface FolderSummary {
+  id: string;
+  name: string;
+  parentId?: string;
+}
+
 export interface EntrySummary {
   id: string;
   type: ItemType;
@@ -122,6 +129,7 @@ export interface EntrySummary {
   tags: string[];
   favorite: boolean;
   trashed?: boolean;
+  folderId?: string;
   iconHint?: string;
 }
 
@@ -134,6 +142,7 @@ export interface VaultMeta {
   kdfNeedsUpgrade?: boolean;
   /** Entry summaries returned inline from vault_open to avoid a second round-trip. */
   entries: EntrySummary[];
+  folders: FolderSummary[];
 }
 
 export interface Toast {
@@ -148,6 +157,7 @@ export type SidebarFilter =
   | { kind: "favorites" }
   | { kind: "trash" }
   | { kind: "type"; type: ItemType }
-  | { kind: "tag"; tag: string };
+  | { kind: "tag"; tag: string }
+  | { kind: "folder"; folderId: string };
 
 export type AppView = "unlock" | "main" | "settings";

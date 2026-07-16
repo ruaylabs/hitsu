@@ -8,14 +8,18 @@
     entry,
     onFavorite,
     onEdit,
+    onMove,
     onTotpSetup,
+    showMove = false,
     showTotpSetup,
     readOnly = false,
   }: {
     entry: Entry;
     onFavorite?: () => void;
     onEdit?: () => void;
+    onMove?: () => void;
     onTotpSetup?: () => void;
+    showMove?: boolean;
     showTotpSetup?: boolean;
     readOnly?: boolean;
   } = $props();
@@ -43,6 +47,16 @@
           onclick={onTotpSetup}
           aria-label="Setup TOTP"
           title="Setup TOTP from seed"
+        />
+      {/if}
+      {#if showMove}
+        <IconButton
+          icon="folder-share"
+          iconSize={14}
+          variant="outline"
+          onclick={onMove}
+          aria-label="Move entry"
+          title="Move entry"
         />
       {/if}
       <IconButton

@@ -4,7 +4,9 @@
   import type { SkippedImportEntry } from "$lib/bridge/vault";
   import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
+  import { features } from "$lib/stores/features.svelte";
   import { security } from "$lib/stores/security.svelte";
+  import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -43,6 +45,7 @@
 
   onMount(async () => {
     const prefs = await security.load();
+    features.hydrate(prefs);
     recentVaults = prefs.recentVaults ?? [];
   });
 
@@ -54,6 +57,21 @@
   function onClipboardChange(e: Event) {
     const secs = parseInt((e.target as HTMLSelectElement).value, 10);
     security.save(security.idleLockMinutes, secs);
+  }
+
+  async function onFoldersChange(event: Event) {
+    const enabled = (event.currentTarget as HTMLInputElement).checked;
+    try {
+      await features.setFoldersEnabled(enabled);
+      if (!enabled && selection.filter.kind === "folder") {
+        selection.requestNavigation(() => {
+          selection.filter = { kind: "all" };
+        });
+      }
+    } catch (error) {
+      statusError = true;
+      statusMsg = error instanceof Error ? error.message : String(error);
+    }
   }
 
   async function doOpen(password: string) {
@@ -286,10 +304,33 @@
       </section>
 
       <section class="settings-section">
+        <h2 class="section-heading">Features</h2>
+        <label class="setting-row">
+          <span class="setting-label-group">
+            <span class="setting-label">Folders</span>
+            <span class="setting-description"
+              >Show the KDBX folder tree and entry move controls.</span
+            >
+          </span>
+          <input
+            class="setting-switch"
+            type="checkbox"
+            role="switch"
+            aria-label="Enable folders"
+            checked={features.foldersEnabled}
+            onchange={onFoldersChange}
+          />
+        </label>
+      </section>
+
+      <section class="settings-section">
         <h2 class="section-heading">Security</h2>
         <div class="setting-row">
           <span class="setting-label">Lock on idle</span>
-          <select class="control control--compact setting-select" onchange={onIdleChange}>
+          <select
+            class="control control--compact control--select setting-select"
+            onchange={onIdleChange}
+          >
             {#each [
               { value: 0, label: "Never" },
               { value: 1, label: "1 minute" },
@@ -307,7 +348,10 @@
         </div>
         <div class="setting-row">
           <span class="setting-label">Clipboard clear</span>
-          <select class="control control--compact setting-select" onchange={onClipboardChange}>
+          <select
+            class="control control--compact control--select setting-select"
+            onchange={onClipboardChange}
+          >
             {#each [
               { value: 5, label: "5 seconds" },
               { value: 10, label: "10 seconds" },
@@ -586,24 +630,68 @@
     padding: 8px 0;
   }
 
+  .setting-label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .setting-label {
     font-size: 13px;
     color: var(--text-primary);
   }
 
-  .setting-select {
-    padding: 5px 28px 5px 10px;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a09a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    min-width: 120px;
+  .setting-description {
+    color: var(--text-muted);
+    font-size: 11.5px;
   }
 
-  .setting-select:hover {
-    background-color: var(--border);
+  .setting-select {
+    min-width: 120px;
+    padding-block: 5px;
+    padding-left: 10px;
+  }
+
+  .setting-switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--border-strong);
+    cursor: pointer;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+
+  .setting-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform var(--transition-fast);
+  }
+
+  .setting-switch:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .setting-switch:checked::after {
+    transform: translateX(14px);
+  }
+
+  .setting-switch:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-accent);
   }
 
   .settings-footer {

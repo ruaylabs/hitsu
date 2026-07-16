@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
@@ -33,6 +34,7 @@ beforeEach(() => {
   vault.unlock();
   vault.setMeta(null);
   vault.setEntries([]);
+  vault.setFolders([]);
   vault.setCreatingId(null);
   vault.setEditingId(null);
 });
@@ -48,6 +50,7 @@ describe("vault store", () => {
       itemCount: 1,
       syncProvider: "local",
       entries: [firstEntry],
+      folders: [],
     };
     const open = vi.spyOn(vaultBridge, "vaultOpen").mockResolvedValue(meta);
 
@@ -72,6 +75,7 @@ describe("vault store", () => {
       itemCount: 0,
       syncProvider: "local",
       entries: [],
+      folders: [],
     };
     const create = vi.spyOn(vaultBridge, "vaultCreate").mockResolvedValue(meta);
 
@@ -90,6 +94,21 @@ describe("vault store", () => {
 
     expect(vault.meta).toBeNull();
     expect(prefsBridge.prefsSetLastVault).not.toHaveBeenCalled();
+  });
+
+  it("creates and renames folders in local state", async () => {
+    const parent = { id: "work", name: "Work" };
+    const child = { id: "clients", name: "Clients", parentId: "work" };
+    vi.spyOn(foldersBridge, "folderCreate").mockResolvedValue(child);
+    vi.spyOn(foldersBridge, "folderRename").mockResolvedValue({ ...child, name: "Customers" });
+    vault.setFolders([parent]);
+
+    await vault.createFolder(parent.id, child.name);
+    await vault.renameFolder(child.id, "Customers");
+
+    expect(foldersBridge.folderCreate).toHaveBeenCalledWith("work", "Clients");
+    expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
+    expect(vault.folders).toEqual([parent, { ...child, name: "Customers" }]);
   });
 
   it("locks frontend state when the backend lock rejects", async () => {

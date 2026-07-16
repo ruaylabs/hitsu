@@ -6,11 +6,15 @@
     label,
     collapsed = false,
     ontoggle,
+    onadd,
+    addLabel = `Add ${label}`,
     children,
   }: {
     label: string;
     collapsed?: boolean;
     ontoggle?: () => void;
+    onadd?: () => void;
+    addLabel?: string;
     children: Snippet;
   } = $props();
 </script>
@@ -18,6 +22,11 @@
 <div class="sidebar-section">
   <div class="section-header">
     <span class="section-label">{label}</span>
+    {#if onadd}
+      <button class="section-action" type="button" aria-label={addLabel} onclick={onadd}>
+        <Icon name="plus" size={13} />
+      </button>
+    {/if}
     {#if ontoggle}
       <button
         class="collapse-button"
@@ -54,6 +63,7 @@
     color: var(--text-muted);
   }
 
+  .section-action,
   .collapse-button {
     display: inline-flex;
     align-items: center;
@@ -64,6 +74,7 @@
     color: var(--text-muted);
   }
 
+  .section-action:hover,
   .collapse-button:hover {
     color: var(--text-secondary);
     background: var(--border);

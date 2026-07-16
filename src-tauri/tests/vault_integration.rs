@@ -1202,6 +1202,7 @@ fn test_preferences_security_defaults() {
         prefs.clipboard_clear_seconds, 15,
         "default clipboard clear should be 15 s"
     );
+    assert!(!prefs.folders_enabled, "folders should be opt-in");
 }
 
 #[test]
@@ -1211,6 +1212,7 @@ fn test_preferences_security_roundtrip() {
     let prefs = Preferences {
         idle_lock_minutes: 10,
         clipboard_clear_seconds: 30,
+        folders_enabled: true,
         last_vault: Some("/tmp/test.kdbx".into()),
         ..Default::default()
     };
@@ -1222,6 +1224,7 @@ fn test_preferences_security_roundtrip() {
     assert_eq!(loaded.last_vault, Some("/tmp/test.kdbx".into()));
     assert_eq!(loaded.idle_lock_minutes, 10);
     assert_eq!(loaded.clipboard_clear_seconds, 30);
+    assert!(loaded.folders_enabled);
 }
 
 #[test]
@@ -1243,6 +1246,7 @@ fn test_preferences_security_serde_missing_fields_default() {
         "missing field should default to 15"
     );
     assert!(prefs.last_vault.is_none());
+    assert!(!prefs.folders_enabled);
 }
 
 #[test]

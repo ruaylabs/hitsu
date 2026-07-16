@@ -8,7 +8,7 @@ use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
-use super::entries::{build_entry_summaries, ensure_recycle_bin};
+use super::entries::{build_entry_summaries, build_folder_summaries, ensure_recycle_bin};
 use crate::error::{KagiError, KagiResult};
 use crate::models::VaultMeta;
 use crate::state::{AppState, OpenVault, VaultId};
@@ -515,6 +515,7 @@ pub async fn vault_open(
     // Build entry summaries while we have a reference to the db,
     // so the frontend doesn't need a second entries_list round-trip.
     let entries = build_entry_summaries(&db);
+    let folders = build_folder_summaries(&db);
 
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
@@ -544,6 +545,7 @@ pub async fn vault_open(
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries,
+        folders,
     })
 }
 
@@ -700,6 +702,7 @@ pub async fn vault_create(
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries: Vec::new(),
+        folders: Vec::new(),
     })
 }
 

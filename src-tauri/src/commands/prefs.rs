@@ -63,6 +63,17 @@ pub async fn prefs_set_security(
 }
 
 #[tauri::command]
+pub async fn prefs_set_folders_enabled(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> KagiResult<()> {
+    update_preferences(&app, &state, |prefs| {
+        prefs.folders_enabled = enabled;
+    })
+}
+
+#[tauri::command]
 pub async fn prefs_set_kdf_dismissed(
     app: AppHandle,
     state: State<'_, AppState>,
