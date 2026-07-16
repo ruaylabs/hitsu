@@ -145,6 +145,9 @@ describe("ItemDetail errors", () => {
 
     await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
     await waitFor(() => expect(screen.getByPlaceholderText("Password")).toBeInTheDocument());
+    await fireEvent.input(screen.getByPlaceholderText("Notes"), {
+      target: { value: "Trigger a save" },
+    });
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Vault changed on disk")).toBeInTheDocument();
@@ -191,12 +194,9 @@ describe("custom fields", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
-    expect(mocks.entryUpdate).toHaveBeenCalledWith(
-      "password-1",
-      expect.objectContaining({
-        customFields: [{ name: "API key", value: "secret", protected: true }],
-      }),
-    );
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("password-1", {
+      customFields: [{ name: "API key", value: "secret", protected: true }],
+    });
   });
 });
 
@@ -264,10 +264,7 @@ describe("identity entry workflow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
-    expect(mocks.entryUpdate).toHaveBeenCalledWith(
-      "identity-1",
-      expect.objectContaining({ dob: "1991-03-04" }),
-    );
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("identity-1", { dob: "1991-03-04" });
     expect(await screen.findByText("1991-03-04")).toBeInTheDocument();
   });
 });
@@ -306,16 +303,10 @@ describe("software license workflow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
-    expect(mocks.entryUpdate).toHaveBeenCalledWith(
-      "license-1",
-      expect.objectContaining({
-        licenseVersion: "5.0",
-        licenseKey: "NEW-LICENSE-KEY",
-        licenseLicensedTo: "Ada",
-        licenseRegisteredEmail: "ada@example.com",
-        licensePurchaseDate: "2024-01-01",
-      }),
-    );
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("license-1", {
+      licenseVersion: "5.0",
+      licenseKey: "NEW-LICENSE-KEY",
+    });
   });
 });
 
@@ -356,16 +347,10 @@ describe("passport workflow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
-    expect(mocks.entryUpdate).toHaveBeenCalledWith(
-      "passport-1",
-      expect.objectContaining({
-        passportIssuingCountry: "United States",
-        passportNumber: "NEW-PASSPORT-NUMBER",
-        passportFullName: "Ada Lovelace",
-        passportBirthDate: "1815-12-10",
-        passportExpiryDate: "2035-01-01",
-      }),
-    );
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("passport-1", {
+      passportNumber: "NEW-PASSPORT-NUMBER",
+      passportExpiryDate: "2035-01-01",
+    });
   });
 });
 
@@ -416,15 +401,60 @@ describe("password entry workflow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
-    expect(mocks.entryUpdate).toHaveBeenCalledWith(
-      "password-1",
-      expect.objectContaining({
-        password: "updated-password",
-        url: "https://updated.example.com",
-        notes: "Updated note",
-        tags: ["work"],
-      }),
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("password-1", {
+      password: "updated-password",
+      url: "https://updated.example.com",
+      notes: "Updated note",
+    });
+  });
+
+  it("omits unchanged fields and secrets from the update patch", async () => {
+    const entry = passwordEntry();
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue({ ...entry, title: "Updated title" });
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("Password")).toHaveValue("stored-password"),
     );
+    await fireEvent.input(screen.getByPlaceholderText("Title"), {
+      target: { value: "Updated title" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("password-1", { title: "Updated title" });
+  });
+
+  it("sends an empty secret only when the user clears it", async () => {
+    const entry = passwordEntry();
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue({ ...entry, hasPassword: false });
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    const password = await screen.findByPlaceholderText("Password");
+    await waitFor(() => expect(password).toHaveValue("stored-password"));
+    await fireEvent.input(password, { target: { value: "" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("password-1", { password: "" });
+  });
+
+  it("closes an unchanged edit without sending an update", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("Password")).toHaveValue("stored-password"),
+    );
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Edit entry" })).toBeInTheDocument();
   });
 
   it("supports password copy and opening or copying the URL", async () => {

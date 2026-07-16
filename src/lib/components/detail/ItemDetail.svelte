@@ -2,7 +2,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { untrack } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
-  import { toSummary } from "$lib/bridge/entries";
+  import { type EntryPatch, toSummary } from "$lib/bridge/entries";
   import type { CustomField, Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
@@ -183,19 +183,18 @@
   let cardExpYearError = $state("");
   let cardCvvError = $state("");
   let cardPinError = $state("");
-  let initialEditSnapshot = "";
   let pendingNavigation = $state<(() => void) | null>(null);
 
-  function editSnapshot() {
-    return JSON.stringify({
+  function captureEditForm() {
+    return {
       title: editTitle,
       username: editUsername,
       password: editPassword,
       url: editUrl,
       totp: editTotp,
       notes: editNotes,
-      tags: editTags,
-      customFields: editCustomFields,
+      tags: [...editTags],
+      customFields: editCustomFields.map((field) => ({ ...field })),
       firstName: editFirstName,
       lastName: editLastName,
       email: editEmail,
@@ -233,11 +232,50 @@
       passportBirthPlace: editPassportBirthPlace,
       passportIssueDate: editPassportIssueDate,
       passportExpiryDate: editPassportExpiryDate,
-    });
+    };
+  }
+
+  type EditForm = ReturnType<typeof captureEditForm>;
+  let initialEditForm: EditForm | null = null;
+
+  function editFormsMatch(left: EditForm, right: EditForm) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+
+  function buildEditPatch(): EntryPatch {
+    const current = captureEditForm();
+    if (!initialEditForm) return current;
+
+    const patch: EntryPatch = {};
+    const writablePatch = patch as Record<string, unknown>;
+    for (const key of Object.keys(current) as (keyof EditForm)[]) {
+      if (JSON.stringify(current[key]) === JSON.stringify(initialEditForm[key])) continue;
+      writablePatch[key] =
+        key === "customFields"
+          ? current.customFields.map((field) => ({ ...field, name: field.name.trim() }))
+          : current[key];
+    }
+    return patch;
+  }
+
+  function clearEditSecrets() {
+    editPassword = "";
+    editTotp = "";
+    editCardNumber = "";
+    editCardCvv = "";
+    editCardPin = "";
+    editLicenseKey = "";
+    editPassportNumber = "";
+    editCustomFields = [];
+    initialEditForm = null;
   }
 
   function hasUnsavedChanges() {
-    return newEntryId !== null || editSnapshot() !== initialEditSnapshot;
+    return (
+      newEntryId !== null ||
+      initialEditForm === null ||
+      !editFormsMatch(captureEditForm(), initialEditForm)
+    );
   }
 
   function clearCardErrors() {
@@ -276,6 +314,7 @@
       // Exit edit mode immediately so the unsaved entry's edit form
       // disappears while the new selection loads (or the pane goes empty).
       editing = false;
+      clearEditSecrets();
       if (selectedId !== _entry?.id) {
         // Clear the discarded stub from the pane until the next entry loads.
         _entry = undefined;
@@ -357,7 +396,7 @@
     editLicenseKey = licenseKey;
     editPassportNumber = passportNumber;
     editCustomFields = customFields;
-    initialEditSnapshot = editSnapshot();
+    initialEditForm = captureEditForm();
     clearCardErrors();
   }
 
@@ -410,6 +449,7 @@
     }
     editing = false;
     saveError = "";
+    clearEditSecrets();
     clearCardErrors();
     saveStatus.markSaved();
   }
@@ -471,62 +511,22 @@
       return false;
     }
     saveError = "";
+    const patch = buildEditPatch();
+    if (newEntryId === null && Object.keys(patch).length === 0) {
+      editing = false;
+      clearEditSecrets();
+      clearCardErrors();
+      saveStatus.markSaved();
+      return true;
+    }
+
     saveStatus.markSaving();
     try {
-      const updated = await entriesBridge.entryUpdate(_entry.id, {
-        title: editTitle,
-        username: editUsername,
-        password: editPassword,
-        url: editUrl,
-        totp: editTotp,
-        notes: editNotes,
-        tags: editTags,
-        firstName: editFirstName,
-        lastName: editLastName,
-        email: editEmail,
-        phone: editPhone,
-        address: editAddress,
-        dob: editDob,
-        cardHolder: editCardHolder,
-        cardNumber: editCardNumber,
-        cardType: editCardType,
-        cardExpMonth: editCardExpMonth,
-        cardExpYear: editCardExpYear,
-        cardCvv: editCardCvv,
-        cardPin: editCardPin,
-        licenseVersion: editLicenseVersion,
-        licenseKey: editLicenseKey,
-        licenseLicensedTo: editLicenseLicensedTo,
-        licenseRegisteredEmail: editLicenseRegisteredEmail,
-        licenseCompany: editLicenseCompany,
-        licenseDownloadPage: editLicenseDownloadPage,
-        licensePublisher: editLicensePublisher,
-        licenseWebsite: editLicenseWebsite,
-        licenseRetailPrice: editLicenseRetailPrice,
-        licenseSupportEmail: editLicenseSupportEmail,
-        licensePurchaseDate: editLicensePurchaseDate,
-        licenseOrderNumber: editLicenseOrderNumber,
-        licenseOrderTotal: editLicenseOrderTotal,
-        passportType: editPassportType,
-        passportIssuingCountry: editPassportIssuingCountry,
-        passportNumber: editPassportNumber,
-        passportFullName: editPassportFullName,
-        passportSex: editPassportSex,
-        passportNationality: editPassportNationality,
-        passportIssuingAuthority: editPassportIssuingAuthority,
-        passportBirthDate: editPassportBirthDate,
-        passportBirthPlace: editPassportBirthPlace,
-        passportIssueDate: editPassportIssueDate,
-        passportExpiryDate: editPassportExpiryDate,
-        customFields: editCustomFields.map((field) => ({
-          ...field,
-          name: field.name.trim(),
-        })),
-      });
+      const updated = await entriesBridge.entryUpdate(_entry.id, patch);
       installUpdatedEntry(updated);
       editing = false;
       newEntryId = null;
-      initialEditSnapshot = editSnapshot();
+      clearEditSecrets();
       clearCardErrors();
       saveStatus.markSaved();
       return true;
@@ -569,6 +569,7 @@
 
     editing = false;
     saveError = "";
+    clearEditSecrets();
     clearCardErrors();
     saveStatus.markSaved();
     pendingNavigation = null;
@@ -587,6 +588,7 @@
       if (pendingNavigation) return false;
       if (!hasUnsavedChanges()) {
         editing = false;
+        clearEditSecrets();
         saveStatus.markSaved();
         return true;
       }
@@ -602,6 +604,7 @@
     entryDeletion.request(_entry.id, _entry.title, () => {
       editing = false;
       newEntryId = null;
+      clearEditSecrets();
       _entry = undefined;
     });
   }

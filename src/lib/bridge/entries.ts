@@ -121,57 +121,7 @@ export interface EntryPatch {
 }
 
 export async function entryUpdate(id: string, patch: EntryPatch): Promise<Entry> {
-  return invoke<Entry>("entry_update", {
-    id,
-    patch: {
-      title: patch.title ?? null,
-      username: patch.username ?? null,
-      password: patch.password ?? null,
-      url: patch.url ?? null,
-      notes: patch.notes ?? null,
-      totp: patch.totp ?? null,
-      tags: patch.tags ?? null,
-      favorite: patch.favorite ?? null,
-      firstName: patch.firstName ?? null,
-      lastName: patch.lastName ?? null,
-      email: patch.email ?? null,
-      phone: patch.phone ?? null,
-      address: patch.address ?? null,
-      dob: patch.dob ?? null,
-      cardHolder: patch.cardHolder ?? null,
-      cardNumber: patch.cardNumber ?? null,
-      cardType: patch.cardType ?? null,
-      cardExpMonth: patch.cardExpMonth ?? null,
-      cardExpYear: patch.cardExpYear ?? null,
-      cardCvv: patch.cardCvv ?? null,
-      cardPin: patch.cardPin ?? null,
-      licenseVersion: patch.licenseVersion ?? null,
-      licenseKey: patch.licenseKey ?? null,
-      licenseLicensedTo: patch.licenseLicensedTo ?? null,
-      licenseRegisteredEmail: patch.licenseRegisteredEmail ?? null,
-      licenseCompany: patch.licenseCompany ?? null,
-      licenseDownloadPage: patch.licenseDownloadPage ?? null,
-      licensePublisher: patch.licensePublisher ?? null,
-      licenseWebsite: patch.licenseWebsite ?? null,
-      licenseRetailPrice: patch.licenseRetailPrice ?? null,
-      licenseSupportEmail: patch.licenseSupportEmail ?? null,
-      licensePurchaseDate: patch.licensePurchaseDate ?? null,
-      licenseOrderNumber: patch.licenseOrderNumber ?? null,
-      licenseOrderTotal: patch.licenseOrderTotal ?? null,
-      passportType: patch.passportType ?? null,
-      passportIssuingCountry: patch.passportIssuingCountry ?? null,
-      passportNumber: patch.passportNumber ?? null,
-      passportFullName: patch.passportFullName ?? null,
-      passportSex: patch.passportSex ?? null,
-      passportNationality: patch.passportNationality ?? null,
-      passportIssuingAuthority: patch.passportIssuingAuthority ?? null,
-      passportBirthDate: patch.passportBirthDate ?? null,
-      passportBirthPlace: patch.passportBirthPlace ?? null,
-      passportIssueDate: patch.passportIssueDate ?? null,
-      passportExpiryDate: patch.passportExpiryDate ?? null,
-      customFields: patch.customFields ?? null,
-    },
-  });
+  return invoke<Entry>("entry_update", { id, patch });
 }
 
 export interface HistoryEntrySummary {
