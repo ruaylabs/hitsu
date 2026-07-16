@@ -92,6 +92,25 @@ pub fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary> {
         .collect()
 }
 
+fn entry_matches_search(entry: &keepass::db::Entry, query: &str) -> bool {
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return true;
+    }
+
+    entry
+        .tags
+        .iter()
+        .any(|tag| tag.to_lowercase().contains(&query))
+        || entry.fields.iter().any(|(name, value)| {
+            let custom_name_matches = name
+                .strip_prefix(CUSTOM_FIELD_PREFIX)
+                .is_some_and(|name| name.to_lowercase().contains(&query));
+            custom_name_matches
+                || (!value.is_protected() && value.get().to_lowercase().contains(&query))
+        })
+}
+
 /// Mask a card number for display. First/last 4 digits are shown only when
 /// the value is long enough (>= 12 chars — real PANs are 13–19) that they
 /// don't overlap and at least four digits stay hidden; anything shorter is
@@ -503,6 +522,18 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
     let mut entry = map_entry_to_full(&entry_ref, trashed);
     entry.attachments = read_attachments(&entry_ref);
     Ok(entry)
+}
+
+#[tauri::command]
+pub async fn entries_search(state: State<'_, AppState>, query: String) -> KagiResult<Vec<String>> {
+    let vaults = state.vaults.lock();
+    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    Ok(vault
+        .db
+        .iter_all_entries()
+        .filter(|entry| entry_matches_search(entry, &query))
+        .map(|entry| entry.id().uuid().to_string())
+        .collect())
 }
 
 #[tauri::command]
@@ -1347,11 +1378,12 @@ pub async fn entry_attachment_remove(
 mod tests {
     use super::{
         apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
-        map_entry_to_full, mask_card_number, parse_entry_id, read_attachment_file,
-        read_attachments, read_totp_seed, safe_attachment_file_name, validate_custom_fields,
-        validate_expiration, write_attachment_file,
+        entry_matches_search, map_entry_to_full, mask_card_number, parse_entry_id,
+        read_attachment_file, read_attachments, read_totp_seed, safe_attachment_file_name,
+        validate_custom_fields, validate_expiration, write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, ItemType};
+    use keepass::db::fields;
 
     #[test]
     fn entry_id_parser_preserves_valid_ids_and_normalizes_errors() {
@@ -1386,6 +1418,40 @@ mod tests {
         let summaries = build_entry_summaries(&db);
         assert_eq!(summaries.len(), 1);
         assert!(summaries[0].trashed);
+    }
+
+    #[test]
+    fn search_matches_all_non_secret_fields_without_exposing_protected_values() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root.add_entry_with_id(entry_id).unwrap();
+            entry.set_unprotected(fields::TITLE, "Example account");
+            entry.set_unprotected(fields::NOTES, "Buried recovery instructions");
+            entry.set_unprotected("identity.address", "42 Galaxy Way");
+            entry.set_unprotected("card.holder", "Ada Lovelace");
+            entry.set_unprotected("custom.Environment", "Production West");
+            entry.set_protected(fields::PASSWORD, "password-secret");
+            entry.set_protected("custom.API key", "custom-secret");
+            entry.tags = vec!["finance".into()];
+        }
+        let entry = db.entry(entry_id).unwrap();
+
+        for query in [
+            "example account",
+            "RECOVERY INSTRUCTIONS",
+            "galaxy way",
+            "ada lovelace",
+            "production west",
+            "environment",
+            "api key",
+            "finance",
+        ] {
+            assert!(entry_matches_search(&entry, query), "query: {query}");
+        }
+        assert!(!entry_matches_search(&entry, "password-secret"));
+        assert!(!entry_matches_search(&entry, "custom-secret"));
     }
 
     #[test]

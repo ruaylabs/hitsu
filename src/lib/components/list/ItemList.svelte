@@ -1,11 +1,37 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import * as entriesBridge from "$lib/bridge/entries";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { entryHaystack } from "$lib/utils/search";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
   import SearchField from "./SearchField.svelte";
+
+  let searchMatchIds = $state<string[] | null>(null);
+  let searchRequest = 0;
+
+  // Full-field search stays in Rust so notes and other field values do not
+  // have to be copied into every list summary. Keep the existing summary
+  // search as an immediate fallback while the backend result is in flight.
+  $effect(() => {
+    const query = selection.search.trim();
+    void vault.entries;
+    const request = ++searchRequest;
+    searchMatchIds = null;
+    if (!query) return;
+
+    void entriesBridge
+      .entriesSearch(query)
+      .then((ids) => {
+        if (request === searchRequest && selection.search.trim() === query) {
+          searchMatchIds = ids;
+        }
+      })
+      .catch(() => {
+        // Keep the summary-field fallback when backend search is unavailable.
+      });
+  });
 
   let filtered = $derived.by(() => {
     const f = selection.filter;
@@ -18,8 +44,14 @@
       items = items.filter((e) => e.tags.includes(f.tag));
     }
     if (selection.search) {
-      const q = selection.search.toLowerCase();
-      items = items.filter((e) => entryHaystack(e).includes(q));
+      if (searchMatchIds === null) {
+        const q = selection.search.toLowerCase();
+        items = items.filter((e) => entryHaystack(e).includes(q));
+      } else {
+        const q = selection.search.toLowerCase();
+        const matches = new Set(searchMatchIds);
+        items = items.filter((entry) => matches.has(entry.id) || entryHaystack(entry).includes(q));
+      }
     }
     return items;
   });

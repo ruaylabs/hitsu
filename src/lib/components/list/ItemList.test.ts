@@ -1,9 +1,17 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
-import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 import ItemList from "./ItemList.svelte";
+
+vi.mock("$lib/bridge/entries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/bridge/entries")>()),
+  entriesSearch: vi.fn(),
+}));
+
+const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
 
 function makeEntries(count: number): EntrySummary[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -17,6 +25,8 @@ function makeEntries(count: number): EntrySummary[] {
 }
 
 beforeEach(() => {
+  entriesSearchMock.mockReset();
+  entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
@@ -37,10 +47,24 @@ describe("ItemList", () => {
 
   it("filters entries by search across fields", async () => {
     vault.setEntries(makeEntries(20));
+    entriesSearchMock.mockResolvedValue([]);
     render(ItemList);
 
     selection.search = "user13@";
+    await waitFor(() => expect(entriesSearchMock).toHaveBeenCalledWith("user13@"));
     const match = await screen.findByRole("option", { name: /Entry 13/ });
+    expect(match).toBeInTheDocument();
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+  });
+
+  it("uses backend matches for fields absent from entry summaries", async () => {
+    vault.setEntries(makeEntries(20));
+    entriesSearchMock.mockResolvedValue(["id-7"]);
+    render(ItemList);
+
+    selection.search = "buried note";
+
+    const match = await screen.findByRole("option", { name: /Entry 7/ });
     expect(match).toBeInTheDocument();
     expect(screen.getAllByRole("option")).toHaveLength(1);
   });

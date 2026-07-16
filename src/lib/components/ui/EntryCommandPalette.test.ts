@@ -1,7 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import EntryCommandPalette from "./EntryCommandPalette.svelte";
+
+vi.mock("$lib/bridge/entries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/bridge/entries")>()),
+  entriesSearch: vi.fn(),
+}));
+
+const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
 
 const entries: EntrySummary[] = [
   {
@@ -23,6 +31,11 @@ const entries: EntrySummary[] = [
 ];
 
 describe("EntryCommandPalette", () => {
+  beforeEach(() => {
+    entriesSearchMock.mockReset();
+    entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
+  });
+
   it("filters entries across searchable fields and selects a result", async () => {
     const onSelect = vi.fn();
     render(EntryCommandPalette, { entries, onSelect, onClose: vi.fn() });
@@ -37,6 +50,18 @@ describe("EntryCommandPalette", () => {
     const result = screen.getByRole("option", { name: /Travel card/ });
     await fireEvent.click(result);
     expect(onSelect).toHaveBeenCalledWith(entries[1]);
+  });
+
+  it("includes backend matches from full entry fields", async () => {
+    entriesSearchMock.mockResolvedValue(["one"]);
+    render(EntryCommandPalette, { entries, onSelect: vi.fn(), onClose: vi.fn() });
+
+    await fireEvent.input(screen.getByRole("textbox", { name: "Search entries" }), {
+      target: { value: "buried note" },
+    });
+
+    expect(await screen.findByRole("option", { name: /Kagi/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Travel card/ })).not.toBeInTheDocument();
   });
 
   it("supports Ctrl+N and Ctrl+P navigation", async () => {

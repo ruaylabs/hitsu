@@ -21,6 +21,11 @@ export async function entryGet(id: string): Promise<Entry> {
   return invoke<Entry>("entry_get", { id });
 }
 
+/** Search non-protected values in every entry field without loading them into the webview. */
+export async function entriesSearch(query: string): Promise<string[]> {
+  return invoke<string[]>("entries_search", { query });
+}
+
 export interface EntryEditPayload {
   password: string;
   totp: string;

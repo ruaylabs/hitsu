@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { entryCreate, entryEditPayload, entryUpdate } from "./entries";
+import { entriesSearch, entryCreate, entryEditPayload, entryUpdate } from "./entries";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -20,6 +20,14 @@ describe("entries bridge", () => {
     await entryCreate("login", draft);
 
     expect(invokeMock).toHaveBeenCalledWith("entry_create", { itemType: "login", draft });
+  });
+
+  it("searches entry fields in the backend", async () => {
+    invokeMock.mockResolvedValue(["entry-1"]);
+
+    await expect(entriesSearch("recovery note")).resolves.toEqual(["entry-1"]);
+
+    expect(invokeMock).toHaveBeenCalledWith("entries_search", { query: "recovery note" });
   });
 
   it("requests one edit payload for all protected fields", async () => {

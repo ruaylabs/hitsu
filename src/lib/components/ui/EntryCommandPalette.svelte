@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as entriesBridge from "$lib/bridge/entries";
   import type { EntrySummary } from "$lib/bridge/types";
   import EntryIcon from "$lib/components/list/EntryIcon.svelte";
   import { entryHaystack } from "$lib/utils/search";
@@ -17,10 +18,40 @@
 
   let search = $state("");
   let selectedIndex = $state(0);
+  let searchMatchIds = $state<string[] | null>(null);
+  let searchRequest = 0;
+
+  $effect(() => {
+    const query = search.trim();
+    const request = ++searchRequest;
+    searchMatchIds = null;
+    if (!query) return;
+
+    const timeout = setTimeout(() => {
+      void entriesBridge
+        .entriesSearch(query)
+        .then((ids) => {
+          if (request === searchRequest && search.trim() === query) searchMatchIds = ids;
+        })
+        .catch(() => {
+          // Keep the summary-field fallback when backend search is unavailable.
+        });
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      if (searchRequest === request) searchRequest++;
+    };
+  });
 
   let filtered = $derived.by(() => {
     const query = search.trim().toLowerCase();
-    return query ? entries.filter((entry) => entryHaystack(entry).includes(query)) : entries;
+    if (!query) return entries;
+    if (searchMatchIds === null) {
+      return entries.filter((entry) => entryHaystack(entry).includes(query));
+    }
+    const matches = new Set(searchMatchIds);
+    return entries.filter((entry) => matches.has(entry.id) || entryHaystack(entry).includes(query));
   });
 
   $effect(() => {
