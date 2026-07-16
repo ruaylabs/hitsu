@@ -354,13 +354,18 @@ fn build_entry_edit_payload(entry: &keepass::db::Entry) -> EntryEditPayload {
     }
 }
 
+fn parse_entry_id(id: &str) -> KagiResult<EntryId> {
+    uuid::Uuid::parse_str(id)
+        .map(EntryId::from_uuid)
+        .map_err(|_| KagiError::EntryNotFound(id.to_string()))
+}
+
 /// Look up an entry by UUID string. Works for all entries (flat map — nested groups included).
 pub(crate) fn find_entry_ref<'a>(
     db: &'a keepass::Database,
     id: &str,
 ) -> Option<keepass::db::EntryRef<'a>> {
-    let uuid = uuid::Uuid::parse_str(id).ok()?;
-    db.entry(EntryId::from_uuid(uuid))
+    db.entry(parse_entry_id(id).ok()?)
 }
 
 /// Ensure the database has a KeePass-compatible recycle-bin group.
@@ -389,10 +394,8 @@ pub(crate) fn ensure_recycle_bin(db: &mut keepass::Database) -> GroupId {
 
 /// Remove an entry by UUID string permanently.
 fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
-    let uuid = uuid::Uuid::parse_str(id).map_err(|_| KagiError::EntryNotFound(id.to_string()))?;
-    let entry_id = EntryId::from_uuid(uuid);
     let em = db
-        .entry_mut(entry_id)
+        .entry_mut(parse_entry_id(id)?)
         .ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
     em.remove();
     Ok(())
@@ -601,9 +604,7 @@ pub async fn entry_update(
 
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-        let entry_id = EntryId::from_uuid(
-            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-        );
+        let entry_id = parse_entry_id(&id)?;
 
         {
             let mut em = vault
@@ -824,9 +825,7 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
         let recycle_id = ensure_recycle_bin(&mut vault.db);
-        let entry_id = EntryId::from_uuid(
-            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-        );
+        let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
             .db
             .entry(entry_id)
@@ -859,9 +858,7 @@ pub async fn entry_restore(state: State<'_, AppState>, id: String) -> KagiResult
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
-        let entry_id = EntryId::from_uuid(
-            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-        );
+        let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
             .db
             .entry(entry_id)
@@ -1221,9 +1218,7 @@ pub async fn entry_attachment_add(
     state: State<'_, AppState>,
     id: String,
 ) -> KagiResult<Option<AttachmentMeta>> {
-    let entry_id = EntryId::from_uuid(
-        uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-    );
+    let entry_id = parse_entry_id(&id)?;
 
     // Validate before opening a dialog. Revalidate after reading because the
     // vault may be locked or replaced while the dialog is open.
@@ -1295,9 +1290,7 @@ pub async fn entry_attachment_remove(
 
         let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
 
-        let entry_id = EntryId::from_uuid(
-            uuid::Uuid::parse_str(&id).map_err(|_| KagiError::EntryNotFound(id.clone()))?,
-        );
+        let entry_id = parse_entry_id(&id)?;
 
         {
             let mut em = vault
@@ -1321,10 +1314,23 @@ pub async fn entry_attachment_remove(
 mod tests {
     use super::{
         apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
-        map_entry_to_full, mask_card_number, read_attachment_file, read_attachments,
-        read_totp_seed, safe_attachment_file_name, validate_custom_fields, write_attachment_file,
+        map_entry_to_full, mask_card_number, parse_entry_id, read_attachment_file,
+        read_attachments, read_totp_seed, safe_attachment_file_name, validate_custom_fields,
+        write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, ItemType};
+
+    #[test]
+    fn entry_id_parser_preserves_valid_ids_and_normalizes_errors() {
+        let uuid = uuid::Uuid::new_v4();
+        assert_eq!(parse_entry_id(&uuid.to_string()).unwrap().uuid(), uuid);
+
+        let error = parse_entry_id("not-an-entry-id").unwrap_err();
+        assert!(matches!(
+            error,
+            crate::error::KagiError::EntryNotFound(id) if id == "not-an-entry-id"
+        ));
+    }
 
     #[test]
     fn recycle_bin_is_created_once_and_marks_moved_entries() {
