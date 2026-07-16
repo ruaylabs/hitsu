@@ -39,13 +39,7 @@
     }}
   />
 {:else if vault.locked && vault.meta}
-  <UnlockScreen
-    path={vault.meta!.path}
-    title="Locked"
-    confirmLabel="Unlock"
-    showCancel={false}
-    onunlock={() => vault.unlock()}
-  />
+  <UnlockScreen path={vault.meta!.path} title="Locked" confirmLabel="Unlock" showCancel={false} />
 {:else if !startupChecked}
 <!-- Waiting for startup check — show blank -->
 {:else if !vault.meta}

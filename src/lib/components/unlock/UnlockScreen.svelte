@@ -14,7 +14,7 @@
     title: string;
     confirmLabel?: string;
     showCancel?: boolean;
-    onunlock: () => void;
+    onunlock?: () => void;
     oncancel?: () => void;
   } = $props();
 
@@ -24,7 +24,7 @@
     error = "";
     try {
       await vault.open(path, password);
-      onunlock();
+      onunlock?.();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
