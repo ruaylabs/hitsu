@@ -55,6 +55,9 @@ pub struct AppState {
     /// Lock ordering: acquire `save_lock` BEFORE `vaults`, and never await
     /// while holding `vaults` (it is a sync mutex).
     pub save_lock: tokio::sync::Mutex<()>,
+    /// Serializes preference reads and full read-modify-write mutations so
+    /// concurrent commands cannot lose updates or share the atomic temp file.
+    pub preference_lock: Mutex<()>,
     idle_lock: Mutex<IdleLockState>,
     idle_lock_changed: Condvar,
 }
@@ -64,6 +67,7 @@ impl Default for AppState {
         Self {
             vaults: Mutex::new(HashMap::new()),
             save_lock: tokio::sync::Mutex::new(()),
+            preference_lock: Mutex::new(()),
             idle_lock: Mutex::new(IdleLockState {
                 timeout: None,
                 last_activity: Instant::now(),

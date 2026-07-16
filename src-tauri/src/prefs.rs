@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 use crate::error::{KagiError, KagiResult};
@@ -54,8 +54,11 @@ impl Preferences {
     }
 
     pub fn load(app: &tauri::AppHandle) -> Self {
-        let path = Self::path(app);
-        if let Ok(content) = fs::read_to_string(&path) {
+        Self::load_from(&Self::path(app))
+    }
+
+    pub(crate) fn load_from(path: &Path) -> Self {
+        if let Ok(content) = fs::read_to_string(path) {
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             Self::default()
@@ -63,13 +66,16 @@ impl Preferences {
     }
 
     pub fn save(&self, app: &tauri::AppHandle) -> KagiResult<()> {
-        let path = Self::path(app);
+        self.save_to(&Self::path(app))
+    }
+
+    pub(crate) fn save_to(&self, path: &Path) -> KagiResult<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
         let content = serde_json::to_string_pretty(self)
             .map_err(|_| KagiError::Custom("Could not serialize preferences".to_string()))?;
-        atomic_write(&path, content.as_bytes())?;
+        atomic_write(path, content.as_bytes())?;
         Ok(())
     }
 }
