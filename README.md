@@ -24,6 +24,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - **Favorites** — star/unstar, filter sidebar, ⌘⇧F toggle
 - **Tags** with autocomplete suggestions
 - **History** tracking via KeePass entry history
+- **Entry expiration dates** stored in native KDBX metadata with due indicators
 - **Attachments** — add, export, and remove files
 - **Custom fields** — add arbitrary protected or unprotected key-value fields to any entry
 - Field clearing (blanking a field removes it from KDBX)

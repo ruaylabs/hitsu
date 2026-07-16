@@ -33,6 +33,7 @@ export interface Entry {
   passport?: PassportFields;
   attachments: AttachmentMeta[];
   customFields: CustomField[];
+  expiresAt?: string;
   modifiedAt: string;
   createdAt: string;
   historyCount: number;

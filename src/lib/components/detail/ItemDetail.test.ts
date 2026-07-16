@@ -493,6 +493,33 @@ describe("password entry workflow", () => {
     expect(await screen.findByRole("button", { name: "Edit entry" })).toBeInTheDocument();
   });
 
+  it("saves a general entry expiration date", async () => {
+    const entry = passwordEntry({ expiresAt: undefined });
+    const updated = { ...entry, expiresAt: "2030-05-20" };
+    selectEntry(entry);
+    mocks.entryUpdate.mockResolvedValue(updated);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    const expiration = await screen.findByLabelText("Entry expiration date");
+    await fireEvent.input(expiration, { target: { value: "2030-05-20" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mocks.entryUpdate).toHaveBeenCalledOnce());
+    expect(mocks.entryUpdate).toHaveBeenCalledWith("password-1", {
+      expiresAt: "2030-05-20",
+    });
+    expect(await screen.findByText(/Expires on/)).toBeInTheDocument();
+  });
+
+  it("shows a warning when an entry expiration is due", async () => {
+    selectEntry(passwordEntry({ expiresAt: "2000-01-01" }));
+    render(ItemDetail);
+
+    const warning = await screen.findByText(/Expired on/);
+    expect(warning.closest('[role="status"]')).toHaveClass("due");
+  });
+
   it("supports password copy and opening or copying the URL", async () => {
     selectEntry(passwordEntry());
     render(ItemDetail);

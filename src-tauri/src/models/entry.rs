@@ -88,6 +88,7 @@ impl std::fmt::Debug for EntryPatch {
             .field("passport_birth_place", &self.passport_birth_place)
             .field("passport_issue_date", &self.passport_issue_date)
             .field("passport_expiry_date", &self.passport_expiry_date)
+            .field("expires_at", &self.expires_at)
             .field("custom_fields", &self.custom_fields)
             .finish()
     }
@@ -141,6 +142,7 @@ pub struct EntryPatch {
     pub passport_birth_place: Option<String>,
     pub passport_issue_date: Option<String>,
     pub passport_expiry_date: Option<String>,
+    pub expires_at: Option<String>,
     pub custom_fields: Option<Vec<CustomField>>,
 }
 
@@ -198,6 +200,8 @@ pub struct Entry {
     pub passport: Option<PassportFields>,
     pub attachments: Vec<AttachmentMeta>,
     pub custom_fields: Vec<CustomField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
     pub modified_at: String,
     pub created_at: String,
     pub history_count: u32,
@@ -496,6 +500,7 @@ mod tests {
             passport_birth_place: None,
             passport_issue_date: None,
             passport_expiry_date: None,
+            expires_at: Some("2030-01-01".into()),
             custom_fields: Some(vec![CustomField {
                 name: "Recovery answer".into(),
                 value: "custom-SECRET".into(),

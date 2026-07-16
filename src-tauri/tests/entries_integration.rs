@@ -292,6 +292,46 @@ async fn identity_date_of_birth_roundtrips_and_clears() {
 }
 
 #[tokio::test]
+async fn entry_expiration_persists_and_clears() {
+    let tv = setup();
+    let state = tv.state();
+    let entry = entry_create(state.clone(), "login".to_string(), draft("Temporary login"))
+        .await
+        .unwrap();
+
+    let saved = entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|patch| patch.expires_at = Some("2030-05-20".into())),
+    )
+    .await
+    .unwrap();
+    assert_eq!(saved.expires_at.as_deref(), Some("2030-05-20"));
+
+    let disk = tv.reload_disk();
+    let disk_entry = disk.iter_all_entries().next().unwrap();
+    assert_eq!(disk_entry.times.expires, Some(true));
+    assert_eq!(
+        disk_entry.times.expiry.unwrap().to_string(),
+        "2030-05-20 23:59:59"
+    );
+
+    let cleared = entry_update(
+        state.clone(),
+        entry.id.clone(),
+        patch(|patch| patch.expires_at = Some(String::new())),
+    )
+    .await
+    .unwrap();
+    assert!(cleared.expires_at.is_none());
+
+    let disk = tv.reload_disk();
+    let disk_entry = disk.iter_all_entries().next().unwrap();
+    assert_eq!(disk_entry.times.expires, Some(false));
+    assert!(disk_entry.times.expiry.is_none());
+}
+
+#[tokio::test]
 async fn update_nonexistent_entry_errors() {
     let tv = setup();
     let state = tv.state();

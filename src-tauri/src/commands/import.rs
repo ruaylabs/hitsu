@@ -99,6 +99,7 @@ struct ImportedItem {
     attachments: Vec<ImportedAttachment>,
     created_at: Option<chrono::NaiveDateTime>,
     updated_at: Option<chrono::NaiveDateTime>,
+    expires_at: Option<chrono::NaiveDateTime>,
 }
 
 struct ParsedImport {
@@ -431,6 +432,8 @@ fn parse_record(
         updated_at: timestamp_at(record, &["updatedAt"])
             .or_else(|| timestamp_at(record, &["updated"]))
             .or_else(|| timestamp_at(record, &["txTimestamp"])),
+        expires_at: timestamp_at(record, &["expiresAt"])
+            .or_else(|| timestamp_at(content, &["expiresAt"])),
     };
 
     apply_direct_fields(&mut item, content);
@@ -1315,6 +1318,10 @@ fn apply_import(
         let now = chrono::Utc::now().naive_utc();
         entry.times.creation = Some(item.created_at.unwrap_or(now));
         entry.times.last_modification = Some(item.updated_at.unwrap_or(now));
+        if let Some(expires_at) = item.expires_at {
+            entry.times.expires = Some(true);
+            entry.times.expiry = Some(expires_at);
+        }
         imported_items += 1;
     }
     (imported_items, imported_attachments, skipped_entries)
@@ -1452,16 +1459,23 @@ fn bool_at(value: &JsonValue, path: &[&str]) -> Option<bool> {
 }
 
 fn timestamp_at(value: &JsonValue, path: &[&str]) -> Option<chrono::NaiveDateTime> {
-    let seconds = string_at(value, path)?.parse::<i64>().ok()?;
-    chrono::DateTime::from_timestamp(
-        if seconds > 10_000_000_000 {
-            seconds / 1000
+    let raw = string_at(value, path)?;
+    if let Ok(timestamp) = raw.parse::<i64>() {
+        let seconds = if timestamp > 10_000_000_000 {
+            timestamp / 1000
         } else {
-            seconds
-        },
-        0,
-    )
-    .map(|date| date.naive_utc())
+            timestamp
+        };
+        return chrono::DateTime::from_timestamp(seconds, 0).map(|date| date.naive_utc());
+    }
+    chrono::DateTime::parse_from_rfc3339(&raw)
+        .map(|date| date.naive_utc())
+        .ok()
+        .or_else(|| {
+            chrono::NaiveDate::parse_from_str(&raw, "%Y-%m-%d")
+                .ok()?
+                .and_hms_opt(23, 59, 59)
+        })
 }
 
 fn normalize_import_date(value: &str) -> String {
@@ -1644,7 +1658,7 @@ mod tests {
     #[test]
     fn parses_all_supported_types_and_attachments() {
         let values = vec![
-            serde_json::json!({"uuid":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","title":"Login","typeName":"webforms.WebForm","location":"https://example.com","secureContents":{"fields":[{"designation":"username","name":"email","value":"me@example.com"},{"designation":"password","name":"password","type":"P","value":"secret"},{"designation":"TOTP_1","name":"one-time password","value":"ABC123"}],"attachments":[{"fileName":"proof.txt","documentId":"DOC1"}]}}),
+            serde_json::json!({"uuid":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","title":"Login","typeName":"webforms.WebForm","location":"https://example.com","expiresAt":1893456000,"secureContents":{"fields":[{"designation":"username","name":"email","value":"me@example.com"},{"designation":"password","name":"password","type":"P","value":"secret"},{"designation":"TOTP_1","name":"one-time password","value":"ABC123"}],"attachments":[{"fileName":"proof.txt","documentId":"DOC1"}]}}),
             serde_json::json!({"title":"Password","typeName":"passwords.Password","secureContents":{"password":"generated"}}),
             serde_json::json!({"title":"Note","typeName":"securenotes.SecureNote","secureContents":{"notesPlain":"hello"}}),
             serde_json::json!({"title":"Person","typeName":"identities.Identity","secureContents":{"firstname":"Ada","lastname":"Lovelace","email":"ada@example.com","address1":"1 Main St","city":"London"}}),
@@ -1663,6 +1677,10 @@ mod tests {
             .unwrap()
             .starts_with("otpauth://"));
         assert_eq!(parsed.items[0].attachments[0].data, b"attachment");
+        assert_eq!(
+            parsed.items[0].expires_at.unwrap().date().to_string(),
+            "2030-01-01"
+        );
         assert_eq!(parsed.items[1].item_type, ItemType::Password);
         assert_eq!(parsed.items[2].item_type, ItemType::Note);
         assert_eq!(parsed.items[3].item_type, ItemType::Identity);
@@ -1727,7 +1745,7 @@ mod tests {
     fn applies_import_with_protected_secrets_without_duplicate_custom_values() {
         let path = write_export(
             &[
-                serde_json::json!({"title":"Login","typeName":"webforms.WebForm","secureContents":{"password":"secret","htmlMethod":"POST","fields":[{"designation":"username","id":"username;opid=__1","value":"alice"},{"designation":"password","name":"password","value":"secret","type":"P"},{"id":"login-btn;opid=__3","value":"Log in","type":"I"}],"sections":[{"fields":[{"t":"html Method","v":"POST"},{"t":"duplicate password","v":"secret","k":"concealed"},{"t":"recovery code","v":"hidden","k":"concealed"}]}]}}),
+                serde_json::json!({"title":"Login","typeName":"webforms.WebForm","expiresAt":"2030-01-01","secureContents":{"password":"secret","htmlMethod":"POST","fields":[{"designation":"username","id":"username;opid=__1","value":"alice"},{"designation":"password","name":"password","value":"secret","type":"P"},{"id":"login-btn;opid=__3","value":"Log in","type":"I"}],"sections":[{"fields":[{"t":"html Method","v":"POST"},{"t":"duplicate password","v":"secret","k":"concealed"},{"t":"recovery code","v":"hidden","k":"concealed"}]}]}}),
             ],
             None,
         );
@@ -1747,6 +1765,11 @@ mod tests {
             .unwrap()
             .is_protected());
         assert!(!entry.fields.contains_key("custom.duplicate password"));
+        assert_eq!(entry.times.expires, Some(true));
+        assert_eq!(
+            entry.times.expiry.unwrap().to_string(),
+            "2030-01-01 23:59:59"
+        );
     }
 
     #[test]

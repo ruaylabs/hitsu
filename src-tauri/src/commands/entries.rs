@@ -97,6 +97,13 @@ pub fn build_entry_summaries(db: &keepass::Database) -> Vec<EntrySummary> {
 /// don't overlap and at least four digits stay hidden; anything shorter is
 /// masked entirely rather than leaked verbatim into the list subtitle.
 /// Returns `None` for empty values so callers can fall back to the username.
+fn entry_expiration_date(entry: &keepass::db::Entry) -> Option<String> {
+    if !entry.times.expires.unwrap_or(false) {
+        return None;
+    }
+    entry.times.expiry.map(|expiry| expiry.date().to_string())
+}
+
 fn mask_card_number(num: &str) -> Option<String> {
     if num.is_empty() {
         return None;
@@ -262,6 +269,7 @@ fn map_entry_to_full(entry_ref: &keepass::db::Entry, trashed: bool) -> Entry {
         passport,
         attachments: Vec::new(),
         custom_fields: read_custom_fields(entry_ref),
+        expires_at: entry_expiration_date(entry_ref),
         modified_at,
         created_at,
         history_count: entry_ref
@@ -582,6 +590,7 @@ pub async fn entry_create(
         passport: None,
         attachments: Vec::new(),
         custom_fields: Vec::new(),
+        expires_at: None,
         modified_at: now_rfc.clone(),
         created_at: now_rfc,
         history_count: 0,
@@ -595,6 +604,7 @@ pub async fn entry_update(
     patch: EntryPatch,
 ) -> KagiResult<Entry> {
     validate_custom_fields(&patch)?;
+    validate_expiration(&patch)?;
     // Take the writer lock before mutating so no other save can interleave
     // between our in-memory commit and our disk write.
     let _save_guard = state.save_lock.lock().await;
@@ -764,6 +774,16 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "passport.issueDate", &patch.passport_issue_date);
     apply_opt(entry, "passport.expiryDate", &patch.passport_expiry_date);
 
+    if let Some(expires_at) = &patch.expires_at {
+        if expires_at.is_empty() {
+            entry.times.expires = Some(false);
+            entry.times.expiry = None;
+        } else if let Ok(date) = chrono::NaiveDate::parse_from_str(expires_at, "%Y-%m-%d") {
+            entry.times.expires = Some(true);
+            entry.times.expiry = date.and_hms_opt(23, 59, 59);
+        }
+    }
+
     if let Some(custom_fields) = &patch.custom_fields {
         let existing = entry
             .fields
@@ -785,6 +805,19 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
                 .insert(custom_field_storage_name(&field.name), value);
         }
     }
+}
+
+fn validate_expiration(patch: &EntryPatch) -> KagiResult<()> {
+    let Some(expires_at) = patch
+        .expires_at
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(());
+    };
+    chrono::NaiveDate::parse_from_str(expires_at, "%Y-%m-%d")
+        .map(|_| ())
+        .map_err(|_| KagiError::Custom("Expiration date must use YYYY-MM-DD".into()))
 }
 
 fn validate_custom_fields(patch: &EntryPatch) -> KagiResult<()> {
@@ -1316,7 +1349,7 @@ mod tests {
         apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
         map_entry_to_full, mask_card_number, parse_entry_id, read_attachment_file,
         read_attachments, read_totp_seed, safe_attachment_file_name, validate_custom_fields,
-        write_attachment_file,
+        validate_expiration, write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, ItemType};
 
@@ -1423,6 +1456,41 @@ mod tests {
         assert_eq!(payload.custom_fields[0].value, "custom-secret");
         assert!(payload.custom_fields[0].protected);
         assert_eq!(payload.custom_fields[1].value, "Production");
+    }
+
+    #[test]
+    fn entry_expiration_roundtrips_clears_and_validates() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(entry_id)
+            .expect("duplicate entry id");
+
+        let mut patch = EntryPatch::default();
+        patch.expires_at = Some("2030-05-20".into());
+        validate_expiration(&patch).unwrap();
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+
+        let entry = db.entry(entry_id).unwrap();
+        assert_eq!(entry.times.expires, Some(true));
+        assert_eq!(
+            entry.times.expiry.unwrap().to_string(),
+            "2030-05-20 23:59:59"
+        );
+        assert_eq!(
+            map_entry_to_full(&entry, false).expires_at.as_deref(),
+            Some("2030-05-20")
+        );
+
+        patch.expires_at = Some(String::new());
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+        let entry = db.entry(entry_id).unwrap();
+        assert_eq!(entry.times.expires, Some(false));
+        assert!(entry.times.expiry.is_none());
+        assert!(map_entry_to_full(&entry, false).expires_at.is_none());
+
+        patch.expires_at = Some("05/20/2030".into());
+        assert!(validate_expiration(&patch).is_err());
     }
 
     #[test]

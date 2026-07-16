@@ -123,6 +123,7 @@ export interface EntryPatch {
   passportBirthPlace?: string | null;
   passportIssueDate?: string | null;
   passportExpiryDate?: string | null;
+  expiresAt?: string | null;
   customFields?: CustomField[];
 }
 

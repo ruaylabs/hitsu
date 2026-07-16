@@ -145,6 +145,7 @@
   let editUrl = $state("");
   let editTotp = $state("");
   let editNotes = $state("");
+  let editExpiresAt = $state("");
   let editTags = $state<string[]>([]);
   let editCustomFields = $state<CustomField[]>([]);
   // Identity fields
@@ -205,6 +206,7 @@
       url: editUrl,
       totp: editTotp,
       notes: editNotes,
+      expiresAt: editExpiresAt,
       tags: [...editTags],
       customFields: editCustomFields.map((field) => ({ ...field })),
       firstName: editFirstName,
@@ -348,6 +350,7 @@
     editUrl = e.url ?? "";
     editTags = [...e.tags];
     editNotes = e.notes ?? "";
+    editExpiresAt = e.expiresAt ?? "";
     editFirstName = e.identity?.firstName ?? "";
     editLastName = e.identity?.lastName ?? "";
     editEmail = e.identity?.email ?? "";
@@ -598,6 +601,21 @@
       return false;
     });
   });
+
+  function localDateString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function expirationLabel(expiresAt: string) {
+    const formatted = new Date(`${expiresAt}T00:00:00`).toLocaleDateString();
+    if (expiresAt < localDateString()) return `Expired on ${formatted}`;
+    if (expiresAt === localDateString()) return "Expires today";
+    return `Expires on ${formatted}`;
+  }
 
   function confirmDelete() {
     if (!_entry) return;
@@ -1525,7 +1543,25 @@
       </FieldGroup>
     {/if}
 
+    {#if !editing && entry.expiresAt}
+      {@const expirationDue = entry.expiresAt <= localDateString()}
+      <div class="expiration-indicator" class:due={expirationDue} role="status">
+        <Icon name={expirationDue ? "alert-triangle" : "calendar-time"} size={14} />
+        <span>{expirationLabel(entry.expiresAt)}</span>
+      </div>
+    {/if}
+
     {#if editing}
+      <div class="edit-expiration">
+        <span class="notes-label">Expiration date</span>
+        <input
+          class="control control--compact expiration-input"
+          type="date"
+          aria-label="Entry expiration date"
+          autocomplete="off"
+          bind:value={editExpiresAt}
+        />
+      </div>
       <div class="custom-fields-editor">
         <div class="custom-fields-heading">
           <span class="notes-label">Custom fields</span>
@@ -1802,6 +1838,32 @@
 
   .generate-btn:hover {
     background: var(--bg-accent);
+  }
+
+  .expiration-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-bottom: 16px;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    background: var(--surface-1);
+    font-size: 12px;
+  }
+
+  .expiration-indicator.due {
+    color: var(--danger);
+    background: var(--danger-bg);
+  }
+
+  .edit-expiration {
+    margin-bottom: 16px;
+  }
+
+  .expiration-input {
+    width: 170px;
   }
 
   .custom-fields-editor {
