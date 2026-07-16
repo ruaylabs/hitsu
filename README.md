@@ -41,6 +41,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - **KDF validation and upgrade prompt** for vaults below the recommended 64 MiB
 - **Constant-time** master password comparison (`subtle::ConstantTimeEq`)
 - **Process hardening** disables core dumps and blocks debugger attachment in release builds
+- **Privacy screen** conceals the app whenever its window loses focus
 - **CSP** enabled — `default-src 'self'`
 
 ### Clipboard
