@@ -1,22 +1,8 @@
 <script lang="ts">
-  import { openUrl } from "@tauri-apps/plugin-opener";
   import type { Entry } from "$lib/bridge/types";
+  import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import EntryIcon from "../list/EntryIcon.svelte";
   import IconButton from "../ui/IconButton.svelte";
-
-  function openEntryUrl(rawUrl: string): void {
-    const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-        openUrl(url);
-      } else {
-        console.warn("Blocked opening URL with disallowed scheme:", parsed.protocol);
-      }
-    } catch {
-      console.warn("Blocked opening invalid URL:", url);
-    }
-  }
 
   let {
     entry,
@@ -41,7 +27,7 @@
     <div class="detail-header-text">
       <h1 class="detail-title">{entry.title}</h1>
       {#if entry.url}
-        <button class="detail-url" onclick={() => openEntryUrl(entry.url!)} title={entry.url}>
+        <button class="detail-url" onclick={() => openHttpUrl(entry.url!)} title={entry.url}>
           {entry.url}
         </button>
       {/if}

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { openUrl } from "@tauri-apps/plugin-opener";
   import { untrack } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { type EntryPatch, toSummary } from "$lib/bridge/entries";
@@ -11,6 +10,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
+  import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -625,20 +625,6 @@
     } catch (e) {
       console.error("Failed to restore entry", e);
       toast.error(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  function openEntryUrl(rawUrl: string): void {
-    const url = rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-        openUrl(url);
-      } else {
-        console.warn("Blocked opening URL with disallowed scheme:", parsed.protocol);
-      }
-    } catch {
-      console.warn("Blocked opening invalid URL:", url);
     }
   }
 
@@ -1311,7 +1297,7 @@
             <Field
               label="URL"
               value={entry.url}
-              onOpenUrl={() => openEntryUrl(entry.url!)}
+              onOpenUrl={() => openHttpUrl(entry.url!)}
               onCopy={() => clipboard.copyPlain(entry.url!)}
             />
           {/if}
@@ -1342,7 +1328,7 @@
             label="URL"
             value={entry.url}
             mono={false}
-            onOpenUrl={() => openEntryUrl(entry.url!)}
+            onOpenUrl={() => openHttpUrl(entry.url!)}
             onCopy={() => clipboard.copyPlain(entry.url!)}
           />
         {/if}
@@ -1455,7 +1441,7 @@
           <Field
             label="Download page"
             value={license.downloadPage}
-            onOpenUrl={() => openEntryUrl(license.downloadPage!)}
+            onOpenUrl={() => openHttpUrl(license.downloadPage!)}
             onCopy={() => clipboard.copyPlain(license.downloadPage!)}
           />
         {/if}
@@ -1466,7 +1452,7 @@
           <Field
             label="Website"
             value={license.website}
-            onOpenUrl={() => openEntryUrl(license.website!)}
+            onOpenUrl={() => openHttpUrl(license.website!)}
             onCopy={() => clipboard.copyPlain(license.website!)}
           />
         {/if}
