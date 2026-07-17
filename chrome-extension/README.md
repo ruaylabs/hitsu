@@ -1,15 +1,15 @@
-# Kagi Chrome Extension
+# Hitsu Chrome Extension
 
 Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge. It lists exact-host login
-matches from the unlocked Kagi desktop app and fills the first username/password form on the current
+matches from the unlocked Hitsu desktop app and fills the first username/password form on the current
 page.
 
 ## Install for development
 
-1. Build Kagi and its native-messaging host:
+1. Build Hitsu and its native-messaging host:
 
    ```bash
-   cargo build --release --manifest-path src-tauri/Cargo.toml --bin kagi
+   cargo build --release --manifest-path src-tauri/Cargo.toml --bin hitsu
    cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml
    ```
 
@@ -22,8 +22,8 @@ page.
    ./chrome-extension/install-host.sh abcdefghijklmnopqrstuvwxyzabcdef
    ```
 
-5. Start and unlock the release build of Kagi. Open an HTTP(S) page whose hostname exactly matches a
-   login URL, then select the Kagi toolbar button.
+5. Start and unlock the release build of Hitsu. Open an HTTP(S) page whose hostname exactly matches a
+   login URL, then select the Hitsu toolbar button.
 
 A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. The script above
 remains useful for an unpacked development extension until automatic production registration is
@@ -36,7 +36,7 @@ For production packaging, see [`BUNDLING.md`](BUNDLING.md).
 ## Security model
 
 - The extension asks only for `activeTab` and `nativeMessaging` permissions.
-- Kagi exposes an owner-only Unix socket available while the desktop app is running.
+- Hitsu exposes an owner-only Unix socket available while the desktop app is running.
 - Login metadata is returned only for exact hostname matches.
 - A password is returned only after selecting a matching entry.
 - Trashed entries are never exposed.

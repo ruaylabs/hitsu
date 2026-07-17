@@ -37,7 +37,7 @@
   const LIST_MIN = 190;
   const DETAIL_MIN = 360;
   const RESIZER_WIDTH = 1;
-  const PANE_WIDTHS_KEY = "kagi:pane-widths";
+  const PANE_WIDTHS_KEY = "hitsu:pane-widths";
 
   let sidebarWidth = $state(SIDEBAR_DEFAULT);
   let listWidth = $state(LIST_DEFAULT);

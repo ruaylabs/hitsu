@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum KagiError {
+pub enum HitsuError {
     #[error("Entry not found: {0}")]
     EntryNotFound(String),
 
@@ -22,12 +22,12 @@ pub enum KagiError {
     Custom(String),
 }
 
-impl KagiError {
+impl HitsuError {
     /// Map a failed `spawn_blocking` join (task panicked or the runtime is
     /// shutting down) to a user-safe error, logging the detail locally.
     pub fn from_join(err: impl std::fmt::Display) -> Self {
         eprintln!("background task failed: {err}");
-        KagiError::Custom("An internal error occurred".to_string())
+        HitsuError::Custom("An internal error occurred".to_string())
     }
 
     /// Short, user-safe message for the UI.
@@ -38,29 +38,29 @@ impl KagiError {
     /// their `Display` text is already safe to show.
     fn user_message(&self) -> String {
         match self {
-            KagiError::EntryNotFound(_) | KagiError::NoOpenVault | KagiError::Custom(_) => {
+            HitsuError::EntryNotFound(_) | HitsuError::NoOpenVault | HitsuError::Custom(_) => {
                 self.to_string()
             }
-            KagiError::ExternalModification => {
+            HitsuError::ExternalModification => {
                 "The vault file was changed on disk by another program (a sync client?). \
                  Nothing was saved. Lock and reopen the vault to load the latest version, \
                  then retry your change."
                     .to_string()
             }
-            KagiError::Io(_) => "A file operation failed.".to_string(),
-            KagiError::KeepassOpen(_) => {
+            HitsuError::Io(_) => "A file operation failed.".to_string(),
+            HitsuError::KeepassOpen(_) => {
                 "Couldn't unlock the vault. Check your master password; if it is correct, \
                  the file may be corrupted."
                     .to_string()
             }
-            KagiError::KeepassSave(_) => {
+            HitsuError::KeepassSave(_) => {
                 "Couldn't save the vault. Your changes were not written to disk.".to_string()
             }
         }
     }
 }
 
-impl serde::Serialize for KagiError {
+impl serde::Serialize for HitsuError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -76,7 +76,7 @@ impl serde::Serialize for KagiError {
     }
 }
 
-pub type KagiResult<T> = Result<T, KagiError>;
+pub type HitsuResult<T> = Result<T, HitsuError>;
 
 #[cfg(test)]
 mod tests {
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_io_error_message_is_sanitized() {
-        let err = KagiError::Io(std::io::Error::new(
+        let err = HitsuError::Io(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "open /home/user/secret-vault.kdbx",
         ));
@@ -95,21 +95,21 @@ mod tests {
     #[test]
     fn test_authored_messages_pass_through() {
         assert_eq!(
-            KagiError::Custom("Wrong password".into()).user_message(),
+            HitsuError::Custom("Wrong password".into()).user_message(),
             "Wrong password"
         );
         assert_eq!(
-            KagiError::NoOpenVault.user_message(),
+            HitsuError::NoOpenVault.user_message(),
             "No vault is currently open"
         );
-        assert!(KagiError::EntryNotFound("abc".into())
+        assert!(HitsuError::EntryNotFound("abc".into())
             .user_message()
             .contains("abc"));
     }
 
     #[test]
     fn test_serialize_emits_user_message() {
-        let err = KagiError::Io(std::io::Error::other("raw os detail"));
+        let err = HitsuError::Io(std::io::Error::other("raw os detail"));
         let json = serde_json::to_string(&err).unwrap();
         assert_eq!(json, "\"A file operation failed.\"");
     }

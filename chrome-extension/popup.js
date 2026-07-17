@@ -15,15 +15,15 @@ try {
   origin = new URL(tab.url).origin;
   site.textContent = new URL(tab.url).hostname;
 } catch {
-  showMessage("Kagi can only fill HTTP and HTTPS pages.", "error");
+  showMessage("Hitsu can only fill HTTP and HTTPS pages.", "error");
 }
 
 if (origin) {
   chrome.runtime.sendMessage({ type: "list-logins", origin }, (response) => {
     if (!response?.ok) {
       const unavailable = response?.error?.includes("host")
-        ? "Kagi browser integration is not installed."
-        : (response?.error ?? "Open and unlock Kagi first.");
+        ? "Hitsu browser integration is not installed."
+        : (response?.error ?? "Open and unlock Hitsu first.");
       showMessage(unavailable, "error");
       return;
     }

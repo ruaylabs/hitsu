@@ -9,7 +9,7 @@ use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
 use super::entries::{build_entry_summaries, build_folder_summaries, ensure_recycle_bin};
-use crate::error::{KagiError, KagiResult};
+use crate::error::{HitsuError, HitsuResult};
 use crate::models::{VaultMeta, VaultRefreshResult};
 use crate::state::{AppState, OpenVault, VaultId};
 
@@ -33,7 +33,7 @@ const KEEPASS_LATEST_ID: u32 = 0xb54bfb67;
 ///
 /// This provides early rejection of non-KeePass files before the
 /// `keepass` crate attempts to parse and decrypt.
-pub fn validate_header(path: &Path) -> KagiResult<()> {
+pub fn validate_header(path: &Path) -> HitsuResult<()> {
     let mut file = File::open(path)?;
     let mut buf = [0u8; 12];
     file.read_exact(&mut buf)?;
@@ -41,7 +41,7 @@ pub fn validate_header(path: &Path) -> KagiResult<()> {
 
     // Magic bytes: 03 D9 A2 9A
     if buf[0..4] != KDBX_MAGIC {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "Invalid KDBX identifier — not a KeePass file".to_string(),
         ));
     }
@@ -49,7 +49,7 @@ pub fn validate_header(path: &Path) -> KagiResult<()> {
     // Version ID (bytes 4-7, little-endian u32)
     let version_id = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
     if version_id != KEEPASS_2_ID && version_id != KEEPASS_LATEST_ID {
-        return Err(KagiError::Custom(format!(
+        return Err(HitsuError::Custom(format!(
             "Unsupported KDBX version identifier: {:#010x}",
             version_id
         )));
@@ -58,7 +58,7 @@ pub fn validate_header(path: &Path) -> KagiResult<()> {
     // Major version (bytes 10-11, little-endian u16)
     let major = u16::from_le_bytes([buf[10], buf[11]]);
     if major != 3 && major != 4 {
-        return Err(KagiError::Custom(format!(
+        return Err(HitsuError::Custom(format!(
             "Unsupported KDBX major version: {} (only 3 and 4 are supported)",
             major
         )));
@@ -84,9 +84,9 @@ const MIN_MASTER_PASSWORD_LEN: usize = 8;
 
 /// Validate a master-password candidate on the backend side.
 /// Rejects anything too short regardless of what the frontend allows.
-pub fn validate_master_password(password: &str) -> KagiResult<()> {
+pub fn validate_master_password(password: &str) -> HitsuResult<()> {
     if password.len() < MIN_MASTER_PASSWORD_LEN {
-        return Err(KagiError::Custom(format!(
+        return Err(HitsuError::Custom(format!(
             "Master password must be at least {} characters",
             MIN_MASTER_PASSWORD_LEN
         )));
@@ -123,7 +123,7 @@ fn needs_kdf_upgrade(kdf: &KdfConfig) -> bool {
     }
 }
 
-fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
+fn validate_kdf(kdf: &KdfConfig) -> HitsuResult<()> {
     match kdf {
         KdfConfig::Argon2 {
             memory,
@@ -138,24 +138,24 @@ fn validate_kdf(kdf: &KdfConfig) -> KagiResult<()> {
             ..
         } => {
             if *memory < 1024 * 1024 {
-                return Err(KagiError::Custom("KDF memory is below 1 MiB".to_string()));
+                return Err(HitsuError::Custom("KDF memory is below 1 MiB".to_string()));
             }
             if *iterations < 2 {
-                return Err(KagiError::Custom(
+                return Err(HitsuError::Custom(
                     "KDF iterations must be at least 2".to_string(),
                 ));
             }
             if *parallelism < 1 {
-                return Err(KagiError::Custom(
+                return Err(HitsuError::Custom(
                     "KDF parallelism must be at least 1".to_string(),
                 ));
             }
             Ok(())
         }
-        KdfConfig::Aes { .. } => Err(KagiError::Custom(
+        KdfConfig::Aes { .. } => Err(HitsuError::Custom(
             "AES-KDF is not supported — use Argon2id".to_string(),
         )),
-        _ => Err(KagiError::Custom("Unsupported KDF".to_string())),
+        _ => Err(HitsuError::Custom("Unsupported KDF".to_string())),
     }
 }
 
@@ -178,7 +178,7 @@ mod tests {
 
     /// Write `data` to a temp file and return its path + parent guard.
     fn write_temp_file(data: &[u8]) -> (PathBuf, std::fs::File) {
-        let dir = std::env::temp_dir().join(format!("kagi-hdr-test-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-hdr-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("test.kdbx");
         let mut f = File::create(&path).unwrap();
@@ -459,7 +459,7 @@ pub async fn vault_open(
     state: State<'_, AppState>,
     path: String,
     password: String,
-) -> KagiResult<VaultMeta> {
+) -> HitsuResult<VaultMeta> {
     // Wrap immediately so the buffer is zeroized on any early return
     let password = Zeroizing::new(password);
 
@@ -479,7 +479,7 @@ pub async fn vault_open(
     let open_path = path.clone();
     type OpenResult = (keepass::Database, keepass::DatabaseKey, [u8; 32], [u8; 32]);
     let (db, db_key, password_hash, disk_hash) =
-        tauri::async_runtime::spawn_blocking(move || -> KagiResult<OpenResult> {
+        tauri::async_runtime::spawn_blocking(move || -> HitsuResult<OpenResult> {
             // Wrap in Zeroizing again inside the closure so the buffer is
             // scrubbed when the task finishes, success or not.
             let mut password = password;
@@ -507,7 +507,7 @@ pub async fn vault_open(
             Ok((db, db_key, password_hash, disk_hash))
         })
         .await
-        .map_err(KagiError::from_join)??;
+        .map_err(HitsuError::from_join)??;
 
     let entry_count = db.num_entries();
     let id = uuid::Uuid::new_v4();
@@ -553,17 +553,17 @@ type RefreshLoadResult = (bool, Option<(keepass::Database, [u8; 32])>);
 
 /// Check whether another application replaced the open vault file and,
 /// when allowed, reload the decrypted in-memory database from that file.
-/// The save lock prevents this from racing any Kagi writer.
+/// The save lock prevents this from racing any Hitsu writer.
 #[tauri::command]
 pub async fn vault_refresh_if_changed(
     state: State<'_, AppState>,
     allow_reload: bool,
-) -> KagiResult<VaultRefreshResult> {
+) -> HitsuResult<VaultRefreshResult> {
     let _save_guard = state.save_lock.lock().await;
 
     let (path, key, expected_disk_hash, expected_root_id) = {
         let vaults = state.vaults.lock();
-        let (_, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         (
             vault.path.clone(),
             vault.db_key.clone(),
@@ -574,7 +574,7 @@ pub async fn vault_refresh_if_changed(
 
     let refresh_path = path.clone();
     let (changed, loaded) =
-        tauri::async_runtime::spawn_blocking(move || -> KagiResult<RefreshLoadResult> {
+        tauri::async_runtime::spawn_blocking(move || -> HitsuResult<RefreshLoadResult> {
             let bytes = std::fs::read(&refresh_path)?;
             let disk_hash = crate::vault::sha256_bytes(&bytes);
             if disk_hash == expected_disk_hash {
@@ -588,7 +588,7 @@ pub async fn vault_refresh_if_changed(
             validate_kdf(&db.config.kdf_config)?;
             ensure_kdbx4(&mut db);
             if db.root().id() != expected_root_id {
-                return Err(KagiError::Custom(
+                return Err(HitsuError::Custom(
                     "The vault path now contains a different database. Lock and reopen it.".into(),
                 ));
             }
@@ -597,7 +597,7 @@ pub async fn vault_refresh_if_changed(
             // file again while Argon2 and parsing were running.
             let latest_hash = crate::vault::disk::sha256_file(&refresh_path)?;
             if latest_hash != disk_hash {
-                return Err(KagiError::Custom(
+                return Err(HitsuError::Custom(
                     "The vault is still changing on disk. Try again shortly.".into(),
                 ));
             }
@@ -605,7 +605,7 @@ pub async fn vault_refresh_if_changed(
             Ok((true, Some((db, disk_hash))))
         })
         .await
-        .map_err(KagiError::from_join)??;
+        .map_err(HitsuError::from_join)??;
 
     let Some((db, disk_hash)) = loaded else {
         return Ok(VaultRefreshResult {
@@ -656,7 +656,7 @@ pub async fn vault_refresh_if_changed(
 }
 
 #[tauri::command]
-pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
+pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> HitsuResult<()> {
     // Writer lock first (see AppState::save_lock ordering rules).
     let _save_guard = state.save_lock.lock().await;
 
@@ -665,7 +665,7 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
         let mut vaults = state.vaults.lock();
 
         let (_id, vault): (&VaultId, &mut OpenVault) =
-            vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+            vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
         // Upgrade KDF to Argon2id with 64 MiB
         vault.db.config.kdf_config = default_kdf_config();
@@ -680,7 +680,7 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
 
     // KDF + write + verification re-open (a second KDF) off the runtime.
     let save_path = path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
         // Abort before touching the file if another program changed it.
         crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
 
@@ -695,12 +695,12 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> KagiResult<()> {
                 .map(|_| ())
                 .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
         })
-        .map_err(KagiError::Custom)?;
+        .map_err(HitsuError::Custom)?;
 
         Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
-    .map_err(KagiError::from_join)??;
+    .map_err(HitsuError::from_join)??;
 
     state.commit_disk_hash(&path, new_disk_hash);
     Ok(())
@@ -712,7 +712,7 @@ pub async fn vault_create(
     path: String,
     password: String,
     name: String,
-) -> KagiResult<VaultMeta> {
+) -> HitsuResult<VaultMeta> {
     // Wrap immediately so the buffer is zeroized on any early return
     let password = Zeroizing::new(password);
 
@@ -739,7 +739,7 @@ pub async fn vault_create(
     let create_name = vault_name.clone();
     type CreateResult = (keepass::Database, keepass::DatabaseKey, [u8; 32], [u8; 32]);
     let (db, db_key, password_hash, disk_hash) =
-        tauri::async_runtime::spawn_blocking(move || -> KagiResult<CreateResult> {
+        tauri::async_runtime::spawn_blocking(move || -> HitsuResult<CreateResult> {
             let mut password = password;
 
             let mut db = keepass::Database::new();
@@ -779,7 +779,7 @@ pub async fn vault_create(
             Ok((db, db_key, password_hash, disk_hash))
         })
         .await
-        .map_err(KagiError::from_join)??;
+        .map_err(HitsuError::from_join)??;
 
     let entry_count = 0;
     let id = uuid::Uuid::new_v4();
@@ -817,7 +817,7 @@ pub async fn vault_change_password(
     state: State<'_, AppState>,
     old_password: String,
     new_password: String,
-) -> KagiResult<()> {
+) -> HitsuResult<()> {
     // Wrap both immediately so they're zeroized on any early return
     let mut old_password = Zeroizing::new(old_password);
     let new_password = Zeroizing::new(new_password);
@@ -834,13 +834,13 @@ pub async fn vault_change_password(
 
         // Find the single open vault
         let (_id, vault): (&VaultId, &OpenVault) =
-            vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+            vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
 
         // Verify old password matches the stored hash (constant-time).
         // Avoids timing side-channels from PartialEq on DatabaseKey.
         let old_hash = Sha256::digest(old_password.as_bytes());
         if vault.password_hash[..].ct_ne(&*old_hash).into() {
-            return Err(KagiError::Custom("Wrong password".to_string()));
+            return Err(HitsuError::Custom("Wrong password".to_string()));
         }
 
         (vault.db.clone(), vault.path.clone(), vault.disk_hash)
@@ -855,7 +855,7 @@ pub async fn vault_change_password(
     // Save + verification re-open each run the Argon2 KDF — off the runtime.
     let save_key = new_key.clone();
     let save_path = path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
         // Abort before touching the file if another program changed it.
         crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
 
@@ -871,12 +871,12 @@ pub async fn vault_change_password(
                 .map(|_| ())
                 .map_err(|e| format!("Cannot re-open with new password: {}", e))
         })
-        .map_err(KagiError::Custom)?;
+        .map_err(HitsuError::Custom)?;
 
         Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
-    .map_err(KagiError::from_join)??;
+    .map_err(HitsuError::from_join)??;
 
     // Commit the new key material. The vault may have been locked (or swapped
     // for another file) while the KDF ran; in that case there is nothing to
@@ -907,7 +907,7 @@ pub(crate) fn lock_open_vaults(state: &AppState) {
 }
 
 #[tauri::command]
-pub async fn vault_lock(state: State<'_, AppState>) -> KagiResult<()> {
+pub async fn vault_lock(state: State<'_, AppState>) -> HitsuResult<()> {
     lock_open_vaults(&state);
     Ok(())
 }

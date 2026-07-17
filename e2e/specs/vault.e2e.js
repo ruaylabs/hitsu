@@ -3,7 +3,7 @@ import { $, browser } from "@wdio/globals";
 
 const { after, describe, it } = globalThis;
 const password = "e2e-master-password";
-const vaultPath = process.env.KAGI_E2E_VAULT;
+const vaultPath = process.env.HITSU_E2E_VAULT;
 
 async function button(label) {
   return $(`button=${label}`);
@@ -27,7 +27,7 @@ describe("standalone vault smoke test", () => {
   });
 
   it("creates, locks, reopens, and deletes a password entry", async () => {
-    assert.ok(vaultPath, "KAGI_E2E_VAULT must be set by the WDIO configuration");
+    assert.ok(vaultPath, "HITSU_E2E_VAULT must be set by the WDIO configuration");
 
     const setupError = await browser.execute(
       async (path, masterPassword) => {

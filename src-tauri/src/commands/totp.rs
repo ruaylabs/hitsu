@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use zeroize::Zeroizing;
 
-use crate::error::{KagiError, KagiResult};
+use crate::error::{HitsuError, HitsuResult};
 use crate::state::AppState;
 
 /// Result of a TOTP computation, returned to the frontend.
@@ -21,25 +21,25 @@ pub struct TotpCode {
 }
 
 #[tauri::command]
-pub async fn totp_compute(state: State<'_, AppState>, id: String) -> KagiResult<TotpCode> {
+pub async fn totp_compute(state: State<'_, AppState>, id: String) -> HitsuResult<TotpCode> {
     let uri = {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_ref = super::entries::find_entry_ref(&vault.db, &id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         Zeroizing::new(
             super::entries::read_totp_seed(&entry_ref)
-                .ok_or_else(|| KagiError::Custom("Entry has no TOTP configured".into()))?,
+                .ok_or_else(|| HitsuError::Custom("Entry has no TOTP configured".into()))?,
         )
     };
 
-    let totp: keepass::db::TOTP = uri
-        .parse()
-        .map_err(|e: keepass::db::TOTPError| KagiError::Custom(format!("Invalid TOTP URI: {e}")))?;
+    let totp: keepass::db::TOTP = uri.parse().map_err(|e: keepass::db::TOTPError| {
+        HitsuError::Custom(format!("Invalid TOTP URI: {e}"))
+    })?;
 
     let code = totp
         .value_now()
-        .map_err(|e| KagiError::Custom(format!("Clock error: {e}")))?;
+        .map_err(|e| HitsuError::Custom(format!("Clock error: {e}")))?;
 
     let remaining = code.valid_for.as_secs();
     let period = code.period.as_secs();

@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::Deserialize;
 
-use crate::error::KagiResult;
+use crate::error::HitsuResult;
 
 const UPPERCASE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWERCASE: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
@@ -22,7 +22,7 @@ pub struct PasswordOptions {
 }
 
 #[tauri::command]
-pub async fn generate_password(opts: PasswordOptions) -> KagiResult<String> {
+pub async fn generate_password(opts: PasswordOptions) -> HitsuResult<String> {
     let length = opts.length.clamp(8, 100) as usize;
 
     let mut classes: Vec<Vec<u8>> = Vec::new();
@@ -54,7 +54,7 @@ pub async fn generate_password(opts: PasswordOptions) -> KagiResult<String> {
 
     let charset: Vec<u8> = classes.concat();
     if charset.is_empty() {
-        return Err(crate::error::KagiError::Custom(
+        return Err(crate::error::HitsuError::Custom(
             "No characters available after filtering".into(),
         ));
     }

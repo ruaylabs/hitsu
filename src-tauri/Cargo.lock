@@ -1673,6 +1673,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
+name = "hitsu"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "base64 0.22.1",
+ "block2",
+ "chrono",
+ "keepass",
+ "libc",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "parking_lot",
+ "percent-encoding",
+ "rand",
+ "rust-argon2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subtle",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "thiserror 1.0.69",
+ "tokio",
+ "url",
+ "uuid",
+ "zbus",
+ "zeroize",
+]
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2119,38 +2151,6 @@ checksum = "5dea2b27dd239b2556ed7a25ba842fe47fd602e7fc7433c2a8d6106d4d9edd70"
 dependencies = [
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "kagi"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "base64 0.22.1",
- "block2",
- "chrono",
- "keepass",
- "libc",
- "objc2-app-kit",
- "objc2-foundation",
- "parking_lot",
- "percent-encoding",
- "rand",
- "rust-argon2",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "subtle",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "thiserror 1.0.69",
- "tokio",
- "url",
- "uuid",
- "zbus",
- "zeroize",
 ]
 
 [[package]]

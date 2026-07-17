@@ -75,7 +75,7 @@ jobs:
       - name: Prepare native host sidecar
         run: node scripts/prepare-native-host.mjs
 
-      - name: Check Kagi formatting
+      - name: Check Hitsu formatting
         working-directory: src-tauri
         run: cargo fmt --check
 
@@ -83,7 +83,7 @@ jobs:
         working-directory: chrome-extension/native-host
         run: cargo fmt --check
 
-      - name: Lint Kagi
+      - name: Lint Hitsu
         working-directory: src-tauri
         run: cargo clippy -- -D warnings
 
@@ -91,11 +91,11 @@ jobs:
         working-directory: chrome-extension/native-host
         run: cargo clippy -- -D warnings
 
-      - name: Build Kagi
+      - name: Build Hitsu
         working-directory: src-tauri
         run: cargo build
 
-      - name: Test Kagi
+      - name: Test Hitsu
         working-directory: src-tauri
         run: cargo test
 

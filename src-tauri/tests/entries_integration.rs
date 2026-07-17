@@ -18,13 +18,13 @@ use std::io::Cursor;
 
 use sha2::{Digest, Sha256};
 
-use kagi_lib::commands::entries::{
+use hitsu_lib::commands::entries::{
     build_entry_summaries, build_folder_summaries, entry_create, entry_delete,
     entry_delete_permanent, entry_discard, entry_get, entry_move, entry_restore,
     entry_reveal_field, entry_update, folder_create, folder_rename,
 };
-use kagi_lib::models::{EntryDraft, EntryPatch, EntrySummary, ItemType, SecretField};
-use kagi_lib::state::{AppState, OpenVault};
+use hitsu_lib::models::{EntryDraft, EntryPatch, EntrySummary, ItemType, SecretField};
+use hitsu_lib::state::{AppState, OpenVault};
 use keepass::db::Value;
 
 /// Construct an EntryPatch without struct-update syntax (Drop doesn't allow it).
@@ -88,7 +88,7 @@ impl Drop for TestVault {
 
 /// Build a headless app with a managed `AppState` containing one fresh vault.
 fn setup() -> TestVault {
-    let dir = std::env::temp_dir().join(format!("kagi-it-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("hitsu-it-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("vault.kdbx");
 

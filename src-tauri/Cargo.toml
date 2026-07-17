@@ -1,12 +1,12 @@
 [package]
-name = "kagi"
+name = "hitsu"
 version = "0.1.0"
-description = "Kagi — native desktop password manager"
+description = "Hitsu — native desktop password manager"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "kagi_lib"
+name = "hitsu_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

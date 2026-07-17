@@ -4,7 +4,7 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use zeroize::Zeroizing;
 
-use crate::error::KagiResult;
+use crate::error::HitsuResult;
 
 /// Monotonic token for clipboard writes performed by this app.
 ///
@@ -34,9 +34,9 @@ fn should_clear_secret(
 /// Shared helper: copy `value` to the system clipboard with platform-specific
 /// exclusion hints so clipboard managers / history / cloud sync don't capture
 /// the secret.
-fn set_clipboard(value: &str) -> KagiResult<()> {
+fn set_clipboard(value: &str) -> HitsuResult<()> {
     let mut cb = arboard::Clipboard::new()
-        .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
+        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
 
     let mut set = cb.set();
 
@@ -65,13 +65,13 @@ fn set_clipboard(value: &str) -> KagiResult<()> {
     }
 
     set.text(value)
-        .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
+        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn clipboard_copy(value: String) -> KagiResult<()> {
+pub async fn clipboard_copy(value: String) -> HitsuResult<()> {
     let _guard = CLIPBOARD_LOCK.lock();
     set_clipboard(&value)?;
     mark_clipboard_write();
@@ -81,7 +81,7 @@ pub async fn clipboard_copy(value: String) -> KagiResult<()> {
 /// Copy a secret with exclusion hints and (when `timeout_secs > 0`) a
 /// spawned auto-clear task. Shared by the IPC command below and
 /// `entry_copy_field`, whose values are read backend-side and never cross IPC.
-pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> KagiResult<()> {
+pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> HitsuResult<()> {
     let generation = {
         let _guard = CLIPBOARD_LOCK.lock();
         set_clipboard(&secret)?;
@@ -111,7 +111,7 @@ pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> KagiR
 }
 
 #[tauri::command]
-pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> KagiResult<()> {
+pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> HitsuResult<()> {
     copy_secret(Zeroizing::new(value), timeout_secs)
 }
 
@@ -128,12 +128,12 @@ pub fn clear_clipboard_sync() {
 
 /// Async clipboard clear with proper error reporting for frontend IPC.
 #[tauri::command]
-pub async fn clipboard_clear() -> KagiResult<()> {
+pub async fn clipboard_clear() -> HitsuResult<()> {
     let _guard = CLIPBOARD_LOCK.lock();
     let mut cb = arboard::Clipboard::new()
-        .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
+        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
     cb.clear()
-        .map_err(|e| crate::error::KagiError::Custom(format!("Clipboard error: {}", e)))?;
+        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
     mark_clipboard_write();
     Ok(())
 }

@@ -1,4 +1,4 @@
-# Kagi
+# Hitsu
 
 Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
@@ -93,7 +93,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 | KDBX3   | ❌   | ❌                     |
 | KDB     | ❌   | ❌                     |
 
-KDBX4.0 vaults are upgraded to KDBX4.1 on first save. Kagi currently requires an
+KDBX4.0 vaults are upgraded to KDBX4.1 on first save. Hitsu currently requires an
 Argon2/Argon2id KDF; legacy AES-KDF vaults must be upgraded in KeePassXC first.
 Written vaults remain compatible with KeePassXC and KeePass 2.x.
 
@@ -153,7 +153,7 @@ src-tauri/        # Rust backend
 - Decrypted vault data lives in process memory while unlocked; `vault_lock` drops the
   `Database` and zeroizes the master key buffer, but heap memory is not explicitly
   scrubbed after drop.
-- Kagi validates Argon2/Argon2id parameters on open and rejects AES-KDF vaults.
+- Hitsu validates Argon2/Argon2id parameters on open and rejects AES-KDF vaults.
   It does not currently expose cipher or KDF configuration controls.
 - Memory locking (`mlock`/`mprotect`) is not implemented — sensitive pages may be
   written to swap. Use encrypted swap or full-disk encryption.

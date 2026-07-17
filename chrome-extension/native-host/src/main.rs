@@ -8,7 +8,7 @@ const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 
 #[cfg(unix)]
 fn socket_path() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("kagi-browser-{}.sock", unsafe { libc::geteuid() }))
+    std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
 }
 
 #[cfg(unix)]
@@ -23,7 +23,7 @@ fn main() {
 fn main() {
     let response = serde_json::json!({
         "ok": false,
-        "error": "Kagi browser integration is not supported on this platform"
+        "error": "Hitsu browser integration is not supported on this platform"
     });
     let bytes = serde_json::to_vec(&response).unwrap_or_default();
     let _ = std::io::Write::write_all(&mut std::io::stdout(), &(bytes.len() as u32).to_ne_bytes());
@@ -34,22 +34,22 @@ fn main() {
 fn run() -> Result<(), String> {
     let request = read_native_message()?;
     let mut stream = UnixStream::connect(socket_path())
-        .map_err(|_| "Open and unlock the Kagi desktop app first".to_string())?;
+        .map_err(|_| "Open and unlock the Hitsu desktop app first".to_string())?;
     stream
         .write_all(&request)
         .and_then(|_| stream.write_all(b"\n"))
-        .map_err(|_| "Could not contact Kagi".to_string())?;
+        .map_err(|_| "Could not contact Hitsu".to_string())?;
 
     let mut response = Vec::new();
     BufReader::new(stream)
         .take(MAX_MESSAGE_BYTES as u64)
         .read_until(b'\n', &mut response)
-        .map_err(|_| "Could not read Kagi's response".to_string())?;
+        .map_err(|_| "Could not read Hitsu's response".to_string())?;
     if response.last() == Some(&b'\n') {
         response.pop();
     }
     let response: serde_json::Value =
-        serde_json::from_slice(&response).map_err(|_| "Kagi returned an invalid response")?;
+        serde_json::from_slice(&response).map_err(|_| "Hitsu returned an invalid response")?;
     write_native_message(&response)
 }
 

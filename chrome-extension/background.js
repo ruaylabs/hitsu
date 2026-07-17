@@ -1,4 +1,4 @@
-const NATIVE_HOST = "com.ruaylabs.kagi.browser";
+const NATIVE_HOST = "com.ruaylabs.hitsu.browser";
 
 function nativeMessage(message) {
   return new Promise((resolve, reject) => {
@@ -6,7 +6,7 @@ function nativeMessage(message) {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
       } else if (!response?.ok) {
-        reject(new Error(response?.error ?? "Kagi did not respond"));
+        reject(new Error(response?.error ?? "Hitsu did not respond"));
       } else {
         resolve(response);
       }

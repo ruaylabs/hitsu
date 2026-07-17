@@ -9,10 +9,10 @@
 
 use std::io::Cursor;
 
-use kagi_lib::commands::entries::build_entry_summaries;
-use kagi_lib::commands::vault::{vault_create, vault_open, vault_refresh_if_changed};
-use kagi_lib::models::EntrySummary;
-use kagi_lib::state::AppState;
+use hitsu_lib::commands::entries::build_entry_summaries;
+use hitsu_lib::commands::vault::{vault_create, vault_open, vault_refresh_if_changed};
+use hitsu_lib::models::EntrySummary;
+use hitsu_lib::state::AppState;
 use keepass::db::fields;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Manager;
@@ -76,7 +76,7 @@ fn write_vault_one(path: &std::path::Path, title: &str) {
 }
 
 fn setup() -> Fixture {
-    let dir = std::env::temp_dir().join(format!("kagi-vault-replace-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("hitsu-vault-replace-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     let path_a = dir.join("a.kdbx");
     let path_b = dir.join("b.kdbx");

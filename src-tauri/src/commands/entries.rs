@@ -2,7 +2,7 @@ use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, GroupId, Val
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::error::{KagiError, KagiResult};
+use crate::error::{HitsuError, HitsuResult};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryEditPayload, EntryPatch,
     EntrySummary, FolderSummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields,
@@ -354,18 +354,33 @@ fn read_custom_data_string(entry: &keepass::db::Entry, key: &str) -> Option<Stri
     })
 }
 
+const ITEM_TYPE_KEY: &str = "hitsu.itemType";
+const LEGACY_ITEM_TYPE_KEY: &str = "kagi.itemType";
+const FAVORITE_KEY: &str = "hitsu.favorite";
+const LEGACY_FAVORITE_KEY: &str = "kagi.favorite";
+
+fn read_current_or_legacy_custom_data(
+    entry: &keepass::db::Entry,
+    current_key: &str,
+    legacy_key: &str,
+) -> Option<String> {
+    read_custom_data_string(entry, current_key)
+        .or_else(|| read_custom_data_string(entry, legacy_key))
+}
+
 fn read_item_type(entry: &keepass::db::Entry) -> ItemType {
-    read_custom_data_string(entry, "kagi.itemType")
+    read_current_or_legacy_custom_data(entry, ITEM_TYPE_KEY, LEGACY_ITEM_TYPE_KEY)
         .map(|v| ItemType::from_db_value(&v))
         .unwrap_or(ItemType::Login)
 }
 
 fn read_icon_hint(entry: &keepass::db::Entry) -> Option<String> {
-    read_custom_data_string(entry, "kagi.iconHint")
+    read_custom_data_string(entry, "hitsu.iconHint")
 }
 
 fn read_favorite(entry: &keepass::db::Entry) -> bool {
-    read_custom_data_string(entry, "kagi.favorite").is_some_and(|v| v == "true")
+    read_current_or_legacy_custom_data(entry, FAVORITE_KEY, LEGACY_FAVORITE_KEY)
+        .is_some_and(|v| v == "true")
 }
 
 const CUSTOM_FIELD_PREFIX: &str = "custom.";
@@ -416,32 +431,32 @@ fn build_entry_edit_payload(entry: &keepass::db::Entry) -> EntryEditPayload {
     }
 }
 
-fn parse_entry_id(id: &str) -> KagiResult<EntryId> {
+fn parse_entry_id(id: &str) -> HitsuResult<EntryId> {
     uuid::Uuid::parse_str(id)
         .map(EntryId::from_uuid)
-        .map_err(|_| KagiError::EntryNotFound(id.to_string()))
+        .map_err(|_| HitsuError::EntryNotFound(id.to_string()))
 }
 
-fn folder_destination(db: &keepass::Database, folder_id: &str) -> KagiResult<GroupId> {
+fn folder_destination(db: &keepass::Database, folder_id: &str) -> HitsuResult<GroupId> {
     if folder_id.is_empty() {
         return Ok(db.root().id());
     }
     let id = uuid::Uuid::parse_str(folder_id)
         .map(GroupId::from_uuid)
-        .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+        .map_err(|_| HitsuError::Custom("Folder not found".into()))?;
     if db.group(id).is_none() || group_is_in_recycle_bin(db, id) {
-        return Err(KagiError::Custom("Folder not found".into()));
+        return Err(HitsuError::Custom("Folder not found".into()));
     }
     Ok(id)
 }
 
-fn validate_folder_name(name: &str) -> KagiResult<String> {
+fn validate_folder_name(name: &str) -> HitsuResult<String> {
     let name = name.trim();
     if name.is_empty() {
-        return Err(KagiError::Custom("Folder name cannot be empty".into()));
+        return Err(HitsuError::Custom("Folder name cannot be empty".into()));
     }
     if name.len() > 255 {
-        return Err(KagiError::Custom("Folder name is too long".into()));
+        return Err(HitsuError::Custom("Folder name is too long".into()));
     }
     Ok(name.to_string())
 }
@@ -455,7 +470,7 @@ pub(crate) fn find_entry_ref<'a>(
 }
 
 /// Ensure the database has a KeePass-compatible recycle-bin group.
-/// New Kagi vaults call this eagerly; imported vaults are upgraded lazily on
+/// New Hitsu vaults call this eagerly; imported vaults are upgraded lazily on
 /// their first deletion if their recycle-bin metadata is absent or stale.
 pub(crate) fn ensure_recycle_bin(db: &mut keepass::Database) -> GroupId {
     if let Some(id) = db.meta.recyclebin_uuid.map(GroupId::from_uuid) {
@@ -479,10 +494,10 @@ pub(crate) fn ensure_recycle_bin(db: &mut keepass::Database) -> GroupId {
 }
 
 /// Remove an entry by UUID string permanently.
-fn remove_entry(db: &mut keepass::Database, id: &str) -> KagiResult<()> {
+fn remove_entry(db: &mut keepass::Database, id: &str) -> HitsuResult<()> {
     let em = db
         .entry_mut(parse_entry_id(id)?)
-        .ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+        .ok_or_else(|| HitsuError::EntryNotFound(id.to_string()))?;
     em.remove();
     Ok(())
 }
@@ -522,8 +537,8 @@ async fn save_snapshot(
     key: keepass::DatabaseKey,
     path: std::path::PathBuf,
     expected_disk_hash: [u8; 32],
-) -> KagiResult<[u8; 32]> {
-    tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+) -> HitsuResult<[u8; 32]> {
+    tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
         crate::vault::ensure_unmodified(&path, &expected_disk_hash)?;
         let mut buf = std::io::Cursor::new(Vec::new());
         db.save(&mut buf, key)?;
@@ -532,7 +547,7 @@ async fn save_snapshot(
         Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
-    .map_err(KagiError::from_join)?
+    .map_err(HitsuError::from_join)?
 }
 
 fn set_kdbx_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
@@ -570,13 +585,13 @@ fn set_custom_data(entry: &mut keepass::db::Entry, key: &str, value: Option<&str
 }
 
 #[tauri::command]
-pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Entry> {
+pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
     let vaults = state.vaults.lock();
 
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
 
     let entry_ref =
-        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
     let trashed = entry_is_trashed(&vault.db, &entry_ref);
     let folder_id = entry_folder_id(&entry_ref, trashed);
     let mut entry = map_entry_to_full(&entry_ref, trashed, folder_id);
@@ -585,9 +600,9 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> KagiResult<Ent
 }
 
 #[tauri::command]
-pub async fn entries_search(state: State<'_, AppState>, query: String) -> KagiResult<Vec<String>> {
+pub async fn entries_search(state: State<'_, AppState>, query: String) -> HitsuResult<Vec<String>> {
     let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
     Ok(vault
         .db
         .iter_all_entries()
@@ -600,11 +615,11 @@ pub async fn entries_search(state: State<'_, AppState>, query: String) -> KagiRe
 pub async fn entry_edit_payload(
     state: State<'_, AppState>,
     id: String,
-) -> KagiResult<EntryEditPayload> {
+) -> HitsuResult<EntryEditPayload> {
     let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
     let entry_ref =
-        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
     Ok(build_entry_edit_payload(&entry_ref))
 }
 
@@ -613,10 +628,10 @@ pub async fn entry_create(
     state: State<'_, AppState>,
     item_type: String,
     mut draft: EntryDraft,
-) -> KagiResult<Entry> {
+) -> HitsuResult<Entry> {
     let mut vaults = state.vaults.lock();
 
-    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
     let entry_id = EntryId::from_uuid(uuid::Uuid::new_v4());
     let id = entry_id.uuid().to_string();
@@ -625,7 +640,7 @@ pub async fn entry_create(
         let mut root = vault.db.root_mut();
         let mut em = root
             .add_entry_with_id(entry_id)
-            .map_err(|_| KagiError::Custom("Duplicate entry ID (should not happen)".into()))?;
+            .map_err(|_| HitsuError::Custom("Duplicate entry ID (should not happen)".into()))?;
 
         em.set_unprotected(fields::TITLE, &draft.title);
         if let Some(ref u) = draft.username {
@@ -645,8 +660,8 @@ pub async fn entry_create(
             write_totp_seed(&mut em, t);
         }
 
-        set_custom_data(&mut em, "kagi.itemType", Some(&item_type));
-        set_custom_data(&mut em, "kagi.favorite", Some("false"));
+        set_custom_data(&mut em, ITEM_TYPE_KEY, Some(&item_type));
+        set_custom_data(&mut em, FAVORITE_KEY, Some("false"));
 
         let now = chrono::Utc::now().naive_utc();
         em.times.creation = Some(now);
@@ -694,7 +709,7 @@ pub async fn entry_update(
     state: State<'_, AppState>,
     id: String,
     patch: EntryPatch,
-) -> KagiResult<Entry> {
+) -> HitsuResult<Entry> {
     validate_custom_fields(&patch)?;
     validate_expiration(&patch)?;
     // Take the writer lock before mutating so no other save can interleave
@@ -704,7 +719,7 @@ pub async fn entry_update(
     let (updated, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
 
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
         let entry_id = parse_entry_id(&id)?;
 
@@ -712,7 +727,7 @@ pub async fn entry_update(
             let mut em = vault
                 .db
                 .entry_mut(entry_id)
-                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
             // Use edit_tracking to automatically push the prior state into history
             em.edit_tracking(|tracked| {
@@ -726,7 +741,7 @@ pub async fn entry_update(
         let entry_ref = vault
             .db
             .entry(entry_id)
-            .ok_or(KagiError::EntryNotFound(id))?;
+            .ok_or(HitsuError::EntryNotFound(id))?;
         let trashed = entry_is_trashed(&vault.db, &entry_ref);
         let folder_id = entry_folder_id(&entry_ref, trashed);
         let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
@@ -810,11 +825,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
         entry.tags = v.clone();
     }
     if let Some(v) = patch.favorite {
-        set_custom_data(
-            entry,
-            "kagi.favorite",
-            Some(if v { "true" } else { "false" }),
-        );
+        set_custom_data(entry, FAVORITE_KEY, Some(if v { "true" } else { "false" }));
     }
 
     apply_opt(entry, "identity.firstName", &patch.first_name);
@@ -900,7 +911,7 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     }
 }
 
-fn validate_expiration(patch: &EntryPatch) -> KagiResult<()> {
+fn validate_expiration(patch: &EntryPatch) -> HitsuResult<()> {
     let Some(expires_at) = patch
         .expires_at
         .as_deref()
@@ -910,15 +921,15 @@ fn validate_expiration(patch: &EntryPatch) -> KagiResult<()> {
     };
     chrono::NaiveDate::parse_from_str(expires_at, "%Y-%m-%d")
         .map(|_| ())
-        .map_err(|_| KagiError::Custom("Expiration date must use YYYY-MM-DD".into()))
+        .map_err(|_| HitsuError::Custom("Expiration date must use YYYY-MM-DD".into()))
 }
 
-fn validate_custom_fields(patch: &EntryPatch) -> KagiResult<()> {
+fn validate_custom_fields(patch: &EntryPatch) -> HitsuResult<()> {
     let Some(custom_fields) = &patch.custom_fields else {
         return Ok(());
     };
     if custom_fields.len() > 64 {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "An entry cannot have more than 64 custom fields".into(),
         ));
     }
@@ -926,15 +937,15 @@ fn validate_custom_fields(patch: &EntryPatch) -> KagiResult<()> {
     for field in custom_fields {
         let name = field.name.trim();
         if name.is_empty() {
-            return Err(KagiError::Custom(
+            return Err(HitsuError::Custom(
                 "Custom field names cannot be empty".into(),
             ));
         }
         if name.len() > 255 {
-            return Err(KagiError::Custom("Custom field name is too long".into()));
+            return Err(HitsuError::Custom("Custom field name is too long".into()));
         }
         if !names.insert(name.to_lowercase()) {
-            return Err(KagiError::Custom(format!(
+            return Err(HitsuError::Custom(format!(
                 "Custom field names must be unique: {name}"
             )));
         }
@@ -947,20 +958,20 @@ pub async fn folder_create(
     state: State<'_, AppState>,
     parent_id: Option<String>,
     name: String,
-) -> KagiResult<FolderSummary> {
+) -> HitsuResult<FolderSummary> {
     let _save_guard = state.save_lock.lock().await;
     let name = validate_folder_name(&name)?;
 
     let (folder, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
         let destination = folder_destination(&vault.db, parent_id.as_deref().unwrap_or(""))?;
         let root_id = vault.db.root().id();
         let folder = {
             let mut parent = vault
                 .db
                 .group_mut(destination)
-                .ok_or_else(|| KagiError::Custom("Folder not found".into()))?;
+                .ok_or_else(|| HitsuError::Custom("Folder not found".into()))?;
             let mut group = parent.add_group();
             group.name = name.clone();
             FolderSummary {
@@ -983,21 +994,21 @@ pub async fn folder_rename(
     state: State<'_, AppState>,
     id: String,
     name: String,
-) -> KagiResult<FolderSummary> {
+) -> HitsuResult<FolderSummary> {
     let _save_guard = state.save_lock.lock().await;
     let name = validate_folder_name(&name)?;
 
     let (folder, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
         let folder_id = uuid::Uuid::parse_str(&id)
             .map(GroupId::from_uuid)
-            .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+            .map_err(|_| HitsuError::Custom("Folder not found".into()))?;
         if folder_id == vault.db.root().id()
             || vault.db.group(folder_id).is_none()
             || group_is_in_recycle_bin(&vault.db, folder_id)
         {
-            return Err(KagiError::Custom("Folder not found".into()));
+            return Err(HitsuError::Custom("Folder not found".into()));
         }
         let root_id = vault.db.root().id();
         let parent_id = vault.db.group(folder_id).and_then(|group| {
@@ -1010,7 +1021,7 @@ pub async fn folder_rename(
             let mut group = vault
                 .db
                 .group_mut(folder_id)
-                .ok_or_else(|| KagiError::Custom("Folder not found".into()))?;
+                .ok_or_else(|| HitsuError::Custom("Folder not found".into()))?;
             group.name = name.clone();
             group.times.last_modification = Some(chrono::Utc::now().naive_utc());
         }
@@ -1033,20 +1044,20 @@ pub async fn entry_move(
     state: State<'_, AppState>,
     id: String,
     folder_id: Option<String>,
-) -> KagiResult<Entry> {
+) -> HitsuResult<Entry> {
     let _save_guard = state.save_lock.lock().await;
 
     let (updated, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_id = parse_entry_id(&id)?;
         let destination = folder_destination(&vault.db, folder_id.as_deref().unwrap_or(""))?;
         let entry_ref = vault
             .db
             .entry(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         if entry_is_trashed(&vault.db, &entry_ref) {
-            return Err(KagiError::Custom(
+            return Err(HitsuError::Custom(
                 "Entries in the Recycle Bin cannot be moved".into(),
             ));
         }
@@ -1054,10 +1065,10 @@ pub async fn entry_move(
         let mut entry = vault
             .db
             .entry_mut(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry
             .move_to(destination)
-            .map_err(|_| KagiError::Custom("Folder not found".into()))?;
+            .map_err(|_| HitsuError::Custom("Folder not found".into()))?;
         let now = chrono::Utc::now().naive_utc();
         entry.times.location_changed = Some(now);
         entry.times.last_modification = Some(now);
@@ -1065,7 +1076,7 @@ pub async fn entry_move(
         let entry_ref = vault
             .db
             .entry(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         let folder_id = entry_folder_id(&entry_ref, false);
         let mut updated = map_entry_to_full(&entry_ref, false, folder_id);
         updated.attachments = read_attachments(&entry_ref);
@@ -1079,31 +1090,31 @@ pub async fn entry_move(
 }
 
 #[tauri::command]
-pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+pub async fn entry_delete(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
         let recycle_id = ensure_recycle_bin(&mut vault.db);
         let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
             .db
             .entry(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         if entry_is_trashed(&vault.db, &entry_ref) {
-            return Err(KagiError::Custom(
+            return Err(HitsuError::Custom(
                 "Entry is already in the Recycle Bin".into(),
             ));
         }
         let mut entry = vault
             .db
             .entry_mut(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry
             .move_to(recycle_id)
-            .map_err(|_| KagiError::Custom("Recycle Bin is unavailable".into()))?;
+            .map_err(|_| HitsuError::Custom("Recycle Bin is unavailable".into()))?;
         entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
         snapshot_for_save(vault)
     };
@@ -1114,19 +1125,19 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> KagiResult<
 }
 
 #[tauri::command]
-pub async fn entry_restore(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+pub async fn entry_restore(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
             .db
             .entry(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         if !entry_is_trashed(&vault.db, &entry_ref) {
-            return Err(KagiError::Custom("Entry is not in the Recycle Bin".into()));
+            return Err(HitsuError::Custom("Entry is not in the Recycle Bin".into()));
         }
         let root_id = vault.db.root().id();
         let destination = entry_ref
@@ -1137,10 +1148,10 @@ pub async fn entry_restore(state: State<'_, AppState>, id: String) -> KagiResult
         let mut entry = vault
             .db
             .entry_mut(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry
             .move_to(destination)
-            .map_err(|_| KagiError::Custom("Original group is unavailable".into()))?;
+            .map_err(|_| HitsuError::Custom("Original group is unavailable".into()))?;
         entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
         snapshot_for_save(vault)
     };
@@ -1151,16 +1162,16 @@ pub async fn entry_restore(state: State<'_, AppState>, id: String) -> KagiResult
 }
 
 #[tauri::command]
-pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_ref =
-            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         if !entry_is_trashed(&vault.db, &entry_ref) {
-            return Err(KagiError::Custom(
+            return Err(HitsuError::Custom(
                 "Only entries in the Recycle Bin can be permanently deleted".into(),
             ));
         }
@@ -1177,10 +1188,10 @@ pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> K
 /// without writing to disk. Used when the user cancels creation of an entry
 /// that `entry_create` added to memory but never saved.
 #[tauri::command]
-pub async fn entry_discard(state: State<'_, AppState>, id: String) -> KagiResult<()> {
+pub async fn entry_discard(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
     let mut vaults = state.vaults.lock();
 
-    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
     remove_entry(&mut vault.db, &id)?;
     // Intentionally no save_vault(): the entry was never on disk.
@@ -1194,9 +1205,9 @@ fn read_secret_value(
     id: &str,
     field: SecretField,
     version: Option<u32>,
-) -> KagiResult<String> {
+) -> HitsuResult<String> {
     let entry_ref =
-        find_entry_ref(&vault.db, id).ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+        find_entry_ref(&vault.db, id).ok_or_else(|| HitsuError::EntryNotFound(id.to_string()))?;
 
     let read = |e: &keepass::db::Entry| -> Option<String> {
         match field {
@@ -1216,11 +1227,11 @@ fn read_secret_value(
             let history = entry_ref
                 .history
                 .as_ref()
-                .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+                .ok_or_else(|| HitsuError::Custom("No history for this entry".into()))?;
             let history_entry = history
                 .get_entries()
                 .get(v as usize)
-                .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", v)))?;
+                .ok_or_else(|| HitsuError::Custom(format!("Version {} not found in history", v)))?;
             read(history_entry)
         }
     };
@@ -1240,9 +1251,9 @@ pub async fn entry_reveal_field(
     id: String,
     field: SecretField,
     version: Option<u32>,
-) -> KagiResult<String> {
+) -> HitsuResult<String> {
     let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
     read_secret_value(vault, &id, field, version)
 }
 
@@ -1255,23 +1266,23 @@ pub async fn entry_copy_field(
     field: SecretField,
     timeout_secs: u64,
     version: Option<u32>,
-) -> KagiResult<()> {
+) -> HitsuResult<()> {
     let value = {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         zeroize::Zeroizing::new(read_secret_value(vault, &id, field, version)?)
     }; // lock released before touching the clipboard
     super::clipboard::copy_secret(value, timeout_secs)
 }
 
-fn read_custom_field_value(vault: &OpenVault, id: &str, name: &str) -> KagiResult<String> {
+fn read_custom_field_value(vault: &OpenVault, id: &str, name: &str) -> HitsuResult<String> {
     let entry =
-        find_entry_ref(&vault.db, id).ok_or_else(|| KagiError::EntryNotFound(id.to_string()))?;
+        find_entry_ref(&vault.db, id).ok_or_else(|| HitsuError::EntryNotFound(id.to_string()))?;
     entry
         .fields
         .get(&custom_field_storage_name(name))
         .map(|value| value.get().clone())
-        .ok_or_else(|| KagiError::Custom("Custom field not found".into()))
+        .ok_or_else(|| HitsuError::Custom("Custom field not found".into()))
 }
 
 #[tauri::command]
@@ -1279,9 +1290,9 @@ pub async fn entry_reveal_custom_field(
     state: State<'_, AppState>,
     id: String,
     name: String,
-) -> KagiResult<String> {
+) -> HitsuResult<String> {
     let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
     read_custom_field_value(vault, &id, &name)
 }
 
@@ -1291,10 +1302,10 @@ pub async fn entry_copy_custom_field(
     id: String,
     name: String,
     timeout_secs: u64,
-) -> KagiResult<()> {
+) -> HitsuResult<()> {
     let value = {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         zeroize::Zeroizing::new(read_custom_field_value(vault, &id, &name)?)
     };
     super::clipboard::copy_secret(value, timeout_secs)
@@ -1308,18 +1319,18 @@ fn sort_history_revisions_newest_first(revisions: &mut [HistoryEntrySummary]) {
 pub async fn entry_history_list(
     state: State<'_, AppState>,
     id: String,
-) -> KagiResult<Vec<HistoryEntrySummary>> {
+) -> HitsuResult<Vec<HistoryEntrySummary>> {
     let vaults = state.vaults.lock();
 
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
 
     let entry_ref =
-        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
     let history = entry_ref
         .history
         .as_ref()
-        .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+        .ok_or_else(|| HitsuError::Custom("No history for this entry".into()))?;
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -1353,23 +1364,23 @@ pub async fn entry_history_get(
     state: State<'_, AppState>,
     id: String,
     version: u32,
-) -> KagiResult<Entry> {
+) -> HitsuResult<Entry> {
     let vaults = state.vaults.lock();
 
-    let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
 
     let entry_ref =
-        find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+        find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
     let history = entry_ref
         .history
         .as_ref()
-        .ok_or_else(|| KagiError::Custom("No history for this entry".into()))?;
+        .ok_or_else(|| HitsuError::Custom("No history for this entry".into()))?;
 
     let history_entry = history
         .get_entries()
         .get(version as usize)
-        .ok_or_else(|| KagiError::Custom(format!("Version {} not found in history", version)))?;
+        .ok_or_else(|| HitsuError::Custom(format!("Version {} not found in history", version)))?;
 
     let mut result =
         map_entry_to_full(history_entry, entry_is_trashed(&vault.db, &entry_ref), None);
@@ -1393,17 +1404,17 @@ fn safe_attachment_file_name(name: &str) -> String {
     }
 }
 
-fn write_attachment_file(path: &std::path::Path, data: &[u8]) -> KagiResult<()> {
+fn write_attachment_file(path: &std::path::Path, data: &[u8]) -> HitsuResult<()> {
     // Refuse an existing symlink rather than following it to an unrelated
     // user file. The native dialog already handles normal overwrite
     // confirmation for regular files.
     if std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink()) {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "Refusing to save an attachment through a symbolic link".into(),
         ));
     }
     std::fs::write(path, data)
-        .map_err(|e| KagiError::Custom(format!("Failed to write file: {e}")))?;
+        .map_err(|e| HitsuError::Custom(format!("Failed to write file: {e}")))?;
     Ok(())
 }
 
@@ -1417,18 +1428,18 @@ pub async fn entry_attachment_save(
     state: State<'_, AppState>,
     id: String,
     name: String,
-) -> KagiResult<Option<u64>> {
+) -> HitsuResult<Option<u64>> {
     // Validate before opening a dialog, but do not clone the attachment data
     // yet: it may be large or sensitive, and the dialog can remain open for
     // an arbitrary amount of time.
     {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_ref =
-            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry_ref
             .attachment_by_name(&name)
-            .ok_or_else(|| KagiError::Custom(format!("Attachment not found: {name}")))?;
+            .ok_or_else(|| HitsuError::Custom(format!("Attachment not found: {name}")))?;
     }
 
     // Treat attachment names from imported vaults as untrusted. Supplying only
@@ -1446,36 +1457,36 @@ pub async fn entry_attachment_save(
     };
     let path = destination
         .into_path()
-        .map_err(|_| KagiError::Custom("The selected destination is not a local file".into()))?;
+        .map_err(|_| HitsuError::Custom("The selected destination is not a local file".into()))?;
 
     // Re-read only after the user approves the destination. If the vault was
     // locked while the dialog was open, fail instead of retaining stale data.
     let data = {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         let entry_ref =
-            find_entry_ref(&vault.db, &id).ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         let attachment = entry_ref
             .attachment_by_name(&name)
-            .ok_or_else(|| KagiError::Custom(format!("Attachment not found: {name}")))?;
+            .ok_or_else(|| HitsuError::Custom(format!("Attachment not found: {name}")))?;
         zeroize::Zeroizing::new(attachment.data.get().clone())
     };
     let bytes_written = data.len() as u64;
 
     tauri::async_runtime::spawn_blocking(move || write_attachment_file(&path, &data))
         .await
-        .map_err(KagiError::from_join)??;
+        .map_err(HitsuError::from_join)??;
 
     Ok(Some(bytes_written))
 }
 
 fn read_attachment_file(
     path: &std::path::Path,
-) -> KagiResult<(String, zeroize::Zeroizing<Vec<u8>>)> {
+) -> HitsuResult<(String, zeroize::Zeroizing<Vec<u8>>)> {
     let name = path
         .file_name()
         .map(|name| safe_attachment_file_name(&name.to_string_lossy()))
-        .ok_or_else(|| KagiError::Custom("The selected attachment has no file name".into()))?;
+        .ok_or_else(|| HitsuError::Custom("The selected attachment has no file name".into()))?;
     let data = zeroize::Zeroizing::new(std::fs::read(path)?);
     Ok((name, data))
 }
@@ -1489,18 +1500,18 @@ pub async fn entry_attachment_add(
     app: AppHandle,
     state: State<'_, AppState>,
     id: String,
-) -> KagiResult<Option<AttachmentMeta>> {
+) -> HitsuResult<Option<AttachmentMeta>> {
     let entry_id = parse_entry_id(&id)?;
 
     // Validate before opening a dialog. Revalidate after reading because the
     // vault may be locked or replaced while the dialog is open.
     {
         let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         vault
             .db
             .entry(entry_id)
-            .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
     }
 
     let Some(selected) = app.dialog().file().blocking_pick_file() else {
@@ -1508,24 +1519,24 @@ pub async fn entry_attachment_add(
     };
     let selected_path = selected
         .into_path()
-        .map_err(|_| KagiError::Custom("The selected attachment is not a local file".into()))?;
+        .map_err(|_| HitsuError::Custom("The selected attachment is not a local file".into()))?;
 
     let (name, mut data) =
         tauri::async_runtime::spawn_blocking(move || read_attachment_file(&selected_path))
             .await
-            .map_err(KagiError::from_join)??;
+            .map_err(HitsuError::from_join)??;
     let size_bytes = data.len() as u64;
 
     let _save_guard = state.save_lock.lock().await;
     let (meta, db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
         let meta = {
             let mut em = vault
                 .db
                 .entry_mut(entry_id)
-                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
             // Move the selected bytes into the database without leaving an
             // additional unsanitized buffer behind.
@@ -1554,13 +1565,13 @@ pub async fn entry_attachment_remove(
     state: State<'_, AppState>,
     id: String,
     name: String,
-) -> KagiResult<()> {
+) -> HitsuResult<()> {
     let _save_guard = state.save_lock.lock().await;
 
     let (db, key, path, expected_disk_hash) = {
         let mut vaults = state.vaults.lock();
 
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
         let entry_id = parse_entry_id(&id)?;
 
@@ -1568,7 +1579,7 @@ pub async fn entry_attachment_remove(
             let mut em = vault
                 .db
                 .entry_mut(entry_id)
-                .ok_or_else(|| KagiError::EntryNotFound(id.clone()))?;
+                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
             em.remove_attachment_by_name(&name);
             em.times.last_modification = Some(chrono::Utc::now().naive_utc());
@@ -1633,7 +1644,7 @@ mod tests {
         let error = parse_entry_id("not-an-entry-id").unwrap_err();
         assert!(matches!(
             error,
-            crate::error::KagiError::EntryNotFound(id) if id == "not-an-entry-id"
+            crate::error::HitsuError::EntryNotFound(id) if id == "not-an-entry-id"
         ));
     }
 
@@ -1800,6 +1811,51 @@ mod tests {
     }
 
     #[test]
+    fn reads_legacy_entry_metadata_and_prefers_current_values() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(entry_id)
+                .expect("duplicate entry id");
+            super::set_custom_data(&mut entry, "kagi.itemType", Some("card"));
+            super::set_custom_data(&mut entry, "kagi.favorite", Some("true"));
+        }
+
+        let entry = db.entry(entry_id).unwrap();
+        assert_eq!(super::read_item_type(&entry), ItemType::Card);
+        assert!(super::read_favorite(&entry));
+
+        {
+            let mut entry = db.entry_mut(entry_id).unwrap();
+            super::set_custom_data(&mut entry, "hitsu.itemType", Some("note"));
+            super::set_custom_data(&mut entry, "hitsu.favorite", Some("false"));
+        }
+
+        let entry = db.entry(entry_id).unwrap();
+        assert_eq!(super::read_item_type(&entry), ItemType::Note);
+        assert!(!super::read_favorite(&entry));
+    }
+
+    #[test]
+    fn favorite_updates_write_only_the_current_identifier() {
+        let mut db = keepass::Database::new();
+        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(entry_id)
+            .expect("duplicate entry id");
+        let mut patch = EntryPatch::default();
+        patch.favorite = Some(true);
+
+        apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
+
+        let entry = db.entry(entry_id).unwrap();
+        assert!(entry.custom_data.contains_key("hitsu.favorite"));
+        assert!(!entry.custom_data.contains_key("kagi.favorite"));
+    }
+
+    #[test]
     fn full_card_entry_keeps_masked_number_subtitle() {
         let mut db = keepass::Database::new();
         let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
@@ -1810,7 +1866,7 @@ mod tests {
                 .expect("duplicate entry id");
             entry.set_unprotected(keepass::db::fields::TITLE, "Visa");
             entry.set_protected("card.number", "4111111111111111");
-            super::set_custom_data(&mut entry, "kagi.itemType", Some("card"));
+            super::set_custom_data(&mut entry, "hitsu.itemType", Some("card"));
         }
 
         let mapped = map_entry_to_full(&db.entry(entry_id).unwrap(), false, None);
@@ -1828,7 +1884,7 @@ mod tests {
                 .add_entry_with_id(entry_id)
                 .expect("duplicate entry id");
             entry.set_unprotected(keepass::db::fields::TITLE, "Editor Pro");
-            super::set_custom_data(&mut entry, "kagi.itemType", Some("software_license"));
+            super::set_custom_data(&mut entry, "hitsu.itemType", Some("software_license"));
         }
 
         let mut patch = EntryPatch::default();
@@ -1860,7 +1916,7 @@ mod tests {
                 .add_entry_with_id(entry_id)
                 .expect("duplicate entry id");
             entry.set_unprotected(keepass::db::fields::TITLE, "US Passport");
-            super::set_custom_data(&mut entry, "kagi.itemType", Some("passport"));
+            super::set_custom_data(&mut entry, "hitsu.itemType", Some("passport"));
         }
 
         let mut patch = EntryPatch::default();
@@ -1923,7 +1979,7 @@ mod tests {
 
     #[test]
     fn attachment_file_read_returns_name_and_bytes() {
-        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-attachment-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("upload.txt");
         std::fs::write(&path, b"sensitive attachment").unwrap();
@@ -1937,7 +1993,7 @@ mod tests {
 
     #[test]
     fn attachment_file_write_creates_and_overwrites_regular_file() {
-        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-attachment-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("export.txt");
 
@@ -1955,7 +2011,7 @@ mod tests {
     fn attachment_file_write_refuses_symlink_without_touching_target() {
         use std::os::unix::fs::symlink;
 
-        let dir = std::env::temp_dir().join(format!("kagi-attachment-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-attachment-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let target = dir.join("target.txt");
         let link = dir.join("export.txt");

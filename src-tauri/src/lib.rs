@@ -67,11 +67,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            prefs::Preferences::migrate_legacy(app.handle())?;
+
             let settings = tauri::menu::MenuItemBuilder::with_id("settings", "Settings…")
                 .accelerator("CmdOrCtrl,+")
                 .build(app)?;
 
-            let app_menu = SubmenuBuilder::new(app, "Kagi")
+            let app_menu = SubmenuBuilder::new(app, "Hitsu")
                 .about(None)
                 .separator()
                 .item(&settings)

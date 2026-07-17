@@ -29,7 +29,7 @@ enum BrowserRequest {
 }
 
 pub fn socket_path() -> PathBuf {
-    std::env::temp_dir().join(format!("kagi-browser-{}.sock", unsafe { libc::geteuid() }))
+    std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
 }
 
 pub fn start(app: AppHandle) -> std::io::Result<()> {
@@ -80,7 +80,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     state.reset_idle_lock();
     let vaults = state.vaults.lock();
     let Some((_vault_id, vault)) = vaults.iter().next() else {
-        return json!({ "ok": false, "error": "Kagi is locked" });
+        return json!({ "ok": false, "error": "Hitsu is locked" });
     };
 
     match request {

@@ -9,7 +9,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 use super::entries::build_entry_summaries;
-use crate::error::{KagiError, KagiResult};
+use crate::error::{HitsuError, HitsuResult};
 use crate::models::{EntrySummary, ItemType};
 use crate::state::AppState;
 
@@ -120,7 +120,7 @@ struct ImportSource {
     recurse_first_root: bool,
 }
 
-fn import_source(path: &Path) -> KagiResult<ImportSource> {
+fn import_source(path: &Path) -> HitsuResult<ImportSource> {
     if path.is_dir() {
         for name in ["data.1pif", "contents.js"] {
             let candidate = path.join(name);
@@ -132,13 +132,13 @@ fn import_source(path: &Path) -> KagiResult<ImportSource> {
                 });
             }
         }
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "The selected 1PIF package has no data.1pif file".into(),
         ));
     }
 
     if !path.is_file() {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "The selected 1PIF file was not found".into(),
         ));
     }
@@ -167,16 +167,16 @@ fn import_source(path: &Path) -> KagiResult<ImportSource> {
     })
 }
 
-fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
+fn parse_1pif(path: &Path) -> HitsuResult<ParsedImport> {
     let source = import_source(path)?;
     let size = std::fs::metadata(&source.data_file)?.len();
     if size > MAX_1PIF_BYTES {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "The 1PIF export is too large to import".into(),
         ));
     }
     let text = std::fs::read_to_string(&source.data_file)
-        .map_err(|_| KagiError::Custom("The 1PIF export is not valid UTF-8".into()))?;
+        .map_err(|_| HitsuError::Custom("The 1PIF export is not valid UTF-8".into()))?;
 
     let mut records = Vec::new();
     for line in text.lines() {
@@ -185,7 +185,7 @@ fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
             continue;
         }
         let value: JsonValue = serde_json::from_str(line)
-            .map_err(|_| KagiError::Custom("The 1PIF export contains invalid JSON".into()))?;
+            .map_err(|_| HitsuError::Custom("The 1PIF export contains invalid JSON".into()))?;
         records.push(value);
     }
     if records.is_empty() {
@@ -198,7 +198,7 @@ fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
         }
     }
     if records.is_empty() {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "No 1Password items were found in the export".into(),
         ));
     }
@@ -291,7 +291,7 @@ fn parse_1pif(path: &Path) -> KagiResult<ParsedImport> {
     })
 }
 
-fn index_attachment_files(source: &ImportSource) -> KagiResult<Vec<PathBuf>> {
+fn index_attachment_files(source: &ImportSource) -> HitsuResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
     for (root_index, root) in source.attachment_roots.iter().enumerate() {
@@ -312,7 +312,7 @@ fn index_directory(
     data_file: &Path,
     files: &mut Vec<PathBuf>,
     seen: &mut HashSet<PathBuf>,
-) -> KagiResult<()> {
+) -> HitsuResult<()> {
     let Ok(entries) = std::fs::read_dir(root) else {
         return Ok(());
     };
@@ -778,7 +778,7 @@ fn apply_1password_field(item: &mut ImportedItem, field: &JsonValue) {
     };
     // IDs containing `;opid=__` are 1Password's captured HTML form-control
     // metadata, not user-created custom fields. Keep designated standard
-    // fields above, but don't turn the remaining autofill noise into Kagi fields.
+    // fields above, but don't turn the remaining autofill noise into Hitsu fields.
     let is_internal_form_field =
         string_at(field, &["id"]).is_some_and(|id| id.to_ascii_lowercase().contains(";opid=__"));
     if !consumed && !is_internal_form_field {
@@ -1087,7 +1087,7 @@ fn apply_import(
         let Ok(mut entry) = root.add_entry_with_id(entry_id) else {
             skipped_entries.push(SkippedImportEntry {
                 title: item.title,
-                reason: "Kagi couldn't create this entry".into(),
+                reason: "Hitsu couldn't create this entry".into(),
             });
             continue;
         };
@@ -1285,10 +1285,14 @@ fn apply_import(
             false,
         );
         entry.tags = item.tags;
-        set_custom_data(&mut entry, "kagi.itemType", item_type_name(&item.item_type));
         set_custom_data(
             &mut entry,
-            "kagi.favorite",
+            "hitsu.itemType",
+            item_type_name(&item.item_type),
+        );
+        set_custom_data(
+            &mut entry,
+            "hitsu.favorite",
             if item.favorite { "true" } else { "false" },
         );
         let mut names = HashSet::new();
@@ -1364,7 +1368,7 @@ fn item_type_name(item_type: &ItemType) -> &'static str {
 pub async fn vault_import_1pif(
     app: AppHandle,
     state: State<'_, AppState>,
-) -> KagiResult<Option<ImportReport>> {
+) -> HitsuResult<Option<ImportReport>> {
     // The source path stays in native Rust; the webview only starts the operation.
     let Some(selected) = app
         .dialog()
@@ -1376,15 +1380,15 @@ pub async fn vault_import_1pif(
     };
     let path = selected
         .into_path()
-        .map_err(|_| KagiError::Custom("The selected source is not a local file".into()))?;
+        .map_err(|_| HitsuError::Custom("The selected source is not a local file".into()))?;
     let parsed = tauri::async_runtime::spawn_blocking(move || parse_1pif(&path))
         .await
-        .map_err(KagiError::from_join)??;
+        .map_err(HitsuError::from_join)??;
 
     let _save_guard = state.save_lock.lock().await;
     let (mut db, key, vault_path, expected_disk_hash) = {
         let vaults = state.vaults.lock();
-        let (_, vault) = vaults.iter().next().ok_or(KagiError::NoOpenVault)?;
+        let (_, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
         (
             vault.db.clone(),
             vault.db_key.clone(),
@@ -1399,7 +1403,7 @@ pub async fn vault_import_1pif(
     let save_db = db.clone();
     let save_key = key.clone();
     let save_path = vault_path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> KagiResult<[u8; 32]> {
+    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
         crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
         let mut buffer = std::io::Cursor::new(Vec::new());
         save_db.save(&mut buffer, save_key)?;
@@ -1408,12 +1412,12 @@ pub async fn vault_import_1pif(
         Ok(crate::vault::sha256_bytes(&bytes))
     })
     .await
-    .map_err(KagiError::from_join)??;
+    .map_err(HitsuError::from_join)??;
 
     let mut vaults = state.vaults.lock();
-    let (_, vault) = vaults.iter_mut().next().ok_or(KagiError::NoOpenVault)?;
+    let (_, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
     if vault.path != vault_path {
-        return Err(KagiError::Custom(
+        return Err(HitsuError::Custom(
             "The open vault changed during import".into(),
         ));
     }
@@ -1640,7 +1644,7 @@ mod tests {
     use super::*;
 
     fn write_export(lines: &[JsonValue], attachment: Option<(&str, &[u8])>) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kagi-1pif-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-1pif-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("attachments")).unwrap();
         let text = lines
             .iter()
@@ -1724,7 +1728,7 @@ mod tests {
     #[test]
     fn imports_files_from_the_1password_package_attachment_layout() {
         let item_id = "7747B90C52F9405181DBE9868BDA9525";
-        let dir = std::env::temp_dir().join(format!("kagi-1pif-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-1pif-{}", uuid::Uuid::new_v4()));
         let files_dir = dir.join("attachments").join(item_id);
         std::fs::create_dir_all(&files_dir).unwrap();
         std::fs::write(files_dir.join("proof.txt"), b"package attachment").unwrap();
@@ -1774,7 +1778,7 @@ mod tests {
 
     #[test]
     fn ignores_headers_folders_and_trashed_items() {
-        let dir = std::env::temp_dir().join(format!("kagi-1pif-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("hitsu-1pif-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("export.1pif");
         std::fs::write(

@@ -15,7 +15,7 @@ const entries: EntrySummary[] = [
   {
     id: "one",
     type: "login",
-    title: "Kagi",
+    title: "Hitsu",
     subtitle: "hello@example.com",
     tags: ["search"],
     favorite: true,
@@ -46,7 +46,7 @@ describe("EntryCommandPalette", () => {
       target: { value: "4242" },
     });
 
-    expect(screen.queryByRole("option", { name: /Kagi/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Hitsu/ })).not.toBeInTheDocument();
     const result = screen.getByRole("option", { name: /Travel card/ });
     await fireEvent.click(result);
     expect(onSelect).toHaveBeenCalledWith(entries[1]);
@@ -60,7 +60,7 @@ describe("EntryCommandPalette", () => {
       target: { value: "buried note" },
     });
 
-    expect(await screen.findByRole("option", { name: /Kagi/ })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Hitsu/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Travel card/ })).not.toBeInTheDocument();
   });
 
@@ -76,7 +76,7 @@ describe("EntryCommandPalette", () => {
     );
 
     await fireEvent.keyDown(input, { key: "p", ctrlKey: true });
-    expect(screen.getByRole("option", { name: /Kagi/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("option", { name: /Hitsu/ })).toHaveAttribute("aria-selected", "true");
 
     await fireEvent.keyDown(input, { key: "n", ctrlKey: true });
     await fireEvent.keyDown(input, { key: "Enter" });

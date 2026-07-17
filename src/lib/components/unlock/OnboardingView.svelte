@@ -90,7 +90,7 @@
     <div class="onboarding-logo">
       <Icon name="key" size={32} />
     </div>
-    <h1 class="onboarding-title">Kagi</h1>
+    <h1 class="onboarding-title">Hitsu</h1>
     <p class="onboarding-subtitle">Native desktop password manager</p>
 
     {#if error}

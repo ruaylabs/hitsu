@@ -25,14 +25,14 @@ fn set_owner_only(path: &Path) -> io::Result<()> {
 
 /// Atomically write `data` to `path`.
 ///
-/// 1. Write to `<path>.kagi-tmp` on the same filesystem.
+/// 1. Write to `<path>.hitsu-tmp` on the same filesystem.
 /// 2. `fsync` the temp file (data + metadata).
 /// 3. `rename` over the target (atomic on POSIX, near-atomic on NTFS).
 /// 4. `fsync` the parent directory so the rename survives a hard reboot.
 ///
 /// On failure the temporary file is cleaned up and the original is untouched.
 pub fn atomic_write(path: &Path, data: &[u8]) -> io::Result<()> {
-    let tmp_path = path.with_extension("kagi-tmp");
+    let tmp_path = path.with_extension("hitsu-tmp");
 
     let result = try_write(path, data, &tmp_path);
 
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_atomic_write_creates_file() {
-        let dir = std::env::temp_dir().join("kagi-atomic-test");
+        let dir = std::env::temp_dir().join("hitsu-atomic-test");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_atomic_write_does_not_corrupt_on_failure() {
-        let dir = std::env::temp_dir().join("kagi-atomic-fail");
+        let dir = std::env::temp_dir().join("hitsu-atomic-fail");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 
@@ -175,12 +175,12 @@ mod tests {
 
     #[test]
     fn test_atomic_write_no_temp_left_on_error() {
-        let dir = std::env::temp_dir().join("kagi-atomic-cleanup");
+        let dir = std::env::temp_dir().join("hitsu-atomic-cleanup");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 
         let path = dir.join("vault.kdbx");
-        let tmp_path = path.with_extension("kagi-tmp");
+        let tmp_path = path.with_extension("hitsu-tmp");
 
         // Try writing to a path where the target directory doesn't exist
         let bad_path = dir.join("missing").join("vault.kdbx");
@@ -191,7 +191,7 @@ mod tests {
         assert!(!tmp_path.exists(), "temp file must be cleaned up");
         // But we used bad_path, the tmp_path would be different...
         // Let me use the actual path instead
-        let bad_tmp = bad_path.with_extension("kagi-tmp");
+        let bad_tmp = bad_path.with_extension("hitsu-tmp");
         assert!(!bad_tmp.exists(), "temp file must be cleaned up");
 
         let _ = fs::remove_dir_all(&dir);
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn test_atomic_write_owner_only_permissions() {
-        let dir = std::env::temp_dir().join("kagi-atomic-perms");
+        let dir = std::env::temp_dir().join("hitsu-atomic-perms");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 

@@ -95,7 +95,7 @@
     return counts;
   });
 
-  const TAGS_COLLAPSED_KEY = "kagi:sidebar-tags-collapsed";
+  const TAGS_COLLAPSED_KEY = "hitsu:sidebar-tags-collapsed";
 
   let tags = $derived([...new Set(activeEntries.flatMap((e) => e.tags))].sort());
   let tagsCollapsed = $state(false);

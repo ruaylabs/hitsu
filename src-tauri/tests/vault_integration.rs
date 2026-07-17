@@ -180,7 +180,7 @@ fn test_note_type_roundtrip() {
             value: Some(CustomDataValue::String("note".into())),
             last_modification_time: None,
         };
-        e.custom_data.insert("kagi.itemType".into(), item);
+        e.custom_data.insert("hitsu.itemType".into(), item);
     });
 
     let entry = db.iter_all_entries().next().unwrap();
@@ -190,7 +190,7 @@ fn test_note_type_roundtrip() {
     // Check custom data directly (in-memory)
     let raw = entry
         .custom_data
-        .get("kagi.itemType")
+        .get("hitsu.itemType")
         .and_then(|i| i.value.as_ref())
         .map(|v| match v {
             CustomDataValue::String(s) => s.clone(),
@@ -211,7 +211,7 @@ fn test_identity_type_roundtrip() {
             value: Some(CustomDataValue::String("identity".into())),
             last_modification_time: None,
         };
-        e.custom_data.insert("kagi.itemType".into(), item);
+        e.custom_data.insert("hitsu.itemType".into(), item);
     });
 
     let entry = db.iter_all_entries().next().unwrap();
@@ -224,7 +224,7 @@ fn test_identity_type_roundtrip() {
     // Check custom data directly (in-memory)
     let raw = entry
         .custom_data
-        .get("kagi.itemType")
+        .get("hitsu.itemType")
         .and_then(|i| i.value.as_ref())
         .map(|v| match v {
             CustomDataValue::String(s) => s.clone(),
@@ -246,7 +246,7 @@ fn test_card_type_roundtrip() {
             value: Some(CustomDataValue::String("card".into())),
             last_modification_time: None,
         };
-        e.custom_data.insert("kagi.itemType".into(), item);
+        e.custom_data.insert("hitsu.itemType".into(), item);
     });
 
     let entry = db.iter_all_entries().next().unwrap();
@@ -265,7 +265,7 @@ fn test_card_type_roundtrip() {
     // Check custom data directly (in-memory)
     let raw = entry
         .custom_data
-        .get("kagi.itemType")
+        .get("hitsu.itemType")
         .and_then(|i| i.value.as_ref())
         .map(|v| match v {
             CustomDataValue::String(s) => s.clone(),
@@ -370,7 +370,7 @@ fn test_create_and_open_vault_from_disk() {
     use std::fs;
     use std::io::{Cursor, Read};
 
-    let dir = std::env::temp_dir().join("kagi-onboard-test");
+    let dir = std::env::temp_dir().join("hitsu-onboard-test");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let vault_path = dir.join("test.kdbx");
@@ -413,7 +413,7 @@ fn test_create_and_open_vault_from_disk() {
 fn test_open_vault_wrong_password_from_disk() {
     use std::fs;
 
-    let dir = std::env::temp_dir().join("kagi-onboard-wrong-pw");
+    let dir = std::env::temp_dir().join("hitsu-onboard-wrong-pw");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let vault_path = dir.join("secret.kdbx");
@@ -439,7 +439,7 @@ fn test_create_vault_file_exists() {
     // can be re-opened immediately
     use std::fs;
 
-    let dir = std::env::temp_dir().join("kagi-onboard-create");
+    let dir = std::env::temp_dir().join("hitsu-onboard-create");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let vault_path = dir.join("new-vault.kdbx");
@@ -476,14 +476,14 @@ fn test_round_trip_lossless() {
     use std::fs;
     use std::io::{Cursor, Read};
 
-    let dir = std::env::temp_dir().join("kagi-roundtrip-test");
+    let dir = std::env::temp_dir().join("hitsu-roundtrip-test");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let vault_path = dir.join("roundtrip.kdbx");
 
     // 1. Create a database with entries of all types
     let mut db = Database::new();
-    db.meta.database_name = Some("Kagi round-trip test".into());
+    db.meta.database_name = Some("Hitsu round-trip test".into());
 
     // Login entry
     let login_id = db
@@ -500,14 +500,14 @@ fn test_round_trip_lossless() {
             e.set_unprotected(fields::NOTES, "personal account");
             e.tags = vec!["work".into(), "dev".into()];
             e.custom_data.insert(
-                "kagi.itemType".into(),
+                "hitsu.itemType".into(),
                 CustomDataItem {
                     value: Some(CustomDataValue::Binary("login".as_bytes().to_vec())),
                     last_modification_time: None,
                 },
             );
             e.custom_data.insert(
-                "kagi.favorite".into(),
+                "hitsu.favorite".into(),
                 CustomDataItem {
                     value: Some(CustomDataValue::Binary("true".as_bytes().to_vec())),
                     last_modification_time: None,
@@ -521,7 +521,7 @@ fn test_round_trip_lossless() {
         e.set_unprotected(fields::TITLE, "Shopping List");
         e.set_unprotected(fields::NOTES, "Milk\nEggs\nBread");
         e.custom_data.insert(
-            "kagi.itemType".into(),
+            "hitsu.itemType".into(),
             CustomDataItem {
                 value: Some(CustomDataValue::Binary("note".as_bytes().to_vec())),
                 last_modification_time: None,
@@ -536,7 +536,7 @@ fn test_round_trip_lossless() {
         e.set_unprotected("identity.lastName", "Smith");
         e.set_unprotected("identity.email", "alice@example.com");
         e.custom_data.insert(
-            "kagi.itemType".into(),
+            "hitsu.itemType".into(),
             CustomDataItem {
                 value: Some(CustomDataValue::Binary("identity".as_bytes().to_vec())),
                 last_modification_time: None,
@@ -555,7 +555,7 @@ fn test_round_trip_lossless() {
             Value::unprotected("otpauth://totp/Bob?secret=JBSWY3DPEHPK3PXP&period=30&digits=6"),
         );
         e.custom_data.insert(
-            "kagi.itemType".into(),
+            "hitsu.itemType".into(),
             CustomDataItem {
                 value: Some(CustomDataValue::Binary("card".as_bytes().to_vec())),
                 last_modification_time: None,
@@ -585,7 +585,7 @@ fn test_round_trip_lossless() {
 
         assert_eq!(
             db.meta.database_name.as_deref(),
-            Some("Kagi round-trip test")
+            Some("Hitsu round-trip test")
         );
         assert_eq!(db.iter_all_entries().count(), 4);
 
@@ -681,12 +681,12 @@ fn test_round_trip_custom_data_string_variant() {
     let mut db = Database::new();
     db.root_mut().add_entry().edit(|e| {
         e.set_unprotected(fields::TITLE, "String→Binary recovery");
-        // Store as String — what KeePassXC or an older Kagi version might write
+        // Store as String — what KeePassXC or an older Hitsu version might write
         let item = CustomDataItem {
             value: Some(CustomDataValue::String("note".into())),
             last_modification_time: None,
         };
-        e.custom_data.insert("kagi.itemType".into(), item);
+        e.custom_data.insert("hitsu.itemType".into(), item);
         // Also store a value that would be invalid UTF-8 as a raw string
         // to test the base64 fallback path — use a value that base64-decodes
         // to something non-UTF-8
@@ -694,7 +694,8 @@ fn test_round_trip_custom_data_string_variant() {
             value: Some(CustomDataValue::String("hello".into())),
             last_modification_time: None,
         };
-        e.custom_data.insert("kagi.plainString".into(), binary_item);
+        e.custom_data
+            .insert("hitsu.plainString".into(), binary_item);
     });
 
     // Save to bytes
@@ -707,7 +708,7 @@ fn test_round_trip_custom_data_string_variant() {
     let mut cursor = Cursor::new(bytes);
     let db = Database::open(&mut cursor, DatabaseKey::new().with_password("p")).unwrap();
 
-    // The kagi.itemType value was stored as String("note").
+    // The hitsu.itemType value was stored as String("note").
     // After save/reopen it may be Binary(b"note") or String("note") —
     // either way read_custom_data_string should return "note".
     let entry = db.iter_all_entries().next().unwrap();
@@ -731,7 +732,7 @@ fn test_round_trip_custom_data_string_variant() {
         })
     }
 
-    let item_type = read_custom_data(&entry, "kagi.itemType");
+    let item_type = read_custom_data(&entry, "hitsu.itemType");
     assert_eq!(
         item_type.as_deref(),
         Some("note"),
@@ -739,7 +740,7 @@ fn test_round_trip_custom_data_string_variant() {
     );
 
     // Verify the plain string also round-trips
-    let plain = read_custom_data(&entry, "kagi.plainString");
+    let plain = read_custom_data(&entry, "hitsu.plainString");
     assert_eq!(
         plain.as_deref(),
         Some("hello"),
@@ -802,21 +803,21 @@ fn test_round_trip_all_fields_on_one_entry() {
             e.tags = vec!["work".into(), "personal".into(), "finance".into()];
             // Custom data (icon hint + favorite + item type)
             e.custom_data.insert(
-                "kagi.itemType".into(),
+                "hitsu.itemType".into(),
                 CustomDataItem {
                     value: Some(CustomDataValue::Binary("login".as_bytes().to_vec())),
                     last_modification_time: None,
                 },
             );
             e.custom_data.insert(
-                "kagi.favorite".into(),
+                "hitsu.favorite".into(),
                 CustomDataItem {
                     value: Some(CustomDataValue::Binary("true".as_bytes().to_vec())),
                     last_modification_time: None,
                 },
             );
             e.custom_data.insert(
-                "kagi.iconHint".into(),
+                "hitsu.iconHint".into(),
                 CustomDataItem {
                     value: Some(CustomDataValue::Binary("github".as_bytes().to_vec())),
                     last_modification_time: None,
@@ -880,7 +881,7 @@ fn test_round_trip_all_fields_on_one_entry() {
     assert_eq!(entry.tags, vec!["work", "personal", "finance"]);
 
     // Custom data (icon hint + favorite + item type)
-    let read_item_type = entry.custom_data.get("kagi.itemType").and_then(|item| {
+    let read_item_type = entry.custom_data.get("hitsu.itemType").and_then(|item| {
         item.value.as_ref().map(|cv| match cv {
             CustomDataValue::String(s) => s.clone(),
             CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
@@ -888,7 +889,7 @@ fn test_round_trip_all_fields_on_one_entry() {
     });
     assert_eq!(read_item_type.as_deref(), Some("login"));
 
-    let read_favorite = entry.custom_data.get("kagi.favorite").and_then(|item| {
+    let read_favorite = entry.custom_data.get("hitsu.favorite").and_then(|item| {
         item.value.as_ref().map(|cv| match cv {
             CustomDataValue::String(s) => s.clone(),
             CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
@@ -896,7 +897,7 @@ fn test_round_trip_all_fields_on_one_entry() {
     });
     assert_eq!(read_favorite.as_deref(), Some("true"));
 
-    let read_icon_hint = entry.custom_data.get("kagi.iconHint").and_then(|item| {
+    let read_icon_hint = entry.custom_data.get("hitsu.iconHint").and_then(|item| {
         item.value.as_ref().map(|cv| match cv {
             CustomDataValue::String(s) => s.clone(),
             CustomDataValue::Binary(b) => String::from_utf8_lossy(b).to_string(),
@@ -1191,7 +1192,7 @@ fn test_round_trip_unicode_fields() {
 
 #[test]
 fn test_preferences_security_defaults() {
-    use kagi_lib::prefs::Preferences;
+    use hitsu_lib::prefs::Preferences;
 
     let prefs = Preferences::default();
     assert_eq!(
@@ -1207,7 +1208,7 @@ fn test_preferences_security_defaults() {
 
 #[test]
 fn test_preferences_security_roundtrip() {
-    use kagi_lib::prefs::Preferences;
+    use hitsu_lib::prefs::Preferences;
 
     let prefs = Preferences {
         idle_lock_minutes: 10,
@@ -1230,7 +1231,7 @@ fn test_preferences_security_roundtrip() {
 #[test]
 fn test_preferences_security_serde_missing_fields_default() {
     // Old prefs.json files won't have the new fields — serde should use defaults
-    use kagi_lib::prefs::Preferences;
+    use hitsu_lib::prefs::Preferences;
 
     let old_json = r#"{
         "lastVault": null,
@@ -1252,7 +1253,7 @@ fn test_preferences_security_serde_missing_fields_default() {
 #[test]
 fn test_preferences_security_zero_values_roundtrip() {
     // "Never" options store 0 — verify they survive save/load
-    use kagi_lib::prefs::Preferences;
+    use hitsu_lib::prefs::Preferences;
 
     let prefs = Preferences {
         idle_lock_minutes: 0,
@@ -1271,7 +1272,7 @@ fn test_preferences_security_zero_values_roundtrip() {
 fn test_vault_lock_clears_state() {
     // Test that clearing the vault HashMap (the core of vault_lock)
     // properly removes OpenVault and its contents.
-    use kagi_lib::state::{AppState, OpenVault};
+    use hitsu_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock();
@@ -1302,7 +1303,7 @@ fn test_vault_lock_clears_state() {
 
 #[test]
 fn test_vault_lock_with_no_vault_is_noop() {
-    use kagi_lib::state::AppState;
+    use hitsu_lib::state::AppState;
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock();
@@ -1317,7 +1318,7 @@ fn test_vault_lock_with_no_vault_is_noop() {
 /// Verify the replacement doesn't panic and the vault count is zero after clear.
 #[test]
 fn test_openvault_drop_replaces_database() {
-    use kagi_lib::state::{AppState, OpenVault};
+    use hitsu_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock();
@@ -1356,7 +1357,7 @@ fn test_openvault_drop_replaces_database() {
 /// automatically scrubbed when the struct is dropped.
 #[test]
 fn test_db_key_zeroized_after_lock() {
-    use kagi_lib::state::{AppState, OpenVault};
+    use hitsu_lib::state::{AppState, OpenVault};
 
     let state = AppState::new();
     let mut vaults = state.vaults.lock();

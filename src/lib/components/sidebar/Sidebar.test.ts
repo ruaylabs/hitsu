@@ -131,7 +131,7 @@ describe("Sidebar", () => {
     await fireEvent.click(collapseButton);
 
     expect(screen.queryByRole("tab", { name: "work" })).not.toBeInTheDocument();
-    expect(localStorage.getItem("kagi:sidebar-tags-collapsed")).toBe("true");
+    expect(localStorage.getItem("hitsu:sidebar-tags-collapsed")).toBe("true");
     sidebar.unmount();
 
     render(Sidebar);
@@ -143,6 +143,6 @@ describe("Sidebar", () => {
     await fireEvent.click(expandButton);
 
     expect(screen.getByRole("tab", { name: "work" })).toBeInTheDocument();
-    expect(localStorage.getItem("kagi:sidebar-tags-collapsed")).toBe("false");
+    expect(localStorage.getItem("hitsu:sidebar-tags-collapsed")).toBe("false");
   });
 });

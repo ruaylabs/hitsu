@@ -14,8 +14,9 @@ function rustHostTriple() {
   return host;
 }
 
-const target = process.env.KAGI_TARGET_TRIPLE ?? process.env.CARGO_BUILD_TARGET ?? rustHostTriple();
-const executable = process.platform === "win32" ? "kagi-native-host.exe" : "kagi-native-host";
+const target =
+  process.env.HITSU_TARGET_TRIPLE ?? process.env.CARGO_BUILD_TARGET ?? rustHostTriple();
+const executable = process.platform === "win32" ? "hitsu-native-host.exe" : "hitsu-native-host";
 
 execFileSync("cargo", ["build", "--release", "--manifest-path", manifest, "--target", target], {
   cwd: root,
@@ -34,7 +35,7 @@ const source = path.join(
 const destinationDirectory = path.join(root, "src-tauri", "binaries");
 const destination = path.join(
   destinationDirectory,
-  process.platform === "win32" ? `kagi-native-host-${target}.exe` : `kagi-native-host-${target}`,
+  process.platform === "win32" ? `hitsu-native-host-${target}.exe` : `hitsu-native-host-${target}`,
 );
 
 mkdirSync(destinationDirectory, { recursive: true });

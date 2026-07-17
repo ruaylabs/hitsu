@@ -370,7 +370,7 @@
     </div>
 
     <footer class="settings-footer">
-      <span class="version">Kagi 0.1.0</span>
+      <span class="version">Hitsu 0.1.0</span>
     </footer>
   </div>
 </div>

@@ -4,12 +4,12 @@ import net from "node:net";
 import path from "node:path";
 
 const runId = `${process.pid}`;
-const configHome = path.join("/tmp", `kagi-e2e-config-${runId}`);
-const vaultPath = path.join("/tmp", `kagi-e2e-vault-${runId}.kdbx`);
-const application = path.resolve(process.env.KAGI_E2E_APP ?? "src-tauri/target/debug/kagi");
+const configHome = path.join("/tmp", `hitsu-e2e-config-${runId}`);
+const vaultPath = path.join("/tmp", `hitsu-e2e-vault-${runId}.kdbx`);
+const application = path.resolve(process.env.HITSU_E2E_APP ?? "src-tauri/target/debug/hitsu");
 let driver;
 
-process.env.KAGI_E2E_VAULT = vaultPath;
+process.env.HITSU_E2E_VAULT = vaultPath;
 
 function waitForDriver(timeoutMs = 15_000) {
   const startedAt = Date.now();
