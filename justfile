@@ -25,6 +25,13 @@ build:
     pnpm install
     pnpm build
 
+# Package the Chrome extension for store upload
+extension-zip:
+    mkdir -p package
+    rm -f package/hitsu-extension.zip
+    cd chrome-extension && zip -q ../package/hitsu-extension.zip manifest.json background.js content.js popup.html popup.js popup.css
+    unzip -l package/hitsu-extension.zip
+
 # Run dev server
 dev:
     pnpm dev
