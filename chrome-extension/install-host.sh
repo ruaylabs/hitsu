@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "Usage: $0 EXTENSION_ID [NATIVE_HOST_PATH]" >&2
+if [[ $# -gt 2 ]]; then
+  echo "Usage: $0 [EXTENSION_ID] [NATIVE_HOST_PATH]" >&2
   exit 2
 fi
 
-extension_id="$1"
+production_extension_id="pkickpkkbgpaffpdloplecfleckoopjc"
+extension_id="${1:-$production_extension_id}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 host_path="${2:-$root/chrome-extension/native-host/target/release/hitsu-native-host}"
 
@@ -24,11 +25,12 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     "$HOME/Library/Application Support/Microsoft Edge"
   )
 else
+  config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
   bases=(
-    "$HOME/.config/google-chrome"
-    "$HOME/.config/chromium"
-    "$HOME/.config/BraveSoftware/Brave-Browser"
-    "$HOME/.config/microsoft-edge"
+    "$config_home/google-chrome"
+    "$config_home/chromium"
+    "$config_home/BraveSoftware/Brave-Browser"
+    "$config_home/microsoft-edge"
   )
 fi
 

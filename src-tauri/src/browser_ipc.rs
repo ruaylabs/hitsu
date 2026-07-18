@@ -10,7 +10,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -18,8 +18,11 @@ use tauri::{AppHandle, Manager};
 use url::Url;
 
 use crate::state::AppState;
+use crate::vault::atomic_write;
 
 const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
+const NATIVE_HOST_NAME: &str = "com.ruaylabs.hitsu.browser";
+const PRODUCTION_EXTENSION_ID: &str = "pkickpkkbgpaffpdloplecfleckoopjc";
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
@@ -30,6 +33,88 @@ enum BrowserRequest {
 
 pub fn socket_path() -> PathBuf {
     std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
+}
+
+fn native_host_manifest_directories() -> std::io::Result<Vec<PathBuf>> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "HOME is not set"))?;
+
+    #[cfg(target_os = "macos")]
+    let directories = [
+        "Library/Application Support/Google/Chrome/NativeMessagingHosts",
+        "Library/Application Support/Chromium/NativeMessagingHosts",
+        "Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts",
+        "Library/Application Support/Microsoft Edge/NativeMessagingHosts",
+    ]
+    .into_iter()
+    .map(|relative| home.join(relative))
+    .collect();
+
+    #[cfg(not(target_os = "macos"))]
+    let directories = {
+        let config_home = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".config"));
+        [
+            "google-chrome/NativeMessagingHosts",
+            "chromium/NativeMessagingHosts",
+            "BraveSoftware/Brave-Browser/NativeMessagingHosts",
+            "microsoft-edge/NativeMessagingHosts",
+        ]
+        .into_iter()
+        .map(|relative| config_home.join(relative))
+        .collect()
+    };
+
+    Ok(directories)
+}
+
+fn write_native_host_manifests(
+    host_path: &Path,
+    directories: &[PathBuf],
+    extension_id: &str,
+) -> std::io::Result<()> {
+    let host_path = host_path.to_str().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "native host path is not valid UTF-8",
+        )
+    })?;
+    let manifest = serde_json::to_vec_pretty(&json!({
+        "name": NATIVE_HOST_NAME,
+        "description": "Hitsu Password Manager native messaging host",
+        "path": host_path,
+        "type": "stdio",
+        "allowed_origins": [format!("chrome-extension://{extension_id}/")],
+    }))
+    .map_err(std::io::Error::other)?;
+
+    for directory in directories {
+        fs::create_dir_all(directory)?;
+        let destination = directory.join(format!("{NATIVE_HOST_NAME}.json"));
+        atomic_write(&destination, &manifest)?;
+    }
+    Ok(())
+}
+
+pub fn register_production_native_host() -> std::io::Result<()> {
+    let executable = std::env::current_exe()?;
+    let host_path = executable
+        .parent()
+        .ok_or_else(|| std::io::Error::other("application executable has no parent directory"))?
+        .join("hitsu-native-host");
+    if !host_path.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("native messaging host not found at {}", host_path.display()),
+        ));
+    }
+    write_native_host_manifests(
+        &host_path,
+        &native_host_manifest_directories()?,
+        PRODUCTION_EXTENSION_ID,
+    )
 }
 
 pub struct BrowserIpcSocket {
@@ -213,7 +298,10 @@ fn entry_host(raw: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{entry_host, origin_host, remove_stale_socket, valid_entry_id, BrowserRequest};
+    use super::{
+        entry_host, origin_host, remove_stale_socket, valid_entry_id, write_native_host_manifests,
+        BrowserRequest, NATIVE_HOST_NAME,
+    };
     use std::fs;
     use std::os::unix::net::UnixListener;
 
@@ -227,6 +315,28 @@ mod tests {
             entry_host("example.com/login").as_deref(),
             Some("example.com")
         );
+    }
+
+    #[test]
+    fn writes_native_host_manifest_with_production_shape() {
+        let root = std::env::temp_dir().join(format!("hitsu-host-{}", uuid::Uuid::new_v4()));
+        let directory = root.join("NativeMessagingHosts");
+        let host_path = root.join("hitsu-native-host");
+
+        write_native_host_manifests(&host_path, std::slice::from_ref(&directory), "extension-id")
+            .unwrap();
+
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(directory.join(format!("{NATIVE_HOST_NAME}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(manifest["name"], NATIVE_HOST_NAME);
+        assert_eq!(manifest["path"], host_path.to_str().unwrap());
+        assert_eq!(
+            manifest["allowed_origins"][0],
+            "chrome-extension://extension-id/"
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

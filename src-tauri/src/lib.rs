@@ -108,6 +108,10 @@ pub fn run() {
             state.configure_idle_lock(prefs::Preferences::load(app.handle()).idle_lock_minutes);
             auto_lock::start(app.handle().clone());
             session_lock::start(app.handle().clone());
+            #[cfg(all(unix, not(debug_assertions)))]
+            if let Err(error) = browser_ipc::register_production_native_host() {
+                eprintln!("native host registration unavailable: {error}");
+            }
             #[cfg(unix)]
             match browser_ipc::start(app.handle().clone()) {
                 Ok(socket) => {

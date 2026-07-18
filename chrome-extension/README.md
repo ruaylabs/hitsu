@@ -16,22 +16,23 @@ page.
 2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select this
    `chrome-extension` directory.
 3. Copy the extension ID shown by Chrome.
-4. Register the native host, replacing the example ID:
+4. Register the native host with that unpacked-development ID:
 
    ```bash
    ./chrome-extension/install-host.sh abcdefghijklmnopqrstuvwxyzabcdef
    ```
 
+   Running the script without an ID registers the permanent Web Store extension instead.
+
 5. Start and unlock the release build of Hitsu. Open an HTTP(S) page whose hostname exactly matches a
    login URL, then select the Hitsu toolbar button.
 
-A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. The script above
-remains useful for an unpacked development extension until automatic production registration is
-implemented.
+A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. On first launch,
+the release app automatically registers that host for the permanent Web Store extension in Chrome,
+Chromium, Brave, and Edge. The script remains useful for unpacked development extensions whose IDs
+differ from the store ID.
 
 Reload the extension from `chrome://extensions` after changing its source files.
-
-Production packaging and automatic native-host registration are not implemented yet.
 
 ## Security model
 
@@ -55,5 +56,5 @@ Production packaging and automatic native-host registration are not implemented 
 - Fills the first visible password field and nearest preceding username-like field.
 - No inline suggestions, save/update prompts, generated-password capture, HTTP-auth support, or
   iframe handling.
-- A store archive can be created with `just extension-zip`, but the store listing, stable extension
-  ID, and automatic production native-host registration are not configured.
+- A store archive can be created with `just extension-zip`; publishing and desktop release
+  distribution remain separate manual steps.
