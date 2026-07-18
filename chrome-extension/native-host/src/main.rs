@@ -12,6 +12,27 @@ fn socket_path() -> std::path::PathBuf {
 }
 
 #[cfg(unix)]
+fn token_path() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("hitsu-browser-{}.token", unsafe {
+        libc::geteuid()
+    }))
+}
+
+/// Read this session's browser-IPC token, written by the desktop app to an
+/// owner-only file. Its absence means the app isn't running (or is too old to
+/// expose the token), which is indistinguishable to us from "not unlocked".
+#[cfg(unix)]
+fn read_token() -> Result<String, String> {
+    let token = std::fs::read_to_string(token_path())
+        .map(|token| token.trim().to_string())
+        .map_err(|_| "Open and unlock the Hitsu desktop app first".to_string())?;
+    if token.is_empty() {
+        return Err("Open and unlock the Hitsu desktop app first".to_string());
+    }
+    Ok(token)
+}
+
+#[cfg(unix)]
 fn main() {
     if let Err(error) = run() {
         let response = serde_json::json!({ "ok": false, "error": error });
@@ -32,7 +53,17 @@ fn main() {
 
 #[cfg(unix)]
 fn run() -> Result<(), String> {
-    let request = read_native_message()?;
+    let mut request = read_native_message()?;
+    let token = read_token()?;
+
+    // Inject the session token the extension can't read for itself (it has no
+    // filesystem access). The backend verifies it before doing any work.
+    let object = request
+        .as_object_mut()
+        .ok_or_else(|| "Invalid extension request".to_string())?;
+    object.insert("token".to_string(), serde_json::Value::String(token));
+    let request = serde_json::to_vec(&request).map_err(|_| "Could not encode request")?;
+
     let mut stream = UnixStream::connect(socket_path())
         .map_err(|_| "Open and unlock the Hitsu desktop app first".to_string())?;
     stream
@@ -54,7 +85,7 @@ fn run() -> Result<(), String> {
 }
 
 #[cfg(unix)]
-fn read_native_message() -> Result<Vec<u8>, String> {
+fn read_native_message() -> Result<serde_json::Value, String> {
     let mut length = [0u8; 4];
     std::io::stdin()
         .read_exact(&mut length)
@@ -68,8 +99,7 @@ fn read_native_message() -> Result<Vec<u8>, String> {
         .read_exact(&mut message)
         .map_err(|_| "Incomplete extension request".to_string())?;
     serde_json::from_slice::<serde_json::Value>(&message)
-        .map_err(|_| "Invalid extension request".to_string())?;
-    Ok(message)
+        .map_err(|_| "Invalid extension request".to_string())
 }
 
 #[cfg(unix)]

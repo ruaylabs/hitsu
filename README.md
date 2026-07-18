@@ -77,7 +77,8 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge
 - Exact-host login lookup and popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
-- Owner-only local IPC; trashed entries and non-matching origins are rejected
+- Owner-only local IPC, gated by a per-session token; trashed entries and
+  non-matching origins are rejected
 - See [`chrome-extension/README.md`](chrome-extension/README.md) for development installation
 
 ### Appearance
@@ -157,3 +158,9 @@ src-tauri/        # Rust backend
   It does not currently expose cipher or KDF configuration controls.
 - Memory locking (`mlock`/`mprotect`) is not implemented — sensitive pages may be
   written to swap. Use encrypted swap or full-disk encryption.
+- The browser integration's local socket is reachable by any process running as
+  the same OS user. A per-session token (written to an owner-only file, injected
+  by the native host, and verified in constant time) stops naive enumeration,
+  but it is not a hard boundary: a same-user process can also read the token
+  file. The desktop app remains the primary trust boundary; the browser bridge
+  is a developer preview.

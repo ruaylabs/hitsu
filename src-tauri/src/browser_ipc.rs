@@ -1,8 +1,19 @@
 //! Narrow local IPC API used by the browser native-messaging host.
 //!
-//! The Unix socket is owner-only. Requests are restricted to exact HTTP(S)
-//! host matches, and secret values are returned only for an explicitly chosen
-//! entry while the vault is unlocked.
+//! The Unix socket is owner-only, but on a shared machine "owner-only" means
+//! *every* process running as the same user — not just our native host. To
+//! keep an unrelated same-user process from blindly speaking this protocol and
+//! harvesting credentials, each request must carry a per-session token: the app
+//! writes a fresh random token to an owner-only file at startup, the native
+//! host (which Chrome launches from a manifest we control) reads that file and
+//! injects the token into every request, and the backend verifies it in
+//! constant time before doing any work. This is not a hard boundary against a
+//! same-user attacker — such a process can also read the 0600 token file — but
+//! it stops naive enumeration by anything that doesn't know to look.
+//!
+//! On top of that, requests are restricted to exact HTTP(S) host matches, and
+//! secret values are returned only for an explicitly chosen entry while the
+//! vault is unlocked.
 
 #![cfg(unix)]
 
@@ -12,8 +23,11 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
+use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use subtle::ConstantTimeEq;
 use tauri::{AppHandle, Manager};
 use url::Url;
 
@@ -27,12 +41,51 @@ const PRODUCTION_EXTENSION_ID: &str = "pkickpkkbgpaffpdloplecfleckoopjc";
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum BrowserRequest {
-    ListLogins { origin: String },
-    GetCredentials { id: String, origin: String },
+    ListLogins {
+        token: String,
+        origin: String,
+    },
+    GetCredentials {
+        token: String,
+        id: String,
+        origin: String,
+    },
+}
+
+impl BrowserRequest {
+    /// The per-session token injected by the native host. Verified against the
+    /// token this process wrote to disk before any request is processed.
+    fn token(&self) -> &str {
+        match self {
+            BrowserRequest::ListLogins { token, .. }
+            | BrowserRequest::GetCredentials { token, .. } => token,
+        }
+    }
 }
 
 pub fn socket_path() -> PathBuf {
     std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
+}
+
+/// Owner-only file holding this session's browser-IPC token. Sits beside the
+/// socket; the native host reads it to authenticate each request.
+fn token_path() -> PathBuf {
+    std::env::temp_dir().join(format!("hitsu-browser-{}.token", unsafe {
+        libc::geteuid()
+    }))
+}
+
+/// Generate a fresh 256-bit session token, URL-safe base64 encoded.
+fn generate_token() -> String {
+    let mut bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+}
+
+/// Constant-time token comparison. A length mismatch only reveals our token's
+/// (fixed, public) length, so short-circuiting on it is fine.
+fn token_matches(provided: &str, expected: &str) -> bool {
+    provided.as_bytes().ct_eq(expected.as_bytes()).into()
 }
 
 fn native_host_manifest_directories() -> std::io::Result<Vec<PathBuf>> {
@@ -119,11 +172,13 @@ pub fn register_production_native_host() -> std::io::Result<()> {
 
 pub struct BrowserIpcSocket {
     path: PathBuf,
+    token_path: PathBuf,
 }
 
 impl Drop for BrowserIpcSocket {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.path);
+        let _ = fs::remove_file(&self.token_path);
     }
 }
 
@@ -160,24 +215,33 @@ fn remove_stale_socket(path: &std::path::Path) -> std::io::Result<()> {
 
 pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
     let path = socket_path();
+    let token_path = token_path();
+
     remove_stale_socket(&path)?;
     let listener = UnixListener::bind(&path)?;
     fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+
+    // Write the token only after the socket is bound, so a failed start never
+    // clobbers a running instance's token (remove_stale_socket already refuses
+    // to proceed when another instance holds the socket). atomic_write creates
+    // the file 0600.
+    let token = generate_token();
+    atomic_write(&token_path, token.as_bytes())?;
 
     std::thread::Builder::new()
         .name("browser-ipc".into())
         .spawn(move || {
             for stream in listener.incoming() {
                 match stream {
-                    Ok(stream) => handle_connection(&app, stream),
+                    Ok(stream) => handle_connection(&app, &token, stream),
                     Err(error) => eprintln!("browser IPC connection failed: {error}"),
                 }
             }
         })?;
-    Ok(BrowserIpcSocket { path })
+    Ok(BrowserIpcSocket { path, token_path })
 }
 
-fn handle_connection(app: &AppHandle, mut stream: UnixStream) {
+fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStream) {
     let request = {
         let mut line = String::new();
         let mut reader = BufReader::new(&stream).take(MAX_REQUEST_BYTES);
@@ -189,8 +253,13 @@ fn handle_connection(app: &AppHandle, mut stream: UnixStream) {
         }
     };
 
+    // Verify the session token before touching vault state or resetting the
+    // idle-lock watchdog — a request that fails authentication is not activity.
     let response = match request {
-        Ok(request) => process_request(app, request),
+        Ok(request) if token_matches(request.token(), expected_token) => {
+            process_request(app, request)
+        }
+        Ok(_) => json!({ "ok": false, "error": "Unauthorized browser request" }),
         Err(error) => json!({ "ok": false, "error": error }),
     };
     let _ = serde_json::to_writer(&mut stream, &response);
@@ -208,7 +277,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     };
 
     match request {
-        BrowserRequest::ListLogins { origin } => {
+        BrowserRequest::ListLogins { origin, .. } => {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "error": "Invalid page origin" });
             };
@@ -236,7 +305,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             entries.sort_by(|a, b| a["title"].as_str().cmp(&b["title"].as_str()));
             json!({ "ok": true, "entries": entries })
         }
-        BrowserRequest::GetCredentials { id, origin } => {
+        BrowserRequest::GetCredentials { id, origin, .. } => {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "error": "Invalid page origin" });
             };
@@ -299,8 +368,8 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        entry_host, origin_host, remove_stale_socket, valid_entry_id, write_native_host_manifests,
-        BrowserRequest, NATIVE_HOST_NAME,
+        entry_host, generate_token, origin_host, remove_stale_socket, token_matches,
+        valid_entry_id, write_native_host_manifests, BrowserRequest, NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::net::UnixListener;
@@ -358,12 +427,45 @@ mod tests {
     #[test]
     fn rejects_unknown_request_fields_and_invalid_entry_ids() {
         assert!(serde_json::from_str::<BrowserRequest>(
-            r#"{"type":"listLogins","origin":"https://example.com","extra":true}"#,
+            r#"{"type":"listLogins","token":"t","origin":"https://example.com","extra":true}"#,
         )
         .is_err());
         assert!(serde_json::from_str::<BrowserRequest>(r#"{"type":"unknown"}"#).is_err());
         assert!(!valid_entry_id("not-an-entry-id"));
         assert!(valid_entry_id(&uuid::Uuid::new_v4().to_string()));
+    }
+
+    #[test]
+    fn requests_require_a_token_and_expose_it() {
+        let parsed: BrowserRequest = serde_json::from_str(
+            r#"{"type":"listLogins","token":"abc123","origin":"https://example.com"}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.token(), "abc123");
+
+        // A request with no token is rejected outright.
+        assert!(serde_json::from_str::<BrowserRequest>(
+            r#"{"type":"listLogins","origin":"https://example.com"}"#,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn token_comparison_accepts_only_the_exact_token() {
+        let token = generate_token();
+        assert!(token_matches(&token, &token));
+        assert!(!token_matches("", &token));
+        assert!(!token_matches(&token, "different"));
+        assert!(!token_matches(&format!("{token}x"), &token));
+    }
+
+    #[test]
+    fn generated_tokens_are_unique_and_nontrivial() {
+        let first = generate_token();
+        let second = generate_token();
+        assert_ne!(first, second);
+        // 32 random bytes → 43 URL-safe base64 chars (no padding).
+        assert_eq!(first.len(), 43);
     }
 
     #[test]
