@@ -35,7 +35,8 @@ Production packaging and automatic native-host registration are not implemented 
 
 ## Security model
 
-- The extension asks only for `activeTab` and `nativeMessaging` permissions.
+- The extension uses `activeTab`, `nativeMessaging`, and `scripting`; it has no persistent host
+  permissions and injects the local fill script only after the user selects a login.
 - Hitsu exposes an owner-only Unix socket available while the desktop app is running.
 - The Unix account is the local trust boundary: another process running as the same user can connect
   directly to the socket while the vault is unlocked. Native Messaging restricts browser access to
@@ -54,5 +55,5 @@ Production packaging and automatic native-host registration are not implemented 
 - Fills the first visible password field and nearest preceding username-like field.
 - No inline suggestions, save/update prompts, generated-password capture, HTTP-auth support, or
   iframe handling.
-- Developer-mode installation only. Store packaging and a stable signed extension ID are not
-  configured.
+- A store archive can be created with `just extension-zip`, but the store listing, stable extension
+  ID, and automatic production native-host registration are not configured.

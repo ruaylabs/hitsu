@@ -3,7 +3,7 @@
   "name": "Hitsu Password Manager",
   "version": "0.1.0",
   "description": "Fill login credentials from the unlocked Hitsu desktop app.",
-  "permissions": ["activeTab", "nativeMessaging"],
+  "permissions": ["activeTab", "nativeMessaging", "scripting"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -11,12 +11,5 @@
   "action": {
     "default_title": "Hitsu",
     "default_popup": "popup.html"
-  },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }

@@ -73,6 +73,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!currentTab.url || new URL(currentTab.url).origin !== tab.origin) {
           throw new Error("The page changed before Hitsu could fill it");
         }
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["content.js"],
+        });
         const fillResponse = await chrome.tabs.sendMessage(tab.id, {
           type: "fill-login",
           username: response.username ?? "",
