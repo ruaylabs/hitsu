@@ -8,6 +8,7 @@ format-js:
 # Format Rust code
 format-rust:
     cd src-tauri && cargo fmt
+    cd chrome-extension/native-host && cargo fmt
 
 # Check formatting
 format-check:
