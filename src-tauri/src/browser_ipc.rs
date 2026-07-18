@@ -8,7 +8,7 @@
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 
@@ -22,7 +22,7 @@ use crate::state::AppState;
 const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum BrowserRequest {
     ListLogins { origin: String },
     GetCredentials { id: String, origin: String },
@@ -32,11 +32,50 @@ pub fn socket_path() -> PathBuf {
     std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
 }
 
-pub fn start(app: AppHandle) -> std::io::Result<()> {
-    let path = socket_path();
-    if path.exists() {
-        fs::remove_file(&path)?;
+pub struct BrowserIpcSocket {
+    path: PathBuf,
+}
+
+impl Drop for BrowserIpcSocket {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
     }
+}
+
+fn remove_stale_socket(path: &std::path::Path) -> std::io::Result<()> {
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return Ok(());
+    };
+    if !metadata.file_type().is_socket() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "browser IPC path exists and is not a socket",
+        ));
+    }
+
+    match UnixStream::connect(path) {
+        Ok(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::AddrInUse,
+            "browser IPC is already running",
+        )),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::NotFound
+            ) =>
+        {
+            if path.exists() {
+                fs::remove_file(path)?;
+            }
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
+    let path = socket_path();
+    remove_stale_socket(&path)?;
     let listener = UnixListener::bind(&path)?;
     fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
 
@@ -50,7 +89,7 @@ pub fn start(app: AppHandle) -> std::io::Result<()> {
                 }
             }
         })?;
-    Ok(())
+    Ok(BrowserIpcSocket { path })
 }
 
 fn handle_connection(app: &AppHandle, mut stream: UnixStream) {
@@ -116,6 +155,9 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "error": "Invalid page origin" });
             };
+            if !valid_entry_id(&id) {
+                return json!({ "ok": false, "error": "Invalid entry ID" });
+            }
             let Some(entry) = crate::commands::entries::find_entry_ref(&vault.db, &id) else {
                 return json!({ "ok": false, "error": "Entry not found" });
             };
@@ -140,6 +182,10 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             })
         }
     }
+}
+
+fn valid_entry_id(id: &str) -> bool {
+    uuid::Uuid::parse_str(id).is_ok()
 }
 
 fn origin_host(origin: &str) -> Result<String, ()> {
@@ -167,7 +213,9 @@ fn entry_host(raw: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{entry_host, origin_host};
+    use super::{entry_host, origin_host, remove_stale_socket, valid_entry_id, BrowserRequest};
+    use std::fs;
+    use std::os::unix::net::UnixListener;
 
     #[test]
     fn accepts_http_origins_and_bare_entry_urls() {
@@ -179,6 +227,33 @@ mod tests {
             entry_host("example.com/login").as_deref(),
             Some("example.com")
         );
+    }
+
+    #[test]
+    fn stale_socket_is_removed_without_disrupting_a_live_listener() {
+        let root = std::env::temp_dir().join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("browser.sock");
+
+        let listener = UnixListener::bind(&path).unwrap();
+        let error = remove_stale_socket(&path).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::AddrInUse);
+        drop(listener);
+
+        remove_stale_socket(&path).unwrap();
+        assert!(!path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_unknown_request_fields_and_invalid_entry_ids() {
+        assert!(serde_json::from_str::<BrowserRequest>(
+            r#"{"type":"listLogins","origin":"https://example.com","extra":true}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<BrowserRequest>(r#"{"type":"unknown"}"#).is_err());
+        assert!(!valid_entry_id("not-an-entry-id"));
+        assert!(valid_entry_id(&uuid::Uuid::new_v4().to_string()));
     }
 
     #[test]

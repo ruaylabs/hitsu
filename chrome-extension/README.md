@@ -31,12 +31,15 @@ implemented.
 
 Reload the extension from `chrome://extensions` after changing its source files.
 
-For production packaging, see [`BUNDLING.md`](BUNDLING.md).
+Production packaging and automatic native-host registration are not implemented yet.
 
 ## Security model
 
 - The extension asks only for `activeTab` and `nativeMessaging` permissions.
 - Hitsu exposes an owner-only Unix socket available while the desktop app is running.
+- The Unix account is the local trust boundary: another process running as the same user can connect
+  directly to the socket while the vault is unlocked. Native Messaging restricts browser access to
+  the configured extension ID, but it does not authenticate same-user processes to the socket.
 - Login metadata is returned only for exact hostname matches.
 - A password is returned only after selecting a matching entry.
 - Trashed entries are never exposed.

@@ -19,7 +19,7 @@ try {
 }
 
 if (origin) {
-  chrome.runtime.sendMessage({ type: "list-logins", origin }, (response) => {
+  chrome.runtime.sendMessage({ type: "list-logins" }, (response) => {
     if (!response?.ok) {
       const unavailable = response?.error?.includes("host")
         ? "Hitsu browser integration is not installed."
@@ -43,16 +43,13 @@ if (origin) {
       button.append(title, username);
       button.addEventListener("click", () => {
         button.disabled = true;
-        chrome.runtime.sendMessage(
-          { type: "fill-login", id: entry.id, origin, tabId: tab.id },
-          (fillResponse) => {
-            if (fillResponse?.ok) window.close();
-            else {
-              button.disabled = false;
-              showMessage(fillResponse?.error ?? "Could not fill this page.", "error");
-            }
-          },
-        );
+        chrome.runtime.sendMessage({ type: "fill-login", id: entry.id }, (fillResponse) => {
+          if (fillResponse?.ok) window.close();
+          else {
+            button.disabled = false;
+            showMessage(fillResponse?.error ?? "Could not fill this page.", "error");
+          }
+        });
       });
       content.append(button);
     }

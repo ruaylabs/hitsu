@@ -19,8 +19,8 @@ function findUsernameInput(passwordInput) {
   );
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "fill-login") return false;
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
 
   const passwordInput = document.querySelector(
     'input[type="password"]:not([disabled]):not([readonly])',

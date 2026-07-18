@@ -109,8 +109,11 @@ pub fn run() {
             auto_lock::start(app.handle().clone());
             session_lock::start(app.handle().clone());
             #[cfg(unix)]
-            if let Err(error) = browser_ipc::start(app.handle().clone()) {
-                eprintln!("browser integration unavailable: {error}");
+            match browser_ipc::start(app.handle().clone()) {
+                Ok(socket) => {
+                    app.manage(socket);
+                }
+                Err(error) => eprintln!("browser integration unavailable: {error}"),
             }
             Ok(())
         })
