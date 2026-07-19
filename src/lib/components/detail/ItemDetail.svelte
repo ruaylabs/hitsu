@@ -115,34 +115,6 @@
     startFetch();
   });
 
-  // Card numbers are shown in full by default (unlike password/CVV/PIN),
-  // so fetch the plaintext when a card entry is selected. Falls back to the
-  // backend-masked value until it arrives (or if the fetch fails).
-  let cardNumberPlain = $state("");
-  let cardNumberRevision = -1;
-  // Which entry id the fetched (or in-flight) number belongs to. Keyed on the
-  // id, not the `_entry` object: `_entry` is reassigned on refetches of the
-  // same entry (favorite toggle, save), and resetting/refetching then would
-  // flash the field back to the masked value.
-  let cardNumberEntryId: string | null = null;
-  $effect(() => {
-    const e = _entry;
-    const revision = vault.revision;
-    const wantId = e?.type === "card" && e.card?.hasNumber ? e.id : null;
-    if (wantId === cardNumberEntryId && revision === cardNumberRevision) return;
-    cardNumberEntryId = wantId;
-    cardNumberRevision = revision;
-    cardNumberPlain = "";
-    if (wantId) {
-      entriesBridge
-        .entryRevealField(wantId, "cardNumber")
-        .then((n) => {
-          if (cardNumberEntryId === wantId && cardNumberRevision === revision) cardNumberPlain = n;
-        })
-        .catch((err) => console.error("Failed to load card number", err));
-    }
-  });
-
   let editing = $state(false);
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
@@ -1493,13 +1465,17 @@
           <Field label="Holder" value={entry.card.holder} />
         {/if}
         {#if entry.card.hasNumber}
-          <Field
+          <!-- Masked by default like the other secrets: the full PAN only
+               crosses IPC on an explicit reveal, never on selection. -->
+          <PasswordField
             label="Number"
-            value={cardNumberPlain
-              ? formatCardNumber(cardNumberPlain, entry.card.type)
-              : (entry.card.numberMasked ?? "")}
-            mono
-            onCopy={() => clipboard.copySecretField(entry.id, "cardNumber")}
+            masked={entry.card.numberMasked || undefined}
+            reveal={async () =>
+              formatCardNumber(
+                await entriesBridge.entryRevealField(entry.id, "cardNumber"),
+                entry.card?.type,
+              )}
+            copy={() => clipboard.copySecretField(entry.id, "cardNumber")}
           />
         {/if}
         {#if entry.card.expMonth && entry.card.expYear}

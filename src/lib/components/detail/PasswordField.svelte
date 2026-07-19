@@ -8,6 +8,7 @@
     reveal,
     copy: copyFn,
     showStrength = false,
+    masked = "•".repeat(14),
   }: {
     label: string;
     /** Fetch the plaintext on demand (explicit reveal only — the secret is
@@ -19,6 +20,9 @@
      *  passwords — CVV/pin are always short and would always read "weak".
      *  Shown only while revealed, since the plaintext isn't held otherwise. */
     showStrength?: boolean;
+    /** Placeholder shown while hidden. Pass a backend-masked value (e.g. a
+     *  card number's "•••• 1234") to keep a non-secret hint visible. */
+    masked?: string;
   } = $props();
 
   /** Revealed secrets hide themselves after this long. */
@@ -85,7 +89,7 @@
 
 <DetailFieldRow {label}>
   <div class="field-main">
-    <span class="field-value mono">{revealed ? plaintext : "•".repeat(14)}</span>
+    <span class="field-value mono">{revealed ? plaintext : masked}</span>
     {#if revealed}
       <span class="hide-countdown">Hides in {hideRemaining}s</span>
     {/if}
