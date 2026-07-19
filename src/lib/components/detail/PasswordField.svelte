@@ -21,8 +21,12 @@
     showStrength?: boolean;
   } = $props();
 
+  /** Revealed secrets hide themselves after this long. */
+  const REVEAL_SECONDS = 30;
+
   let revealed = $state(false);
   let plaintext = $state("");
+  let hideRemaining = $state(0);
   let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
   let copied = $state(false);
@@ -31,8 +35,22 @@
   function hide() {
     revealed = false;
     plaintext = "";
+    hideRemaining = 0;
     if (revealTimer) clearTimeout(revealTimer);
     revealTimer = null;
+  }
+
+  // Count down to the deadline so the auto-hide is visible instead of looking
+  // like a glitch. Wakes just after each wall-clock second (same pattern as
+  // TOTPField) — the display has one-second precision anyway.
+  function tick(deadline: number) {
+    const now = Date.now();
+    if (now >= deadline) {
+      hide();
+      return;
+    }
+    hideRemaining = Math.ceil((deadline - now) / 1000);
+    revealTimer = setTimeout(() => tick(deadline), 1000 - (now % 1000) + 5);
   }
 
   async function toggleReveal() {
@@ -43,7 +61,7 @@
     try {
       plaintext = await reveal();
       revealed = true;
-      revealTimer = setTimeout(hide, 30000);
+      tick(Date.now() + REVEAL_SECONDS * 1000);
     } catch (e) {
       console.error("Failed to reveal secret", e);
     }
@@ -68,6 +86,9 @@
 <DetailFieldRow {label}>
   <div class="field-main">
     <span class="field-value mono">{revealed ? plaintext : "•".repeat(14)}</span>
+    {#if revealed}
+      <span class="hide-countdown">Hides in {hideRemaining}s</span>
+    {/if}
     <div class="field-actions">
       <IconButton
         icon={copied ? "check" : "copy"}
@@ -79,7 +100,9 @@
         icon={revealed ? "eye-off" : "eye"}
         onclick={toggleReveal}
         aria-label={revealed ? `Hide ${label.toLowerCase()}` : `Reveal ${label.toLowerCase()}`}
-        title={revealed ? `Hide ${label.toLowerCase()}` : `Reveal ${label.toLowerCase()}`}
+        title={revealed
+          ? `Hide ${label.toLowerCase()}`
+          : `Reveal ${label.toLowerCase()} (hides after ${REVEAL_SECONDS}s)`}
       />
     </div>
     {#if showStrength && revealed}
@@ -116,5 +139,12 @@
     display: flex;
     gap: 4px;
     flex-shrink: 0;
+  }
+
+  .hide-countdown {
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
 </style>
