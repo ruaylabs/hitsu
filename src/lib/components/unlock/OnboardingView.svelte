@@ -1,14 +1,35 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
+  import { onMount } from "svelte";
+  import * as prefsBridge from "$lib/bridge/prefs";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
-  let dialog: "open" | "create" | null = $state(null);
+  let dialog: "open" | "create" | "unlock" | null = $state(null);
   let pendingPath = $state("");
   let busy = $state(false);
   let error = $state("");
+
+  // The remembered vault (Settings persists it on every open), so landing
+  // here — e.g. after closing the locked prompt — still offers a way back.
+  let lastVault = $state<string | null>(null);
+  let lastVaultName = $derived(lastVault?.split(/[\\/]/).pop() ?? "");
+
+  onMount(() => {
+    prefsBridge
+      .prefsGet()
+      .then((prefs) => (lastVault = prefs.lastVault ?? null))
+      .catch((e) => console.error("Failed to load preferences", e));
+  });
+
+  function handleUnlockLast() {
+    if (!lastVault || busy) return;
+    error = "";
+    pendingPath = lastVault;
+    dialog = "unlock";
+  }
 
   async function handleOpen() {
     if (busy) return;
@@ -78,6 +99,13 @@
     onconfirm={doOpen}
     oncancel={() => (dialog = null)}
   />
+{:else if dialog === "unlock"}
+  <PasswordDialog
+    title="Unlock vault"
+    confirmLabel="Unlock"
+    onconfirm={doOpen}
+    oncancel={() => (dialog = null)}
+  />
 {:else if dialog === "create"}
   <PasswordDialog
     title="Create new vault"
@@ -103,6 +131,12 @@
     {/if}
 
     <div class="onboarding-actions">
+      {#if lastVault}
+        <button class="onboarding-btn" onclick={handleUnlockLast} disabled={busy} title={lastVault}>
+          <Icon name="lock" size={18} />
+          <span>Unlock {lastVaultName}</span>
+        </button>
+      {/if}
       <button class="onboarding-btn" onclick={handleOpen} disabled={busy}>
         <Icon name="folder-open" size={18} />
         <span>Open existing vault…</span>
@@ -198,5 +232,12 @@
   .onboarding-btn:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  .onboarding-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>
