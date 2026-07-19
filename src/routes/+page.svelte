@@ -1,3 +1,16 @@
+<script lang="ts" module>
+  import { security } from "$lib/stores/security.svelte";
+
+  // Start the preferences fetch at module-evaluation time so the IPC
+  // roundtrip overlaps with Svelte mounting instead of running after it —
+  // the unlock prompt is gated on this result. Errors are swallowed here
+  // (resolving null) so a rejection can't fire before onMount subscribes.
+  const startupPrefs = security.load().catch((error) => {
+    console.error("Failed to load startup preferences", error);
+    return null;
+  });
+</script>
+
 <script lang="ts">
   import { onMount } from "svelte";
   import MainApp from "$lib/components/MainApp.svelte";
@@ -5,7 +18,6 @@
   import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
   import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
-  import { security } from "$lib/stores/security.svelte";
   import { vault } from "$lib/stores/vault.svelte";
 
   let startupDialog: "password" | null = $state(null);
@@ -20,19 +32,15 @@
   onMount(() => {
     windowFocused = document.hasFocus();
 
-    // Load preferences — startup vault and security settings
-    security
-      .load()
-      .then((prefs) => {
-        if (prefs.lastVault) {
-          startupPath = prefs.lastVault;
-          startupDialog = "password";
-        }
-        startupChecked = true;
-      })
-      .catch(() => {
-        startupChecked = true;
-      });
+    // Startup vault and security settings; the fetch is already in flight
+    // (see the module script). null means it failed — proceed to onboarding.
+    startupPrefs.then((prefs) => {
+      if (prefs?.lastVault) {
+        startupPath = prefs.lastVault;
+        startupDialog = "password";
+      }
+      startupChecked = true;
+    });
   });
 </script>
 

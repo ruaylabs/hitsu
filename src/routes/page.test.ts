@@ -3,8 +3,11 @@ import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "./+page.svelte";
 
+// The page kicks off security.load() at module-evaluation time (to overlap
+// the IPC roundtrip with mounting), so the mock must already resolve when
+// +page.svelte is imported — not just from beforeEach.
 const mocks = vi.hoisted(() => ({
-  loadSecurity: vi.fn(),
+  loadSecurity: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("$lib/stores/security.svelte", () => ({
