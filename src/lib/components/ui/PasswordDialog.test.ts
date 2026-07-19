@@ -85,6 +85,17 @@ describe("PasswordDialog", () => {
     expect(onconfirm).toHaveBeenCalledWith("valid-password");
   });
 
+  it("shows the vault path when provided", () => {
+    render(PasswordDialog, {
+      vaultPath: "/home/user/vaults/personal.kdbx",
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+
+    // Substring match: the rendered text starts with an invisible &lrm; mark.
+    expect(screen.getByText(/\/home\/user\/vaults\/personal\.kdbx/)).toBeInTheDocument();
+  });
+
   it("invokes cancel from the footer", async () => {
     const oncancel = vi.fn();
     render(PasswordDialog, { onconfirm: vi.fn(), oncancel });

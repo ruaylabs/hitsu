@@ -6,6 +6,7 @@
 
   let {
     title = "Enter master password",
+    vaultPath = "",
     confirmLabel = "Unlock",
     showConfirm = true,
     showCancel = true,
@@ -21,6 +22,8 @@
     oncancel,
   }: {
     title?: string;
+    /** Path of the vault being unlocked, shown above the password field. */
+    vaultPath?: string;
     confirmLabel?: string;
     showConfirm?: boolean;
     showCancel?: boolean;
@@ -73,6 +76,11 @@
 >
   {#snippet children()}
     <div class="password-field">
+      {#if vaultPath}
+        <!-- The &lrm; keeps the RTL truncation below from visually moving the
+             path's leading "/" to the end. -->
+        <span class="vault-path" title={vaultPath}>&lrm;{vaultPath}</span>
+      {/if}
       <label class="control-label" for="master-pw">Master password</label>
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -129,5 +137,18 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .vault-path {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    /* Long paths truncate from the start so the filename stays visible. */
+    direction: rtl;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
   }
 </style>

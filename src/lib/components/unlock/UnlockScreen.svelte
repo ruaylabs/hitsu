@@ -33,6 +33,7 @@
 
 <PasswordDialog
   {title}
+  vaultPath={path}
   {confirmLabel}
   {showCancel}
   errorMessage={error}

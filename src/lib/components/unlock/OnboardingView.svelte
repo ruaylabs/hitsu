@@ -95,6 +95,7 @@
 {#if dialog === "open"}
   <PasswordDialog
     title="Open vault"
+    vaultPath={pendingPath}
     confirmLabel="Open"
     onconfirm={doOpen}
     oncancel={() => (dialog = null)}
@@ -102,6 +103,7 @@
 {:else if dialog === "unlock"}
   <PasswordDialog
     title="Unlock vault"
+    vaultPath={pendingPath}
     confirmLabel="Unlock"
     onconfirm={doOpen}
     oncancel={() => (dialog = null)}
