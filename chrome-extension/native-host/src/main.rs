@@ -6,14 +6,31 @@ use std::os::unix::net::UnixStream;
 #[cfg(unix)]
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 
+/// Directory holding the browser IPC socket and token file. Mirrors
+/// `runtime_dir` in the desktop app's `browser_ipc.rs` — the two must resolve
+/// identically or this host will look for the socket in the wrong place.
+#[cfg(unix)]
+fn runtime_dir() -> std::path::PathBuf {
+    use std::os::unix::fs::MetadataExt;
+    if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR").map(std::path::PathBuf::from) {
+        let owned_by_us = dir.metadata().is_ok_and(|metadata| {
+            metadata.is_dir() && metadata.uid() == unsafe { libc::geteuid() }
+        });
+        if dir.is_absolute() && owned_by_us {
+            return dir;
+        }
+    }
+    std::env::temp_dir()
+}
+
 #[cfg(unix)]
 fn socket_path() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
+    runtime_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
 }
 
 #[cfg(unix)]
 fn token_path() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("hitsu-browser-{}.token", unsafe {
+    runtime_dir().join(format!("hitsu-browser-{}.token", unsafe {
         libc::geteuid()
     }))
 }

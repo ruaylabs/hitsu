@@ -38,7 +38,10 @@ Reload the extension from `chrome://extensions` after changing its source files.
 
 - The extension uses `activeTab`, `nativeMessaging`, and `scripting`; it has no persistent host
   permissions and injects the local fill script only after the user selects a login.
-- Hitsu exposes an owner-only Unix socket available while the desktop app is running.
+- Hitsu exposes an owner-only Unix socket available while the desktop app is running. It lives in
+  `$XDG_RUNTIME_DIR` (per-user, mode 0700) when set, falling back to the temp dir — on macOS,
+  `$TMPDIR` is already per-user. Sandboxed browsers (snap/flatpak) that see a different
+  `XDG_RUNTIME_DIR` will fail to find the socket and report the app as not running.
 - The Unix account is the local trust boundary: another process running as the same user can connect
   directly to the socket while the vault is unlocked. Native Messaging restricts browser access to
   the configured extension ID, but it does not authenticate same-user processes to the socket.

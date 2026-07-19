@@ -19,7 +19,7 @@
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 
@@ -63,14 +63,41 @@ impl BrowserRequest {
     }
 }
 
+/// Directory holding the browser IPC socket and token file.
+///
+/// Prefers `$XDG_RUNTIME_DIR` (per-user, mode 0700, cleaned on logout): the
+/// temp dir on Linux is world-writable `/tmp`, where the sticky bit stops other
+/// users from *removing* our socket but not from pre-binding its predictable
+/// path before we start. Falls back to the temp dir when the variable is unset
+/// or doesn't hold what the XDG spec promises — on macOS that fallback is
+/// `$TMPDIR`, itself per-user and 0700.
+///
+/// The native host resolves this identically (`chrome-extension/native-host`);
+/// keep the two in sync or the host will look for the socket in the wrong place.
+fn runtime_dir() -> PathBuf {
+    runtime_dir_from(std::env::var_os("XDG_RUNTIME_DIR"))
+}
+
+fn runtime_dir_from(candidate: Option<std::ffi::OsString>) -> PathBuf {
+    if let Some(dir) = candidate.map(PathBuf::from) {
+        let owned_by_us = dir.metadata().is_ok_and(|metadata| {
+            metadata.is_dir() && metadata.uid() == unsafe { libc::geteuid() }
+        });
+        if dir.is_absolute() && owned_by_us {
+            return dir;
+        }
+    }
+    std::env::temp_dir()
+}
+
 pub fn socket_path() -> PathBuf {
-    std::env::temp_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
+    runtime_dir().join(format!("hitsu-browser-{}.sock", unsafe { libc::geteuid() }))
 }
 
 /// Owner-only file holding this session's browser-IPC token. Sits beside the
 /// socket; the native host reads it to authenticate each request.
 fn token_path() -> PathBuf {
-    std::env::temp_dir().join(format!("hitsu-browser-{}.token", unsafe {
+    runtime_dir().join(format!("hitsu-browser-{}.token", unsafe {
         libc::geteuid()
     }))
 }
@@ -368,8 +395,9 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        entry_host, generate_token, origin_host, remove_stale_socket, token_matches,
-        valid_entry_id, write_native_host_manifests, BrowserRequest, NATIVE_HOST_NAME,
+        entry_host, generate_token, origin_host, remove_stale_socket, runtime_dir_from,
+        token_matches, valid_entry_id, write_native_host_manifests, BrowserRequest,
+        NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::net::UnixListener;
@@ -466,6 +494,28 @@ mod tests {
         assert_ne!(first, second);
         // 32 random bytes → 43 URL-safe base64 chars (no padding).
         assert_eq!(first.len(), 43);
+    }
+
+    #[test]
+    fn runtime_dir_prefers_an_owned_absolute_directory() {
+        let owned = std::env::temp_dir().join(format!("hitsu-runtime-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&owned).unwrap();
+        assert_eq!(
+            runtime_dir_from(Some(owned.clone().into_os_string())),
+            owned
+        );
+        fs::remove_dir_all(owned).unwrap();
+    }
+
+    #[test]
+    fn runtime_dir_falls_back_to_temp_dir_when_unset_or_unusable() {
+        let temp = std::env::temp_dir();
+        assert_eq!(runtime_dir_from(None), temp);
+        assert_eq!(runtime_dir_from(Some("relative/path".into())), temp);
+        assert_eq!(
+            runtime_dir_from(Some("/nonexistent-hitsu-runtime-dir".into())),
+            temp
+        );
     }
 
     #[test]

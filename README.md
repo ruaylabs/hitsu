@@ -158,9 +158,11 @@ src-tauri/        # Rust backend
   It does not currently expose cipher or KDF configuration controls.
 - Memory locking (`mlock`/`mprotect`) is not implemented — sensitive pages may be
   written to swap. Use encrypted swap or full-disk encryption.
-- The browser integration's local socket is reachable by any process running as
-  the same OS user. A per-session token (written to an owner-only file, injected
-  by the native host, and verified in constant time) stops naive enumeration,
-  but it is not a hard boundary: a same-user process can also read the token
+- The browser integration's local socket lives in `$XDG_RUNTIME_DIR` (per-user,
+  mode 0700) when available, so other users can never pre-bind its predictable
+  path; it falls back to the per-user temp dir on macOS. The socket is still
+  reachable by any process running as the same OS user. A per-session token (written to an
+  owner-only file, injected by the native host, and verified in constant time) stops naive
+  enumeration, but it is not a hard boundary: a same-user process can also read the token
   file. The desktop app remains the primary trust boundary; the browser bridge
   is a developer preview.
