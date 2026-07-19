@@ -23,6 +23,7 @@ pub struct PasswordOptions {
 
 #[tauri::command]
 pub async fn generate_password(opts: PasswordOptions) -> HitsuResult<String> {
+    // Range must match the UI slider (GeneratorPanel.svelte) and README.
     let length = opts.length.clamp(8, 100) as usize;
 
     let mut classes: Vec<Vec<u8>> = Vec::new();

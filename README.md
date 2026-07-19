@@ -60,7 +60,7 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 ### Password generator
 
-- Configurable length (8–128), character classes
+- Configurable length (8–100), character classes
 - Exclude lookalikes (`il1Lo0O`)
 - Live preview
 
