@@ -5,6 +5,7 @@
   import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
   import { features } from "$lib/stores/features.svelte";
+  import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
@@ -28,10 +29,12 @@
 
   async function handleOpen() {
     try {
-      const result = await open({
-        multiple: false,
-        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-      });
+      const result = await nativeDialog.during(() =>
+        open({
+          multiple: false,
+          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+        }),
+      );
       if (!result) return;
       selectedPath = result;
       dialog = { kind: "open" };
@@ -101,10 +104,12 @@
    *  before choosing where the vault will live. */
   async function handleCreate() {
     try {
-      const result = await save({
-        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-        defaultPath: "vault.kdbx",
-      });
+      const result = await nativeDialog.during(() =>
+        save({
+          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+          defaultPath: "vault.kdbx",
+        }),
+      );
       if (!result) return;
       selectedPath = result;
       dialog = { kind: "create" };
@@ -138,7 +143,8 @@
     skippedEntries = [];
     statusMsg = "";
     try {
-      const report = await vaultBridge.vaultImport1pif();
+      // The backend opens the 1PIF file picker; keep the privacy screen away.
+      const report = await nativeDialog.during(() => vaultBridge.vaultImport1pif());
       if (!report) return;
       vault.setEntries(report.entries);
       if (vault.meta) {

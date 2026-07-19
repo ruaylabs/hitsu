@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as entriesBridge from "$lib/bridge/entries";
   import type { AttachmentMeta } from "$lib/bridge/types";
+  import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { formatFileSize } from "$lib/utils/format";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
@@ -19,7 +20,9 @@
 
   async function download(att: AttachmentMeta) {
     try {
-      const bytes = await entriesBridge.entryAttachmentSave(entryId, att.name);
+      const bytes = await nativeDialog.during(() =>
+        entriesBridge.entryAttachmentSave(entryId, att.name),
+      );
       if (bytes === null) return; // user cancelled the Rust-owned native dialog
       toast.success(`Saved ${att.name} (${formatFileSize(bytes)})`);
     } catch (e) {
@@ -29,7 +32,7 @@
 
   async function pickFile() {
     try {
-      const attachment = await entriesBridge.entryAttachmentAdd(entryId);
+      const attachment = await nativeDialog.during(() => entriesBridge.entryAttachmentAdd(entryId));
       if (attachment === null) return; // user cancelled the Rust-owned native dialog
       toast.success(`Added ${attachment.name}`);
       onchange?.();

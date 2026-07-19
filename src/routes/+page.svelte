@@ -4,6 +4,7 @@
   import Icon from "$lib/components/ui/Icon.svelte";
   import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
   import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
+  import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { vault } from "$lib/stores/vault.svelte";
 
@@ -11,6 +12,10 @@
   let startupPath = $state("");
   let startupChecked = $state(false);
   let windowFocused = $state(true);
+  // Hitsu-owned native dialogs (file pickers) steal focus too; don't blank
+  // the app behind a dialog the user just opened. True focus loss (switching
+  // apps) still hides content instantly.
+  let concealed = $derived(!windowFocused && !nativeDialog.open);
 
   onMount(() => {
     windowFocused = document.hasFocus();
@@ -33,7 +38,7 @@
 
 <svelte:window onfocus={() => (windowFocused = true)} onblur={() => (windowFocused = false)} />
 
-<div class="app-content" inert={!windowFocused} aria-hidden={!windowFocused}>
+<div class="app-content" inert={!windowFocused} aria-hidden={concealed}>
   {#if startupDialog === "password"}
     <UnlockScreen
       path={startupPath}
@@ -56,7 +61,7 @@
   {/if}
 </div>
 
-{#if !windowFocused}
+{#if concealed}
   <div class="privacy-screen" role="status" aria-label="Privacy screen">
     <Icon name="lock" size={24} />
     <span>Hitsu is hidden while unfocused</span>

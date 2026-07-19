@@ -1,5 +1,6 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
+  import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -13,10 +14,12 @@
     if (busy) return;
     error = "";
     try {
-      const result = await open({
-        multiple: false,
-        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-      });
+      const result = await nativeDialog.during(() =>
+        open({
+          multiple: false,
+          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+        }),
+      );
       if (!result) return;
       pendingPath = result;
       dialog = "open";
@@ -41,10 +44,12 @@
     if (busy) return;
     error = "";
     try {
-      const result = await save({
-        filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-        defaultPath: "vault.kdbx",
-      });
+      const result = await nativeDialog.during(() =>
+        save({
+          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+          defaultPath: "vault.kdbx",
+        }),
+      );
       if (!result) return;
       pendingPath = result;
       dialog = "create";
