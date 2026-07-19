@@ -34,10 +34,160 @@ const COLORS: Record<StrengthLevel, string> = {
   4: "var(--success)",
 };
 
+/** Top common passwords and base words (drawn from public breach top-lists).
+ *  Matched against the whole password and against its letter core after
+ *  lowercasing, undoing leetspeak, and stripping digit/symbol padding — so
+ *  `Password123!` and `qwerty2024` are caught, not just exact `password`. */
+const COMMON_PASSWORDS = new Set([
+  "123456",
+  "1234567",
+  "12345678",
+  "123456789",
+  "1234567890",
+  "12345",
+  "111111",
+  "123123",
+  "000000",
+  "121212",
+  "654321",
+  "666666",
+  "112233",
+  "password",
+  "passwort",
+  "qwerty",
+  "qwertyuiop",
+  "qwertz",
+  "azerty",
+  "asdfghjkl",
+  "asdfgh",
+  "zxcvbnm",
+  "qazwsx",
+  "abc123",
+  "abcdef",
+  "abcd1234",
+  "iloveyou",
+  "admin",
+  "welcome",
+  "login",
+  "letmein",
+  "dragon",
+  "monkey",
+  "football",
+  "baseball",
+  "basketball",
+  "soccer",
+  "hockey",
+  "superman",
+  "batman",
+  "trustno1",
+  "master",
+  "shadow",
+  "sunshine",
+  "princess",
+  "flower",
+  "hello",
+  "freedom",
+  "whatever",
+  "ninja",
+  "mustang",
+  "jordan",
+  "harley",
+  "hunter",
+  "ranger",
+  "buster",
+  "tigger",
+  "pepper",
+  "ginger",
+  "cookie",
+  "cheese",
+  "banana",
+  "orange",
+  "purple",
+  "silver",
+  "golden",
+  "diamond",
+  "monster",
+  "killer",
+  "cowboy",
+  "angel",
+  "lovely",
+  "secret",
+  "summer",
+  "winter",
+  "spring",
+  "autumn",
+  "starwars",
+  "pokemon",
+  "naruto",
+  "minecraft",
+  "computer",
+  "internet",
+  "samsung",
+  "google",
+  "liverpool",
+  "chelsea",
+  "arsenal",
+  "barcelona",
+  "thomas",
+  "robert",
+  "michael",
+  "charlie",
+  "daniel",
+  "andrew",
+  "joshua",
+  "matthew",
+  "jessica",
+  "jennifer",
+  "michelle",
+  "ashley",
+  "amanda",
+  "nicole",
+  "hannah",
+]);
+
+/** Common leetspeak substitutions, undone before dictionary lookup. */
+const LEET_MAP: Record<string, string> = {
+  "@": "a",
+  "4": "a",
+  "3": "e",
+  "1": "i",
+  "!": "i",
+  "0": "o",
+  $: "s",
+  "5": "s",
+  "7": "t",
+};
+
+/** The common-password base this password is built on, or null.
+ *  Checks the lowercased password and its de-leeted form, each both whole and
+ *  with leading/trailing non-letters (digit/symbol padding) stripped. */
+function commonCore(password: string): string | null {
+  const lower = password.toLowerCase();
+  const deleeted = lower.replace(/[@43!10$57]/g, (c) => LEET_MAP[c]);
+  for (const variant of [lower, deleeted]) {
+    if (COMMON_PASSWORDS.has(variant)) return variant;
+    const core = variant.replace(/^[^a-z]+|[^a-z]+$/g, "");
+    if (core && COMMON_PASSWORDS.has(core)) return core;
+  }
+  return null;
+}
+
+/** True for pure ascending/descending character runs like `abcdefgh`. */
+function isSequentialRun(lower: string): boolean {
+  if (lower.length < 4) return false;
+  const step = lower.charCodeAt(1) - lower.charCodeAt(0);
+  if (Math.abs(step) !== 1) return false;
+  for (let i = 2; i < lower.length; i++) {
+    if (lower.charCodeAt(i) - lower.charCodeAt(i - 1) !== step) return false;
+  }
+  return true;
+}
+
 export function estimateStrength(password: string): StrengthResult {
   if (!password) return { level: 0, fraction: 0, label: LABELS[0] };
 
   const len = password.length;
+  const lower = password.toLowerCase();
 
   // Character-class coverage
   let classes = 0;
@@ -45,11 +195,6 @@ export function estimateStrength(password: string): StrengthResult {
   if (/[A-Z]/.test(password)) classes++;
   if (/[0-9]/.test(password)) classes++;
   if (/[^a-zA-Z0-9]/.test(password)) classes++;
-
-  // Crude penalty for very common/low-entropy patterns
-  let penalty = 0;
-  if (/^(.)\1+$/.test(password)) penalty += 2; // all same char (aaaa…)
-  if (/^(0123456789|123456|password|qwerty|abcdef|letmein)$/i.test(password)) penalty += 3;
 
   // Base score from length
   let score: StrengthLevel;
@@ -66,15 +211,29 @@ export function estimateStrength(password: string): StrengthResult {
   if (classes >= 4 && len >= 12) score = Math.max(score, 3) as StrengthLevel;
   if (classes >= 4 && len >= 20) score = 4;
 
-  // Apply penalty
-  if (penalty > 0) {
-    score = Math.max(0, score - penalty) as StrengthLevel;
+  // Cap the score for common/low-entropy passwords: an exact dictionary
+  // staple, repeated character, or sequential run is trivial regardless of
+  // length; a common word dressed up with case, leet swaps, or digit/symbol
+  // padding is at best "Weak".
+  let capped = false;
+  if (/^(.)\1+$/.test(password) || isSequentialRun(lower)) {
+    score = 0;
+    capped = true;
+  }
+  const core = commonCore(password);
+  if (core !== null) {
+    const cap = core.length === len ? 0 : 1;
+    if (score > cap) {
+      score = cap as StrengthLevel;
+      capped = true;
+    }
   }
 
   return {
     level: score,
     fraction: (score + 1) / 5,
-    label: LABELS[score],
+    // "Too short" would mislabel a long-but-common password forced to 0.
+    label: capped && score === 0 ? "Very weak" : LABELS[score],
   };
 }
 
