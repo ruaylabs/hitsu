@@ -74,6 +74,26 @@ pub async fn prefs_set_folders_enabled(
 }
 
 #[tauri::command]
+pub async fn prefs_set_browser_integration_enabled(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> HitsuResult<()> {
+    update_preferences(&app, &state, |prefs| {
+        prefs.browser_integration_enabled = enabled;
+    })?;
+    #[cfg(unix)]
+    if let Err(error) = crate::browser_ipc::set_enabled(&app, enabled) {
+        // Raw IO errors can carry paths; log the detail, return a safe message.
+        eprintln!("browser integration toggle failed: {error}");
+        return Err(crate::error::HitsuError::Custom(
+            "Could not start the browser integration".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn prefs_set_kdf_dismissed(
     app: AppHandle,
     state: State<'_, AppState>,

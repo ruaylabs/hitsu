@@ -23,6 +23,11 @@ pub struct Preferences {
     /// Exposes the optional KDBX folder tree and entry-move controls.
     #[serde(default)]
     pub folders_enabled: bool,
+    /// Starts the browser-extension IPC listener. Off by default: the
+    /// integration is a developer preview, and the socket widens the local
+    /// attack surface (see browser_ipc.rs).
+    #[serde(default)]
+    pub browser_integration_enabled: bool,
     /// Vault paths for which the user dismissed the KDF-upgrade prompt.
     /// Per-vault so dismissing on one weak vault doesn't hide the prompt on
     /// a different weak vault.
@@ -38,6 +43,7 @@ impl Default for Preferences {
             idle_lock_minutes: default_idle_lock(),
             clipboard_clear_seconds: default_clipboard_clear(),
             folders_enabled: false,
+            browser_integration_enabled: false,
             kdf_upgrade_dismissed_vaults: Vec::new(),
         }
     }

@@ -1,5 +1,9 @@
 //! Narrow local IPC API used by the browser native-messaging host.
 //!
+//! The integration is opt-in (Settings → Features, off by default): nothing
+//! listens and no native-host manifest is registered until the user enables
+//! it, since the socket widens the local attack surface described below.
+//!
 //! The Unix socket is owner-only, but on a shared machine "owner-only" means
 //! *every* process running as the same user — not just our native host. To
 //! keep an unrelated same-user process from blindly speaking this protocol and
@@ -22,8 +26,11 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use base64::Engine;
+use parking_lot::Mutex;
 use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -200,13 +207,42 @@ pub fn register_production_native_host() -> std::io::Result<()> {
 pub struct BrowserIpcSocket {
     path: PathBuf,
     token_path: PathBuf,
+    shutdown: Arc<AtomicBool>,
 }
 
 impl Drop for BrowserIpcSocket {
     fn drop(&mut self) {
+        // Wake the blocked accept loop so its thread observes the flag and
+        // exits (closing the listener), then remove the socket and token.
+        self.shutdown.store(true, Ordering::SeqCst);
+        let _ = UnixStream::connect(&self.path);
         let _ = fs::remove_file(&self.path);
         let _ = fs::remove_file(&self.token_path);
     }
+}
+
+/// Managed handle to the browser IPC listener. Holds `None` while the
+/// integration is disabled (the developer-preview default), so the Settings
+/// toggle can start and stop it without an app restart.
+pub struct BrowserIpc(pub Mutex<Option<BrowserIpcSocket>>);
+
+/// Start or stop the browser integration to match the preference. Errors are
+/// only possible when starting; stopping just drops the listener handle.
+pub fn set_enabled(app: &AppHandle, enabled: bool) -> std::io::Result<()> {
+    let ipc = app.state::<BrowserIpc>();
+    let mut guard = ipc.0.lock();
+    if !enabled {
+        *guard = None;
+        return Ok(());
+    }
+    if guard.is_none() {
+        #[cfg(not(debug_assertions))]
+        if let Err(error) = register_production_native_host() {
+            eprintln!("native host registration unavailable: {error}");
+        }
+        *guard = Some(start(app.clone())?);
+    }
+    Ok(())
 }
 
 fn remove_stale_socket(path: &std::path::Path) -> std::io::Result<()> {
@@ -255,17 +291,26 @@ pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
     let token = generate_token();
     atomic_write(&token_path, token.as_bytes())?;
 
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let thread_shutdown = Arc::clone(&shutdown);
     std::thread::Builder::new()
         .name("browser-ipc".into())
         .spawn(move || {
             for stream in listener.incoming() {
+                if thread_shutdown.load(Ordering::SeqCst) {
+                    break;
+                }
                 match stream {
                     Ok(stream) => handle_connection(&app, &token, stream),
                     Err(error) => eprintln!("browser IPC connection failed: {error}"),
                 }
             }
         })?;
-    Ok(BrowserIpcSocket { path, token_path })
+    Ok(BrowserIpcSocket {
+        path,
+        token_path,
+        shutdown,
+    })
 }
 
 fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStream) {

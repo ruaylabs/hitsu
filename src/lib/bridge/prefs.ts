@@ -6,6 +6,7 @@ export interface Preferences {
   idleLockMinutes: number;
   clipboardClearSeconds: number;
   foldersEnabled: boolean;
+  browserIntegrationEnabled: boolean;
   kdfUpgradeDismissedVaults: string[];
 }
 
@@ -26,6 +27,10 @@ export async function prefsSetSecurity(
 
 export async function prefsSetFoldersEnabled(enabled: boolean): Promise<void> {
   return invoke<void>("prefs_set_folders_enabled", { enabled });
+}
+
+export async function prefsSetBrowserIntegrationEnabled(enabled: boolean): Promise<void> {
+  return invoke<void>("prefs_set_browser_integration_enabled", { enabled });
 }
 
 export async function prefsSetKdfDismissed(path: string, dismissed: boolean): Promise<void> {

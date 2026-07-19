@@ -126,6 +126,7 @@ beforeEach(() => {
     idleLockMinutes: 5,
     clipboardClearSeconds: 15,
     foldersEnabled: false,
+    browserIntegrationEnabled: false,
     kdfUpgradeDismissedVaults: [],
   });
   vault.setCreatingId(null);
@@ -551,6 +552,7 @@ describe("password entry workflow", () => {
       idleLockMinutes: 5,
       clipboardClearSeconds: 15,
       foldersEnabled: true,
+      browserIntegrationEnabled: false,
       kdfUpgradeDismissedVaults: [],
     });
     vault.setFolders([
@@ -580,6 +582,7 @@ describe("password entry workflow", () => {
       idleLockMinutes: 5,
       clipboardClearSeconds: 15,
       foldersEnabled: true,
+      browserIntegrationEnabled: false,
       kdfUpgradeDismissedVaults: [],
     });
     vault.setFolders([{ id: "work", name: "Work" }]);

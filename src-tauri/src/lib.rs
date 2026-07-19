@@ -33,6 +33,7 @@ pub fn run() {
             commands::prefs::prefs_set_last_vault,
             commands::prefs::prefs_set_security,
             commands::prefs::prefs_set_folders_enabled,
+            commands::prefs::prefs_set_browser_integration_enabled,
             commands::prefs::prefs_set_kdf_dismissed,
             commands::entries::entry_get,
             commands::entries::entries_search,
@@ -104,20 +105,23 @@ pub fn run() {
 
             app.set_menu(menu)?;
 
+            let preferences = prefs::Preferences::load(app.handle());
             let state = app.state::<AppState>();
-            state.configure_idle_lock(prefs::Preferences::load(app.handle()).idle_lock_minutes);
+            state.configure_idle_lock(preferences.idle_lock_minutes);
             auto_lock::start(app.handle().clone());
             session_lock::start(app.handle().clone());
-            #[cfg(all(unix, not(debug_assertions)))]
-            if let Err(error) = browser_ipc::register_production_native_host() {
-                eprintln!("native host registration unavailable: {error}");
-            }
+            // Browser integration is opt-in (developer preview); the managed
+            // handle lets the Settings toggle start/stop it without a restart.
+            // Native-host registration happens inside set_enabled, so nothing
+            // is advertised to browsers until the user opts in.
             #[cfg(unix)]
-            match browser_ipc::start(app.handle().clone()) {
-                Ok(socket) => {
-                    app.manage(socket);
+            {
+                app.manage(browser_ipc::BrowserIpc(parking_lot::Mutex::new(None)));
+                if preferences.browser_integration_enabled {
+                    if let Err(error) = browser_ipc::set_enabled(app.handle(), true) {
+                        eprintln!("browser integration unavailable: {error}");
+                    }
                 }
-                Err(error) => eprintln!("browser integration unavailable: {error}"),
             }
             Ok(())
         })

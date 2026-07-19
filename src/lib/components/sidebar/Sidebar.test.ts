@@ -27,6 +27,7 @@ beforeEach(() => {
     idleLockMinutes: 5,
     clipboardClearSeconds: 15,
     foldersEnabled: false,
+    browserIntegrationEnabled: false,
     kdfUpgradeDismissedVaults: [],
   });
 });
@@ -75,6 +76,7 @@ describe("Sidebar", () => {
       idleLockMinutes: 5,
       clipboardClearSeconds: 15,
       foldersEnabled: true,
+      browserIntegrationEnabled: false,
       kdfUpgradeDismissedVaults: [],
     });
     render(Sidebar);
@@ -92,6 +94,7 @@ describe("Sidebar", () => {
       idleLockMinutes: 5,
       clipboardClearSeconds: 15,
       foldersEnabled: true,
+      browserIntegrationEnabled: false,
       kdfUpgradeDismissedVaults: [],
     });
     vault.setFolders([{ id: "work", name: "Work" }]);

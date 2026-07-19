@@ -74,6 +74,8 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 ### Browser integration (developer preview)
 
+- **Opt-in, off by default** — enable it in Settings → Features; nothing listens
+  and no native-messaging host is registered until you do
 - Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge
 - Exact-host login lookup and popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
@@ -165,4 +167,4 @@ src-tauri/        # Rust backend
   owner-only file, injected by the native host, and verified in constant time) stops naive
   enumeration, but it is not a hard boundary: a same-user process can also read the token
   file. The desktop app remains the primary trust boundary; the browser bridge
-  is a developer preview.
+  is a developer preview and is disabled by default (Settings → Features).

@@ -77,6 +77,16 @@
     }
   }
 
+  async function onBrowserIntegrationChange(event: Event) {
+    const enabled = (event.currentTarget as HTMLInputElement).checked;
+    try {
+      await features.setBrowserIntegrationEnabled(enabled);
+    } catch (error) {
+      statusError = true;
+      statusMsg = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   async function doOpen(password: string) {
     dialog = null;
     try {
@@ -325,6 +335,22 @@
             aria-label="Enable folders"
             checked={features.foldersEnabled}
             onchange={onFoldersChange}
+          />
+        </label>
+        <label class="setting-row">
+          <span class="setting-label-group">
+            <span class="setting-label">Browser integration</span>
+            <span class="setting-description"
+              >Let the Hitsu browser extension fill logins from this app (developer preview).</span
+            >
+          </span>
+          <input
+            class="setting-switch"
+            type="checkbox"
+            role="switch"
+            aria-label="Enable browser integration"
+            checked={features.browserIntegrationEnabled}
+            onchange={onBrowserIntegrationChange}
           />
         </label>
       </section>

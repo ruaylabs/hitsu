@@ -24,13 +24,14 @@ page.
 
    Running the script without an ID registers the permanent Web Store extension instead.
 
-5. Start and unlock the release build of Hitsu. Open an HTTP(S) page whose hostname exactly matches a
-   login URL, then select the Hitsu toolbar button.
+5. Start the release build of Hitsu, enable **Settings → Features → Browser integration**, and
+   unlock a vault. Open an HTTP(S) page whose hostname exactly matches a login URL, then select the
+   Hitsu toolbar button.
 
-A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. On first launch,
-the release app automatically registers that host for the permanent Web Store extension in Chrome,
-Chromium, Brave, and Edge. The script remains useful for unpacked development extensions whose IDs
-differ from the store ID.
+A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. When the
+browser integration is enabled in Settings, the release app registers that host for the permanent
+Web Store extension in Chrome, Chromium, Brave, and Edge. The script remains useful for unpacked
+development extensions whose IDs differ from the store ID.
 
 Reload the extension from `chrome://extensions` after changing its source files.
 
@@ -38,6 +39,9 @@ Reload the extension from `chrome://extensions` after changing its source files.
 
 - The extension uses `activeTab`, `nativeMessaging`, and `scripting`; it has no persistent host
   permissions and injects the local fill script only after the user selects a login.
+- The integration is opt-in and off by default: enable it in the desktop app under
+  Settings → Features. Until then no socket listens and no native-messaging host manifest
+  is registered.
 - Hitsu exposes an owner-only Unix socket available while the desktop app is running. It lives in
   `$XDG_RUNTIME_DIR` (per-user, mode 0700) when set, falling back to the temp dir — on macOS,
   `$TMPDIR` is already per-user. Sandboxed browsers (snap/flatpak) that see a different
