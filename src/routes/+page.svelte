@@ -13,7 +13,7 @@
 
 <script lang="ts">
   import { onMount } from "svelte";
-  import MainApp from "$lib/components/MainApp.svelte";
+  import type MainAppComponent from "$lib/components/MainApp.svelte";
   import Icon from "$lib/components/ui/Icon.svelte";
   import OnboardingView from "$lib/components/unlock/OnboardingView.svelte";
   import UnlockScreen from "$lib/components/unlock/UnlockScreen.svelte";
@@ -24,6 +24,10 @@
   let startupPath = $state("");
   let startupChecked = $state(false);
   let windowFocused = $state(true);
+  // MainApp (and everything it pulls in) is split out of the startup chunk so
+  // the unlock prompt renders after parsing only the small shell. The chunk
+  // loads in the background while the user types their master password.
+  let MainApp = $state<typeof MainAppComponent | null>(null);
   // Hitsu-owned native dialogs (file pickers) steal focus too; don't blank
   // the app behind a dialog the user just opened. True focus loss (switching
   // apps) still hides content instantly.
@@ -31,6 +35,10 @@
 
   onMount(() => {
     windowFocused = document.hasFocus();
+
+    void import("$lib/components/MainApp.svelte")
+      .then((module) => (MainApp = module.default))
+      .catch((error) => console.error("Failed to load the main app", error));
 
     // Startup vault and security settings; the fetch is already in flight
     // (see the module script). null means it failed — proceed to onboarding.
@@ -64,7 +72,7 @@
   <!-- Waiting for startup check — show blank -->
   {:else if !vault.meta}
     <OnboardingView />
-  {:else}
+  {:else if MainApp}
     <MainApp />
   {/if}
 </div>
