@@ -67,7 +67,15 @@
       }}
     />
   {:else if vault.locked && vault.meta}
-    <UnlockScreen path={vault.meta!.path} title="Locked" confirmLabel="Unlock" showCancel={false} />
+    <!-- Closing the locked prompt forgets the current vault selection and
+         returns to onboarding so another vault can be opened. The backend
+         already dropped the decrypted data when the vault locked. -->
+    <UnlockScreen
+      path={vault.meta!.path}
+      title="Locked"
+      confirmLabel="Unlock"
+      oncancel={() => vault.setMeta(null)}
+    />
   {:else if !startupChecked}
   <!-- Waiting for startup check — show blank -->
   {:else if !vault.meta}
