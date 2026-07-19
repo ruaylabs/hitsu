@@ -436,6 +436,8 @@
       console.error("Failed to toggle favorite", e);
       saveStatus.markError(message);
       toast.error(message);
+      // No edit session here, so an external-change check may reload at once.
+      vault.refreshIfChanged().catch(() => {});
     }
   }
 
@@ -558,6 +560,10 @@
       saveError = e instanceof Error ? e.message : String(e);
       console.error("Failed to save", e);
       saveStatus.markError(saveError);
+      // If an external vault change caused this, arm the store: the reload
+      // then runs as soon as the edit ends (MainApp's deferred-reload effect),
+      // and the inline "discard and reload" affordance appears.
+      vault.refreshIfChanged().catch(() => {});
       return false;
     }
   }
@@ -820,7 +826,14 @@
     </div>
 
     {#if editing && saveError}
-      <p class="save-error">{saveError}</p>
+      <p class="save-error">
+        {saveError}
+        {#if vault.externalChangePending}
+          <button class="save-error-action" onclick={cancelEdit}>
+            Discard edit and reload latest
+          </button>
+        {/if}
+      </p>
     {/if}
 
     {#if editing}
@@ -2187,6 +2200,17 @@
     font-size: 12px;
     line-height: 1.4;
     margin-bottom: 12px;
+  }
+
+  .save-error-action {
+    margin-left: 6px;
+    color: var(--danger);
+    font-size: inherit;
+    text-decoration: underline;
+  }
+
+  .save-error-action:hover {
+    color: var(--text-primary);
   }
 
   .totp-edit-wrap {

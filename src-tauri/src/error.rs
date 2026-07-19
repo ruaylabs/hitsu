@@ -43,8 +43,8 @@ impl HitsuError {
             }
             HitsuError::ExternalModification => {
                 "The vault file was changed on disk by another program (a sync client?). \
-                 Nothing was saved. Lock and reopen the vault to load the latest version, \
-                 then retry your change."
+                 Nothing was saved. Hitsu reloads the latest version automatically — \
+                 finish or discard any edit in progress, then retry your change."
                     .to_string()
             }
             HitsuError::Io(_) => "A file operation failed.".to_string(),
