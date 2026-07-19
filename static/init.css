@@ -1,0 +1,13 @@
+/* Pre-paint page background so the webview never flashes white before the
+ * app's stylesheets load. Loaded as a render-blocking <link> from app.html
+ * instead of an inline <style> so the CSP can enforce style-src-elem 'self'.
+ * Keep in sync with --surface-0 in the app theme. */
+html {
+  background: #efede5;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background: #1e1e1e;
+  }
+}

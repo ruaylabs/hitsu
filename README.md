@@ -43,7 +43,8 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 - **Constant-time** master password comparison (`subtle::ConstantTimeEq`)
 - **Process hardening** disables core dumps and blocks debugger attachment in release builds
 - **Privacy screen** conceals the app whenever its window loses focus
-- **CSP** enabled — `default-src 'self'`
+- **CSP** enabled — `default-src 'self'`, scripts locked to `'self'`, and
+  `style-src-elem 'self'` so no injected style element can load
 
 ### Clipboard
 
@@ -160,6 +161,10 @@ src-tauri/        # Rust backend
   It does not currently expose cipher or KDF configuration controls.
 - Memory locking (`mlock`/`mprotect`) is not implemented — sensitive pages may be
   written to swap. Use encrypted swap or full-disk encryption.
+- The CSP keeps `style-src-attr 'unsafe-inline'` (plus `style-src 'unsafe-inline'`
+  as a fallback for older WebKit): Svelte's dynamic `style=` bindings require it.
+  Style *elements* are restricted to `'self'`, and with `script-src 'self'` the
+  residual style-injection risk is low.
 - The browser integration's local socket lives in `$XDG_RUNTIME_DIR` (per-user,
   mode 0700) when available, so other users can never pre-bind its predictable
   path; it falls back to the per-user temp dir on macOS. The socket is still

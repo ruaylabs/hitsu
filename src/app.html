@@ -5,16 +5,11 @@
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hitsu</title>
-    <style>
-      html {
-        background: #efede5; /* matches --surface-0 (light) */
-      }
-      @media (prefers-color-scheme: dark) {
-        html {
-          background: #1e1e1e; /* matches --surface-0 (dark) */
-        }
-      }
-    </style>
+    <!-- Render-blocking, so the background still applies before first paint
+         (and the native window backgroundColor covers the load itself). An
+         external file rather than an inline style tag so style-src-elem
+         stays 'self' — see the csp in tauri.conf.json. -->
+    <link rel="stylesheet" href="%sveltekit.assets%/init.css" />
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
