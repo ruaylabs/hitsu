@@ -77,7 +77,8 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 - **Opt-in, off by default** — enable it in Settings → Features; nothing listens
   and no native-messaging host is registered until you do
-- Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge
+- Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge — [install it from the Chrome
+  Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
 - Exact-host login lookup and popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
 - Owner-only local IPC, gated by a per-session token; trashed entries and
