@@ -2,6 +2,16 @@
 
 Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
+## Installation
+
+### macOS with Homebrew
+
+```bash
+brew install --cask ruaylabs/tap/hitsu
+```
+
+The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylabs/homebrew-tap).
+
 ## Features
 
 ### Vault management
