@@ -3,7 +3,7 @@ format: format-js format-rust
 
 # Format JS/TS/Svelte files
 format-js:
-    biome format --fix .
+    pnpm exec biome format --fix .
 
 # Format Rust code
 format-rust:
@@ -12,11 +12,11 @@ format-rust:
 
 # Check formatting
 format-check:
-    biome check .
+    pnpm exec biome check .
 
 # Lint
 lint:
-    biome lint .
+    pnpm exec biome lint .
 
 # Run all checks
 check: format-check lint
