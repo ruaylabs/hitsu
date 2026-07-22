@@ -89,11 +89,13 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
   and no native-messaging host is registered until you do
 - Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge — [install it from the Chrome
   Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
+- Firefox Manifest V3 extension with the same popup autofill workflow
 - Exact-host login lookup and popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
 - Owner-only local IPC, gated by a per-session token; trashed entries and
   non-matching origins are rejected
-- See [`chrome-extension/README.md`](chrome-extension/README.md) for development installation
+- See the [Chromium](chrome-extension/README.md) and [Firefox](firefox-extension/README.md)
+  development installation guides
 
 ### Appearance
 
@@ -152,8 +154,9 @@ src/              # Svelte frontend
     stores/       # Svelte 5 $state stores
     components/   # UI components
     utils/        # OTP, time formatting
-chrome-extension/ # Chromium extension and native-host installer
-src-tauri/        # Rust backend
+chrome-extension/  # Chromium extension and shared native host
+firefox-extension/ # Firefox extension and native-host installer
+src-tauri/         # Rust backend
   src/
     commands/     # Tauri command handlers
     models/       # Entry, VaultMeta, etc.

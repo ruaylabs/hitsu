@@ -33,6 +33,13 @@ extension-zip:
     cd chrome-extension && zip -q ../package/hitsu-extension.zip manifest.json background.js content.js popup.html popup.js popup.css
     unzip -l package/hitsu-extension.zip
 
+# Package the Firefox extension for signing or distribution
+firefox-extension-zip:
+    mkdir -p package
+    rm -f package/hitsu-firefox-extension.zip
+    cd firefox-extension && zip -q ../package/hitsu-firefox-extension.zip manifest.json background.js content.js popup.html popup.js popup.css
+    unzip -l package/hitsu-firefox-extension.zip
+
 # Run dev server
 dev:
     pnpm dev

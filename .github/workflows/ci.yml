@@ -37,7 +37,7 @@ jobs:
       - name: Test frontend
         run: pnpm test:frontend
 
-      - name: Test Chrome extension
+      - name: Test browser extensions
         run: pnpm test:extension
 
   rust:

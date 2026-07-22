@@ -9,7 +9,7 @@
 //! keep an unrelated same-user process from blindly speaking this protocol and
 //! harvesting credentials, each request must carry a per-session token: the app
 //! writes a fresh random token to an owner-only file at startup, the native
-//! host (which Chrome launches from a manifest we control) reads that file and
+//! host (which the browser launches from a manifest we control) reads that file and
 //! injects the token into every request, and the backend verifies it in
 //! constant time before doing any work. This is not a hard boundary against a
 //! same-user attacker — such a process can also read the 0600 token file — but
@@ -49,6 +49,7 @@ const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
 const CONNECTION_READ_TIMEOUT: Duration = Duration::from_secs(5);
 const NATIVE_HOST_NAME: &str = "com.ruaylabs.hitsu.browser";
 const PRODUCTION_EXTENSION_ID: &str = "pkickpkkbgpaffpdloplecfleckoopjc";
+const FIREFOX_EXTENSION_ID: &str = "hitsu@ruaylabs.com";
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
@@ -127,13 +128,13 @@ fn token_matches(provided: &str, expected: &str) -> bool {
     provided.as_bytes().ct_eq(expected.as_bytes()).into()
 }
 
-fn native_host_manifest_directories() -> std::io::Result<Vec<PathBuf>> {
+fn native_host_manifest_directories() -> std::io::Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "HOME is not set"))?;
 
     #[cfg(target_os = "macos")]
-    let directories = [
+    let chromium = [
         "Library/Application Support/Google/Chrome/NativeMessagingHosts",
         "Library/Application Support/Chromium/NativeMessagingHosts",
         "Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts",
@@ -143,12 +144,15 @@ fn native_host_manifest_directories() -> std::io::Result<Vec<PathBuf>> {
     .map(|relative| home.join(relative))
     .collect();
 
+    #[cfg(target_os = "macos")]
+    let firefox = vec![home.join("Library/Application Support/Mozilla/NativeMessagingHosts")];
+
     #[cfg(not(target_os = "macos"))]
-    let directories = {
+    let (chromium, firefox) = {
         let config_home = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| home.join(".config"));
-        [
+        let chromium = [
             "google-chrome/NativeMessagingHosts",
             "chromium/NativeMessagingHosts",
             "BraveSoftware/Brave-Browser/NativeMessagingHosts",
@@ -156,16 +160,20 @@ fn native_host_manifest_directories() -> std::io::Result<Vec<PathBuf>> {
         ]
         .into_iter()
         .map(|relative| config_home.join(relative))
-        .collect()
+        .collect();
+        let firefox = vec![home.join(".mozilla/native-messaging-hosts")];
+        (chromium, firefox)
     };
 
-    Ok(directories)
+    Ok((chromium, firefox))
 }
 
 fn write_native_host_manifests(
     host_path: &Path,
-    directories: &[PathBuf],
-    extension_id: &str,
+    chromium_directories: &[PathBuf],
+    firefox_directories: &[PathBuf],
+    chromium_extension_id: &str,
+    firefox_extension_id: &str,
 ) -> std::io::Result<()> {
     let host_path = host_path.to_str().ok_or_else(|| {
         std::io::Error::new(
@@ -173,19 +181,32 @@ fn write_native_host_manifests(
             "native host path is not valid UTF-8",
         )
     })?;
-    let manifest = serde_json::to_vec_pretty(&json!({
+    let base = json!({
         "name": NATIVE_HOST_NAME,
         "description": "Hitsu Password Manager native messaging host",
         "path": host_path,
         "type": "stdio",
-        "allowed_origins": [format!("chrome-extension://{extension_id}/")],
-    }))
-    .map_err(std::io::Error::other)?;
+    });
+    let mut chromium_manifest = base.clone();
+    chromium_manifest["allowed_origins"] =
+        json!([format!("chrome-extension://{chromium_extension_id}/")]);
+    let chromium_manifest =
+        serde_json::to_vec_pretty(&chromium_manifest).map_err(std::io::Error::other)?;
 
-    for directory in directories {
-        fs::create_dir_all(directory)?;
-        let destination = directory.join(format!("{NATIVE_HOST_NAME}.json"));
-        atomic_write(&destination, &manifest)?;
+    let mut firefox_manifest = base;
+    firefox_manifest["allowed_extensions"] = json!([firefox_extension_id]);
+    let firefox_manifest =
+        serde_json::to_vec_pretty(&firefox_manifest).map_err(std::io::Error::other)?;
+
+    for (directories, manifest) in [
+        (chromium_directories, chromium_manifest.as_slice()),
+        (firefox_directories, firefox_manifest.as_slice()),
+    ] {
+        for directory in directories {
+            fs::create_dir_all(directory)?;
+            let destination = directory.join(format!("{NATIVE_HOST_NAME}.json"));
+            atomic_write(&destination, manifest)?;
+        }
     }
     Ok(())
 }
@@ -202,10 +223,13 @@ pub fn register_production_native_host() -> std::io::Result<()> {
             format!("native messaging host not found at {}", host_path.display()),
         ));
     }
+    let (chromium_directories, firefox_directories) = native_host_manifest_directories()?;
     write_native_host_manifests(
         &host_path,
-        &native_host_manifest_directories()?,
+        &chromium_directories,
+        &firefox_directories,
         PRODUCTION_EXTENSION_ID,
+        FIREFOX_EXTENSION_ID,
     )
 }
 
@@ -501,24 +525,44 @@ mod tests {
     }
 
     #[test]
-    fn writes_native_host_manifest_with_production_shape() {
+    fn writes_chromium_and_firefox_native_host_manifests() {
         let root = std::env::temp_dir().join(format!("hitsu-host-{}", uuid::Uuid::new_v4()));
-        let directory = root.join("NativeMessagingHosts");
+        let chromium_directory = root.join("chromium/NativeMessagingHosts");
+        let firefox_directory = root.join("firefox/native-messaging-hosts");
         let host_path = root.join("hitsu-native-host");
 
-        write_native_host_manifests(&host_path, std::slice::from_ref(&directory), "extension-id")
-            .unwrap();
-
-        let manifest: serde_json::Value = serde_json::from_slice(
-            &fs::read(directory.join(format!("{NATIVE_HOST_NAME}.json"))).unwrap(),
+        write_native_host_manifests(
+            &host_path,
+            std::slice::from_ref(&chromium_directory),
+            std::slice::from_ref(&firefox_directory),
+            "chromium-extension-id",
+            "firefox-extension-id",
         )
         .unwrap();
-        assert_eq!(manifest["name"], NATIVE_HOST_NAME);
-        assert_eq!(manifest["path"], host_path.to_str().unwrap());
+
+        let chromium_manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(chromium_directory.join(format!("{NATIVE_HOST_NAME}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(chromium_manifest["name"], NATIVE_HOST_NAME);
+        assert_eq!(chromium_manifest["path"], host_path.to_str().unwrap());
         assert_eq!(
-            manifest["allowed_origins"][0],
-            "chrome-extension://extension-id/"
+            chromium_manifest["allowed_origins"][0],
+            "chrome-extension://chromium-extension-id/"
         );
+        assert!(chromium_manifest.get("allowed_extensions").is_none());
+
+        let firefox_manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(firefox_directory.join(format!("{NATIVE_HOST_NAME}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(firefox_manifest["name"], NATIVE_HOST_NAME);
+        assert_eq!(firefox_manifest["path"], host_path.to_str().unwrap());
+        assert_eq!(
+            firefox_manifest["allowed_extensions"][0],
+            "firefox-extension-id"
+        );
+        assert!(firefox_manifest.get("allowed_origins").is_none());
         fs::remove_dir_all(root).unwrap();
     }
 

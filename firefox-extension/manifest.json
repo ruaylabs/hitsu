@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Hitsu Password Manager",
+  "version": "0.1.0",
+  "description": "Fill login credentials from the unlocked Hitsu desktop app.",
+  "permissions": ["activeTab", "nativeMessaging", "scripting"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Hitsu",
+    "default_popup": "popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "hitsu@ruaylabs.com",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}

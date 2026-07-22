@@ -11,7 +11,11 @@ export default defineConfig(async () => ({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.test.ts", "chrome-extension/**/*.test.js"],
+    include: [
+      "src/**/*.test.ts",
+      "chrome-extension/**/*.test.js",
+      "firefox-extension/**/*.test.js",
+    ],
     clearMocks: true,
   },
 
