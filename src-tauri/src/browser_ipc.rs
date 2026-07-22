@@ -28,6 +28,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use base64::Engine;
 use parking_lot::Mutex;
@@ -42,6 +43,10 @@ use crate::state::AppState;
 use crate::vault::atomic_write;
 
 const MAX_REQUEST_BYTES: u64 = 1024 * 1024;
+/// Native-messaging requests are written immediately after connecting. Bound
+/// idle reads so a client that never sends a newline cannot retain a worker
+/// indefinitely.
+const CONNECTION_READ_TIMEOUT: Duration = Duration::from_secs(5);
 const NATIVE_HOST_NAME: &str = "com.ruaylabs.hitsu.browser";
 const PRODUCTION_EXTENSION_ID: &str = "pkickpkkbgpaffpdloplecfleckoopjc";
 
@@ -301,7 +306,24 @@ pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
                     break;
                 }
                 match stream {
-                    Ok(stream) => handle_connection(&app, &token, stream),
+                    Ok(stream) => {
+                        let connection_app = app.clone();
+                        let connection_token = token.clone();
+                        if let Err(error) = std::thread::Builder::new()
+                            .name("browser-ipc-connection".into())
+                            .spawn(move || {
+                                if let Err(error) =
+                                    stream.set_read_timeout(Some(CONNECTION_READ_TIMEOUT))
+                                {
+                                    eprintln!("browser IPC timeout setup failed: {error}");
+                                    return;
+                                }
+                                handle_connection(&connection_app, &connection_token, stream);
+                            })
+                        {
+                            eprintln!("browser IPC worker failed to start: {error}");
+                        }
+                    }
                     Err(error) => eprintln!("browser IPC connection failed: {error}"),
                 }
             }
@@ -313,26 +335,44 @@ pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
     })
 }
 
+fn read_request(stream: &UnixStream) -> Result<Option<BrowserRequest>, String> {
+    let mut line = String::new();
+    let mut reader = BufReader::new(stream).take(MAX_REQUEST_BYTES);
+    match reader.read_line(&mut line) {
+        Ok(0) => Ok(None),
+        Ok(_) => serde_json::from_str::<BrowserRequest>(&line)
+            .map(Some)
+            .map_err(|_| "Invalid browser request".to_string()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+            ) =>
+        {
+            Err("Browser request timed out".to_string())
+        }
+        Err(_) => Err("Could not read browser request".to_string()),
+    }
+}
+
 fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStream) {
-    let request = {
-        let mut line = String::new();
-        let mut reader = BufReader::new(&stream).take(MAX_REQUEST_BYTES);
-        match reader.read_line(&mut line) {
-            Ok(0) => return,
-            Ok(_) => serde_json::from_str::<BrowserRequest>(&line)
-                .map_err(|_| "Invalid browser request".to_string()),
-            Err(_) => Err("Could not read browser request".to_string()),
+    let request = match read_request(&stream) {
+        Ok(Some(request)) => request,
+        Ok(None) => return,
+        Err(error) => {
+            let response = json!({ "ok": false, "error": error });
+            let _ = serde_json::to_writer(&mut stream, &response);
+            let _ = stream.write_all(b"\n");
+            return;
         }
     };
 
     // Verify the session token before touching vault state or resetting the
     // idle-lock watchdog — a request that fails authentication is not activity.
-    let response = match request {
-        Ok(request) if token_matches(request.token(), expected_token) => {
-            process_request(app, request)
-        }
-        Ok(_) => json!({ "ok": false, "error": "Unauthorized browser request" }),
-        Err(error) => json!({ "ok": false, "error": error }),
+    let response = if token_matches(request.token(), expected_token) {
+        process_request(app, request)
+    } else {
+        json!({ "ok": false, "error": "Unauthorized browser request" })
     };
     let _ = serde_json::to_writer(&mut stream, &response);
     let _ = stream.write_all(b"\n");
@@ -440,12 +480,13 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        entry_host, generate_token, origin_host, remove_stale_socket, runtime_dir_from,
-        token_matches, valid_entry_id, write_native_host_manifests, BrowserRequest,
-        NATIVE_HOST_NAME,
+        entry_host, generate_token, origin_host, read_request, remove_stale_socket,
+        runtime_dir_from, token_matches, valid_entry_id, write_native_host_manifests,
+        BrowserRequest, NATIVE_HOST_NAME,
     };
     use std::fs;
-    use std::os::unix::net::UnixListener;
+    use std::os::unix::net::{UnixListener, UnixStream};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn accepts_http_origins_and_bare_entry_urls() {
@@ -495,6 +536,21 @@ mod tests {
         remove_stale_socket(&path).unwrap();
         assert!(!path.exists());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn idle_connection_read_is_bounded_by_timeout() {
+        let (server, _client) = UnixStream::pair().unwrap();
+        server
+            .set_read_timeout(Some(Duration::from_millis(25)))
+            .unwrap();
+
+        let started = Instant::now();
+        assert_eq!(
+            read_request(&server).unwrap_err(),
+            "Browser request timed out"
+        );
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 
     #[test]
