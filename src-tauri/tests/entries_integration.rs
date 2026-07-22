@@ -19,7 +19,7 @@ use std::io::Cursor;
 use sha2::{Digest, Sha256};
 
 use hitsu_lib::commands::entries::{
-    build_entry_summaries, build_folder_summaries, entry_create, entry_delete,
+    build_entry_summaries, build_folder_summaries, entries_search, entry_create, entry_delete,
     entry_delete_permanent, entry_discard, entry_get, entry_move, entry_restore,
     entry_reveal_field, entry_update, folder_create, folder_rename,
 };
@@ -157,6 +157,30 @@ async fn create_adds_to_memory_not_to_disk() {
 
     // …but the on-disk file still has zero entries (create does not save).
     assert_eq!(tv.disk_entry_count(), 0, "create must not touch disk");
+}
+
+#[tokio::test]
+async fn search_caps_broad_query_results() {
+    let tv = setup();
+    let state = tv.state();
+    {
+        let mut vaults = state.vaults.lock();
+        let (_id, vault) = vaults.iter_mut().next().expect("no open vault");
+        let mut root = vault.db.root_mut();
+        for index in 0..525 {
+            root.add_entry_with_id(keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4()))
+                .expect("duplicate entry id")
+                .set_unprotected(
+                    keepass::db::fields::TITLE,
+                    format!("Matching entry {index}"),
+                );
+        }
+    }
+
+    let matches = entries_search(state, "matching".to_string())
+        .await
+        .expect("search should succeed");
+    assert_eq!(matches.len(), 500);
 }
 
 #[tokio::test]

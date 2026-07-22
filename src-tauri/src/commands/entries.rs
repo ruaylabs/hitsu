@@ -10,6 +10,10 @@ use crate::models::{
 };
 use crate::state::{AppState, OpenVault};
 
+/// Bounds broad searches so large vaults cannot produce oversized IPC payloads
+/// or force the frontend to allocate and filter an unbounded list of IDs.
+const SEARCH_RESULT_LIMIT: usize = 500;
+
 /// Which KDBX standard field names should be stored as Protected values.
 fn is_protected_key(key: &str) -> bool {
     matches!(
@@ -607,6 +611,7 @@ pub async fn entries_search(state: State<'_, AppState>, query: String) -> HitsuR
         .db
         .iter_all_entries()
         .filter(|entry| entry_matches_search(entry, &query))
+        .take(SEARCH_RESULT_LIMIT)
         .map(|entry| entry.id().uuid().to_string())
         .collect())
 }
