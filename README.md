@@ -31,6 +31,7 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
 - **Edit** all fields (type-specific editors)
 - **Delete safely** to a KeePass-compatible Recycle Bin
 - **Restore** trashed entries to their previous group or delete them permanently
+- **Empty Recycle Bin** from Settings with a deletion-count confirmation
 - **Favorites** — star/unstar, filter sidebar, ⌘⇧F toggle
 - **Tags** with autocomplete suggestions
 - **History** tracking via KeePass entry history

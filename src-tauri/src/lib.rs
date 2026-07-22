@@ -27,6 +27,7 @@ pub fn run() {
             commands::vault::vault_change_password,
             commands::vault::vault_lock,
             commands::vault::vault_refresh_if_changed,
+            commands::vault::vault_empty_recycle_bin,
             commands::vault::vault_upgrade_kdf,
             commands::import::vault_import_1pif,
             commands::prefs::prefs_get,

@@ -8,9 +8,11 @@ use subtle::ConstantTimeEq;
 use tauri::State;
 use zeroize::{Zeroize, Zeroizing};
 
-use super::entries::{build_entry_summaries, build_folder_summaries, ensure_recycle_bin};
+use super::entries::{
+    build_entry_summaries, build_folder_summaries, ensure_recycle_bin, entry_is_trashed,
+};
 use crate::error::{HitsuError, HitsuResult};
-use crate::models::{VaultMeta, VaultRefreshResult};
+use crate::models::{EmptyRecycleBinResult, VaultMeta, VaultRefreshResult};
 use crate::state::{AppState, OpenVault, VaultId};
 
 // Compile-time assertion: confirm the rust-argon2 re-export resolves
@@ -157,6 +159,71 @@ fn validate_kdf(kdf: &KdfConfig) -> HitsuResult<()> {
         )),
         _ => Err(HitsuError::Custom("Unsupported KDF".to_string())),
     }
+}
+
+fn empty_recycle_bin_database(db: &mut keepass::Database) -> (usize, bool) {
+    let Some(recycle_id) = db.meta.recyclebin_uuid.map(keepass::db::GroupId::from_uuid) else {
+        return (0, false);
+    };
+    let Some(recycle_group) = db.group(recycle_id) else {
+        return (0, false);
+    };
+    let deleted_entries = db
+        .iter_all_entries()
+        .filter(|entry| entry_is_trashed(db, entry))
+        .count();
+    let entry_ids: Vec<_> = recycle_group.entries().map(|entry| entry.id()).collect();
+    let child_group_ids: Vec<_> = recycle_group.groups().map(|group| group.id()).collect();
+    let changed = !entry_ids.is_empty() || !child_group_ids.is_empty();
+
+    for entry_id in entry_ids {
+        if let Some(mut entry) = db.entry_mut(entry_id) {
+            entry.track_changes().remove();
+        }
+    }
+    for group_id in child_group_ids {
+        if let Some(mut group) = db.group_mut(group_id) {
+            let _ = group.track_changes().remove();
+        }
+    }
+    (deleted_entries, changed)
+}
+
+async fn save_and_commit_database(
+    state: &State<'_, AppState>,
+    db: keepass::Database,
+    key: keepass::DatabaseKey,
+    path: PathBuf,
+    expected_disk_hash: [u8; 32],
+    verification_error: &'static str,
+) -> HitsuResult<()> {
+    let save_path = path.clone();
+    let (db, disk_hash) = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<_> {
+        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        db.save(&mut buffer, key.clone())?;
+        let bytes = buffer.into_inner();
+        crate::vault::backed_up_atomic_write(&save_path, &bytes, |candidate| {
+            let mut file = File::open(candidate).map_err(|error| error.to_string())?;
+            keepass::Database::open(&mut file, key.clone())
+                .map(|_| ())
+                .map_err(|error| format!("{verification_error}: {error}"))
+        })
+        .map_err(HitsuError::Custom)?;
+        Ok((db, crate::vault::sha256_bytes(&bytes)))
+    })
+    .await
+    .map_err(HitsuError::from_join)??;
+
+    let mut vaults = state.vaults.lock();
+    if let Some((_id, vault)) = vaults
+        .iter_mut()
+        .find(|(_id, vault)| vault.path == path && vault.disk_hash == expected_disk_hash)
+    {
+        vault.db = db;
+        vault.disk_hash = disk_hash;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -417,7 +484,47 @@ mod tests {
         );
     }
 
+    // ── vault maintenance tests ──────────────────────────────────────────
+
+    #[test]
+    fn empty_recycle_bin_removes_entries_and_nested_groups() {
+        let mut db = keepass::Database::new();
+        let recycle_id = ensure_recycle_bin(&mut db);
+        let direct_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(direct_id)
+            .unwrap()
+            .move_to(recycle_id)
+            .unwrap();
+        let nested_id = {
+            let mut recycle = db.group_mut(recycle_id).unwrap();
+            let mut nested = recycle.add_group();
+            nested.name = "Nested".into();
+            nested.id()
+        };
+        db.group_mut(nested_id)
+            .unwrap()
+            .add_entry_with_id(keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4()))
+            .unwrap();
+
+        assert_eq!(empty_recycle_bin_database(&mut db), (2, true));
+        let recycle = db.group(recycle_id).unwrap();
+        assert_eq!(recycle.entries().count(), 0);
+        assert_eq!(recycle.groups().count(), 0);
+        assert_eq!(empty_recycle_bin_database(&mut db), (0, false));
+    }
+
     // ── validate_master_password tests ────────────────────────────────────
+
+    #[test]
+    fn empty_recycle_bin_reports_changes_for_empty_nested_folders() {
+        let mut db = keepass::Database::new();
+        let recycle_id = ensure_recycle_bin(&mut db);
+        db.group_mut(recycle_id).unwrap().add_group();
+
+        assert_eq!(empty_recycle_bin_database(&mut db), (0, true));
+        assert_eq!(db.group(recycle_id).unwrap().groups().count(), 0);
+    }
 
     #[test]
     fn test_validate_master_password_rejects_empty() {
@@ -653,6 +760,36 @@ pub async fn vault_refresh_if_changed(
         reloaded: true,
         vault: Some(meta),
     })
+}
+
+#[tauri::command]
+pub async fn vault_empty_recycle_bin(
+    state: State<'_, AppState>,
+) -> HitsuResult<EmptyRecycleBinResult> {
+    let _save_guard = state.save_lock.lock().await;
+    let (mut db, key, path, expected_disk_hash) = {
+        let vaults = state.vaults.lock();
+        let (_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        (
+            vault.db.clone(),
+            vault.db_key.clone(),
+            vault.path.clone(),
+            vault.disk_hash,
+        )
+    };
+    let (deleted_entries, changed) = empty_recycle_bin_database(&mut db);
+    if changed {
+        save_and_commit_database(
+            &state,
+            db,
+            key,
+            path,
+            expected_disk_hash,
+            "Cannot re-open after emptying the Recycle Bin",
+        )
+        .await?;
+    }
+    Ok(EmptyRecycleBinResult { deleted_entries })
 }
 
 #[tauri::command]

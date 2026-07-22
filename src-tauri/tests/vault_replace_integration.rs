@@ -9,8 +9,10 @@
 
 use std::io::Cursor;
 
-use hitsu_lib::commands::entries::build_entry_summaries;
-use hitsu_lib::commands::vault::{vault_create, vault_open, vault_refresh_if_changed};
+use hitsu_lib::commands::entries::{build_entry_summaries, entry_delete};
+use hitsu_lib::commands::vault::{
+    vault_create, vault_empty_recycle_bin, vault_open, vault_refresh_if_changed,
+};
 use hitsu_lib::models::EntrySummary;
 use hitsu_lib::state::AppState;
 use keepass::db::fields;
@@ -194,6 +196,31 @@ async fn external_changes_are_detected_and_reloaded() {
     let unchanged = vault_refresh_if_changed(state, true).await.unwrap();
     assert!(!unchanged.changed);
     assert!(!unchanged.reloaded);
+}
+
+#[tokio::test]
+async fn empty_recycle_bin_command_updates_memory_and_disk() {
+    let fx = setup();
+    let state = fx.state();
+    let meta = vault_open(
+        state.clone(),
+        fx.path_a.to_string_lossy().to_string(),
+        PW.to_string(),
+    )
+    .await
+    .unwrap();
+    entry_delete(state.clone(), meta.entries[0].id.clone())
+        .await
+        .unwrap();
+
+    let result = vault_empty_recycle_bin(state.clone()).await.unwrap();
+    assert_eq!(result.deleted_entries, 1);
+    assert!(entries_list(state).is_empty());
+
+    let bytes = std::fs::read(&fx.path_a).unwrap();
+    let reopened =
+        keepass::Database::parse(&bytes, keepass::DatabaseKey::new().with_password(PW)).unwrap();
+    assert_eq!(reopened.num_entries(), 0);
 }
 
 #[tokio::test]

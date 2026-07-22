@@ -9,6 +9,7 @@
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -19,6 +20,7 @@
     | { kind: "change-password" }
     | { kind: "new-password" }
     | { kind: "import-details" }
+    | { kind: "empty-recycle-bin" }
     | null = $state(null);
 
   let statusMsg = $state("");
@@ -26,6 +28,8 @@
   let importing = $state(false);
   let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
+  let emptyingRecycleBin = $state(false);
+  let trashedEntryCount = $derived(vault.entries.filter((entry) => entry.trashed).length);
 
   async function handleOpen() {
     try {
@@ -46,10 +50,40 @@
 
   let selectedPath = $state("");
 
+  async function emptyRecycleBin() {
+    dialog = null;
+    if (emptyingRecycleBin) return;
+    emptyingRecycleBin = true;
+    statusMsg = "";
+    try {
+      const result = await vaultBridge.vaultEmptyRecycleBin();
+      const entries = vault.entries.filter((entry) => !entry.trashed);
+      vault.setEntries(entries);
+      if (vault.meta) {
+        vault.setMeta({ ...vault.meta, entries, itemCount: entries.length });
+      }
+      statusError = false;
+      statusMsg =
+        result.deletedEntries === 0
+          ? "Recycle Bin is already empty"
+          : `Permanently deleted ${result.deletedEntries} entr${result.deletedEntries === 1 ? "y" : "ies"}`;
+    } catch (error) {
+      statusError = true;
+      statusMsg = error instanceof Error ? error.message : String(error);
+    } finally {
+      emptyingRecycleBin = false;
+    }
+  }
+
   onMount(async () => {
-    const prefs = await security.load();
-    features.hydrate(prefs);
-    recentVaults = prefs.recentVaults ?? [];
+    try {
+      const prefs = await security.load();
+      features.hydrate(prefs);
+      recentVaults = prefs.recentVaults ?? [];
+    } catch (error) {
+      statusError = true;
+      statusMsg = error instanceof Error ? error.message : String(error);
+    }
   });
 
   function onIdleChange(e: Event) {
@@ -178,7 +212,20 @@
 
 <div class="settings-overlay" role="dialog" aria-label="Settings">
   {#if dialog}
-    {#if dialog.kind === "import-details"}
+    {#if dialog.kind === "empty-recycle-bin"}
+      <ConfirmDialog
+        title="Empty Recycle Bin?"
+        message={trashedEntryCount === 1
+          ? "Permanently delete 1 entry from the Recycle Bin? This cannot be undone."
+          : `Permanently delete ${trashedEntryCount} entries from the Recycle Bin? This cannot be undone.`}
+        confirmLabel={trashedEntryCount === 1
+          ? "Delete 1 entry"
+          : `Delete ${trashedEntryCount} entries`}
+        danger={true}
+        onconfirm={emptyRecycleBin}
+        oncancel={() => (dialog = null)}
+      />
+    {:else if dialog.kind === "import-details"}
       <Dialog
         title="Entries not imported"
         onclose={() => (dialog = null)}
@@ -290,6 +337,31 @@
           </div>
         {/if}
       </section>
+
+      {#if vault.meta}
+        <section class="settings-section">
+          <h2 class="section-heading">Vault maintenance</h2>
+          <div class="maintenance-card danger-card">
+            <div>
+              <h3 class="maintenance-title">Recycle Bin</h3>
+              <p class="setting-description">
+                {trashedEntryCount === 0
+                  ? "The Recycle Bin is empty."
+                  : `${trashedEntryCount} entr${trashedEntryCount === 1 ? "y" : "ies"} will be permanently deleted.`}
+              </p>
+            </div>
+            <button
+              class="settings-btn danger-btn"
+              class:loading={emptyingRecycleBin}
+              onclick={() => (dialog = { kind: "empty-recycle-bin" })}
+              disabled={emptyingRecycleBin || trashedEntryCount === 0}
+            >
+              <Icon name="trash" size={14} />
+              {emptyingRecycleBin ? "Emptying…" : "Empty Recycle Bin…"}
+            </button>
+          </div>
+        </section>
+      {/if}
 
       <section class="settings-section">
         <h2 class="section-heading">Recent vaults</h2>
@@ -539,6 +611,47 @@
   .settings-btn:disabled {
     cursor: wait;
     opacity: 0.65;
+  }
+
+  .maintenance-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+  }
+
+  .danger-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .maintenance-title {
+    margin: 0 0 2px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .danger-card {
+    flex-direction: row;
+  }
+
+  .danger-btn {
+    flex-shrink: 0;
+    color: var(--danger);
+  }
+
+  .danger-btn:disabled {
+    cursor: not-allowed;
+  }
+
+  .danger-btn.loading:disabled {
+    cursor: wait;
   }
 
   .status-row {

@@ -6,6 +6,7 @@ import SettingsView from "./SettingsView.svelte";
 const mocks = vi.hoisted(() => ({
   import1pif: vi.fn(),
   setFoldersEnabled: vi.fn(),
+  emptyRecycleBin: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -26,9 +27,10 @@ vi.mock("$lib/bridge/prefs", () => ({
 
 vi.mock("$lib/bridge/vault", () => ({
   vaultImport1pif: mocks.import1pif,
+  vaultEmptyRecycleBin: mocks.emptyRecycleBin,
 }));
 
-describe("SettingsView import details", () => {
+describe("SettingsView", () => {
   beforeEach(() => {
     vault.setMeta({
       path: "/tmp/test.kdbx",
@@ -39,6 +41,7 @@ describe("SettingsView import details", () => {
       folders: [],
     });
     vault.setEntries([]);
+    mocks.emptyRecycleBin.mockResolvedValue({ deletedEntries: 2 });
     mocks.import1pif.mockResolvedValue({
       importedItems: 1,
       importedAttachments: 0,
@@ -59,6 +62,30 @@ describe("SettingsView import details", () => {
     await fireEvent.click(toggle);
 
     expect(mocks.setFoldersEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("confirms before permanently emptying the Recycle Bin", async () => {
+    vault.setEntries(
+      ["trashed-1", "trashed-2"].map((id) => ({
+        id,
+        type: "login" as const,
+        title: "Deleted",
+        subtitle: "",
+        tags: [],
+        favorite: false,
+        trashed: true,
+      })),
+    );
+    render(SettingsView);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Empty Recycle Bin…" }));
+    expect(screen.getByRole("dialog", { name: "Empty Recycle Bin?" })).toHaveTextContent(
+      "Permanently delete 2 entries",
+    );
+    await fireEvent.click(screen.getByRole("button", { name: "Delete 2 entries" }));
+
+    expect(mocks.emptyRecycleBin).toHaveBeenCalledOnce();
+    expect(vault.entries).toHaveLength(0);
   });
 
   it("shows skipped entry names in a simple list", async () => {

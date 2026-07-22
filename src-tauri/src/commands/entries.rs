@@ -68,7 +68,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
     }
 }
 
-fn group_is_in_recycle_bin(db: &keepass::Database, group_id: GroupId) -> bool {
+pub(crate) fn group_is_in_recycle_bin(db: &keepass::Database, group_id: GroupId) -> bool {
     let Some(recycle_id) = db.meta.recyclebin_uuid.map(GroupId::from_uuid) else {
         return false;
     };

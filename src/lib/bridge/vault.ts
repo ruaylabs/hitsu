@@ -14,6 +14,10 @@ export interface ImportReport {
   entries: EntrySummary[];
 }
 
+export interface EmptyRecycleBinResult {
+  deletedEntries: number;
+}
+
 export async function vaultOpen(path: string, password: string): Promise<VaultMeta> {
   return invoke<VaultMeta>("vault_open", { path, password });
 }
@@ -40,6 +44,10 @@ export async function vaultRefreshIfChanged(allowReload: boolean): Promise<Vault
 
 export async function vaultUpgradeKdf(): Promise<void> {
   return invoke<void>("vault_upgrade_kdf");
+}
+
+export async function vaultEmptyRecycleBin(): Promise<EmptyRecycleBinResult> {
+  return invoke<EmptyRecycleBinResult>("vault_empty_recycle_bin");
 }
 
 /** Open a native picker and import a 1Password 7 .1pif export into the open vault. */
