@@ -1,6 +1,6 @@
 const NATIVE_HOST = "com.ruaylabs.hitsu.browser";
 
-async function activeHttpTab() {
+export async function activeHttpTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url) throw new Error("No active browser tab found");
 
@@ -25,7 +25,7 @@ function nativeMessage(message) {
   });
 }
 
-function loginEntries(response) {
+export function loginEntries(response) {
   if (
     !Array.isArray(response.entries) ||
     !response.entries.every(
@@ -41,11 +41,21 @@ function loginEntries(response) {
   return response.entries;
 }
 
-function credentials(response) {
+export function credentials(response) {
   if (typeof response.password !== "string" || typeof response.username !== "string") {
     throw new Error("Hitsu returned invalid credentials");
   }
   return response;
+}
+
+export function pageMatchesOrigin(pageUrl, expectedOrigin) {
+  if (!pageUrl) return false;
+  try {
+    const url = new URL(pageUrl);
+    return ["http:", "https:"].includes(url.protocol) && url.origin === expectedOrigin;
+  } catch {
+    return false;
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -70,7 +80,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }),
         );
         const currentTab = await chrome.tabs.get(tab.id);
-        if (!currentTab.url || new URL(currentTab.url).origin !== tab.origin) {
+        if (!pageMatchesOrigin(currentTab.url, tab.origin)) {
           throw new Error("The page changed before Hitsu could fill it");
         }
         await chrome.scripting.executeScript({
