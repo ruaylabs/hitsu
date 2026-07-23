@@ -152,5 +152,5 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Run Tauri smoke test
+      - name: Run Tauri lifecycle tests
         run: xvfb-run -a pnpm test:e2e

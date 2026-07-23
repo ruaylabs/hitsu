@@ -17,7 +17,7 @@ async function unlock() {
   await $('[aria-label="Add entry"]').waitForDisplayed();
 }
 
-describe("standalone vault smoke test", () => {
+describe("standalone vault lifecycle", () => {
   after(async () => {
     if (vaultPath) {
       await browser.execute(async () => {
@@ -26,7 +26,7 @@ describe("standalone vault smoke test", () => {
     }
   });
 
-  it("creates, locks, reopens, and deletes a password entry", async () => {
+  it("unlocks, creates, edits, locks, reopens, and deletes an entry", async () => {
     assert.ok(vaultPath, "HITSU_E2E_VAULT must be set by the WDIO configuration");
 
     const setupError = await browser.execute(
@@ -63,13 +63,21 @@ describe("standalone vault smoke test", () => {
     await (await button("Save")).click();
     await $("h1=E2E password").waitForDisplayed();
 
+    await $('[aria-label="Edit entry"]').click();
+    const editedTitle = await $('input[placeholder="Title"]');
+    await editedTitle.waitForDisplayed();
+    await editedTitle.setValue("E2E password updated");
+    await $('input[placeholder="URL"]').setValue("https://example.org/updated");
+    await (await button("Save")).click();
+    await $("h1=E2E password updated").waitForDisplayed();
+
     await $('[aria-label="Lock vault"]').click();
     await unlock();
-    await $("h1=E2E password").waitForDisplayed();
+    await $("h1=E2E password updated").waitForDisplayed();
 
     await browser.refresh();
     await unlock();
-    await $("h1=E2E password").waitForDisplayed();
+    await $("h1=E2E password updated").waitForDisplayed();
 
     await $('[aria-label="Edit entry"]').click();
     await (await button("Delete")).click();
@@ -81,6 +89,6 @@ describe("standalone vault smoke test", () => {
 
     await $("p=No entries yet").waitForDisplayed();
     await (await button("Recycle Bin 1")).click();
-    await $("h1=E2E password").waitForDisplayed();
+    await $("h1=E2E password updated").waitForDisplayed();
   });
 });
