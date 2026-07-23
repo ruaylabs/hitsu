@@ -106,6 +106,33 @@ jobs:
         working-directory: chrome-extension/native-host
         run: cargo test
 
+  rust-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            src-tauri/target
+            chrome-extension/native-host/target
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'chrome-extension/native-host/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Prepare native host sidecar
+        run: node scripts/prepare-native-host.mjs
+
+      - name: Check all Hitsu targets
+        working-directory: src-tauri
+        run: cargo check --all-targets
+
   e2e:
     needs: [svelte, rust]
     runs-on: ubuntu-24.04
