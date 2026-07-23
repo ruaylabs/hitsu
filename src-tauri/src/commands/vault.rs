@@ -73,7 +73,10 @@ fn detect_sync_provider(path: &Path) -> String {
     let path_str = path.to_string_lossy();
     if path_str.contains("Mobile Documents") || path_str.contains("CloudDocs") {
         "icloud".to_string()
-    } else if path_str.contains("Dropbox") {
+    } else if path
+        .components()
+        .any(|component| component.as_os_str() == "Dropbox")
+    {
         "dropbox".to_string()
     } else {
         "local".to_string()
@@ -229,6 +232,18 @@ async fn save_and_commit_database(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sync_provider_requires_a_complete_dropbox_path_component() {
+        assert_eq!(
+            detect_sync_provider(Path::new("/home/user/Dropbox/vault.kdbx")),
+            "dropbox"
+        );
+        assert_eq!(
+            detect_sync_provider(Path::new("/home/user/Dropbox-backup/vault.kdbx")),
+            "local"
+        );
+    }
 
     // ── validate_header tests ────────────────────────────────────────────
 
