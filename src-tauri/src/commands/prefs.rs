@@ -84,8 +84,9 @@ pub async fn prefs_set_browser_integration_enabled(
     })?;
     #[cfg(unix)]
     if let Err(error) = crate::browser_ipc::set_enabled(&app, enabled) {
-        // Raw IO errors can carry paths; log the detail, return a safe message.
-        eprintln!("browser integration toggle failed: {error}");
+        // Raw IO errors can carry paths; keep the detail at debug level.
+        tracing::warn!("browser integration toggle failed");
+        tracing::debug!(error = %error, "browser integration toggle failure detail");
         return Err(crate::error::HitsuError::Custom(
             "Could not start the browser integration".to_string(),
         ));

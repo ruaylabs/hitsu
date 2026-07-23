@@ -111,7 +111,8 @@ pub fn backed_up_atomic_write(
         }
         Err(e) => {
             // Log the real reason locally, but tell the user a safe message
-            eprintln!("vault verification failed: {}", e);
+            tracing::warn!("vault verification failed; restoring original");
+            tracing::debug!(error = %e, "vault verification failure detail");
             // 5. Restore original from backup and remove the backup
             let _ = fs::copy(&backup, path);
             let _ = fs::remove_file(&backup);

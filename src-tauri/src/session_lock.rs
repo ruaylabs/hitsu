@@ -18,7 +18,8 @@ mod linux {
             .name("session-lock-monitor".into())
             .spawn(move || {
                 if let Err(error) = monitor(&app) {
-                    eprintln!("session lock monitor stopped: {error}");
+                    tracing::warn!("session lock monitor stopped");
+                    tracing::debug!(error = %error, "session lock monitor failure detail");
                 }
             })
             .expect("failed to start session-lock monitor");

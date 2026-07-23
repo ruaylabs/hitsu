@@ -48,6 +48,9 @@ subtle = "2"
 percent-encoding = "2"
 parking_lot = "0.12"
 url = "2"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

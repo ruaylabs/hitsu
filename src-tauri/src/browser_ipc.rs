@@ -267,7 +267,8 @@ pub fn set_enabled(app: &AppHandle, enabled: bool) -> std::io::Result<()> {
     if guard.is_none() {
         #[cfg(not(debug_assertions))]
         if let Err(error) = register_production_native_host() {
-            eprintln!("native host registration unavailable: {error}");
+            tracing::warn!("native host registration unavailable");
+            tracing::debug!(error = %error, "native host registration failure detail");
         }
         *guard = Some(start(app.clone())?);
     }
@@ -339,16 +340,21 @@ pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
                                 if let Err(error) =
                                     stream.set_read_timeout(Some(CONNECTION_READ_TIMEOUT))
                                 {
-                                    eprintln!("browser IPC timeout setup failed: {error}");
+                                    tracing::warn!("browser IPC timeout setup failed");
+                                    tracing::debug!(error = %error, "browser IPC timeout failure detail");
                                     return;
                                 }
                                 handle_connection(&connection_app, &connection_token, stream);
                             })
                         {
-                            eprintln!("browser IPC worker failed to start: {error}");
+                            tracing::warn!("browser IPC worker failed to start");
+                            tracing::debug!(error = %error, "browser IPC worker failure detail");
                         }
                     }
-                    Err(error) => eprintln!("browser IPC connection failed: {error}"),
+                    Err(error) => {
+                        tracing::warn!("browser IPC connection failed");
+                        tracing::debug!(error = %error, "browser IPC connection failure detail");
+                    }
                 }
             }
         })?;

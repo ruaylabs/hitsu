@@ -26,8 +26,21 @@ impl HitsuError {
     /// Map a failed `spawn_blocking` join (task panicked or the runtime is
     /// shutting down) to a user-safe error, logging the detail locally.
     pub fn from_join(err: impl std::fmt::Display) -> Self {
-        eprintln!("background task failed: {err}");
+        tracing::error!("background task failed");
+        tracing::debug!(error = %err, "background task failure detail");
         HitsuError::Custom("An internal error occurred".to_string())
+    }
+
+    fn kind(&self) -> &'static str {
+        match self {
+            HitsuError::EntryNotFound(_) => "entry_not_found",
+            HitsuError::NoOpenVault => "no_open_vault",
+            HitsuError::ExternalModification => "external_modification",
+            HitsuError::Io(_) => "io",
+            HitsuError::KeepassOpen(_) => "keepass_open",
+            HitsuError::KeepassSave(_) => "keepass_save",
+            HitsuError::Custom(_) => "custom",
+        }
     }
 
     /// Short, user-safe message for the UI.
@@ -65,13 +78,24 @@ impl serde::Serialize for HitsuError {
     where
         S: serde::Serializer,
     {
-        // Single choke point where command errors cross IPC to the webview:
-        // log the full detail locally, send only the sanitized message.
-        // LOGGING RULE: never log secret-bearing values here or anywhere —
-        // no passwords, key material, TOTP seeds/URIs, or entry field values.
-        // TODO: consider replacing stderr logging with `tracing` (leveled and
-        // RUST_LOG-filterable) once more diagnostics land.
-        eprintln!("command failed: {self}");
+        // Single choke point where command errors cross IPC to the webview.
+        // Never log passwords, key material, TOTP seeds/URIs, or entry field
+        // values. Raw errors may include paths, so their detail is debug-only.
+        tracing::warn!(error_kind = self.kind(), "command failed");
+        match self {
+            HitsuError::Io(error) => {
+                tracing::debug!(error = %error, error_kind = self.kind(), "command failure detail");
+            }
+            HitsuError::KeepassOpen(error) => {
+                tracing::debug!(error = %error, error_kind = self.kind(), "command failure detail");
+            }
+            HitsuError::KeepassSave(error) => {
+                tracing::debug!(error = %error, error_kind = self.kind(), "command failure detail");
+            }
+            // Authored custom messages can contain user-controlled labels or
+            // attachment names, so do not write their values to logs.
+            _ => {}
+        }
         serializer.serialize_str(&self.user_message())
     }
 }

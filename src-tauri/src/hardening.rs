@@ -25,7 +25,7 @@
 //! (standard on macOS, common on modern Linux installs) is the effective
 //! mitigation; secrets that pass through our own DTOs are zeroized on drop.
 
-/// Apply all hardening measures. Failures are logged to stderr and otherwise
+/// Apply all hardening measures. Failures are logged and otherwise
 /// ignored — a partially hardened process is still better than refusing to
 /// start, and none of these calls should fail on a normal desktop system.
 pub fn apply() {
@@ -41,9 +41,9 @@ fn disable_core_dumps() {
     };
     // SAFETY: passing a valid pointer to an initialized rlimit struct.
     if unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) } != 0 {
-        eprintln!(
-            "hardening: failed to disable core dumps: {}",
-            std::io::Error::last_os_error()
+        tracing::warn!(
+            error = %std::io::Error::last_os_error(),
+            "failed to disable core dumps"
         );
     }
 }
@@ -60,9 +60,9 @@ fn deny_attach() {
     // Also forces the kernel to skip core dumps regardless of RLIMIT_CORE.
     // SAFETY: PR_SET_DUMPABLE with arg 0 has no memory-safety concerns.
     if unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0) } != 0 {
-        eprintln!(
-            "hardening: failed to mark process non-dumpable: {}",
-            std::io::Error::last_os_error()
+        tracing::warn!(
+            error = %std::io::Error::last_os_error(),
+            "failed to mark process non-dumpable"
         );
     }
 }
@@ -71,9 +71,9 @@ fn deny_attach() {
 fn deny_attach() {
     // SAFETY: PT_DENY_ATTACH ignores the addr/data arguments.
     if unsafe { libc::ptrace(libc::PT_DENY_ATTACH, 0, std::ptr::null_mut(), 0) } != 0 {
-        eprintln!(
-            "hardening: failed to deny debugger attach: {}",
-            std::io::Error::last_os_error()
+        tracing::warn!(
+            error = %std::io::Error::last_os_error(),
+            "failed to deny debugger attach"
         );
     }
 }

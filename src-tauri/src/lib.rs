@@ -10,6 +10,7 @@ pub mod state;
 pub mod commands;
 mod error;
 mod hardening;
+mod logging;
 pub mod models;
 mod session_lock;
 mod vault;
@@ -18,8 +19,6 @@ use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    hardening::apply();
-
     let command_handler: Box<tauri::ipc::InvokeHandler<tauri::Wry>> =
         Box::new(tauri::generate_handler![
             commands::vault::vault_open,
@@ -69,6 +68,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            logging::init(app.handle());
+            hardening::apply();
             prefs::Preferences::migrate_legacy(app.handle())?;
 
             let settings = tauri::menu::MenuItemBuilder::with_id("settings", "Settings…")
@@ -120,7 +121,8 @@ pub fn run() {
                 app.manage(browser_ipc::BrowserIpc(parking_lot::Mutex::new(None)));
                 if preferences.browser_integration_enabled {
                     if let Err(error) = browser_ipc::set_enabled(app.handle(), true) {
-                        eprintln!("browser integration unavailable: {error}");
+                        tracing::warn!("browser integration unavailable at startup");
+                        tracing::debug!(error = %error, "browser integration startup failure detail");
                     }
                 }
             }

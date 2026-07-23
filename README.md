@@ -54,6 +54,8 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
 - **Atomic writes** (tmp file → fsync → rename → dir-fsync) — no partial writes
 - **External-modification detection** prevents overwriting a vault changed by another app
 - **Verified password/KDF changes** use a temporary backup and re-open the saved vault
+- **Structured diagnostics** use leveled JSON logs with daily rotation and seven-day retention;
+  paths are emitted only at debug level and secrets are never logged
 - **Argon2id defaults** for new vaults (64 MiB, 2 iterations, 4 lanes)
 - **KDF validation and upgrade prompt** for vaults below the recommended 64 MiB
 - **Constant-time** master password comparison (`subtle::ConstantTimeEq`)
