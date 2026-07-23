@@ -18,6 +18,7 @@
     { keys: `${mod}⌫`, description: "Delete selected entry" },
     { keys: `${mod}F`, description: "Focus search" },
     { keys: `${mod}⇧F`, description: "Toggle favorites filter" },
+    { keys: `${mod}L`, description: "Lock vault" },
     { keys: `${mod},`, description: "Toggle settings" },
     { keys: "Esc", description: "Close dialog / exit settings" },
     { keys: "↑ ↓", description: "Navigate items" },

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { saveStatus } from "$lib/stores/saveStatus.svelte";
+  import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Icon from "../ui/Icon.svelte";
 
@@ -48,11 +49,12 @@
     {#if vault.meta}
       <button
         class="lock-btn"
-        onclick={() => vault.lock()}
+        onclick={() => selection.requestNavigation(() => void vault.lock())}
         aria-label="Lock vault"
-        title="Lock vault"
+        title="Lock vault (⌘L)"
       >
         <Icon name="lock" size={12} />
+        <span class="lock-name">{vault.meta.name}</span>
       </button>
     {/if}
     <button class="settings-gear" onclick={onSettingsClick} aria-label="Settings" title="Settings">
@@ -136,10 +138,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
     height: 20px;
     border-radius: 3px;
     color: var(--text-muted);
+  }
+
+  .settings-gear {
+    width: 20px;
+  }
+
+  .lock-btn {
+    gap: 5px;
+    padding: 0 6px;
+  }
+
+  .lock-name {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .lock-btn:hover,

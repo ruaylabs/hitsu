@@ -208,6 +208,12 @@
       const input = document.querySelector(".entry-search-input") as HTMLInputElement | null;
       if (input) input.focus();
     }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "l") {
+      e.preventDefault();
+      // Locking drops the decrypted vault, so run it through the navigation
+      // guard: an in-progress edit gets the save/discard prompt first.
+      selection.requestNavigation(() => void vault.lock());
+    }
   }
 
   // Start idle/sleep lock monitors while the vault is unlocked
