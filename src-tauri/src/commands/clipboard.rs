@@ -4,7 +4,7 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use zeroize::Zeroizing;
 
-use crate::error::HitsuResult;
+use crate::error::{HitsuError, HitsuResult};
 
 /// Monotonic token for clipboard writes performed by this app.
 ///
@@ -13,10 +13,34 @@ use crate::error::HitsuResult;
 /// later copy of the same secret is not cleared by an older timer.
 static CLIPBOARD_GENERATION: AtomicU64 = AtomicU64::new(0);
 
-/// Serializes app-side clipboard writes with delayed clear checks. Without
-/// this, an old timer could observe the clipboard after a newer write but
-/// before that write records its new generation.
-static CLIPBOARD_LOCK: Mutex<()> = Mutex::new(());
+/// Single long-lived clipboard handle, lazily created on first use.
+///
+/// On Linux (X11 and Wayland) the clipboard does not store data centrally:
+/// the copying process owns the selection and serves paste requests, and
+/// arboard only does that while a `Clipboard` instance is alive. A fresh
+/// instance per operation therefore loses the copied text as soon as the
+/// command returns. The mutex also serializes writes with delayed clear
+/// checks — without it, an old timer could observe the clipboard after a
+/// newer write but before that write records its new generation.
+static CLIPBOARD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+/// Runs `f` with the shared clipboard handle, creating it if needed. On
+/// error the handle is dropped so the next call reconnects — the display
+/// server connection may have died (e.g. compositor restart).
+fn with_clipboard<T>(f: impl FnOnce(&mut arboard::Clipboard) -> HitsuResult<T>) -> HitsuResult<T> {
+    let mut guard = CLIPBOARD.lock();
+    if guard.is_none() {
+        *guard = Some(
+            arboard::Clipboard::new()
+                .map_err(|e| HitsuError::Custom(format!("Clipboard error: {}", e)))?,
+        );
+    }
+    let result = f(guard.as_mut().expect("clipboard initialized above"));
+    if result.is_err() {
+        *guard = None;
+    }
+    result
+}
 
 fn mark_clipboard_write() -> u64 {
     CLIPBOARD_GENERATION.fetch_add(1, Ordering::SeqCst) + 1
@@ -34,10 +58,7 @@ fn should_clear_secret(
 /// Shared helper: copy `value` to the system clipboard with platform-specific
 /// exclusion hints so clipboard managers / history / cloud sync don't capture
 /// the secret.
-fn set_clipboard(value: &str) -> HitsuResult<()> {
-    let mut cb = arboard::Clipboard::new()
-        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
-
+fn set_text(cb: &mut arboard::Clipboard, value: &str) -> HitsuResult<()> {
     let mut set = cb.set();
 
     #[cfg(windows)]
@@ -65,35 +86,32 @@ fn set_clipboard(value: &str) -> HitsuResult<()> {
     }
 
     set.text(value)
-        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
-
-    Ok(())
+        .map_err(|e| HitsuError::Custom(format!("Clipboard error: {}", e)))
 }
 
 #[tauri::command]
 pub async fn clipboard_copy(value: String) -> HitsuResult<()> {
-    let _guard = CLIPBOARD_LOCK.lock();
-    set_clipboard(&value)?;
-    mark_clipboard_write();
-    Ok(())
+    with_clipboard(|cb| {
+        set_text(cb, &value)?;
+        mark_clipboard_write();
+        Ok(())
+    })
 }
 
 /// Copy a secret with exclusion hints and (when `timeout_secs > 0`) a
 /// spawned auto-clear task. Shared by the IPC command below and
 /// `entry_copy_field`, whose values are read backend-side and never cross IPC.
 pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> HitsuResult<()> {
-    let generation = {
-        let _guard = CLIPBOARD_LOCK.lock();
-        set_clipboard(&secret)?;
-        mark_clipboard_write()
-    };
+    let generation = with_clipboard(|cb| {
+        set_text(cb, &secret)?;
+        Ok(mark_clipboard_write())
+    })?;
 
     if timeout_secs > 0 {
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(timeout_secs)).await;
 
-            let _guard = CLIPBOARD_LOCK.lock();
-            if let Ok(mut cb) = arboard::Clipboard::new() {
+            let _ = with_clipboard(|cb| {
                 // Only clear if this timer is still the latest app-side write
                 // and the clipboard still contains our secret. If the user
                 // copied something else in the meantime, leave it alone so we
@@ -102,7 +120,8 @@ pub(crate) fn copy_secret(secret: Zeroizing<String>, timeout_secs: u64) -> Hitsu
                 if should_clear_secret(generation, current.as_deref(), secret.as_str()) {
                     let _ = cb.clear();
                 }
-            }
+                Ok(())
+            });
             // secret is dropped and zeroized here
         });
     }
@@ -118,24 +137,23 @@ pub async fn clipboard_copy_with_timeout(value: String, timeout_secs: u64) -> Hi
 /// Synchronous clipboard clear — usable from sync contexts (exit handler, …).
 /// Swallows errors: when the app is shutting down there's nothing to report to.
 pub fn clear_clipboard_sync() {
-    let _guard = CLIPBOARD_LOCK.lock();
-    if let Ok(mut cb) = arboard::Clipboard::new() {
-        if cb.clear().is_ok() {
-            mark_clipboard_write();
-        }
-    }
+    let _ = with_clipboard(|cb| {
+        cb.clear()
+            .map_err(|e| HitsuError::Custom(format!("Clipboard error: {}", e)))?;
+        mark_clipboard_write();
+        Ok(())
+    });
 }
 
 /// Async clipboard clear with proper error reporting for frontend IPC.
 #[tauri::command]
 pub async fn clipboard_clear() -> HitsuResult<()> {
-    let _guard = CLIPBOARD_LOCK.lock();
-    let mut cb = arboard::Clipboard::new()
-        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
-    cb.clear()
-        .map_err(|e| crate::error::HitsuError::Custom(format!("Clipboard error: {}", e)))?;
-    mark_clipboard_write();
-    Ok(())
+    with_clipboard(|cb| {
+        cb.clear()
+            .map_err(|e| HitsuError::Custom(format!("Clipboard error: {}", e)))?;
+        mark_clipboard_write();
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -144,7 +162,7 @@ mod tests {
 
     #[test]
     fn stale_timer_does_not_clear_newer_copy_of_same_secret() {
-        let _guard = CLIPBOARD_LOCK.lock();
+        let _guard = CLIPBOARD.lock();
 
         let old_timer = mark_clipboard_write();
         let _newer_copy = mark_clipboard_write();
@@ -158,7 +176,7 @@ mod tests {
 
     #[test]
     fn current_timer_clears_matching_secret() {
-        let _guard = CLIPBOARD_LOCK.lock();
+        let _guard = CLIPBOARD.lock();
 
         let timer = mark_clipboard_write();
 
@@ -167,7 +185,7 @@ mod tests {
 
     #[test]
     fn current_timer_leaves_user_replaced_clipboard_alone() {
-        let _guard = CLIPBOARD_LOCK.lock();
+        let _guard = CLIPBOARD.lock();
 
         let timer = mark_clipboard_write();
 

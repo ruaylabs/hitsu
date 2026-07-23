@@ -38,7 +38,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = "0.4"
 thiserror = "1"
 tokio = { version = "1", features = ["time", "sync"] }
-arboard = "3"
+arboard = { version = "3", features = ["wayland-data-control"] }
 rand = "0.8"
 zeroize = { version = "1", features = ["derive"] }
 argon2 = { package = "rust-argon2", version = "3.0" }
