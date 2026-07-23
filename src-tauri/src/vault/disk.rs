@@ -17,6 +17,10 @@ pub fn sha256_bytes(bytes: &[u8]) -> [u8; 32] {
 }
 
 /// SHA-256 of a file's current contents.
+///
+/// This intentionally reads the whole vault into memory: realistic KDBX files
+/// are small, and the same bytes are already loaded during open/save. If vault
+/// sizes become unbounded, replace this with a buffered streaming digest.
 pub fn sha256_file(path: &Path) -> std::io::Result<[u8; 32]> {
     Ok(sha256_bytes(&std::fs::read(path)?))
 }
