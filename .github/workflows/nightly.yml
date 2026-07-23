@@ -191,9 +191,15 @@ jobs:
             exit 1
           fi
 
+          cat > release-notes.md <<EOF
+          Commit: \`${SHORT_SHA}\`
+
+          Supported desktop platforms: macOS and Linux only.
+          EOF
+
           gh release create nightly \
             --target="${SHA}" \
             --prerelease \
             --title "Nightly — ${DATE}" \
-            --notes "Commit: \`${SHORT_SHA}\`" \
+            --notes-file release-notes.md \
             "${ASSETS[@]}"

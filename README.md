@@ -2,6 +2,11 @@
 
 Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
+## Supported platforms
+
+Hitsu officially supports macOS and Linux desktop systems only. Windows and mobile platforms are not
+currently supported. Release builds and CI target macOS and Linux.
+
 ## Installation
 
 ### macOS with Homebrew
