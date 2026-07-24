@@ -8,6 +8,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
@@ -144,7 +145,7 @@
   }
 
   function reportActionError(error: unknown) {
-    toast.error(error instanceof Error ? error.message : String(error));
+    toast.error(errorMessage(error));
   }
 
   async function copyUsername(entry: EntrySummary) {

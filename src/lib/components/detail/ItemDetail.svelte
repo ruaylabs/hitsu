@@ -10,6 +10,7 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import { tagColor } from "$lib/utils/tagColor";
@@ -104,7 +105,7 @@
         .catch((err) => {
           if (thisFetch === fetchId) {
             if (loadingTimer) clearTimeout(loadingTimer);
-            entryError = err instanceof Error ? err.message : String(err);
+            entryError = errorMessage(err);
             entryLoading = false;
           }
         });
@@ -406,7 +407,7 @@
       installUpdatedEntry(updated);
       saveStatus.markSaved();
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
+      const message = errorMessage(e);
       console.error("Failed to toggle favorite", e);
       saveStatus.markError(message);
       toast.error(message);
@@ -531,7 +532,7 @@
     } catch (e) {
       // Surface the failure (e.g. the vault file changed on disk) instead
       // of silently staying in edit mode.
-      saveError = e instanceof Error ? e.message : String(e);
+      saveError = errorMessage(e);
       console.error("Failed to save", e);
       saveStatus.markError(saveError);
       // If an external vault change caused this, arm the store: the reload
@@ -562,7 +563,7 @@
       try {
         await entriesBridge.entryDiscard(id);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(errorMessage(e));
         return;
       }
       vault.setEntries(vault.entries.filter((entry) => entry.id !== id));
@@ -645,7 +646,7 @@
       addingMoveFolder = false;
       newMoveFolderName = "";
     } catch (error) {
-      newMoveFolderError = error instanceof Error ? error.message : String(error);
+      newMoveFolderError = errorMessage(error);
     } finally {
       creatingMoveFolder = false;
     }
@@ -661,7 +662,7 @@
       showMoveDialog = false;
       toast.success("Entry moved");
     } catch (error) {
-      moveError = error instanceof Error ? error.message : String(error);
+      moveError = errorMessage(error);
     } finally {
       movingEntry = false;
     }
@@ -707,7 +708,7 @@
       toast.success("Entry restored");
     } catch (e) {
       console.error("Failed to restore entry", e);
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(errorMessage(e));
     }
   }
 
@@ -1854,7 +1855,7 @@
         if (editing && selection.selectedId === updated.id) editTotp = uri;
         toast.success("TOTP configured successfully");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(errorMessage(e));
       }
     }}
   />

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   let {
@@ -26,7 +27,7 @@
       await vault.open(path, password);
       onunlock?.();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorMessage(e);
     }
   }
 </script>

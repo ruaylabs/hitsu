@@ -2,6 +2,7 @@ import * as entriesBridge from "$lib/bridge/entries";
 import { selection } from "$lib/stores/selection.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import { vault } from "$lib/stores/vault.svelte";
+import { errorMessage } from "$lib/utils/errorMessage";
 
 interface PendingDelete {
   id: string;
@@ -23,7 +24,7 @@ async function restoreEntry(id: string, title: string) {
     toast.success(`Restored "${title}"`);
   } catch (error) {
     console.error("Failed to restore entry", error);
-    toast.error(error instanceof Error ? error.message : String(error));
+    toast.error(errorMessage(error));
   }
 }
 
@@ -34,7 +35,7 @@ async function moveToRecycleBin(id: string, title: string, onDeleted?: () => voi
     await entriesBridge.entryDelete(id);
   } catch (error) {
     console.error("Failed to delete entry", error);
-    toast.error(error instanceof Error ? error.message : String(error));
+    toast.error(errorMessage(error));
     return;
   } finally {
     deletingIds.delete(id);
@@ -77,7 +78,7 @@ export const entryDeletion = {
       await entriesBridge.entryDeletePermanent(id);
     } catch (error) {
       console.error("Failed to delete entry", error);
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(errorMessage(error));
       return;
     }
     onDeleted?.();

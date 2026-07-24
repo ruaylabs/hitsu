@@ -27,6 +27,7 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
 
   let showCommandPalette = $state(false);
   let showEntryCommandPalette = $state(false);
@@ -135,7 +136,7 @@
       vault.setEditingId(entry.id);
     } catch (e) {
       console.error("Failed to create entry", e);
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(errorMessage(e));
     }
   }
 
@@ -280,7 +281,7 @@
       toast.success("Vault security upgraded");
     } catch (error) {
       console.error("KDF upgrade failed", error);
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(errorMessage(error));
     }
   }
 
@@ -300,7 +301,7 @@
       }
     } catch (error) {
       console.error("Failed to reload external vault changes", error);
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(errorMessage(error));
     } finally {
       checkingExternalVault = false;
     }

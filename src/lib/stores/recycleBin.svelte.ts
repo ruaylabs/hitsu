@@ -2,6 +2,7 @@ import * as vaultBridge from "$lib/bridge/vault";
 import { selection } from "$lib/stores/selection.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import { vault } from "$lib/stores/vault.svelte";
+import { errorMessage } from "$lib/utils/errorMessage";
 
 let pending = $state(false);
 let emptying = $state(false);
@@ -44,7 +45,7 @@ export const recycleBin = {
           : `Permanently deleted ${result.deletedEntries} entr${result.deletedEntries === 1 ? "y" : "ies"}`,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(errorMessage(error));
     } finally {
       emptying = false;
     }

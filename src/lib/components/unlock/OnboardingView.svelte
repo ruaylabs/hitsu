@@ -4,6 +4,7 @@
   import * as prefsBridge from "$lib/bridge/prefs";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
@@ -66,7 +67,7 @@
     try {
       await vault.open(pendingPath, password);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorMessage(e);
     }
     busy = false;
   }
@@ -96,7 +97,7 @@
     try {
       await vault.create(pendingPath, password);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorMessage(e);
     }
     busy = false;
   }

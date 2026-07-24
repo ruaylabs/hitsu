@@ -5,6 +5,7 @@
   import { features } from "$lib/stores/features.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { tagColor } from "$lib/utils/tagColor";
   import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
@@ -78,7 +79,7 @@
       }
       folderDialog = null;
     } catch (error) {
-      folderError = error instanceof Error ? error.message : String(error);
+      folderError = errorMessage(error);
     } finally {
       savingFolder = false;
     }

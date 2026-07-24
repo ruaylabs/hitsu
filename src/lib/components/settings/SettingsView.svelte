@@ -13,6 +13,7 @@
   import { theme } from "$lib/stores/theme.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -69,7 +70,7 @@
       recentVaults = prefs.recentVaults ?? [];
     } catch (error) {
       statusError = true;
-      statusMsg = error instanceof Error ? error.message : String(error);
+      statusMsg = errorMessage(error);
     }
   });
 
@@ -89,7 +90,7 @@
       await theme.save(value);
     } catch (error) {
       statusError = true;
-      statusMsg = error instanceof Error ? error.message : String(error);
+      statusMsg = errorMessage(error);
     }
   }
 
@@ -104,7 +105,7 @@
       }
     } catch (error) {
       statusError = true;
-      statusMsg = error instanceof Error ? error.message : String(error);
+      statusMsg = errorMessage(error);
     }
   }
 
@@ -114,7 +115,7 @@
       await features.setBrowserIntegrationEnabled(enabled);
     } catch (error) {
       statusError = true;
-      statusMsg = error instanceof Error ? error.message : String(error);
+      statusMsg = errorMessage(error);
     }
   }
 

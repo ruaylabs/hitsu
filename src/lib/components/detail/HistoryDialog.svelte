@@ -4,6 +4,7 @@
   import * as entriesBridge from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { cardBrandName, formatCardNumber, timeAgo } from "$lib/utils/format";
   import { tagColor } from "$lib/utils/tagColor";
   import Dialog from "../ui/Dialog.svelte";
@@ -31,7 +32,7 @@
         selectedVersion = revisions[0].version;
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -71,7 +72,7 @@
         })
         .catch((e) => {
           if (thisFetch === fetchId) {
-            error = e instanceof Error ? e.message : String(e);
+            error = errorMessage(e);
             loadingDetail = false;
           }
         });
