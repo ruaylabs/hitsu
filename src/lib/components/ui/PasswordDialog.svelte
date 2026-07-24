@@ -2,6 +2,7 @@
   import { estimateStrength } from "$lib/utils/passwordStrength";
   import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
+  import Icon from "./Icon.svelte";
   import PasswordStrengthMeter from "./PasswordStrengthMeter.svelte";
 
   let {
@@ -44,12 +45,20 @@
   let password = $state("");
   let confirmPassword = $state("");
   let localError = $state("");
+  let showPassword = $state(false);
+  let showConfirmPassword = $state(false);
+  let capsLockOn = $state(false);
+  let focusedField = $state<"password" | "confirm" | null>(null);
 
   let displayError = $derived(localError || errorMessage);
   let strengthOk = $derived(!showStrength || estimateStrength(password).level >= minStrength);
   let canSubmit = $derived(
     password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
   );
+
+  function updateCapsLock(event: KeyboardEvent) {
+    capsLockOn = event.getModifierState("CapsLock");
+  }
 
   function submit() {
     if (!password) {
@@ -82,21 +91,42 @@
         <span class="vault-path" title={vaultPath}>&lrm;{vaultPath}</span>
       {/if}
       <label class="control-label" for="master-pw">Master password</label>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
-        id="master-pw"
-        type="password"
-        class="control control--mono"
-        aria-invalid={Boolean(displayError)}
-        placeholder="Enter master password"
-        autofocus
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        bind:value={password}
-        oninput={() => { localError = ""; }}
-      />
+      <div class="password-input-wrap">
+        <!-- svelte-ignore a11y_autofocus -->
+        <input
+          id="master-pw"
+          type={showPassword ? "text" : "password"}
+          class="control control--mono"
+          aria-invalid={Boolean(displayError)}
+          placeholder="Enter master password"
+          autofocus
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          bind:value={password}
+          oninput={() => { localError = ""; }}
+          onkeydown={updateCapsLock}
+          onkeyup={updateCapsLock}
+          onfocus={() => (focusedField = "password")}
+          onblur={() => (focusedField = null)}
+        />
+        <button
+          type="button"
+          class="reveal-button"
+          aria-label={showPassword ? "Hide master password" : "Show master password"}
+          aria-pressed={showPassword}
+          onclick={() => (showPassword = !showPassword)}
+        >
+          <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
+        </button>
+      </div>
+      {#if capsLockOn && focusedField === "password"}
+        <span class="caps-lock-warning" role="status">
+          <Icon name="alert-triangle" size={13} />
+          Caps Lock is on
+        </span>
+      {/if}
       {#if displayError}
         <span class="control-error">{displayError}</span>
       {/if}
@@ -107,19 +137,40 @@
 
       {#if confirm}
         <label class="control-label" for="master-pw-confirm">{confirmLabel2}</label>
-        <input
-          id="master-pw-confirm"
-          type="password"
-          class="control control--mono"
-          aria-invalid={Boolean(displayError)}
-          placeholder="Re-enter password"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          bind:value={confirmPassword}
-          oninput={() => { localError = ""; }}
-        />
+        <div class="password-input-wrap">
+          <input
+            id="master-pw-confirm"
+            type={showConfirmPassword ? "text" : "password"}
+            class="control control--mono"
+            aria-invalid={Boolean(displayError)}
+            placeholder="Re-enter password"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            bind:value={confirmPassword}
+            oninput={() => { localError = ""; }}
+            onkeydown={updateCapsLock}
+            onkeyup={updateCapsLock}
+            onfocus={() => (focusedField = "confirm")}
+            onblur={() => (focusedField = null)}
+          />
+          <button
+            type="button"
+            class="reveal-button"
+            aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+            aria-pressed={showConfirmPassword}
+            onclick={() => (showConfirmPassword = !showConfirmPassword)}
+          >
+            <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={16} />
+          </button>
+        </div>
+        {#if capsLockOn && focusedField === "confirm"}
+          <span class="caps-lock-warning" role="status">
+            <Icon name="alert-triangle" size={13} />
+            Caps Lock is on
+          </span>
+        {/if}
       {/if}
     </div>
   {/snippet}
@@ -137,6 +188,47 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .password-input-wrap {
+    position: relative;
+  }
+
+  .password-input-wrap .control {
+    padding-right: 38px;
+  }
+
+  .reveal-button {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    transform: translateY(-50%);
+  }
+
+  .reveal-button:hover,
+  .reveal-button:focus-visible {
+    color: var(--text-primary);
+    background: var(--border);
+  }
+
+  .reveal-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .caps-lock-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--warning);
+    font-size: 11.5px;
   }
 
   .vault-path {

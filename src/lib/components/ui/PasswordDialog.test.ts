@@ -85,6 +85,49 @@ describe("PasswordDialog", () => {
     expect(onconfirm).toHaveBeenCalledWith("valid-password");
   });
 
+  it("reveals and masks password fields independently", async () => {
+    render(PasswordDialog, {
+      confirm: true,
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+    const master = passwordInput();
+    const confirmation = screen.getByLabelText("Confirm password");
+
+    expect(master).toHaveAttribute("type", "password");
+    expect(confirmation).toHaveAttribute("type", "password");
+
+    await fireEvent.click(screen.getByRole("button", { name: "Show master password" }));
+    expect(master).toHaveAttribute("type", "text");
+    expect(confirmation).toHaveAttribute("type", "password");
+
+    await fireEvent.click(screen.getByRole("button", { name: "Show confirmation password" }));
+    expect(confirmation).toHaveAttribute("type", "text");
+  });
+
+  it("warns when Caps Lock is active in either password field", async () => {
+    render(PasswordDialog, {
+      confirm: true,
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+    const master = passwordInput();
+    master.focus();
+    const capsEvent = new KeyboardEvent("keydown", { key: "A", bubbles: true });
+    vi.spyOn(capsEvent, "getModifierState").mockReturnValue(true);
+    await fireEvent(master, capsEvent);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Caps Lock is on");
+
+    const confirmation = screen.getByLabelText("Confirm password");
+    confirmation.focus();
+    const confirmCapsEvent = new KeyboardEvent("keydown", { key: "A", bubbles: true });
+    vi.spyOn(confirmCapsEvent, "getModifierState").mockReturnValue(true);
+    await fireEvent(confirmation, confirmCapsEvent);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Caps Lock is on");
+  });
+
   it("shows the vault path when provided", () => {
     render(PasswordDialog, {
       vaultPath: "/home/user/vaults/personal.kdbx",
