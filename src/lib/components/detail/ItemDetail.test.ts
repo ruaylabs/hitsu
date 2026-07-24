@@ -624,6 +624,20 @@ describe("password entry workflow", () => {
     expect(await screen.findAllByRole("button", { name: "https://example.com" })).toHaveLength(1);
   });
 
+  it("prompts before Escape discards unsaved changes", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    const password = await screen.findByPlaceholderText("Password");
+    await fireEvent.input(password, { target: { value: "do-not-discard" } });
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(await screen.findByRole("dialog", { name: "Save changes?" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Password")).toHaveValue("do-not-discard");
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+  });
+
   it("cancels editing without persisting changes", async () => {
     selectEntry(passwordEntry());
     render(ItemDetail);

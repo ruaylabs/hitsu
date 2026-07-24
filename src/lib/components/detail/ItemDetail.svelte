@@ -709,7 +709,17 @@
     }
   }
 
-  // Edit-mode shortcuts: ⌘S saves, Esc cancels. Skipped when a child dialog
+  function requestCancelEdit() {
+    if (!hasUnsavedChanges()) {
+      void cancelEdit();
+      return;
+    }
+    // Reuse the navigation confirmation flow without changing selection.
+    // Saving or discarding exits edit mode; keeping edits leaves it open.
+    pendingNavigation = () => {};
+  }
+
+  // Edit-mode shortcuts: ⌘S saves, Esc requests cancellation. Skipped when a child dialog
   // (generator / delete-confirm / history) is open — those own Escape — and
   // when not editing. Bound at the window level so it works regardless of
   // where focus sits in the detail pane.
@@ -722,7 +732,7 @@
       saveEdit();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      cancelEdit();
+      requestCancelEdit();
     }
   }
 </script>
