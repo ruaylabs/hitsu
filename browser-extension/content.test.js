@@ -73,6 +73,34 @@ describe("login filling", () => {
     expect(sendResponse).toHaveBeenCalledWith({ ok: true });
   });
 
+  it("fills login fields inside nested open shadow roots", () => {
+    document.body.innerHTML = "<login-shell></login-shell>";
+    const shell = document.querySelector("login-shell").attachShadow({ mode: "open" });
+    shell.innerHTML = "<login-form></login-form>";
+    const loginForm = shell.querySelector("login-form").attachShadow({ mode: "open" });
+    loginForm.innerHTML = `
+      <form>
+        <input name="username" type="email" autocomplete="username">
+        <input name="password" type="password" autocomplete="current-password">
+      </form>
+    `;
+    const username = loginForm.querySelector('[name="username"]');
+    const password = loginForm.querySelector('[name="password"]');
+    mockVisibility(password);
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "fill-login", username: "ada@example.com", password: "secret" },
+      { id: "extension-id" },
+      sendResponse,
+    );
+
+    expect(username.value).toBe("ada@example.com");
+    expect(password.value).toBe("secret");
+    expect(loginForm.activeElement).toBe(password);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
   it("uses the nearest text field before the password as a fallback", () => {
     document.body.innerHTML = `
       <form>
