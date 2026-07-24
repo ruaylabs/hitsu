@@ -30,6 +30,7 @@
   import HistoryDialog from "./HistoryDialog.svelte";
   import NotesField from "./NotesField.svelte";
   import PasswordField from "./PasswordField.svelte";
+  import SecretEditInput from "./SecretEditInput.svelte";
   import TOTPField from "./TOTPField.svelte";
 
   let _entry = $state<Entry | undefined>(undefined);
@@ -864,15 +865,10 @@
           <DetailFieldRow label="Password">
             <div class="password-edit-col">
               <div class="password-edit-row">
-                <input
-                  class="control control--compact edit-input"
-                  type="text"
-                  placeholder="Password"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
+                <SecretEditInput
                   bind:value={editPassword}
+                  label="password"
+                  placeholder="Password"
                 />
                 <button
                   class="generate-btn"
@@ -900,15 +896,10 @@
           </DetailFieldRow>
           <DetailFieldRow label="TOTP">
             <div class="totp-edit-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
-                placeholder="otpauth:// URI"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
+              <SecretEditInput
                 bind:value={editTotp}
+                label="TOTP URI"
+                placeholder="otpauth:// URI"
               />
               <button
                 class="totp-setup-btn-small"
@@ -924,15 +915,10 @@
           <DetailFieldRow label="Password">
             <div class="password-edit-col">
               <div class="password-edit-row">
-                <input
-                  class="control control--compact edit-input"
-                  type="text"
-                  placeholder="Password"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
+                <SecretEditInput
                   bind:value={editPassword}
+                  label="password"
+                  placeholder="Password"
                 />
                 <button
                   class="generate-btn"
@@ -1043,19 +1029,14 @@
           </DetailFieldRow>
           <DetailFieldRow label="Number" alignStart>
             <div class="card-input-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
+              <SecretEditInput
+                bind:value={editCardNumber}
+                label="card number"
+                placeholder="Card number"
                 inputmode="numeric"
                 pattern="[0-9]*"
-                aria-invalid={Boolean(cardNumberError)}
-                placeholder="Card number"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editCardNumber}
-                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardNumber = el.value; }}
+                invalid={Boolean(cardNumberError)}
+                sanitize={(value) => value.replace(/\D/g, "")}
               />
               {#if cardNumberError}
                 <span class="control-error">{cardNumberError}</span>
@@ -1116,20 +1097,15 @@
           </DetailFieldRow>
           <DetailFieldRow label="CVV" alignStart>
             <div class="card-input-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
+              <SecretEditInput
+                bind:value={editCardCvv}
+                label="CVV"
+                placeholder="CVV"
                 inputmode="numeric"
                 pattern="[0-9]*"
-                aria-invalid={Boolean(cardCvvError)}
-                placeholder="CVV"
-                maxlength="4"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editCardCvv}
-                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 4); editCardCvv = el.value; }}
+                maxlength={4}
+                invalid={Boolean(cardCvvError)}
+                sanitize={(value) => value.replace(/\D/g, "").slice(0, 4)}
               />
               {#if cardCvvError}
                 <span class="control-error">{cardCvvError}</span>
@@ -1138,20 +1114,15 @@
           </DetailFieldRow>
           <DetailFieldRow label="PIN" alignStart>
             <div class="card-input-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
+              <SecretEditInput
+                bind:value={editCardPin}
+                label="PIN"
+                placeholder="PIN"
                 inputmode="numeric"
                 pattern="[0-9]*"
-                aria-invalid={Boolean(cardPinError)}
-                placeholder="PIN"
-                maxlength="12"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editCardPin}
-                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 12); editCardPin = el.value; }}
+                maxlength={12}
+                invalid={Boolean(cardPinError)}
+                sanitize={(value) => value.replace(/\D/g, "").slice(0, 12)}
               />
               {#if cardPinError}
                 <span class="control-error">{cardPinError}</span>
@@ -1169,15 +1140,10 @@
             />
           </DetailFieldRow>
           <DetailFieldRow label="License key">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="License key"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
+            <SecretEditInput
               bind:value={editLicenseKey}
+              label="license key"
+              placeholder="License key"
             />
           </DetailFieldRow>
           <DetailFieldRow label="Licensed to">
@@ -1299,15 +1265,10 @@
             />
           </DetailFieldRow>
           <DetailFieldRow label="Number">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Passport number"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="characters"
-              spellcheck="false"
+            <SecretEditInput
               bind:value={editPassportNumber}
+              label="passport number"
+              placeholder="Passport number"
             />
           </DetailFieldRow>
           <DetailFieldRow label="Full name">
@@ -1674,14 +1635,23 @@
               autocomplete="off"
               bind:value={field.name}
             />
-            <input
-              class="control control--compact custom-field-value"
-              type={field.protected ? "password" : "text"}
-              placeholder="Value"
-              aria-label="Custom field value"
-              autocomplete="off"
-              bind:value={field.value}
-            />
+            {#if field.protected}
+              <SecretEditInput
+                bind:value={field.value}
+                label="custom field value"
+                placeholder="Value"
+                class="custom-field-value"
+              />
+            {:else}
+              <input
+                class="control control--compact custom-field-value"
+                type="text"
+                placeholder="Value"
+                aria-label="Custom field value"
+                autocomplete="off"
+                bind:value={field.value}
+              />
+            {/if}
             <label class="protect-custom-field" title="Protect this value in the vault">
               <input
                 type="checkbox"
@@ -2022,10 +1992,6 @@
     align-items: center;
   }
 
-  .password-edit-row .edit-input {
-    flex: 1;
-  }
-
   .generate-btn {
     display: flex;
     align-items: center;
@@ -2205,10 +2171,6 @@
     align-items: center;
     flex: 1;
     min-width: 0;
-  }
-
-  .totp-edit-wrap .edit-input {
-    flex: 1;
   }
 
   .totp-setup-btn-small {

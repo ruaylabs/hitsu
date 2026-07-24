@@ -354,6 +354,10 @@ describe("software license workflow", () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText("License key")).toHaveValue("stored-password"),
     );
+    const licenseKey = screen.getByPlaceholderText("License key");
+    expect(licenseKey).toHaveAttribute("type", "password");
+    await fireEvent.click(screen.getByRole("button", { name: "Reveal license key" }));
+    expect(licenseKey).toHaveAttribute("type", "text");
     await fireEvent.input(screen.getByPlaceholderText("Version"), { target: { value: "5.0" } });
     await fireEvent.input(screen.getByPlaceholderText("License key"), {
       target: { value: "NEW-LICENSE-KEY" },
@@ -396,6 +400,10 @@ describe("passport workflow", () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText("Passport number")).toHaveValue("stored-password"),
     );
+    const passportNumber = screen.getByPlaceholderText("Passport number");
+    expect(passportNumber).toHaveAttribute("type", "password");
+    await fireEvent.click(screen.getByRole("button", { name: "Reveal passport number" }));
+    expect(passportNumber).toHaveAttribute("type", "text");
     await fireEvent.input(screen.getByPlaceholderText("Passport number"), {
       target: { value: "NEW-PASSPORT-NUMBER" },
     });
@@ -446,10 +454,12 @@ describe("password entry workflow", () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText("Password")).toHaveValue("stored-password"),
     );
+    const password = screen.getByPlaceholderText("Password");
+    expect(password).toHaveAttribute("type", "password");
+    await fireEvent.click(screen.getByRole("button", { name: "Reveal password" }));
+    expect(password).toHaveAttribute("type", "text");
 
-    await fireEvent.input(screen.getByPlaceholderText("Password"), {
-      target: { value: "updated-password" },
-    });
+    await fireEvent.input(password, { target: { value: "updated-password" } });
     await fireEvent.input(screen.getByPlaceholderText("URL"), {
       target: { value: "https://updated.example.com" },
     });
