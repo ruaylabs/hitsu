@@ -1204,6 +1204,7 @@ fn test_preferences_security_defaults() {
         "default clipboard clear should be 15 s"
     );
     assert!(!prefs.folders_enabled, "folders should be opt-in");
+    assert_eq!(prefs.theme, hitsu_lib::prefs::ThemePreference::System);
 }
 
 #[test]
@@ -1248,6 +1249,20 @@ fn test_preferences_security_serde_missing_fields_default() {
     );
     assert!(prefs.last_vault.is_none());
     assert!(!prefs.folders_enabled);
+}
+
+#[test]
+fn test_preferences_theme_roundtrip() {
+    use hitsu_lib::prefs::{Preferences, ThemePreference};
+
+    let prefs = Preferences {
+        theme: ThemePreference::Dark,
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&prefs).unwrap();
+    assert!(json.contains(r#""theme":"dark""#));
+    let loaded: Preferences = serde_json::from_str(&json).unwrap();
+    assert_eq!(loaded.theme, ThemePreference::Dark);
 }
 
 #[test]

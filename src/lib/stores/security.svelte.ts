@@ -1,5 +1,6 @@
 import * as prefsBridge from "$lib/bridge/prefs";
 import { clipboard } from "./clipboard.svelte";
+import { theme } from "./theme.svelte";
 
 let idleLockMinutes = $state(5);
 let clipboardClearSeconds = $state(15);
@@ -19,6 +20,7 @@ export const security = {
     idleLockMinutes = prefs.idleLockMinutes ?? 5;
     clipboardClearSeconds = prefs.clipboardClearSeconds ?? 15;
     clipboard.defaultTimeoutSecs = clipboardClearSeconds;
+    theme.hydrate(prefs.theme);
     return prefs;
   },
   async save(idleMins: number, clipboardSecs: number) {

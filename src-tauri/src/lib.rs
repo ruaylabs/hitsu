@@ -32,6 +32,7 @@ pub fn run() {
             commands::prefs::prefs_get,
             commands::prefs::prefs_set_last_vault,
             commands::prefs::prefs_set_security,
+            commands::prefs::prefs_set_theme,
             commands::prefs::prefs_set_folders_enabled,
             commands::prefs::prefs_set_browser_integration_enabled,
             commands::prefs::prefs_set_kdf_dismissed,

@@ -9,6 +9,15 @@ use crate::vault::atomic_write;
 const LEGACY_IDENTIFIER: &str = "com.ruaylabs.kagi";
 const PREFS_FILE: &str = "prefs.json";
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
@@ -20,6 +29,9 @@ pub struct Preferences {
     /// Clipboard auto-clear timeout in seconds. Default: 15.
     #[serde(default = "default_clipboard_clear")]
     pub clipboard_clear_seconds: u32,
+    /// Color scheme override. System follows the operating-system preference.
+    #[serde(default)]
+    pub theme: ThemePreference,
     /// Exposes the optional KDBX folder tree and entry-move controls.
     #[serde(default)]
     pub folders_enabled: bool,
@@ -42,6 +54,7 @@ impl Default for Preferences {
             recent_vaults: Vec::new(),
             idle_lock_minutes: default_idle_lock(),
             clipboard_clear_seconds: default_clipboard_clear(),
+            theme: ThemePreference::default(),
             folders_enabled: false,
             browser_integration_enabled: false,
             kdf_upgrade_dismissed_vaults: Vec::new(),

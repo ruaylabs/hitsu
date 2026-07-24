@@ -1,6 +1,7 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
+  import type { ThemePreference } from "$lib/bridge/prefs";
   import type { SkippedImportEntry } from "$lib/bridge/vault";
   import * as vaultBridge from "$lib/bridge/vault";
   import { app } from "$lib/stores/app.svelte";
@@ -9,6 +10,7 @@
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { theme } from "$lib/stores/theme.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Dialog from "../ui/Dialog.svelte";
@@ -79,6 +81,16 @@
   function onClipboardChange(e: Event) {
     const secs = parseInt((e.target as HTMLSelectElement).value, 10);
     security.save(security.idleLockMinutes, secs);
+  }
+
+  async function onThemeChange(event: Event) {
+    const value = (event.currentTarget as HTMLSelectElement).value as ThemePreference;
+    try {
+      await theme.save(value);
+    } catch (error) {
+      statusError = true;
+      statusMsg = error instanceof Error ? error.message : String(error);
+    }
   }
 
   async function onFoldersChange(event: Event) {
@@ -266,6 +278,7 @@
     <div class="settings-content">
       <nav class="settings-nav" aria-label="Settings sections">
         <a href="#settings-vault">Vault</a>
+        <a href="#settings-appearance">Appearance</a>
         <a href="#settings-features">Features</a>
         <a href="#settings-security">Security</a>
         <a href="#settings-about">About</a>
@@ -367,6 +380,31 @@
               {/each}
             </ul>
           {/if}
+        </section>
+
+        <section class="settings-section" id="settings-appearance">
+          <h2 class="section-heading">Appearance</h2>
+          <div class="setting-row theme-setting">
+            <span class="setting-label-group">
+              <span class="setting-label">Theme</span>
+              <span class="setting-description">Choose a theme or follow your system setting.</span>
+            </span>
+            <select
+              class="control control--compact control--select setting-select"
+              aria-label="Theme"
+              onchange={onThemeChange}
+            >
+              {#each [
+                { value: "system", label: "System" },
+                { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
+              ] as option}
+                <option value={option.value} selected={theme.preference === option.value}>
+                  {option.label}
+                </option>
+              {/each}
+            </select>
+          </div>
         </section>
 
         <section class="settings-section" id="settings-features">
@@ -780,6 +818,10 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 0;
+  }
+
+  .theme-setting {
+    gap: 24px;
   }
 
   .setting-label-group {

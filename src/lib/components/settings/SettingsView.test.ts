@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recycleBin } from "$lib/stores/recycleBin.svelte";
 import { vault } from "$lib/stores/vault.svelte";
@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   emptyRecycleBin: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  setTheme: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -22,9 +23,11 @@ vi.mock("$lib/bridge/prefs", () => ({
     idleLockMinutes: 5,
     clipboardClearSeconds: 15,
     foldersEnabled: false,
+    theme: "system",
     recentVaults: [],
   }),
   prefsSetSecurity: vi.fn(),
+  prefsSetTheme: mocks.setTheme,
   prefsSetFoldersEnabled: mocks.setFoldersEnabled,
 }));
 
@@ -50,6 +53,8 @@ describe("SettingsView", () => {
       folders: [],
     });
     vault.setEntries([]);
+    document.documentElement.removeAttribute("data-theme");
+    mocks.setTheme.mockResolvedValue(undefined);
     mocks.emptyRecycleBin.mockResolvedValue({ deletedEntries: 2 });
     mocks.import1pif.mockResolvedValue({
       importedItems: 1,
@@ -70,6 +75,10 @@ describe("SettingsView", () => {
       await screen.findByRole("navigation", { name: "Settings sections" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Vault" })).toHaveAttribute("href", "#settings-vault");
+    expect(screen.getByRole("link", { name: "Appearance" })).toHaveAttribute(
+      "href",
+      "#settings-appearance",
+    );
     expect(screen.getByRole("link", { name: "Features" })).toHaveAttribute(
       "href",
       "#settings-features",
@@ -79,6 +88,17 @@ describe("SettingsView", () => {
       "#settings-security",
     );
     expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "#settings-about");
+  });
+
+  it("applies and saves a theme override", async () => {
+    render(SettingsView);
+
+    const select = await screen.findByRole("combobox", { name: "Theme" });
+    await waitFor(() => expect(select).toHaveValue("system"));
+    await fireEvent.change(select, { target: { value: "dark" } });
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(mocks.setTheme).toHaveBeenCalledWith("dark");
   });
 
   it("enables optional folder support", async () => {

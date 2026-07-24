@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export type ThemePreference = "system" | "light" | "dark";
+
 export interface Preferences {
   lastVault: string | null;
   recentVaults: string[];
   idleLockMinutes: number;
   clipboardClearSeconds: number;
+  theme?: ThemePreference;
   foldersEnabled: boolean;
   browserIntegrationEnabled: boolean;
   kdfUpgradeDismissedVaults: string[];
@@ -23,6 +26,10 @@ export async function prefsSetSecurity(
   clipboardClearSeconds: number,
 ): Promise<void> {
   return invoke<void>("prefs_set_security", { idleLockMinutes, clipboardClearSeconds });
+}
+
+export async function prefsSetTheme(theme: ThemePreference): Promise<void> {
+  return invoke<void>("prefs_set_theme", { theme });
 }
 
 export async function prefsSetFoldersEnabled(enabled: boolean): Promise<void> {

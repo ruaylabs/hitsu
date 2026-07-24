@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use tauri::{AppHandle, State};
 
 use crate::error::HitsuResult;
-use crate::prefs::Preferences;
+use crate::prefs::{Preferences, ThemePreference};
 use crate::state::AppState;
 
 fn update_preferences_at_path(
@@ -60,6 +60,17 @@ pub async fn prefs_set_security(
     })?;
     state.configure_idle_lock(idle_lock_minutes);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn prefs_set_theme(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    theme: ThemePreference,
+) -> HitsuResult<()> {
+    update_preferences(&app, &state, |prefs| {
+        prefs.theme = theme;
+    })
 }
 
 #[tauri::command]

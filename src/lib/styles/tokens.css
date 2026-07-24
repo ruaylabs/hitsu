@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+
   /* Surfaces — light mode */
   --surface-0: #efede5;
   --surface-1: #f7f6f3;
@@ -62,7 +64,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --surface-0: #1e1e1e;
     --surface-1: #252525;
     --surface-2: #2c2c2c;
@@ -78,4 +81,22 @@
     --backdrop-strong: rgba(0, 0, 0, 0.65);
     --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #1e1e1e;
+  --surface-1: #252525;
+  --surface-2: #2c2c2c;
+  --text-primary: #f0ede5;
+  --text-secondary: #a0a098;
+  --text-muted: #6a6a64;
+  --text-accent: #85b7eb;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --bg-accent: #0c447c;
+  --danger-bg: rgba(226, 75, 74, 0.16);
+  --backdrop: rgba(0, 0, 0, 0.45);
+  --backdrop-strong: rgba(0, 0, 0, 0.65);
+  --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
