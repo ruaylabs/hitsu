@@ -44,7 +44,15 @@
     <span>{itemCount} items</span>
     {#if clipboard.active}
       <span class="sep">·</span>
-      <span class="countdown">Clears in {Math.ceil(clipboard.remainingMs / 1000)}s</span>
+      <button
+        type="button"
+        class="countdown"
+        onclick={() => clipboard.cancel()}
+        aria-label="Clear clipboard now"
+        title="Clear clipboard now"
+      >
+        Clears in {Math.ceil(clipboard.remainingMs / 1000)}s
+      </button>
     {/if}
     {#if vault.meta}
       <button
@@ -131,6 +139,18 @@
 
   .sep {
     color: var(--text-muted);
+  }
+
+  .countdown {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 2px;
+  }
+
+  .countdown:hover {
+    color: var(--text-secondary);
+    text-decoration-color: currentColor;
   }
 
   .lock-btn,
