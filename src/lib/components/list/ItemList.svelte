@@ -308,7 +308,7 @@
 <svelte:window onkeydown={onListKeydown} onclick={onWindowClick} onblur={closeContextMenu} />
 
 <div class="item-list">
-  <SearchField allowCreate={selection.filter.kind !== "trash"} />
+  <SearchField allowCreate={selection.filter.kind !== "trash"} {onCreate} />
   <div class="sort-bar">
     <Icon name="arrows-sort" size={13} />
     <label for="entry-sort">Sort</label>
