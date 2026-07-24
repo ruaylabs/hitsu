@@ -6,49 +6,82 @@ import { vault } from "$lib/stores/vault.svelte";
 interface PendingDelete {
   id: string;
   title: string;
-  permanent: boolean;
+  permanent: true;
   /** Extra cleanup run after a successful delete (e.g. exit edit mode). */
   onDeleted?: () => void;
 }
 
 let pending = $state<PendingDelete | null>(null);
+const deletingIds = new Set<string>();
 
-/** Shared delete-with-confirmation flow. `request()` opens the single
- *  ConfirmDialog rendered in MainApp; `confirm()` deletes the entry and
- *  cleans up list + selection state in one place, so the ⌘⌫ shortcut and
- *  the detail-pane Delete button can't drift apart. */
+async function restoreEntry(id: string, title: string) {
+  try {
+    await entriesBridge.entryRestore(id);
+    vault.setEntries(
+      vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: false } : entry)),
+    );
+    toast.success(`Restored "${title}"`);
+  } catch (error) {
+    console.error("Failed to restore entry", error);
+    toast.error(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function moveToRecycleBin(id: string, title: string, onDeleted?: () => void) {
+  if (deletingIds.has(id)) return;
+  deletingIds.add(id);
+  try {
+    await entriesBridge.entryDelete(id);
+  } catch (error) {
+    console.error("Failed to delete entry", error);
+    toast.error(error instanceof Error ? error.message : String(error));
+    return;
+  } finally {
+    deletingIds.delete(id);
+  }
+
+  onDeleted?.();
+  vault.setEntries(
+    vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: true } : entry)),
+  );
+  if (selection.selectedId === id) selection.selectedId = null;
+  toast.info(`Moved "${title}" to Recycle Bin`, 8000, {
+    label: "Undo",
+    run: () => restoreEntry(id, title),
+  });
+}
+
+/** Active entries move directly to the Recycle Bin with an undo action.
+ * Entries already in the bin require confirmation before permanent deletion. */
 export const entryDeletion = {
   get pending() {
     return pending;
   },
-  request(id: string, title?: string, onDeleted?: () => void) {
-    const item = vault.entries.find((e) => e.id === id);
+  async request(id: string, title?: string, onDeleted?: () => void) {
+    const item = vault.entries.find((entry) => entry.id === id);
     const resolved = title ?? item?.title ?? "this entry";
-    pending = { id, title: resolved, permanent: item?.trashed ?? false, onDeleted };
+    if (!item?.trashed) {
+      await moveToRecycleBin(id, resolved, onDeleted);
+      return;
+    }
+    pending = { id, title: resolved, permanent: true, onDeleted };
   },
   cancel() {
     pending = null;
   },
   async confirm() {
     if (!pending) return;
-    const { id, permanent, onDeleted } = pending;
+    const { id, onDeleted } = pending;
     pending = null;
     try {
-      if (permanent) await entriesBridge.entryDeletePermanent(id);
-      else await entriesBridge.entryDelete(id);
-    } catch (e) {
-      console.error("Failed to delete entry", e);
-      toast.error(e instanceof Error ? e.message : String(e));
+      await entriesBridge.entryDeletePermanent(id);
+    } catch (error) {
+      console.error("Failed to delete entry", error);
+      toast.error(error instanceof Error ? error.message : String(error));
       return;
     }
-    // Caller cleanup first: it may clear state (newEntryId) that effects
-    // keyed on the selection change below would otherwise act on.
     onDeleted?.();
-    vault.setEntries(
-      permanent
-        ? vault.entries.filter((e) => e.id !== id)
-        : vault.entries.map((e) => (e.id === id ? { ...e, trashed: true } : e)),
-    );
+    vault.setEntries(vault.entries.filter((entry) => entry.id !== id));
     if (selection.selectedId === id) selection.selectedId = null;
   },
 };

@@ -81,12 +81,8 @@ describe("standalone vault lifecycle", () => {
 
     await $('[aria-label="Edit entry"]').click();
     await (await button("Delete")).click();
-    const confirmDelete = await $(
-      '//div[@role="dialog"]//button[normalize-space(.)="Move to Bin"]',
-    );
-    await confirmDelete.waitForDisplayed();
-    await confirmDelete.click();
 
+    await (await button("Undo")).waitForDisplayed();
     await $("p=No entries yet").waitForDisplayed();
     await (await button("Recycle Bin 1")).click();
     await $("h1=E2E password updated").waitForDisplayed();

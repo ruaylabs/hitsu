@@ -13,10 +13,31 @@
 {#if toast.all.length > 0}
   <div class="toast-stack" role="status" aria-live="polite">
     {#each toast.all as t (t.id)}
-      <button class="toast toast-{t.kind}" onclick={() => toast.dismiss(t.id)} title="Dismiss">
+      <div class="toast toast-{t.kind}">
         <Icon name={ICONS[t.kind] ?? "info-circle"} size={16} />
         <span class="toast-message">{t.message}</span>
-      </button>
+        {#if t.action}
+          <button
+            type="button"
+            class="toast-action"
+            onclick={() => {
+              toast.dismiss(t.id);
+              void t.action?.run();
+            }}
+          >
+            {t.action.label}
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="toast-dismiss"
+          onclick={() => toast.dismiss(t.id)}
+          aria-label="Dismiss notification"
+          title="Dismiss"
+        >
+          <Icon name="x" size={14} />
+        </button>
+      </div>
     {/each}
   </div>
 {/if}
@@ -50,7 +71,6 @@
     line-height: 1.4;
     color: var(--text-primary);
     text-align: left;
-    cursor: pointer;
   }
 
   .toast-danger,
@@ -65,5 +85,25 @@
 
   .toast-message {
     min-width: 0;
+  }
+
+  .toast-action {
+    flex-shrink: 0;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .toast-action:hover {
+    text-decoration: underline;
+  }
+
+  .toast-dismiss {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  .toast-dismiss:hover {
+    color: var(--text-primary);
   }
 </style>

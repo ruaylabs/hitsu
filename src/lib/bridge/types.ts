@@ -160,6 +160,10 @@ export interface Toast {
   kind: "info" | "success" | "warning" | "danger";
   message: string;
   durationMs: number;
+  action?: {
+    label: string;
+    run: () => void | Promise<void>;
+  };
 }
 
 export type SidebarFilter =

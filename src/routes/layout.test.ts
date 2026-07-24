@@ -24,6 +24,19 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("toast actions", () => {
+  it("runs an action and dismisses its toast", async () => {
+    const action = vi.fn();
+    toast.info("Moved to Recycle Bin", 0, { label: "Undo", run: action });
+    render(Layout);
+
+    await screen.getByRole("button", { name: "Undo" }).click();
+
+    expect(action).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Moved to Recycle Bin")).not.toBeInTheDocument();
+  });
+});
+
 describe("global rejection handling", () => {
   it("reports unhandled promise errors through the toast stack", async () => {
     render(Layout);

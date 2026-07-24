@@ -13,6 +13,8 @@ import ItemList from "./ItemList.svelte";
 vi.mock("$lib/bridge/entries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("$lib/bridge/entries")>()),
   entriesSearch: vi.fn(),
+  entryDelete: vi.fn(),
+  entryRestore: vi.fn(),
 }));
 
 vi.mock("$lib/stores/clipboard.svelte", () => ({
@@ -25,6 +27,8 @@ vi.mock("$lib/stores/clipboard.svelte", () => ({
 vi.mock("$lib/utils/openHttpUrl", () => ({ openHttpUrl: vi.fn() }));
 
 const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
+const entryDeleteMock = vi.mocked(entriesBridge.entryDelete);
+const entryRestoreMock = vi.mocked(entriesBridge.entryRestore);
 const copyPlainMock = vi.mocked(clipboard.copyPlain);
 const copySecretFieldMock = vi.mocked(clipboard.copySecretField);
 const openHttpUrlMock = vi.mocked(openHttpUrl);
@@ -52,6 +56,10 @@ function makeEntries(count: number): EntrySummary[] {
 beforeEach(() => {
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
+  entryDeleteMock.mockReset();
+  entryDeleteMock.mockResolvedValue(undefined);
+  entryRestoreMock.mockReset();
+  entryRestoreMock.mockResolvedValue(undefined);
   copyPlainMock.mockReset();
   copySecretFieldMock.mockReset();
   openHttpUrlMock.mockReset();
@@ -219,7 +227,8 @@ describe("ItemList", () => {
 
     await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
     await fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
-    expect(entryDeletion.pending?.id).toBe("id-0");
+    await waitFor(() => expect(entryDeleteMock).toHaveBeenCalledWith("id-0"));
+    expect(entryDeletion.pending).toBeNull();
   });
 
   it("moves selection with arrow keys", async () => {

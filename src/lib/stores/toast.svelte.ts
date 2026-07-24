@@ -2,9 +2,9 @@ import type { Toast } from "$lib/bridge/types";
 
 let toasts = $state<Toast[]>([]);
 
-function push(kind: Toast["kind"], message: string, durationMs: number) {
+function push(kind: Toast["kind"], message: string, durationMs: number, action?: Toast["action"]) {
   const id = crypto.randomUUID();
-  toasts = [...toasts, { id, kind, message, durationMs }];
+  toasts = [...toasts, { id, kind, message, durationMs, action }];
   if (durationMs > 0) {
     setTimeout(() => toast.dismiss(id), durationMs);
   }
@@ -18,8 +18,8 @@ export const toast = {
   get all() {
     return toasts;
   },
-  info(message: string, durationMs = 4000) {
-    push("info", message, durationMs);
+  info(message: string, durationMs = 4000, action?: Toast["action"]) {
+    push("info", message, durationMs, action);
   },
   success(message: string, durationMs = 3000) {
     push("success", message, durationMs);
