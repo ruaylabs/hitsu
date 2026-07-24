@@ -21,6 +21,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
@@ -162,17 +163,48 @@ describe("login filling", () => {
     expect(document.activeElement).toBe(password);
   });
 
-  it("does not treat an unrelated search input as a username step", () => {
+  it("fills a login form rendered after the fill request", async () => {
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "fill-login", username: "ada@example.com", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(true);
+    expect(sendResponse).not.toHaveBeenCalled();
+
+    document.body.innerHTML = `
+      <form>
+        <input name="username" type="email" autocomplete="username">
+        <input name="password" type="password" autocomplete="current-password">
+      </form>
+    `;
+    const username = document.querySelector('[name="username"]');
+    const password = document.querySelector('[name="password"]');
+    mockVisibility(password);
+
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ ok: true }));
+    expect(username.value).toBe("ada@example.com");
+    expect(password.value).toBe("secret");
+  });
+
+  it("does not treat an unrelated search input as a username step", async () => {
+    vi.useFakeTimers();
     document.body.innerHTML = '<input name="q" type="search">';
     const search = document.querySelector("input");
     mockVisibility(search);
     const sendResponse = vi.fn();
 
-    listener(
-      { type: "fill-login", username: "ada", password: "secret" },
-      { id: "extension-id" },
-      sendResponse,
-    );
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.advanceTimersByTimeAsync(5_000);
 
     expect(search.value).toBe("");
     expect(sendResponse).toHaveBeenCalledWith({
@@ -228,15 +260,19 @@ describe("login filling", () => {
     expect(sendResponse).not.toHaveBeenCalled();
   });
 
-  it("reports when the page has no writable password field", () => {
+  it("reports when no writable password field appears before the retry deadline", async () => {
+    vi.useFakeTimers();
     document.body.innerHTML = '<input type="password" readonly>';
     const sendResponse = vi.fn();
 
-    listener(
-      { type: "fill-login", username: "ada", password: "secret" },
-      { id: "extension-id" },
-      sendResponse,
-    );
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.advanceTimersByTimeAsync(5_000);
 
     expect(sendResponse).toHaveBeenCalledWith({
       ok: false,

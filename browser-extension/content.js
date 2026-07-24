@@ -76,6 +76,17 @@
     );
   }
 
+  const observerOptions = {
+    attributes: true,
+    attributeFilter: ["class", "disabled", "hidden", "readonly", "style", "type"],
+    childList: true,
+    subtree: true,
+  };
+
+  function observeOpenRoots(observer) {
+    for (const root of openRoots()) observer.observe(root, observerOptions);
+  }
+
   function fillPasswordWhenAvailable(password) {
     let timeout;
     const observer = new MutationObserver(() => {
@@ -88,39 +99,67 @@
       passwordInput.focus();
     });
 
-    const observerOptions = {
-      attributes: true,
-      attributeFilter: ["class", "disabled", "hidden", "readonly", "style", "type"],
-      childList: true,
-      subtree: true,
-    };
-    for (const root of openRoots()) observer.observe(root, observerOptions);
+    observeOpenRoots(observer);
     timeout = setTimeout(() => observer.disconnect(), 15_000);
   }
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
-
+  function fillAvailableLogin(message) {
     const passwordInput = findVisiblePasswordInput();
     if (passwordInput) {
       const usernameInput = findUsernameInput(passwordInput);
       if (usernameInput && message.username) setInputValue(usernameInput, message.username);
       setInputValue(passwordInput, message.password);
       passwordInput.focus();
-      sendResponse({ ok: true });
-      return false;
+      return { ok: true };
     }
 
     const usernameInput = findUsernameOnlyInput();
-    if (!usernameInput || !message.username) {
-      sendResponse({ ok: false, error: "No password field found on this page" });
-      return false;
-    }
+    if (!usernameInput || !message.username) return null;
 
     setInputValue(usernameInput, message.username);
     usernameInput.focus();
     fillPasswordWhenAvailable(message.password);
-    sendResponse({ ok: true, usernameOnly: true });
-    return false;
+    return { ok: true, usernameOnly: true };
+  }
+
+  function fillWhenAvailable(message, sendResponse) {
+    let interval;
+    let timeout;
+    const observer = new MutationObserver(tryFill);
+
+    function stop() {
+      observer.disconnect();
+      clearInterval(interval);
+      clearTimeout(timeout);
+    }
+
+    function tryFill() {
+      observeOpenRoots(observer);
+      const response = fillAvailableLogin(message);
+      if (!response) return;
+
+      stop();
+      sendResponse(response);
+    }
+
+    observeOpenRoots(observer);
+    interval = setInterval(tryFill, 250);
+    timeout = setTimeout(() => {
+      stop();
+      sendResponse({ ok: false, error: "No password field found on this page" });
+    }, 5_000);
+  }
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
+
+    const response = fillAvailableLogin(message);
+    if (response) {
+      sendResponse(response);
+      return false;
+    }
+
+    fillWhenAvailable(message, sendResponse);
+    return true;
   });
 })();
