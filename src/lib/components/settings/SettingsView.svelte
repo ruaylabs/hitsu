@@ -6,10 +6,10 @@
   import { app } from "$lib/stores/app.svelte";
   import { features } from "$lib/stores/features.svelte";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
+  import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
-  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -20,7 +20,6 @@
     | { kind: "change-password" }
     | { kind: "new-password" }
     | { kind: "import-details" }
-    | { kind: "empty-recycle-bin" }
     | null = $state(null);
 
   let statusMsg = $state("");
@@ -28,8 +27,6 @@
   let importing = $state(false);
   let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
-  let emptyingRecycleBin = $state(false);
-  let trashedEntryCount = $derived(vault.entries.filter((entry) => entry.trashed).length);
 
   async function handleOpen() {
     try {
@@ -49,31 +46,6 @@
   }
 
   let selectedPath = $state("");
-
-  async function emptyRecycleBin() {
-    dialog = null;
-    if (emptyingRecycleBin) return;
-    emptyingRecycleBin = true;
-    statusMsg = "";
-    try {
-      const result = await vaultBridge.vaultEmptyRecycleBin();
-      const entries = vault.entries.filter((entry) => !entry.trashed);
-      vault.setEntries(entries);
-      if (vault.meta) {
-        vault.setMeta({ ...vault.meta, entries, itemCount: entries.length });
-      }
-      statusError = false;
-      statusMsg =
-        result.deletedEntries === 0
-          ? "Recycle Bin is already empty"
-          : `Permanently deleted ${result.deletedEntries} entr${result.deletedEntries === 1 ? "y" : "ies"}`;
-    } catch (error) {
-      statusError = true;
-      statusMsg = error instanceof Error ? error.message : String(error);
-    } finally {
-      emptyingRecycleBin = false;
-    }
-  }
 
   onMount(async () => {
     try {
@@ -212,20 +184,7 @@
 
 <div class="settings-overlay" role="dialog" aria-label="Settings">
   {#if dialog}
-    {#if dialog.kind === "empty-recycle-bin"}
-      <ConfirmDialog
-        title="Empty Recycle Bin?"
-        message={trashedEntryCount === 1
-          ? "Permanently delete 1 entry from the Recycle Bin? This cannot be undone."
-          : `Permanently delete ${trashedEntryCount} entries from the Recycle Bin? This cannot be undone.`}
-        confirmLabel={trashedEntryCount === 1
-          ? "Delete 1 entry"
-          : `Delete ${trashedEntryCount} entries`}
-        danger={true}
-        onconfirm={emptyRecycleBin}
-        oncancel={() => (dialog = null)}
-      />
-    {:else if dialog.kind === "import-details"}
+    {#if dialog.kind === "import-details"}
       <Dialog
         title="Entries not imported"
         onclose={() => (dialog = null)}
@@ -345,19 +304,19 @@
             <div>
               <h3 class="maintenance-title">Recycle Bin</h3>
               <p class="setting-description">
-                {trashedEntryCount === 0
+                {recycleBin.count === 0
                   ? "The Recycle Bin is empty."
-                  : `${trashedEntryCount} entr${trashedEntryCount === 1 ? "y" : "ies"} will be permanently deleted.`}
+                  : `${recycleBin.count} entr${recycleBin.count === 1 ? "y" : "ies"} will be permanently deleted.`}
               </p>
             </div>
             <button
               class="settings-btn danger-btn"
-              class:loading={emptyingRecycleBin}
-              onclick={() => (dialog = { kind: "empty-recycle-bin" })}
-              disabled={emptyingRecycleBin || trashedEntryCount === 0}
+              class:loading={recycleBin.emptying}
+              onclick={() => recycleBin.requestEmpty()}
+              disabled={recycleBin.emptying || recycleBin.count === 0}
             >
               <Icon name="trash" size={14} />
-              {emptyingRecycleBin ? "Emptying…" : "Empty Recycle Bin…"}
+              {recycleBin.emptying ? "Emptying…" : "Empty Recycle Bin…"}
             </button>
           </div>
         </section>

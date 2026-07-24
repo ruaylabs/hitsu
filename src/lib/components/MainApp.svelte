@@ -22,6 +22,7 @@
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { features } from "$lib/stores/features.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
+  import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
@@ -419,6 +420,21 @@
 
 {#if showShortcuts}
   <ShortcutsDialog onclose={() => (showShortcuts = false)} />
+{/if}
+
+{#if recycleBin.pending}
+  <ConfirmDialog
+    title="Empty Recycle Bin?"
+    message={recycleBin.count === 1
+      ? "Permanently delete 1 entry from the Recycle Bin? This cannot be undone."
+      : `Permanently delete ${recycleBin.count} entries from the Recycle Bin? This cannot be undone.`}
+    confirmLabel={recycleBin.count === 1
+      ? "Delete 1 entry"
+      : `Delete ${recycleBin.count} entries`}
+    danger={true}
+    onconfirm={() => recycleBin.confirm()}
+    oncancel={() => recycleBin.cancel()}
+  />
 {/if}
 
 {#if entryDeletion.pending}

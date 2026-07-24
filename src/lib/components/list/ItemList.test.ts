@@ -4,6 +4,7 @@ import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+import { recycleBin } from "$lib/stores/recycleBin.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 import { openHttpUrl } from "$lib/utils/openHttpUrl";
@@ -55,6 +56,7 @@ beforeEach(() => {
   copySecretFieldMock.mockReset();
   openHttpUrlMock.mockReset();
   entryDeletion.cancel();
+  recycleBin.cancel();
   vault.setEditingId(null);
   selection.selectedId = null;
   selection.search = "";
@@ -169,6 +171,20 @@ describe("ItemList", () => {
 
     expect(await screen.findByRole("option", { name: /Entry 24/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Entry 0/ })).not.toBeInTheDocument();
+  });
+
+  it("requests the shared empty-bin confirmation from the trash header", async () => {
+    vault.setEntries([
+      ...makeEntries(2),
+      { ...makeEntries(1)[0], id: "trashed", title: "Deleted entry", trashed: true },
+    ]);
+    selection.filter = { kind: "trash" };
+    render(ItemList);
+    await screen.findByRole("option", { name: /Deleted entry/ });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Empty…" }));
+
+    expect(recycleBin.pending).toBe(true);
   });
 
   it("copies the selected username and password with keyboard shortcuts", async () => {

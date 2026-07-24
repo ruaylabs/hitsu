@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { recycleBin } from "$lib/stores/recycleBin.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 import SettingsView from "./SettingsView.svelte";
 
@@ -32,6 +33,7 @@ vi.mock("$lib/bridge/vault", () => ({
 
 describe("SettingsView", () => {
   beforeEach(() => {
+    recycleBin.cancel();
     vault.setMeta({
       path: "/tmp/test.kdbx",
       name: "Test",
@@ -64,7 +66,7 @@ describe("SettingsView", () => {
     expect(mocks.setFoldersEnabled).toHaveBeenCalledWith(true);
   });
 
-  it("confirms before permanently emptying the Recycle Bin", async () => {
+  it("requests the shared empty-bin confirmation", async () => {
     vault.setEntries(
       ["trashed-1", "trashed-2"].map((id) => ({
         id,
@@ -79,13 +81,8 @@ describe("SettingsView", () => {
     render(SettingsView);
 
     await fireEvent.click(await screen.findByRole("button", { name: "Empty Recycle Bin…" }));
-    expect(screen.getByRole("dialog", { name: "Empty Recycle Bin?" })).toHaveTextContent(
-      "Permanently delete 2 entries",
-    );
-    await fireEvent.click(screen.getByRole("button", { name: "Delete 2 entries" }));
 
-    expect(mocks.emptyRecycleBin).toHaveBeenCalledOnce();
-    expect(vault.entries).toHaveLength(0);
+    expect(recycleBin.pending).toBe(true);
   });
 
   it("shows skipped entry names in a simple list", async () => {

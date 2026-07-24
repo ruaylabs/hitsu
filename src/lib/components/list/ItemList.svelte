@@ -4,6 +4,7 @@
   import type { EntrySummary } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
@@ -317,6 +318,17 @@
       <option value="modified">Recently modified</option>
     </select>
     <Icon name="chevron-down" size={12} />
+    {#if selection.filter.kind === "trash"}
+      <button
+        type="button"
+        class="empty-trash-button"
+        disabled={recycleBin.count === 0 || recycleBin.emptying}
+        onclick={() => recycleBin.requestEmpty()}
+      >
+        <Icon name="trash-x" size={12} />
+        {recycleBin.emptying ? "Emptying…" : "Empty…"}
+      </button>
+    {/if}
   </div>
   <div
     class="list-rows"
@@ -469,6 +481,25 @@
     font-size: inherit;
     cursor: pointer;
     appearance: none;
+  }
+
+  .empty-trash-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 3px 5px;
+    color: var(--danger);
+    border-radius: 4px;
+  }
+
+  .empty-trash-button:hover:not(:disabled) {
+    background: var(--danger-bg);
+  }
+
+  .empty-trash-button:disabled {
+    color: var(--text-muted);
+    opacity: 0.55;
   }
 
   .list-rows {
