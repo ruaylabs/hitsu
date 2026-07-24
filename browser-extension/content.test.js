@@ -25,6 +25,21 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+function mockVisibility(
+  input,
+  { checkVisibility = true, offsetParent = true, bounds = true } = {},
+) {
+  input.checkVisibility = vi.fn(() => checkVisibility);
+  Object.defineProperty(input, "offsetParent", {
+    configurable: true,
+    value: offsetParent ? document.body : null,
+  });
+  input.getBoundingClientRect = vi.fn(() => ({
+    width: bounds ? 200 : 0,
+    height: bounds ? 30 : 0,
+  }));
+}
+
 describe("login filling", () => {
   it("fills the matching username and password fields and dispatches form events", () => {
     document.body.innerHTML = `
@@ -35,6 +50,7 @@ describe("login filling", () => {
     `;
     const username = document.querySelector('input[type="email"]');
     const password = document.querySelector('input[type="password"]');
+    mockVisibility(password);
     const usernameInput = vi.fn();
     const passwordChange = vi.fn();
     username.addEventListener("input", usernameInput);
@@ -66,6 +82,7 @@ describe("login filling", () => {
       </form>
     `;
     const fields = document.querySelectorAll("input");
+    mockVisibility(fields[2]);
 
     listener(
       { type: "fill-login", username: "ada", password: "secret" },
@@ -76,6 +93,37 @@ describe("login filling", () => {
     expect(fields[0].value).toBe("");
     expect(fields[1].value).toBe("ada");
     expect(fields[2].value).toBe("secret");
+  });
+
+  it.each([
+    ["checkVisibility", { checkVisibility: false }],
+    ["offsetParent", { offsetParent: false }],
+    ["bounding rectangle", { bounds: false }],
+  ])("skips a password field hidden by %s", (_check, hiddenState) => {
+    document.body.innerHTML = `
+      <form id="hidden-form">
+        <input name="hidden-user" type="email">
+        <input name="hidden-password" type="password">
+      </form>
+      <form id="login-form">
+        <input name="login-user" type="email">
+        <input name="login-password" type="password">
+      </form>
+    `;
+    const passwords = document.querySelectorAll('input[type="password"]');
+    mockVisibility(passwords[0], hiddenState);
+    mockVisibility(passwords[1]);
+
+    listener(
+      { type: "fill-login", username: "ada@example.com", password: "secret" },
+      { id: "extension-id" },
+      vi.fn(),
+    );
+
+    expect(document.querySelector('[name="hidden-user"]').value).toBe("");
+    expect(passwords[0].value).toBe("");
+    expect(document.querySelector('[name="login-user"]').value).toBe("ada@example.com");
+    expect(passwords[1].value).toBe("secret");
   });
 
   it("rejects messages not sent by the extension itself", () => {

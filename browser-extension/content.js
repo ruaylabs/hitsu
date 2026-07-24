@@ -9,6 +9,14 @@
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function isVisible(input) {
+    if (typeof input.checkVisibility === "function" && !input.checkVisibility()) return false;
+    if (input.offsetParent === null) return false;
+
+    const bounds = input.getBoundingClientRect();
+    return bounds.width > 0 && bounds.height > 0;
+  }
+
   function findUsernameInput(passwordInput) {
     const form = passwordInput.form ?? document;
     const candidates = [...form.querySelectorAll('input:not([type="hidden"]):not([disabled])')];
@@ -26,9 +34,9 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
 
-    const passwordInput = document.querySelector(
-      'input[type="password"]:not([disabled]):not([readonly])',
-    );
+    const passwordInput = [
+      ...document.querySelectorAll('input[type="password"]:not([disabled]):not([readonly])'),
+    ].find(isVisible);
     if (!passwordInput) {
       sendResponse({ ok: false, error: "No password field found on this page" });
       return false;
