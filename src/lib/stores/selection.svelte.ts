@@ -1,6 +1,6 @@
 import type { SidebarFilter } from "$lib/bridge/types";
 
-export type SelectionMode = "immediate" | "keyboard";
+type SelectionMode = "immediate" | "keyboard";
 
 let selectedId = $state<string | null>(null);
 let detailFetchMode = $state<SelectionMode>("immediate");

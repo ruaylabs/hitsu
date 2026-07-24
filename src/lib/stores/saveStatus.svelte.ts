@@ -1,4 +1,4 @@
-export type SaveState = "saved" | "dirty" | "saving" | "error";
+type SaveState = "saved" | "dirty" | "saving" | "error";
 
 let state = $state<SaveState>("saved");
 let errorMessage = $state("");

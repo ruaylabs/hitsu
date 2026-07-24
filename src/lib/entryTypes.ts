@@ -1,6 +1,6 @@
 import type { ItemType } from "$lib/bridge/types";
 
-export interface EntryTypeMetadata {
+interface EntryTypeMetadata {
   type: ItemType;
   label: string;
   pluralLabel: string;

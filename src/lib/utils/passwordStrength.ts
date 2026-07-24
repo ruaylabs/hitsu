@@ -9,9 +9,9 @@
  *  Bands map roughly to: 0 trivial, 1 weak, 2 fair, 3 good, 4 strong.
  */
 
-export type StrengthLevel = 0 | 1 | 2 | 3 | 4;
+type StrengthLevel = 0 | 1 | 2 | 3 | 4;
 
-export interface StrengthResult {
+interface StrengthResult {
   level: StrengthLevel;
   /** 0–1, for a progress bar. */
   fraction: number;
