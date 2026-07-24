@@ -1,6 +1,5 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import * as entriesBridge from "$lib/bridge/entries";
   import type { EntrySummary } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
@@ -8,8 +7,8 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
-  import { entryHaystack } from "$lib/utils/search";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
   import SearchField from "./SearchField.svelte";
@@ -36,40 +35,16 @@
 
   let contextMenu = $state<RowContextMenu | null>(null);
   let contextMenuEl = $state<HTMLDivElement | undefined>();
-  let searchMatchIds = $state<string[] | null>(null);
-  let searchRequest = 0;
-
-  // Full-field search stays in Rust so notes and other field values do not
-  // have to be copied into every list summary. Keep the existing summary
-  // search as an immediate fallback while the backend result is in flight.
-  $effect(() => {
-    const query = selection.search.trim();
-    void vault.entries;
-    const request = ++searchRequest;
-    searchMatchIds = null;
-    if (!query) return;
-
-    void entriesBridge
-      .entriesSearch(query)
-      .then((ids) => {
-        if (request === searchRequest && selection.search.trim() === query) {
-          searchMatchIds = ids;
-        }
-      })
-      .catch(() => {
-        // Keep the summary-field fallback when backend search is unavailable.
-      });
+  const entrySearch = createEntrySearch(() => selection.search, {
+    refreshOn: () => {
+      void vault.entries;
+    },
   });
 
   let hasActiveEntries = $derived(vault.entries.some((entry) => !entry.trashed));
   let hasMatchesOutsideFilter = $derived.by(() => {
     if (!selection.search || selection.filter.kind === "all") return false;
-    const query = selection.search.toLowerCase();
-    const matches = searchMatchIds === null ? null : new Set(searchMatchIds);
-    return vault.entries.some(
-      (entry) =>
-        !entry.trashed && (matches?.has(entry.id) === true || entryHaystack(entry).includes(query)),
-    );
+    return vault.entries.some((entry) => !entry.trashed && entrySearch.matches(entry));
   });
 
   let filtered = $derived.by(() => {
@@ -88,14 +63,7 @@
       items = items.filter((entry) => entry.folderId && folderIds.has(entry.folderId));
     }
     if (selection.search) {
-      if (searchMatchIds === null) {
-        const q = selection.search.toLowerCase();
-        items = items.filter((e) => entryHaystack(e).includes(q));
-      } else {
-        const q = selection.search.toLowerCase();
-        const matches = new Set(searchMatchIds);
-        items = items.filter((entry) => matches.has(entry.id) || entryHaystack(entry).includes(q));
-      }
+      items = items.filter((entry) => entrySearch.matches(entry));
     }
     if (sortMode === "title") {
       items = [...items].sort((left, right) =>
