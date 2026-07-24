@@ -258,6 +258,7 @@ pub struct EntrySummary {
     pub username: Option<String>,
     pub has_password: bool,
     pub has_totp: bool,
+    pub has_attachments: bool,
     pub tags: Vec<String>,
     pub favorite: bool,
     pub trashed: bool,

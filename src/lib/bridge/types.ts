@@ -128,6 +128,7 @@ export interface EntrySummary {
   username?: string;
   hasPassword?: boolean;
   hasTotp?: boolean;
+  hasAttachments?: boolean;
   tags: string[];
   favorite: boolean;
   trashed?: boolean;

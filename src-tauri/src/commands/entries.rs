@@ -40,6 +40,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         .unwrap_or_default();
     let has_password = entry_ref.get_password().is_some_and(|p| !p.is_empty());
     let has_totp = read_totp_seed(entry_ref).is_some();
+    let has_attachments = entry_ref.attachments_named().next().is_some();
 
     let url = entry_ref.get_url().map(str::to_string);
 
@@ -69,6 +70,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         username: Some(username),
         has_password,
         has_totp,
+        has_attachments,
         tags: entry_ref.tags.clone(),
         favorite,
         trashed,

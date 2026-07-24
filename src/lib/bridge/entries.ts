@@ -12,6 +12,7 @@ export function toSummary(entry: Entry): EntrySummary {
     username: entry.username,
     hasPassword: entry.hasPassword,
     hasTotp: entry.hasTotp,
+    hasAttachments: entry.attachments.length > 0,
     tags: entry.tags,
     favorite: entry.favorite,
     trashed: entry.trashed,

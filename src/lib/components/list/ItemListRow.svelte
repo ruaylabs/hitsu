@@ -31,9 +31,23 @@
     <div class="list-row-title">{entry.title}</div>
     <div class="list-row-subtitle">{entry.subtitle}</div>
   </div>
-  {#if entry.favorite}
-    <span style="color: var(--warning); flex-shrink: 0; display: flex;">
-      <Icon name="star" size={12} />
+  {#if entry.hasTotp || entry.hasAttachments || entry.favorite}
+    <span class="row-indicators">
+      {#if entry.hasTotp}
+        <span class="row-indicator" aria-label="Has TOTP" title="Has TOTP">
+          <Icon name="clock-code" size={12} />
+        </span>
+      {/if}
+      {#if entry.hasAttachments}
+        <span class="row-indicator" aria-label="Has attachments" title="Has attachments">
+          <Icon name="paperclip" size={12} />
+        </span>
+      {/if}
+      {#if entry.favorite}
+        <span class="row-indicator favorite-indicator" aria-label="Favorite" title="Favorite">
+          <Icon name="star" size={12} />
+        </span>
+      {/if}
     </span>
   {/if}
 </button>
@@ -85,5 +99,22 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .row-indicators {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  .row-indicator {
+    display: inline-flex;
+  }
+
+  .favorite-indicator {
+    color: var(--warning);
   }
 </style>
