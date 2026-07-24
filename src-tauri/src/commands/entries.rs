@@ -567,6 +567,26 @@ async fn save_snapshot(
     .map_err(HitsuError::from_join)?
 }
 
+/// Mutate the open vault and persist the resulting snapshot while preserving
+/// the required save-lock → vaults-lock ordering.
+async fn mutate_and_save<T>(
+    state: &AppState,
+    mutate: impl FnOnce(&mut OpenVault) -> HitsuResult<T>,
+) -> HitsuResult<T> {
+    let _save_guard = state.save_lock.lock().await;
+    let (result, db, key, path, expected_disk_hash) = {
+        let mut vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+        let result = mutate(vault)?;
+        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
+        (result, db, key, path, expected_disk_hash)
+    };
+
+    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
+    state.commit_disk_hash(&path, new_disk_hash);
+    Ok(result)
+}
+
 #[tauri::command]
 pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
     let vaults = state.vaults.lock();
@@ -696,15 +716,7 @@ pub async fn entry_update(
 ) -> HitsuResult<Entry> {
     validate_custom_fields(&patch)?;
     validate_expiration(&patch)?;
-    // Take the writer lock before mutating so no other save can interleave
-    // between our in-memory commit and our disk write.
-    let _save_guard = state.save_lock.lock().await;
-
-    let (updated, db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
-
+    mutate_and_save(&state, move |vault| {
         let entry_id = parse_entry_id(&id)?;
 
         {
@@ -730,13 +742,9 @@ pub async fn entry_update(
         let folder_id = entry_folder_id(&entry_ref, trashed);
         let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
         updated.attachments = read_attachments(&entry_ref);
-        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
-        (updated, db, key, path, expected_disk_hash)
-    }; // vaults lock released — KDF + fsync run outside it
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(updated)
+        Ok(updated)
+    })
+    .await
 }
 
 /// Read the TOTP seed from an entry.
@@ -943,34 +951,23 @@ pub async fn folder_create(
     parent_id: Option<String>,
     name: String,
 ) -> HitsuResult<FolderSummary> {
-    let _save_guard = state.save_lock.lock().await;
     let name = validate_folder_name(&name)?;
-
-    let (folder, db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    mutate_and_save(&state, move |vault| {
         let destination = folder_destination(&vault.db, parent_id.as_deref().unwrap_or(""))?;
         let root_id = vault.db.root().id();
-        let folder = {
-            let mut parent = vault
-                .db
-                .group_mut(destination)
-                .ok_or_else(|| HitsuError::Custom("Folder not found".into()))?;
-            let mut group = parent.add_group();
-            group.name = name.clone();
-            FolderSummary {
-                id: group.id().uuid().to_string(),
-                name,
-                parent_id: (destination != root_id).then(|| destination.uuid().to_string()),
-            }
-        };
-        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
-        (folder, db, key, path, expected_disk_hash)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(folder)
+        let mut parent = vault
+            .db
+            .group_mut(destination)
+            .ok_or_else(|| HitsuError::Custom("Folder not found".into()))?;
+        let mut group = parent.add_group();
+        group.name = name.clone();
+        Ok(FolderSummary {
+            id: group.id().uuid().to_string(),
+            name,
+            parent_id: (destination != root_id).then(|| destination.uuid().to_string()),
+        })
+    })
+    .await
 }
 
 #[tauri::command]
@@ -979,12 +976,8 @@ pub async fn folder_rename(
     id: String,
     name: String,
 ) -> HitsuResult<FolderSummary> {
-    let _save_guard = state.save_lock.lock().await;
     let name = validate_folder_name(&name)?;
-
-    let (folder, db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    mutate_and_save(&state, move |vault| {
         let folder_id = uuid::Uuid::parse_str(&id)
             .map(GroupId::from_uuid)
             .map_err(|_| HitsuError::Custom("Folder not found".into()))?;
@@ -1009,18 +1002,13 @@ pub async fn folder_rename(
             group.name = name.clone();
             group.times.last_modification = Some(chrono::Utc::now().naive_utc());
         }
-        let folder = FolderSummary {
+        Ok(FolderSummary {
             id,
             name,
             parent_id,
-        };
-        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
-        (folder, db, key, path, expected_disk_hash)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(folder)
+        })
+    })
+    .await
 }
 
 #[tauri::command]
@@ -1029,11 +1017,7 @@ pub async fn entry_move(
     id: String,
     folder_id: Option<String>,
 ) -> HitsuResult<Entry> {
-    let _save_guard = state.save_lock.lock().await;
-
-    let (updated, db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    mutate_and_save(&state, move |vault| {
         let entry_id = parse_entry_id(&id)?;
         let destination = folder_destination(&vault.db, folder_id.as_deref().unwrap_or(""))?;
         let entry_ref = vault
@@ -1064,23 +1048,14 @@ pub async fn entry_move(
         let folder_id = entry_folder_id(&entry_ref, false);
         let mut updated = map_entry_to_full(&entry_ref, false, folder_id);
         updated.attachments = read_attachments(&entry_ref);
-        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
-        (updated, db, key, path, expected_disk_hash)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(updated)
+        Ok(updated)
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn entry_delete(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
-    let _save_guard = state.save_lock.lock().await;
-
-    let (db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
-
+    mutate_and_save(&state, move |vault| {
         let recycle_id = ensure_recycle_bin(&mut vault.db);
         let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
@@ -1100,21 +1075,14 @@ pub async fn entry_delete(state: State<'_, AppState>, id: String) -> HitsuResult
             .move_to(recycle_id)
             .map_err(|_| HitsuError::Custom("Recycle Bin is unavailable".into()))?;
         entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
-        snapshot_for_save(vault)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(())
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn entry_restore(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
-    let _save_guard = state.save_lock.lock().await;
-
-    let (db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    mutate_and_save(&state, move |vault| {
         let entry_id = parse_entry_id(&id)?;
         let entry_ref = vault
             .db
@@ -1137,21 +1105,14 @@ pub async fn entry_restore(state: State<'_, AppState>, id: String) -> HitsuResul
             .move_to(destination)
             .map_err(|_| HitsuError::Custom("Original group is unavailable".into()))?;
         entry.times.location_changed = Some(chrono::Utc::now().naive_utc());
-        snapshot_for_save(vault)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(())
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> HitsuResult<()> {
-    let _save_guard = state.save_lock.lock().await;
-
-    let (db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    mutate_and_save(&state, move |vault| {
         let entry_ref =
             find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         if !entry_is_trashed(&vault.db, &entry_ref) {
@@ -1159,13 +1120,9 @@ pub async fn entry_delete_permanent(state: State<'_, AppState>, id: String) -> H
                 "Only entries in the Recycle Bin can be permanently deleted".into(),
             ));
         }
-        remove_entry(&mut vault.db, &id)?;
-        snapshot_for_save(vault)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(())
+        remove_entry(&mut vault.db, &id)
+    })
+    .await
 }
 
 /// Drop a brand-new, never-persisted entry from the in-memory database
@@ -1517,35 +1474,24 @@ pub async fn entry_attachment_add(
             .map_err(HitsuError::from_join)??;
     let size_bytes = data.len() as u64;
 
-    let _save_guard = state.save_lock.lock().await;
-    let (meta, db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
+    let meta = mutate_and_save(&state, move |vault| {
+        let mut em = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
-        let meta = {
-            let mut em = vault
-                .db
-                .entry_mut(entry_id)
-                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+        // Move the selected bytes into the database without leaving an
+        // additional unsanitized buffer behind.
+        em.add_attachment(name.clone(), Value::unprotected(std::mem::take(&mut *data)));
+        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
 
-            // Move the selected bytes into the database without leaving an
-            // additional unsanitized buffer behind.
-            em.add_attachment(name.clone(), Value::unprotected(std::mem::take(&mut *data)));
-            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
-
-            AttachmentMeta {
-                id: name.clone(),
-                name,
-                size_bytes,
-            }
-        };
-
-        let (db, key, path, expected_disk_hash) = snapshot_for_save(vault);
-        (meta, db, key, path, expected_disk_hash)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
+        Ok(AttachmentMeta {
+            id: name.clone(),
+            name,
+            size_bytes,
+        })
+    })
+    .await?;
     Ok(Some(meta))
 }
 
@@ -1556,31 +1502,18 @@ pub async fn entry_attachment_remove(
     id: String,
     name: String,
 ) -> HitsuResult<()> {
-    let _save_guard = state.save_lock.lock().await;
-
-    let (db, key, path, expected_disk_hash) = {
-        let mut vaults = state.vaults.lock();
-
-        let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
-
+    mutate_and_save(&state, move |vault| {
         let entry_id = parse_entry_id(&id)?;
+        let mut em = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
 
-        {
-            let mut em = vault
-                .db
-                .entry_mut(entry_id)
-                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
-
-            em.remove_attachment_by_name(&name);
-            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
-        }
-
-        snapshot_for_save(vault)
-    };
-
-    let new_disk_hash = save_snapshot(db, key, path.clone(), expected_disk_hash).await?;
-    state.commit_disk_hash(&path, new_disk_hash);
-    Ok(())
+        em.remove_attachment_by_name(&name);
+        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        Ok(())
+    })
+    .await
 }
 
 #[cfg(test)]
