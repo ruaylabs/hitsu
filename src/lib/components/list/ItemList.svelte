@@ -15,6 +15,9 @@
 
   let { onCreate = () => {} }: { onCreate?: () => void } = $props();
 
+  type SortMode = "vault" | "title" | "modified";
+  let sortMode = $state<SortMode>("vault");
+
   function modifiedTime(entry: EntrySummary): number {
     const timestamp = Date.parse(entry.modifiedAt ?? "");
     return Number.isNaN(timestamp) ? 0 : timestamp;
@@ -92,6 +95,13 @@
         const matches = new Set(searchMatchIds);
         items = items.filter((entry) => matches.has(entry.id) || entryHaystack(entry).includes(q));
       }
+    }
+    if (sortMode === "title") {
+      items = [...items].sort((left, right) =>
+        left.title.localeCompare(right.title, undefined, { sensitivity: "base" }),
+      );
+    } else if (sortMode === "modified") {
+      items = [...items].sort(compareModified);
     }
     return items;
   });
@@ -298,6 +308,16 @@
 
 <div class="item-list">
   <SearchField allowCreate={selection.filter.kind !== "trash"} />
+  <div class="sort-bar">
+    <Icon name="arrows-sort" size={13} />
+    <label for="entry-sort">Sort</label>
+    <select id="entry-sort" bind:value={sortMode} aria-label="Sort entries">
+      <option value="vault">Vault order</option>
+      <option value="title">Title A–Z</option>
+      <option value="modified">Recently modified</option>
+    </select>
+    <Icon name="chevron-down" size={12} />
+  </div>
   <div
     class="list-rows"
     role="listbox"
@@ -428,6 +448,27 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+  }
+
+  .sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 12px;
+    color: var(--text-muted);
+    background: var(--surface-1);
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11.5px;
+  }
+
+  .sort-bar select {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: inherit;
+    cursor: pointer;
+    appearance: none;
   }
 
   .list-rows {

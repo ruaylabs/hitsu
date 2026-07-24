@@ -28,6 +28,10 @@ const copyPlainMock = vi.mocked(clipboard.copyPlain);
 const copySecretFieldMock = vi.mocked(clipboard.copySecretField);
 const openHttpUrlMock = vi.mocked(openHttpUrl);
 
+function listRows(): HTMLElement[] {
+  return Array.from(screen.getByRole("listbox").querySelectorAll<HTMLElement>("[role='option']"));
+}
+
 function makeEntries(count: number): EntrySummary[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `id-${i}`,
@@ -62,7 +66,7 @@ describe("ItemList", () => {
     vault.setEntries(makeEntries(500));
     render(ItemList);
 
-    const rows = screen.getAllByRole("option");
+    const rows = listRows();
     expect(rows.length).toBeGreaterThan(0);
     // jsdom reports a zero-height viewport, so only the overscan rows
     // exist; the point is that nowhere near all 500 are in the DOM.
@@ -79,7 +83,7 @@ describe("ItemList", () => {
     await waitFor(() => expect(entriesSearchMock).toHaveBeenCalledWith("user13@"));
     const match = await screen.findByRole("option", { name: /Entry 13/ });
     expect(match).toBeInTheDocument();
-    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(listRows()).toHaveLength(1);
   });
 
   it("uses backend matches for fields absent from entry summaries", async () => {
@@ -91,7 +95,7 @@ describe("ItemList", () => {
 
     const match = await screen.findByRole("option", { name: /Entry 7/ });
     expect(match).toBeInTheDocument();
-    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(listRows()).toHaveLength(1);
   });
 
   it("filters a folder recursively", async () => {
@@ -118,7 +122,7 @@ describe("ItemList", () => {
 
     selection.search = "no such entry";
     expect(await screen.findByText('No items match "no such entry"')).toBeInTheDocument();
-    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(listRows()).toHaveLength(0);
   });
 
   it("offers to create the first entry", async () => {
@@ -141,6 +145,23 @@ describe("ItemList", () => {
     expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
   });
 
+  it("sorts entries by title or modification date", async () => {
+    const entries = makeEntries(3);
+    entries[0] = { ...entries[0], title: "Zulu", modifiedAt: "2025-01-02T00:00:00Z" };
+    entries[1] = { ...entries[1], title: "Alpha", modifiedAt: "2025-01-03T00:00:00Z" };
+    entries[2] = { ...entries[2], title: "Mike", modifiedAt: "2025-01-01T00:00:00Z" };
+    vault.setEntries(entries);
+    render(ItemList);
+    const sort = screen.getByLabelText("Sort entries");
+
+    await fireEvent.change(sort, { target: { value: "title" } });
+    expect(listRows()[0]).toHaveTextContent("Alpha");
+
+    await fireEvent.change(sort, { target: { value: "modified" } });
+    expect(listRows()[0]).toHaveTextContent("Alpha");
+    expect(listRows()[1]).toHaveTextContent("Zulu");
+  });
+
   it("shows the 20 most recently modified entries in the Recent view", async () => {
     vault.setEntries(makeEntries(25));
     selection.filter = { kind: "recent" };
@@ -153,7 +174,7 @@ describe("ItemList", () => {
   it("copies the selected username and password with keyboard shortcuts", async () => {
     vault.setEntries(makeEntries(2));
     render(ItemList);
-    await screen.findByRole("option", { selected: true });
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
 
     await fireEvent.keyDown(window, { key: "c", metaKey: true });
     expect(copyPlainMock).toHaveBeenCalledWith("user0@example.com");
@@ -190,7 +211,11 @@ describe("ItemList", () => {
     render(ItemList);
 
     // First entry is auto-selected.
-    expect(await screen.findByRole("option", { selected: true })).toHaveTextContent("Entry 0");
+    await waitFor(() => {
+      expect(
+        listRows().find((row) => row.getAttribute("aria-selected") === "true"),
+      ).toHaveTextContent("Entry 0");
+    });
 
     await fireEvent.keyDown(window, { key: "ArrowDown" });
     expect(selection.selectedId).toBe("id-1");
