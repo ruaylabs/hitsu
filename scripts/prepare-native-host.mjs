@@ -5,7 +5,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const manifest = path.join(root, "chrome-extension", "native-host", "Cargo.toml");
+const manifest = path.join(root, "browser-extension", "native-host", "Cargo.toml");
 
 function rustHostTriple() {
   const output = execFileSync("rustc", ["-vV"], { encoding: "utf8" });
@@ -25,7 +25,7 @@ execFileSync("cargo", ["build", "--release", "--manifest-path", manifest, "--tar
 
 const source = path.join(
   root,
-  "chrome-extension",
+  "browser-extension",
   "native-host",
   "target",
   target,

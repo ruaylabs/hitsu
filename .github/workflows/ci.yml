@@ -68,10 +68,10 @@ jobs:
         with:
           path: |
             src-tauri/target
-            chrome-extension/native-host/target
+            browser-extension/native-host/target
             ~/.cargo/registry/cache
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'chrome-extension/native-host/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -83,7 +83,7 @@ jobs:
         run: cargo fmt --check
 
       - name: Check native host formatting
-        working-directory: chrome-extension/native-host
+        working-directory: browser-extension/native-host
         run: cargo fmt --check
 
       - name: Lint Hitsu
@@ -91,7 +91,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: Lint native host
-        working-directory: chrome-extension/native-host
+        working-directory: browser-extension/native-host
         run: cargo clippy -- -D warnings
 
       - name: Build Hitsu
@@ -103,7 +103,7 @@ jobs:
         run: cargo test
 
       - name: Test native host
-        working-directory: chrome-extension/native-host
+        working-directory: browser-extension/native-host
         run: cargo test
 
   rust-macos:
@@ -119,10 +119,10 @@ jobs:
         with:
           path: |
             src-tauri/target
-            chrome-extension/native-host/target
+            browser-extension/native-host/target
             ~/.cargo/registry/cache
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'chrome-extension/native-host/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 

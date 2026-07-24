@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+let activeHttpTab;
 let chromeMock;
 let listener;
+let loginEntries;
+let pageMatchesOrigin;
 
 beforeEach(async () => {
   listener = undefined;
   chromeMock = {
     runtime: {
-      id: "hitsu@ruaylabs.com",
+      id: "extension-id",
       lastError: null,
       onMessage: {
         addListener: vi.fn((registered) => {
@@ -25,14 +28,72 @@ beforeEach(async () => {
   };
   vi.stubGlobal("chrome", chromeMock);
   vi.resetModules();
-  await import("./background.js");
+  ({ activeHttpTab, loginEntries, pageMatchesOrigin } = await import("./background.js"));
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Firefox background integration", () => {
+describe("active tab origin validation", () => {
+  it("returns only the exact HTTP origin", async () => {
+    chromeMock.tabs.query.mockResolvedValue([
+      { id: 42, url: "https://accounts.example.com/login?next=%2Fvault" },
+    ]);
+
+    await expect(activeHttpTab()).resolves.toEqual({
+      id: 42,
+      origin: "https://accounts.example.com",
+    });
+    expect(chromeMock.tabs.query).toHaveBeenCalledWith({
+      active: true,
+      currentWindow: true,
+    });
+  });
+
+  it.each([
+    "chrome://extensions",
+    "file:///tmp/login.html",
+    "javascript:alert(1)",
+  ])("rejects non-web tab URL %s", async (url) => {
+    chromeMock.tabs.query.mockResolvedValue([{ id: 42, url }]);
+    await expect(activeHttpTab()).rejects.toThrow("Hitsu can only fill HTTP and HTTPS pages");
+  });
+
+  it("rejects a tab without a usable ID or URL", async () => {
+    chromeMock.tabs.query.mockResolvedValue([{}]);
+    await expect(activeHttpTab()).rejects.toThrow("No active browser tab found");
+  });
+});
+
+describe("fill-time origin validation", () => {
+  it("allows navigation within the exact origin", () => {
+    expect(pageMatchesOrigin("https://example.com/account", "https://example.com")).toBe(true);
+  });
+
+  it.each([
+    "https://example.com.attacker.test/login",
+    "http://example.com/login",
+    "chrome://example.com",
+    "not a URL",
+    undefined,
+  ])("rejects a changed or invalid page URL %s", (url) => {
+    expect(pageMatchesOrigin(url, "https://example.com")).toBe(false);
+  });
+});
+
+describe("native response validation", () => {
+  it("accepts only well-formed login summaries", () => {
+    expect(
+      loginEntries({ entries: [{ id: "id", title: "Example", username: "ada" }] }),
+    ).toHaveLength(1);
+    expect(() => loginEntries({ entries: [{ id: "id", title: "Example" }] })).toThrow(
+      "Hitsu returned an invalid login list",
+    );
+  });
+});
+
+describe("background integration", () => {
   it("requests login summaries for the exact active-tab origin", async () => {
     chromeMock.tabs.query.mockResolvedValue([
       { id: 7, url: "https://accounts.example.com/login?next=%2Fvault" },
@@ -42,9 +103,7 @@ describe("Firefox background integration", () => {
     });
     const sendResponse = vi.fn();
 
-    expect(listener({ type: "list-logins" }, { id: "hitsu@ruaylabs.com" }, sendResponse)).toBe(
-      true,
-    );
+    expect(listener({ type: "list-logins" }, { id: "extension-id" }, sendResponse)).toBe(true);
     await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
 
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
@@ -62,7 +121,7 @@ describe("Firefox background integration", () => {
     chromeMock.tabs.query.mockResolvedValue([{ id: 7, url: "about:logins" }]);
     const sendResponse = vi.fn();
 
-    listener({ type: "list-logins" }, { id: "hitsu@ruaylabs.com" }, sendResponse);
+    listener({ type: "list-logins" }, { id: "extension-id" }, sendResponse);
     await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
 
     expect(chromeMock.runtime.sendNativeMessage).not.toHaveBeenCalled();
@@ -81,7 +140,7 @@ describe("Firefox background integration", () => {
     chromeMock.tabs.sendMessage.mockResolvedValue({ ok: true });
     const sendResponse = vi.fn();
 
-    listener({ type: "fill-login", id: "entry" }, { id: "hitsu@ruaylabs.com" }, sendResponse);
+    listener({ type: "fill-login", id: "entry" }, { id: "extension-id" }, sendResponse);
     await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ ok: true }));
 
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
@@ -108,7 +167,7 @@ describe("Firefox background integration", () => {
     });
     const sendResponse = vi.fn();
 
-    listener({ type: "fill-login", id: "entry" }, { id: "hitsu@ruaylabs.com" }, sendResponse);
+    listener({ type: "fill-login", id: "entry" }, { id: "extension-id" }, sendResponse);
     await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
 
     expect(sendResponse).toHaveBeenCalledWith({

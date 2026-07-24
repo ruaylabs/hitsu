@@ -5,15 +5,25 @@ Hitsu desktop app and fills the first username/password form on the current page
 
 ## Install for development
 
-1. Build Hitsu and the shared native-messaging host:
+Run the local setup command and follow the browser instructions it prints:
+
+```bash
+just firefox-extension-dev
+```
+
+This removes stale Firefox packages, rebuilds the extension, and installs the native-messaging
+host. The equivalent manual steps are:
+
+1. Build Hitsu, the shared native-messaging host, and the extension:
 
    ```bash
    cargo build --release --manifest-path src-tauri/Cargo.toml --bin hitsu
-   cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml
+   cargo build --release --manifest-path browser-extension/native-host/Cargo.toml
+   node scripts/build-browser-extension.mjs firefox
    ```
 
 2. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select
-   `firefox-extension/manifest.json`.
+   `package/hitsu-firefox-extension/manifest.json`.
 3. Register the native host for the extension ID declared in the manifest:
 
    ```bash
@@ -28,7 +38,9 @@ A release built with `pnpm tauri build` contains the native host as a Tauri side
 browser integration registers it for the stable Firefox extension ID `hitsu@ruaylabs.com`. The
 install script is useful for local development or an alternate extension ID.
 
-Reload the temporary extension from `about:debugging` after changing its source files.
+After changing files in `browser-extension/`, rebuild with
+`node scripts/build-browser-extension.mjs firefox` and reload the temporary extension from
+`about:debugging`.
 
 ## Security model
 

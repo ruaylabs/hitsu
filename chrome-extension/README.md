@@ -6,15 +6,26 @@ page.
 
 ## Install for development
 
-1. Build Hitsu and its native-messaging host:
+Run the local setup command and follow the browser instructions it prints:
+
+```bash
+just chrome-extension-dev
+```
+
+This removes stale Chrome packages and rebuilds the extension. Because Chrome assigns unpacked
+extensions an ID when they are loaded, the printed steps explain how to register the native host
+with that ID. The equivalent manual steps are:
+
+1. Build Hitsu, its native-messaging host, and the extension:
 
    ```bash
    cargo build --release --manifest-path src-tauri/Cargo.toml --bin hitsu
-   cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml
+   cargo build --release --manifest-path browser-extension/native-host/Cargo.toml
+   node scripts/build-browser-extension.mjs chrome
    ```
 
-2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select this
-   `chrome-extension` directory.
+2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the
+   generated `package/hitsu-chrome-extension` directory.
 3. Copy the extension ID shown by Chrome.
 4. Register the native host with that unpacked-development ID:
 
@@ -33,7 +44,9 @@ browser integration is enabled in Settings, the release app registers that host 
 Web Store extension in Chrome, Chromium, Brave, and Edge. The script remains useful for unpacked
 development extensions whose IDs differ from the store ID.
 
-Reload the extension from `chrome://extensions` after changing its source files.
+After changing files in `browser-extension/`, rebuild with
+`node scripts/build-browser-extension.mjs chrome` and reload the extension from
+`chrome://extensions`.
 
 ## Security model
 
@@ -63,5 +76,5 @@ Reload the extension from `chrome://extensions` after changing its source files.
 - Fills the first visible password field and nearest preceding username-like field.
 - No inline suggestions, save/update prompts, generated-password capture, HTTP-auth support, or
   iframe handling.
-- A store archive can be created with `just extension-zip`; publishing and desktop release
+- A store archive can be created with `just chrome-extension-zip`; publishing and desktop release
   distribution remain separate manual steps.

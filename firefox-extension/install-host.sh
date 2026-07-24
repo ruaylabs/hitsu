@@ -9,11 +9,11 @@ fi
 production_extension_id="hitsu@ruaylabs.com"
 extension_id="${1:-$production_extension_id}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-host_path="${2:-$root/chrome-extension/native-host/target/release/hitsu-native-host}"
+host_path="${2:-$root/browser-extension/native-host/target/release/hitsu-native-host}"
 
 if [[ ! -x "$host_path" ]]; then
   echo "Building hitsu-native-host…"
-  (cd "$root" && cargo build --release --manifest-path chrome-extension/native-host/Cargo.toml)
+  (cd "$root" && cargo build --release --manifest-path browser-extension/native-host/Cargo.toml)
 fi
 host_path="$(cd "$(dirname "$host_path")" && pwd)/$(basename "$host_path")"
 

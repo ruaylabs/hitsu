@@ -85,7 +85,7 @@ impl BrowserRequest {
 /// or doesn't hold what the XDG spec promises — on macOS that fallback is
 /// `$TMPDIR`, itself per-user and 0700.
 ///
-/// The native host resolves this identically (`chrome-extension/native-host`);
+/// The native host resolves this identically (`browser-extension/native-host`);
 /// keep the two in sync or the host will look for the socket in the wrong place.
 fn runtime_dir() -> PathBuf {
     runtime_dir_from(std::env::var_os("XDG_RUNTIME_DIR"))

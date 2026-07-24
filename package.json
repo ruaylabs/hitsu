@@ -12,7 +12,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest run",
     "test:frontend": "vitest run src",
-    "test:extension": "vitest run chrome-extension firefox-extension",
+    "test:extension": "vitest run browser-extension",
     "test:watch": "vitest",
     "test:e2e": "pnpm tauri build --debug --no-bundle && wdio run ./e2e/wdio.conf.js",
     "prepare:native-host": "node scripts/prepare-native-host.mjs",

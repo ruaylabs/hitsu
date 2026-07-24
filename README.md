@@ -162,8 +162,9 @@ src/              # Svelte frontend
     stores/       # Svelte 5 $state stores
     components/   # UI components
     utils/        # OTP, time formatting
-chrome-extension/  # Chromium extension and shared native host
-firefox-extension/ # Firefox extension and native-host installer
+browser-extension/ # Shared browser extension source, tests, and native host
+chrome-extension/  # Chromium manifest and native-host installer
+firefox-extension/ # Firefox manifest and native-host installer
 src-tauri/         # Rust backend
   src/
     commands/     # Tauri command handlers
