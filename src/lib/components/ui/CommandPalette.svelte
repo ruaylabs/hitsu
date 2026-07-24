@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPES } from "$lib/entryTypes";
+  import { paletteKeydown } from "$lib/utils/paletteKeydown";
   import Dialog from "./Dialog.svelte";
   import Icon from "./Icon.svelte";
 
@@ -27,29 +28,14 @@
     selectedIndex = 0;
   });
 
-  function onKeydown(e: KeyboardEvent) {
-    const ctrlNext = e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "n";
-    const ctrlPrevious = e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "p";
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-    } else if (e.key === "ArrowDown" || ctrlNext) {
-      e.preventDefault();
-      e.stopPropagation();
-      selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
-    } else if (e.key === "ArrowUp" || ctrlPrevious) {
-      e.preventDefault();
-      e.stopPropagation();
-      selectedIndex = Math.max(selectedIndex - 1, 0);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      e.stopPropagation();
-      if (filtered[selectedIndex]) {
-        onSelect(filtered[selectedIndex].type);
-      }
-    }
+  function onKeydown(event: KeyboardEvent) {
+    paletteKeydown(event, {
+      items: filtered,
+      selectedIndex,
+      onSelectedIndexChange: (index) => (selectedIndex = index),
+      onSelect: (item) => onSelect(item.type),
+      onClose,
+    });
   }
 </script>
 

@@ -2,6 +2,7 @@
   import type { EntrySummary } from "$lib/bridge/types";
   import EntryIcon from "$lib/components/list/EntryIcon.svelte";
   import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
+  import { paletteKeydown } from "$lib/utils/paletteKeydown";
   import Dialog from "./Dialog.svelte";
   import Icon from "./Icon.svelte";
 
@@ -38,29 +39,14 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
-    const ctrlNext = event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "n";
-    const ctrlPrevious = event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "p";
-
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    } else if (event.key === "ArrowDown" || ctrlNext) {
-      event.preventDefault();
-      event.stopPropagation();
-      selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
-      keepSelectedVisible();
-    } else if (event.key === "ArrowUp" || ctrlPrevious) {
-      event.preventDefault();
-      event.stopPropagation();
-      selectedIndex = Math.max(selectedIndex - 1, 0);
-      keepSelectedVisible();
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-      const selected = filtered[selectedIndex];
-      if (selected) onSelect(selected);
-    }
+    paletteKeydown(event, {
+      items: filtered,
+      selectedIndex,
+      onSelectedIndexChange: (index) => (selectedIndex = index),
+      onSelect,
+      onClose,
+      onNavigate: keepSelectedVisible,
+    });
   }
 </script>
 
