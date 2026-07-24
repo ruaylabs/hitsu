@@ -17,36 +17,90 @@
     return bounds.width > 0 && bounds.height > 0;
   }
 
+  const usernameTypes = ["email", "text", "tel"];
+  const usernameHint = /user|email|e-mail|login|account|identifier|member|customer|client/i;
+
+  function usernameMetadata(input) {
+    return `${input.name} ${input.id} ${input.autocomplete} ${input.placeholder} ${input.ariaLabel}`;
+  }
+
   function findUsernameInput(passwordInput) {
     const form = passwordInput.form ?? document;
-    const candidates = [...form.querySelectorAll('input:not([type="hidden"]):not([disabled])')];
+    const candidates = [
+      ...form.querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly])'),
+    ];
     const passwordIndex = candidates.indexOf(passwordInput);
     const beforePassword = candidates.slice(0, passwordIndex).reverse();
     return (
       beforePassword.find(
-        (input) =>
-          ["email", "text", "tel"].includes(input.type) &&
-          /user|email|login|account/i.test(`${input.name} ${input.id} ${input.autocomplete}`),
-      ) ?? beforePassword.find((input) => ["email", "text", "tel"].includes(input.type))
+        (input) => usernameTypes.includes(input.type) && usernameHint.test(usernameMetadata(input)),
+      ) ?? beforePassword.find((input) => usernameTypes.includes(input.type))
     );
+  }
+
+  function findVisiblePasswordInput() {
+    return [
+      ...document.querySelectorAll('input[type="password"]:not([disabled]):not([readonly])'),
+    ].find(isVisible);
+  }
+
+  function findUsernameOnlyInput() {
+    const candidates = [
+      ...document.querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly])'),
+    ].filter((input) => usernameTypes.includes(input.type) && isVisible(input));
+
+    return candidates.find(
+      (input) =>
+        input.autocomplete.toLowerCase().split(/\s+/).includes("username") ||
+        input.type === "email" ||
+        usernameHint.test(usernameMetadata(input)),
+    );
+  }
+
+  function fillPasswordWhenAvailable(password) {
+    let timeout;
+    const observer = new MutationObserver(() => {
+      const passwordInput = findVisiblePasswordInput();
+      if (!passwordInput) return;
+
+      observer.disconnect();
+      clearTimeout(timeout);
+      setInputValue(passwordInput, password);
+      passwordInput.focus();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "disabled", "hidden", "readonly", "style", "type"],
+      childList: true,
+      subtree: true,
+    });
+    timeout = setTimeout(() => observer.disconnect(), 15_000);
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
 
-    const passwordInput = [
-      ...document.querySelectorAll('input[type="password"]:not([disabled]):not([readonly])'),
-    ].find(isVisible);
-    if (!passwordInput) {
+    const passwordInput = findVisiblePasswordInput();
+    if (passwordInput) {
+      const usernameInput = findUsernameInput(passwordInput);
+      if (usernameInput && message.username) setInputValue(usernameInput, message.username);
+      setInputValue(passwordInput, message.password);
+      passwordInput.focus();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    const usernameInput = findUsernameOnlyInput();
+    if (!usernameInput || !message.username) {
       sendResponse({ ok: false, error: "No password field found on this page" });
       return false;
     }
 
-    const usernameInput = findUsernameInput(passwordInput);
-    if (usernameInput && message.username) setInputValue(usernameInput, message.username);
-    setInputValue(passwordInput, message.password);
-    passwordInput.focus();
-    sendResponse({ ok: true });
+    setInputValue(usernameInput, message.username);
+    usernameInput.focus();
+    fillPasswordWhenAvailable(message.password);
+    sendResponse({ ok: true, usernameOnly: true });
     return false;
   });
 })();

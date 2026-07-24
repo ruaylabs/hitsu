@@ -95,6 +95,64 @@ describe("login filling", () => {
     expect(fields[2].value).toBe("secret");
   });
 
+  it("fills a Google-style username step and waits for its password step", async () => {
+    document.body.innerHTML = `
+      <form id="gaia_loginform">
+        <input
+          id="identifierId"
+          name="identifier"
+          type="email"
+          autocomplete="username"
+          aria-label="Email or phone"
+        >
+      </form>
+    `;
+    const username = document.querySelector("#identifierId");
+    mockVisibility(username);
+    const usernameInput = vi.fn();
+    username.addEventListener("input", usernameInput);
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "fill-login", username: "ada@example.com", password: "secret" },
+      { id: "extension-id" },
+      sendResponse,
+    );
+
+    expect(username.value).toBe("ada@example.com");
+    expect(usernameInput).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(username);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, usernameOnly: true });
+
+    document.querySelector("#gaia_loginform").innerHTML = `
+      <input name="password" type="password" autocomplete="current-password">
+    `;
+    const password = document.querySelector('input[type="password"]');
+    mockVisibility(password);
+
+    await vi.waitFor(() => expect(password.value).toBe("secret"));
+    expect(document.activeElement).toBe(password);
+  });
+
+  it("does not treat an unrelated search input as a username step", () => {
+    document.body.innerHTML = '<input name="q" type="search">';
+    const search = document.querySelector("input");
+    mockVisibility(search);
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "fill-login", username: "ada", password: "secret" },
+      { id: "extension-id" },
+      sendResponse,
+    );
+
+    expect(search.value).toBe("");
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      error: "No password field found on this page",
+    });
+  });
+
   it.each([
     ["checkVisibility", { checkVisibility: false }],
     ["offsetParent", { offsetParent: false }],
