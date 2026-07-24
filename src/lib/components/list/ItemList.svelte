@@ -8,6 +8,8 @@
   import ItemListRow from "./ItemListRow.svelte";
   import SearchField from "./SearchField.svelte";
 
+  let { onCreate = () => {} }: { onCreate?: () => void } = $props();
+
   let searchMatchIds = $state<string[] | null>(null);
   let searchRequest = 0;
 
@@ -31,6 +33,17 @@
       .catch(() => {
         // Keep the summary-field fallback when backend search is unavailable.
       });
+  });
+
+  let hasActiveEntries = $derived(vault.entries.some((entry) => !entry.trashed));
+  let hasMatchesOutsideFilter = $derived.by(() => {
+    if (!selection.search || selection.filter.kind === "all") return false;
+    const query = selection.search.toLowerCase();
+    const matches = searchMatchIds === null ? null : new Set(searchMatchIds);
+    return vault.entries.some(
+      (entry) =>
+        !entry.trashed && (matches?.has(entry.id) === true || entryHaystack(entry).includes(query)),
+    );
   });
 
   let filtered = $derived.by(() => {
@@ -205,12 +218,27 @@
         {#if selection.search}
           <Icon name="search-off" size={18} />
           <p>No items match "{selection.search}"</p>
+          {#if hasMatchesOutsideFilter}
+            <button
+              type="button"
+              class="empty-action"
+              onclick={() => selection.requestNavigation(() => { selection.filter = { kind: "all" }; })}
+            >
+              Search all items
+            </button>
+          {/if}
         {:else if selection.filter.kind === "trash"}
           <Icon name="trash" size={18} />
           <p>Recycle Bin is empty</p>
-        {:else}
+        {:else if !hasActiveEntries}
           <Icon name="lock-open" size={18} />
           <p>No entries yet</p>
+          <button type="button" class="empty-action" onclick={onCreate}>
+            Create your first entry
+          </button>
+        {:else}
+          <Icon name="filter-off" size={18} />
+          <p>No entries in this view</p>
         {/if}
       </div>
     {/if}
@@ -250,5 +278,26 @@
     color: var(--text-muted);
     font-size: 13px;
     text-align: center;
+  }
+
+  .empty-list p {
+    margin: 0;
+  }
+
+  .empty-action {
+    padding: 5px 10px;
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .empty-action:hover {
+    background: var(--accent-subtle);
+  }
+
+  .empty-action:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 </style>

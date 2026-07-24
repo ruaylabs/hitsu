@@ -89,11 +89,31 @@ describe("ItemList", () => {
 
   it("shows the empty state when nothing matches", async () => {
     vault.setEntries(makeEntries(5));
-    render(ItemList);
+    render(ItemList, { onCreate: vi.fn() });
 
     selection.search = "no such entry";
     expect(await screen.findByText('No items match "no such entry"')).toBeInTheDocument();
     expect(screen.queryAllByRole("option")).toHaveLength(0);
+  });
+
+  it("offers to create the first entry", async () => {
+    const onCreate = vi.fn();
+    vault.setEntries([]);
+    render(ItemList, { onCreate });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Create your first entry" }));
+    expect(onCreate).toHaveBeenCalledOnce();
+  });
+
+  it("offers to search all items when the current filter hides a match", async () => {
+    vault.setEntries(makeEntries(3));
+    selection.filter = { kind: "favorites" };
+    selection.search = "Entry 1";
+    render(ItemList, { onCreate: vi.fn() });
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Search all items" }));
+    expect(selection.filter).toEqual({ kind: "all" });
+    expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
   });
 
   it("moves selection with arrow keys", async () => {

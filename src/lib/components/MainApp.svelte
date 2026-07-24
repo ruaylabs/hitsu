@@ -356,7 +356,12 @@
         onkeydown={(event) => onResizerKeydown("sidebar", event)}
         ondblclick={() => resetPaneWidth("sidebar")}
       ></button>
-      <ItemList />
+      <ItemList
+        onCreate={() => {
+          showEntryCommandPalette = false;
+          showCommandPalette = true;
+        }}
+      />
       <button
         type="button"
         class="pane-resizer"
