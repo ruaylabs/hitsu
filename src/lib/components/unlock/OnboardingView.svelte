@@ -15,20 +15,31 @@
   // The remembered vault (Settings persists it on every open), so landing
   // here — e.g. after closing the locked prompt — still offers a way back.
   let lastVault = $state<string | null>(null);
-  let lastVaultName = $derived(lastVault?.split(/[\\/]/).pop() ?? "");
+  let recentVaults = $state<string[]>([]);
+  let rememberedVaults = $derived.by(() => {
+    const paths = lastVault ? [lastVault, ...recentVaults] : recentVaults;
+    return [...new Set(paths)].slice(0, 5);
+  });
+
+  function vaultName(path: string) {
+    return path.split(/[\\/]/).pop() || path;
+  }
 
   onMount(() => {
     prefsBridge
       .prefsGet()
-      .then((prefs) => (lastVault = prefs.lastVault ?? null))
+      .then((prefs) => {
+        lastVault = prefs.lastVault ?? null;
+        recentVaults = prefs.recentVaults ?? [];
+      })
       .catch((e) => console.error("Failed to load preferences", e));
   });
 
-  function handleUnlockLast() {
-    if (!lastVault || busy) return;
+  function requestUnlock(path: string, mode: "open" | "unlock" = "unlock") {
+    if (busy) return;
     error = "";
-    pendingPath = lastVault;
-    dialog = "unlock";
+    pendingPath = path;
+    dialog = mode;
   }
 
   async function handleOpen() {
@@ -42,8 +53,7 @@
         }),
       );
       if (!result) return;
-      pendingPath = result;
-      dialog = "open";
+      requestUnlock(result, "open");
     } catch (e) {
       error = String(e);
     }
@@ -132,13 +142,24 @@
       <p class="onboarding-error">{error}</p>
     {/if}
 
+    {#if rememberedVaults.length > 0}
+      <div class="recent-vaults">
+        <span class="recent-heading">Recent vaults</span>
+        {#each rememberedVaults as path (path)}
+          <button
+            class="recent-vault-btn"
+            onclick={() => requestUnlock(path)}
+            disabled={busy}
+            title={path}
+          >
+            <Icon name="database" size={15} />
+            <span>{vaultName(path)}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
     <div class="onboarding-actions">
-      {#if lastVault}
-        <button class="onboarding-btn" onclick={handleUnlockLast} disabled={busy} title={lastVault}>
-          <Icon name="lock" size={18} />
-          <span>Unlock {lastVaultName}</span>
-        </button>
-      {/if}
       <button class="onboarding-btn" onclick={handleOpen} disabled={busy}>
         <Icon name="folder-open" size={18} />
         <span>Open existing vault…</span>
@@ -170,7 +191,9 @@
     border: 0.5px solid var(--border);
     border-radius: var(--radius-card);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-    max-width: 340px;
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
   }
 
   .onboarding-logo {
@@ -201,6 +224,45 @@
     font-size: 12px;
     color: var(--danger);
     text-align: center;
+  }
+
+  .recent-vaults {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .recent-heading {
+    margin-bottom: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .recent-vault-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 9px;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    text-align: left;
+  }
+
+  .recent-vault-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--surface-1);
+  }
+
+  .recent-vault-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .onboarding-actions {
