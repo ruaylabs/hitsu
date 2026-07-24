@@ -731,7 +731,7 @@
 
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
-      saveEdit();
+      if (hasUnsavedChanges()) void saveEdit();
     } else if (e.key === "Escape") {
       e.preventDefault();
       requestCancelEdit();
@@ -793,6 +793,7 @@
           onclick={saveEdit}
           aria-label="Save"
           title="Save (⌘S)"
+          disabled={!hasUnsavedChanges()}
         >
           <Icon name="check" size={14} />
           <span>Save</span>
@@ -1928,8 +1929,13 @@
     background: var(--surface-1);
   }
 
-  .toolbar-btn:hover {
+  .toolbar-btn:hover:not(:disabled) {
     background: var(--border);
+  }
+
+  .toolbar-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .toolbar-save {
@@ -1938,7 +1944,7 @@
     border-color: var(--accent);
   }
 
-  .toolbar-save:hover {
+  .toolbar-save:hover:not(:disabled) {
     opacity: 0.9;
   }
 

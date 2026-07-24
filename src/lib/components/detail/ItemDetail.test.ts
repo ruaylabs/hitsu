@@ -196,6 +196,24 @@ describe("ItemDetail errors", () => {
   });
 });
 
+describe("edit actions", () => {
+  it("enables Save only after the form changes", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    const save = await screen.findByRole("button", { name: "Save" });
+
+    expect(save).toBeDisabled();
+    await fireEvent.keyDown(window, { key: "s", metaKey: true });
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+    await fireEvent.input(screen.getByPlaceholderText("Title"), {
+      target: { value: "Updated title" },
+    });
+    expect(save).toBeEnabled();
+  });
+});
+
 describe("tag colors", () => {
   it("applies the stable palette color to detail badges", async () => {
     selectEntry(passwordEntry({ tags: ["finance"] }));
