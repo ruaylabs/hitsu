@@ -5,6 +5,7 @@
   import type { Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { cardBrandName, formatCardNumber, timeAgo } from "$lib/utils/format";
+  import { tagColor } from "$lib/utils/tagColor";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import Field from "./Field.svelte";
@@ -347,7 +348,7 @@
               {#if detailEntry.tags.length > 0}
                 <div class="tags-display">
                   {#each detailEntry.tags as tag}
-                    <span class="tag-badge">{tag}</span>
+                    <span class="tag-badge" style={`--tag-color: ${tagColor(tag)}`}>{tag}</span>
                   {/each}
                 </div>
               {/if}
@@ -468,12 +469,22 @@
   }
 
   .tag-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     padding: 2px 8px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    color: var(--tag-color);
+    background: color-mix(in srgb, var(--tag-color) 12%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
     border-radius: 4px;
     font-size: 11.5px;
-    color: var(--text-secondary);
+  }
+
+  .tag-badge::before {
+    width: 6px;
+    height: 6px;
+    background: var(--tag-color);
+    border-radius: 50%;
+    content: "";
   }
 </style>

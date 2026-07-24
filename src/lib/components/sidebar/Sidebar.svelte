@@ -5,6 +5,7 @@
   import { features } from "$lib/stores/features.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { tagColor } from "$lib/utils/tagColor";
   import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import SidebarItem from "./SidebarItem.svelte";
@@ -116,17 +117,6 @@
     } catch {
       // Sidebar persistence is optional.
     }
-  }
-
-  const tagColors: Record<string, string> = {
-    work: "var(--tag-work)",
-    personal: "var(--tag-personal)",
-    critical: "var(--tag-critical)",
-    homelab: "var(--tag-homelab)",
-  };
-
-  function tagColor(tag: string): string {
-    return tagColors[tag] || "var(--text-muted)";
   }
 
   function selectFilter(filter: typeof selection.filter) {

@@ -33,11 +33,15 @@
   --z-dialog: 200;
   --z-blocking-overlay: 1000;
 
-  /* Tag swatches */
-  --tag-work: #378add;
-  --tag-personal: #1d9e75;
-  --tag-critical: #d85a30;
-  --tag-homelab: #7f77dd;
+  /* Stable tag palette */
+  --tag-blue: #378add;
+  --tag-green: #1d9e75;
+  --tag-orange: #d85a30;
+  --tag-purple: #7f77dd;
+  --tag-pink: #d4537e;
+  --tag-cyan: #0f8b8d;
+  --tag-yellow: #ba7517;
+  --tag-red: #e24b4a;
 
   /* Sizing */
   --radius: 8px;

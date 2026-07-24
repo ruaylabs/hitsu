@@ -7,6 +7,7 @@ import { features } from "$lib/stores/features.svelte";
 import { saveStatus } from "$lib/stores/saveStatus.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
+import { tagColor } from "$lib/utils/tagColor";
 import ItemDetail from "./ItemDetail.svelte";
 
 const mocks = vi.hoisted(() => ({
@@ -192,6 +193,16 @@ describe("ItemDetail errors", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(saveStatus.state).toBe("error");
     consoleError.mockRestore();
+  });
+});
+
+describe("tag colors", () => {
+  it("applies the stable palette color to detail badges", async () => {
+    selectEntry(passwordEntry({ tags: ["finance"] }));
+    render(ItemDetail);
+
+    const badge = await screen.findByText("finance");
+    expect(badge).toHaveStyle(`--tag-color: ${tagColor("finance")}`);
   });
 });
 

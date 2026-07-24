@@ -12,6 +12,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
+  import { tagColor } from "$lib/utils/tagColor";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import Button from "../ui/Button.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
@@ -1692,7 +1693,7 @@
       {#if entry.tags.length > 0}
         <div class="tags-display">
           {#each entry.tags as tag}
-            <span class="tag-badge">{tag}</span>
+            <span class="tag-badge" style={`--tag-color: ${tagColor(tag)}`}>{tag}</span>
           {/each}
         </div>
       {/if}
@@ -2133,13 +2134,23 @@
   }
 
   .tag-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     padding: 2px 8px;
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    color: var(--tag-color);
+    background: color-mix(in srgb, var(--tag-color) 12%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
     border-radius: 4px;
     font-size: 11.5px;
-    color: var(--text-secondary);
+  }
+
+  .tag-badge::before {
+    width: 6px;
+    height: 6px;
+    background: var(--tag-color);
+    border-radius: 50%;
+    content: "";
   }
 
   .error-msg {

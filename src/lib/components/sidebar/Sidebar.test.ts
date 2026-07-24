@@ -5,6 +5,7 @@ import type { EntrySummary } from "$lib/bridge/types";
 import { features } from "$lib/stores/features.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
+import { tagColor } from "$lib/utils/tagColor";
 import Sidebar from "./Sidebar.svelte";
 
 const entries: EntrySummary[] = [
@@ -130,6 +131,14 @@ describe("Sidebar", () => {
 
     expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
     expect(await screen.findByRole("tab", { name: "Customers 0" })).toBeInTheDocument();
+  });
+
+  it("gives arbitrary tags a stable palette color", () => {
+    vault.setEntries([{ ...entries[0], tags: ["finance"] }]);
+    render(Sidebar);
+
+    const dot = screen.getByRole("tab", { name: "finance" }).querySelector(".tag-dot");
+    expect(dot).toHaveStyle(`background: ${tagColor("finance")}`);
   });
 
   it("persists the collapsed tags state", async () => {
