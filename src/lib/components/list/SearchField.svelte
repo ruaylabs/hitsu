@@ -11,6 +11,10 @@
     onCreate?: () => void;
   } = $props();
   let search = $state(selection.search);
+  const searchShortcut =
+    typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac")
+      ? "⌘F"
+      : "Ctrl F";
 
   // The input echoes keystrokes immediately, but filtering the list is
   // deferred so fast typing doesn't re-filter on every keystroke.
@@ -59,7 +63,9 @@
       oninput={onInput}
       onkeydown={onKeydown}
     />
-    {#if search}
+    {#if !search}
+      <kbd class="search-shortcut" aria-hidden="true">{searchShortcut}</kbd>
+    {:else}
       <button
         class="search-clear"
         onclick={clearSearch}
@@ -106,6 +112,18 @@
 
   .entry-search-input::placeholder {
     color: var(--text-muted);
+  }
+
+  .search-shortcut {
+    flex-shrink: 0;
+    padding: 1px 4px;
+    border: 0.5px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    line-height: 1.4;
+    opacity: 0.75;
   }
 
   .search-clear {
