@@ -9,6 +9,7 @@
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -27,6 +28,18 @@
   let importing = $state(false);
   let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
+  let lastStatusToast = "";
+
+  $effect(() => {
+    if (!statusMsg) {
+      lastStatusToast = "";
+      return;
+    }
+    if (statusMsg === lastStatusToast) return;
+    lastStatusToast = statusMsg;
+    if (statusError) toast.error(statusMsg);
+    else toast.success(statusMsg);
+  });
 
   async function handleOpen() {
     try {
@@ -250,151 +263,157 @@
       </button>
     </header>
 
-    <div class="settings-body">
-      <section class="settings-section">
-        <h2 class="section-heading">Vault</h2>
+    <div class="settings-content">
+      <nav class="settings-nav" aria-label="Settings sections">
+        <a href="#settings-vault">Vault</a>
+        <a href="#settings-features">Features</a>
+        <a href="#settings-security">Security</a>
+        <a href="#settings-about">About</a>
+      </nav>
 
-        <div class="vault-info">
-          <span class="vault-label">Current vault</span>
-          {#if vault.meta}
-            <span class="vault-path">{vault.meta.name} — {vault.meta.itemCount} items</span>
-            <span class="vault-path-sub">{vault.meta.path}</span>
-          {:else}
-            <span class="vault-none">No vault open</span>
-          {/if}
-        </div>
+      <div class="settings-body">
+        <section class="settings-section" id="settings-vault">
+          <h2 class="section-heading">Vault</h2>
 
-        <div class="settings-actions">
-          <button class="settings-btn" onclick={handleOpen}>
-            <Icon name="folder-open" size={14} />
-            Open vault…
-          </button>
-          <button class="settings-btn" onclick={handleCreate}>
-            <Icon name="plus" size={14} />
-            Create new vault…
-          </button>
-          {#if vault.meta}
-            <button class="settings-btn" onclick={() => (dialog = { kind: "change-password" })}>
-              <Icon name="exchange" size={14} />
-              Change master password…
+          <div class="vault-info">
+            <span class="vault-label">Current vault</span>
+            {#if vault.meta}
+              <span class="vault-path">{vault.meta.name} — {vault.meta.itemCount} items</span>
+              <span class="vault-path-sub">{vault.meta.path}</span>
+            {:else}
+              <span class="vault-none">No vault open</span>
+            {/if}
+          </div>
+
+          <div class="settings-actions">
+            <button class="settings-btn" onclick={handleOpen}>
+              <Icon name="folder-open" size={14} />
+              Open vault…
             </button>
-            <button class="settings-btn" onclick={handleImport1pif} disabled={importing}>
-              <Icon name="database-import" size={14} />
-              {importing ? "Importing…" : "Import 1Password 7 (.1pif)…"}
+            <button class="settings-btn" onclick={handleCreate}>
+              <Icon name="plus" size={14} />
+              Create new vault…
             </button>
-          {/if}
-        </div>
-
-        {#if statusMsg}
-          <div class="status-row">
-            <span class="status-msg" class:error={statusError}>{statusMsg}</span>
-            {#if skippedEntries.length > 0}
-              <button class="details-btn" onclick={() => (dialog = { kind: "import-details" })}>
-                View details
+            {#if vault.meta}
+              <button class="settings-btn" onclick={() => (dialog = { kind: "change-password" })}>
+                <Icon name="exchange" size={14} />
+                Change master password…
+              </button>
+              <button class="settings-btn" onclick={handleImport1pif} disabled={importing}>
+                <Icon name="database-import" size={14} />
+                {importing ? "Importing…" : "Import 1Password 7 (.1pif)…"}
               </button>
             {/if}
           </div>
-        {/if}
-      </section>
 
-      {#if vault.meta}
-        <section class="settings-section">
-          <h2 class="section-heading">Vault maintenance</h2>
-          <div class="maintenance-card danger-card">
-            <div>
-              <h3 class="maintenance-title">Recycle Bin</h3>
-              <p class="setting-description">
-                {recycleBin.count === 0
+          {#if skippedEntries.length > 0}
+            <div class="status-row">
+              <button class="details-btn" onclick={() => (dialog = { kind: "import-details" })}>
+                View {skippedEntries.length} skipped
+                {skippedEntries.length === 1 ? "entry" : "entries"}
+              </button>
+            </div>
+          {/if}
+        </section>
+
+        {#if vault.meta}
+          <section class="settings-section">
+            <h2 class="section-heading">Vault maintenance</h2>
+            <div class="maintenance-card danger-card">
+              <div>
+                <h3 class="maintenance-title">Recycle Bin</h3>
+                <p class="setting-description">
+                  {recycleBin.count === 0
                   ? "The Recycle Bin is empty."
                   : `${recycleBin.count} entr${recycleBin.count === 1 ? "y" : "ies"} will be permanently deleted.`}
-              </p>
+                </p>
+              </div>
+              <button
+                class="settings-btn danger-btn"
+                class:loading={recycleBin.emptying}
+                onclick={() => recycleBin.requestEmpty()}
+                disabled={recycleBin.emptying || recycleBin.count === 0}
+              >
+                <Icon name="trash" size={14} />
+                {recycleBin.emptying ? "Emptying…" : "Empty Recycle Bin…"}
+              </button>
             </div>
-            <button
-              class="settings-btn danger-btn"
-              class:loading={recycleBin.emptying}
-              onclick={() => recycleBin.requestEmpty()}
-              disabled={recycleBin.emptying || recycleBin.count === 0}
-            >
-              <Icon name="trash" size={14} />
-              {recycleBin.emptying ? "Emptying…" : "Empty Recycle Bin…"}
-            </button>
-          </div>
-        </section>
-      {/if}
+          </section>
+        {/if}
 
-      <section class="settings-section">
-        <h2 class="section-heading">Recent vaults</h2>
-        {#if recentVaults.length === 0}
-          <p class="empty-text">No recent vaults.</p>
-        {:else}
-          <ul class="recent-list">
-            {#each recentVaults as path}
-              {@const active = vault.meta?.path === path}
-              <li class="recent-item">
-                <button
-                  class="recent-btn"
-                  class:active
-                  disabled={active}
-                  title={active ? "Currently open" : "Open vault"}
-                  onclick={async () => {
+        <section class="settings-section">
+          <h2 class="section-heading">Recent vaults</h2>
+          {#if recentVaults.length === 0}
+            <p class="empty-text">No recent vaults.</p>
+          {:else}
+            <ul class="recent-list">
+              {#each recentVaults as path}
+                {@const active = vault.meta?.path === path}
+                <li class="recent-item">
+                  <button
+                    class="recent-btn"
+                    class:active
+                    disabled={active}
+                    title={active ? "Currently open" : "Open vault"}
+                    onclick={async () => {
                     selectedPath = path;
                     dialog = { kind: "open" };
                   }}
-                >
-                  <Icon name={active ? "check" : "database"} size={14} />
-                  <span class="recent-path">{path}</span>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
+                  >
+                    <Icon name={active ? "check" : "database"} size={14} />
+                    <span class="recent-path">{path}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
 
-      <section class="settings-section">
-        <h2 class="section-heading">Features</h2>
-        <label class="setting-row">
-          <span class="setting-label-group">
-            <span class="setting-label">Folders</span>
-            <span class="setting-description"
-              >Show the KDBX folder tree and entry move controls.</span
-            >
-          </span>
-          <input
-            class="setting-switch"
-            type="checkbox"
-            role="switch"
-            aria-label="Enable folders"
-            checked={features.foldersEnabled}
-            onchange={onFoldersChange}
-          />
-        </label>
-        <label class="setting-row">
-          <span class="setting-label-group">
-            <span class="setting-label">Browser integration</span>
-            <span class="setting-description"
-              >Let the Hitsu browser extension fill logins from this app (developer preview).</span
-            >
-          </span>
-          <input
-            class="setting-switch"
-            type="checkbox"
-            role="switch"
-            aria-label="Enable browser integration"
-            checked={features.browserIntegrationEnabled}
-            onchange={onBrowserIntegrationChange}
-          />
-        </label>
-      </section>
+        <section class="settings-section" id="settings-features">
+          <h2 class="section-heading">Features</h2>
+          <label class="setting-row">
+            <span class="setting-label-group">
+              <span class="setting-label">Folders</span>
+              <span class="setting-description"
+                >Show the KDBX folder tree and entry move controls.</span
+              >
+            </span>
+            <input
+              class="setting-switch"
+              type="checkbox"
+              role="switch"
+              aria-label="Enable folders"
+              checked={features.foldersEnabled}
+              onchange={onFoldersChange}
+            />
+          </label>
+          <label class="setting-row">
+            <span class="setting-label-group">
+              <span class="setting-label">Browser integration</span>
+              <span class="setting-description"
+                >Let the Hitsu browser extension fill logins from this app (developer preview).</span
+              >
+            </span>
+            <input
+              class="setting-switch"
+              type="checkbox"
+              role="switch"
+              aria-label="Enable browser integration"
+              checked={features.browserIntegrationEnabled}
+              onchange={onBrowserIntegrationChange}
+            />
+          </label>
+        </section>
 
-      <section class="settings-section">
-        <h2 class="section-heading">Security</h2>
-        <div class="setting-row">
-          <span class="setting-label">Lock on idle</span>
-          <select
-            class="control control--compact control--select setting-select"
-            onchange={onIdleChange}
-          >
-            {#each [
+        <section class="settings-section" id="settings-security">
+          <h2 class="section-heading">Security</h2>
+          <div class="setting-row">
+            <span class="setting-label">Lock on idle</span>
+            <select
+              class="control control--compact control--select setting-select"
+              onchange={onIdleChange}
+            >
+              {#each [
               { value: 0, label: "Never" },
               { value: 1, label: "1 minute" },
               { value: 2, label: "2 minutes" },
@@ -403,19 +422,19 @@
               { value: 30, label: "30 minutes" },
               { value: 60, label: "1 hour" },
             ] as opt}
-              <option value={opt.value} selected={security.idleLockMinutes === opt.value}>
-                {opt.label}
-              </option>
-            {/each}
-          </select>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label">Clipboard clear</span>
-          <select
-            class="control control--compact control--select setting-select"
-            onchange={onClipboardChange}
-          >
-            {#each [
+                <option value={opt.value} selected={security.idleLockMinutes === opt.value}>
+                  {opt.label}
+                </option>
+              {/each}
+            </select>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Clipboard clear</span>
+            <select
+              class="control control--compact control--select setting-select"
+              onchange={onClipboardChange}
+            >
+              {#each [
               { value: 5, label: "5 seconds" },
               { value: 10, label: "10 seconds" },
               { value: 15, label: "15 seconds" },
@@ -423,18 +442,23 @@
               { value: 60, label: "1 minute" },
               { value: 0, label: "Never" },
             ] as opt}
-              <option value={opt.value} selected={security.clipboardClearSeconds === opt.value}>
-                {opt.label}
-              </option>
-            {/each}
-          </select>
-        </div>
-      </section>
-    </div>
+                <option value={opt.value} selected={security.clipboardClearSeconds === opt.value}>
+                  {opt.label}
+                </option>
+              {/each}
+            </select>
+          </div>
+        </section>
 
-    <footer class="settings-footer">
-      <span class="version">Hitsu 0.1.0</span>
-    </footer>
+        <section class="settings-section" id="settings-about">
+          <h2 class="section-heading">About</h2>
+          <div class="about-card">
+            <span class="about-name">Hitsu</span>
+            <span class="version">Version 0.1.0</span>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -450,8 +474,8 @@
   }
 
   .settings-pane {
-    width: 520px;
-    max-height: 80vh;
+    width: min(720px, calc(100vw - 40px));
+    height: min(680px, 80vh);
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-card);
@@ -489,15 +513,49 @@
     background: var(--border);
   }
 
+  .settings-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .settings-nav {
+    display: flex;
+    flex: 0 0 132px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 16px 10px;
+    border-right: 0.5px solid var(--border);
+    background: var(--surface-1);
+  }
+
+  .settings-nav a {
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    text-decoration: none;
+  }
+
+  .settings-nav a:hover,
+  .settings-nav a:focus-visible {
+    background: var(--border);
+    color: var(--text-primary);
+  }
+
   .settings-body {
-    padding: 20px;
+    flex: 1;
+    min-width: 0;
+    padding: 20px 24px;
     overflow-y: auto;
+    scroll-behavior: smooth;
     display: flex;
     flex-direction: column;
     gap: 24px;
   }
 
   .settings-section {
+    scroll-margin-top: 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -617,16 +675,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-
-  .status-msg {
-    font-size: 12px;
-    color: var(--text-secondary);
-    padding: 4px 0;
-  }
-
-  .status-msg.error {
-    color: var(--danger);
   }
 
   .details-btn {
@@ -798,11 +846,20 @@
     box-shadow: 0 0 0 2px var(--bg-accent);
   }
 
-  .settings-footer {
-    padding: 10px 20px;
-    border-top: 0.5px solid var(--border);
+  .about-card {
     display: flex;
-    justify-content: center;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 12px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+  }
+
+  .about-name {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .version {

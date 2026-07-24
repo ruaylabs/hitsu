@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   import1pif: vi.fn(),
   setFoldersEnabled: vi.fn(),
   emptyRecycleBin: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -31,8 +33,13 @@ vi.mock("$lib/bridge/vault", () => ({
   vaultEmptyRecycleBin: mocks.emptyRecycleBin,
 }));
 
+vi.mock("$lib/stores/toast.svelte", () => ({
+  toast: { success: mocks.toastSuccess, error: mocks.toastError },
+}));
+
 describe("SettingsView", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     recycleBin.cancel();
     vault.setMeta({
       path: "/tmp/test.kdbx",
@@ -54,6 +61,24 @@ describe("SettingsView", () => {
       ],
       entries: [],
     });
+  });
+
+  it("provides navigation for each settings category", async () => {
+    render(SettingsView);
+
+    expect(
+      await screen.findByRole("navigation", { name: "Settings sections" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vault" })).toHaveAttribute("href", "#settings-vault");
+    expect(screen.getByRole("link", { name: "Features" })).toHaveAttribute(
+      "href",
+      "#settings-features",
+    );
+    expect(screen.getByRole("link", { name: "Security" })).toHaveAttribute(
+      "href",
+      "#settings-security",
+    );
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "#settings-about");
   });
 
   it("enables optional folder support", async () => {
@@ -89,8 +114,9 @@ describe("SettingsView", () => {
     render(SettingsView);
 
     await fireEvent.click(screen.getByRole("button", { name: /Import 1Password 7/ }));
-    await fireEvent.click(await screen.findByRole("button", { name: "View details" }));
+    await fireEvent.click(await screen.findByRole("button", { name: "View 2 skipped entries" }));
 
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Imported 1 item (2 skipped).");
     expect(screen.getByRole("dialog", { name: "Entries not imported" })).toBeInTheDocument();
     const entries = screen.getAllByRole("listitem");
     expect(entries[0]).toHaveTextContent("Archived login");
