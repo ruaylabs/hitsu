@@ -13,6 +13,7 @@
   let activeEntries = $derived(vault.entries.filter((e) => !e.trashed));
   let allCount = $derived(activeEntries.length);
   let favoritesCount = $derived(activeEntries.filter((e) => e.favorite).length);
+  let recentCount = $derived(Math.min(activeEntries.length, 20));
   let trashCount = $derived(vault.entries.filter((e) => e.trashed).length);
   type FolderRow = FolderSummary & { depth: number };
 
@@ -134,7 +135,7 @@
     });
   }
 
-  function isSelected(kind: "all" | "favorites" | "trash"): boolean;
+  function isSelected(kind: "all" | "favorites" | "recent" | "trash"): boolean;
   function isSelected(kind: "type", type: ItemType): boolean;
   function isSelected(kind: "tag", tag: string): boolean;
   function isSelected(kind: "folder", folderId: string): boolean;
@@ -163,6 +164,13 @@
       count={favoritesCount}
       selected={isSelected("favorites")}
       onclick={() => selectFilter({ kind: "favorites" })}
+    />
+    <SidebarItem
+      label="Recent"
+      icon="clock"
+      count={recentCount}
+      selected={isSelected("recent")}
+      onclick={() => selectFilter({ kind: "recent" })}
     />
     <SidebarItem
       label="Recycle Bin"

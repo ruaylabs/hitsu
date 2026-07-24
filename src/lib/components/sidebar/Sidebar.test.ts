@@ -46,6 +46,15 @@ describe("Sidebar", () => {
     );
   });
 
+  it("opens the recent entries view", async () => {
+    const recent = render(Sidebar).getByRole("tab", { name: "Recent 3" });
+
+    await fireEvent.click(recent);
+
+    expect(selection.filter).toEqual({ kind: "recent" });
+    expect(recent).toHaveAttribute("aria-selected", "true");
+  });
+
   it("counts trashed entries separately and opens the recycle bin", async () => {
     vault.setEntries([...entries, { ...entries[0], id: "deleted", trashed: true }]);
     const recycleBin = render(Sidebar).getByRole("tab", { name: "Recycle Bin 1" });

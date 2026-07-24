@@ -15,6 +15,15 @@
 
   let { onCreate = () => {} }: { onCreate?: () => void } = $props();
 
+  function modifiedTime(entry: EntrySummary): number {
+    const timestamp = Date.parse(entry.modifiedAt ?? "");
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  }
+
+  function compareModified(left: EntrySummary, right: EntrySummary): number {
+    return modifiedTime(right) - modifiedTime(left);
+  }
+
   interface RowContextMenu {
     entry: EntrySummary;
     x: number;
@@ -64,6 +73,8 @@
     let items = vault.entries.filter((e) => (f.kind === "trash" ? e.trashed : !e.trashed));
     if (f.kind === "favorites") {
       items = items.filter((e) => e.favorite);
+    } else if (f.kind === "recent") {
+      items = [...items].sort(compareModified).slice(0, 20);
     } else if (f.kind === "type") {
       items = items.filter((e) => e.type === f.type);
     } else if (f.kind === "tag") {

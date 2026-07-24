@@ -38,6 +38,7 @@ function makeEntries(count: number): EntrySummary[] {
     url: "https://example.com",
     hasPassword: true,
     hasTotp: true,
+    modifiedAt: new Date(Date.UTC(2025, 0, i + 1)).toISOString(),
     tags: i % 2 === 0 ? ["even"] : [],
     favorite: false,
   }));
@@ -138,6 +139,15 @@ describe("ItemList", () => {
     await fireEvent.click(await screen.findByRole("button", { name: "Search all items" }));
     expect(selection.filter).toEqual({ kind: "all" });
     expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
+  });
+
+  it("shows the 20 most recently modified entries in the Recent view", async () => {
+    vault.setEntries(makeEntries(25));
+    selection.filter = { kind: "recent" };
+    render(ItemList);
+
+    expect(await screen.findByRole("option", { name: /Entry 24/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Entry 0/ })).not.toBeInTheDocument();
   });
 
   it("copies the selected username and password with keyboard shortcuts", async () => {

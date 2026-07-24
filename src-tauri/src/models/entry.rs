@@ -265,6 +265,7 @@ pub struct EntrySummary {
     pub folder_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
+    pub modified_at: String,
 }
 
 /// Custom `Debug` for `CustomField`: the `value` is redacted because

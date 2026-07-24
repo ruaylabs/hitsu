@@ -203,6 +203,7 @@ async fn create_password_item_keeps_secret_backend_side() {
         .expect("summary should exist");
     assert!(summary.has_password);
     assert!(!summary.has_totp);
+    assert!(!summary.modified_at.is_empty());
 
     let revealed = entry_reveal_field(state, entry.id.clone(), SecretField::Password, None)
         .await

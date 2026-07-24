@@ -33,6 +33,11 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
     let item_type = read_item_type(entry_ref);
     let icon_hint = read_icon_hint(entry_ref);
     let favorite = read_favorite(entry_ref);
+    let modified_at = entry_ref
+        .times
+        .last_modification
+        .map(|date| date.and_utc().to_rfc3339())
+        .unwrap_or_default();
     let has_password = entry_ref.get_password().is_some_and(|p| !p.is_empty());
     let has_totp = read_totp_seed(entry_ref).is_some();
 
@@ -69,6 +74,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         trashed,
         folder_id: entry_folder_id(entry_ref, trashed),
         icon_hint,
+        modified_at,
     }
 }
 

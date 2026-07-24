@@ -133,6 +133,7 @@ export interface EntrySummary {
   trashed?: boolean;
   folderId?: string;
   iconHint?: string;
+  modifiedAt?: string;
 }
 
 export interface VaultMeta {
@@ -163,6 +164,7 @@ export interface Toast {
 export type SidebarFilter =
   | { kind: "all" }
   | { kind: "favorites" }
+  | { kind: "recent" }
   | { kind: "trash" }
   | { kind: "type"; type: ItemType }
   | { kind: "tag"; tag: string }

@@ -17,6 +17,7 @@ export function toSummary(entry: Entry): EntrySummary {
     trashed: entry.trashed,
     folderId: entry.folderId,
     iconHint: entry.iconHint,
+    modifiedAt: entry.modifiedAt,
   };
 }
 
