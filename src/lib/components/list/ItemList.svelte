@@ -1,8 +1,13 @@
 <script lang="ts">
   import { tick } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
+  import type { EntrySummary } from "$lib/bridge/types";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import { entryHaystack } from "$lib/utils/search";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
@@ -10,6 +15,14 @@
 
   let { onCreate = () => {} }: { onCreate?: () => void } = $props();
 
+  interface RowContextMenu {
+    entry: EntrySummary;
+    x: number;
+    y: number;
+  }
+
+  let contextMenu = $state<RowContextMenu | null>(null);
+  let contextMenuEl = $state<HTMLDivElement | undefined>();
   let searchMatchIds = $state<string[] | null>(null);
   let searchRequest = 0;
 
@@ -140,9 +153,97 @@
     return el.isContentEditable;
   }
 
+  function reportActionError(error: unknown) {
+    toast.error(error instanceof Error ? error.message : String(error));
+  }
+
+  async function copyUsername(entry: EntrySummary) {
+    if (!entry.username) return;
+    try {
+      await clipboard.copyPlain(entry.username);
+      toast.success("Username copied");
+    } catch (error) {
+      reportActionError(error);
+    }
+  }
+
+  async function copySecret(entry: EntrySummary, field: "password" | "totp", label: string) {
+    try {
+      await clipboard.copySecretField(entry.id, field);
+      toast.success(`${label} copied`);
+    } catch (error) {
+      reportActionError(error);
+    }
+  }
+
+  function openContextMenu(event: MouseEvent, entry: EntrySummary) {
+    event.preventDefault();
+    const x = Math.max(8, Math.min(event.clientX, window.innerWidth - 208));
+    const y = Math.max(8, Math.min(event.clientY, window.innerHeight - 258));
+    selection.requestNavigation(() => {
+      selection.selectedId = entry.id;
+      contextMenu = { entry, x, y };
+      void tick().then(() => {
+        contextMenuEl?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      });
+    });
+  }
+
+  function closeContextMenu() {
+    contextMenu = null;
+  }
+
+  function runContextAction(action: () => void) {
+    action();
+    closeContextMenu();
+  }
+
+  function onContextMenuKeydown(event: KeyboardEvent) {
+    event.stopPropagation();
+    if (event.key === "Escape" || event.key === "Tab") {
+      closeContextMenu();
+      return;
+    }
+    const items = Array.from(
+      contextMenuEl?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [],
+    );
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    let next = current;
+    if (event.key === "ArrowDown") next = (current + 1) % items.length;
+    else if (event.key === "ArrowUp") next = (current - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+    event.preventDefault();
+    items[next]?.focus();
+  }
+
+  function onWindowClick(event: MouseEvent) {
+    if (contextMenu && !(event.target as Element | null)?.closest(".row-context-menu")) {
+      closeContextMenu();
+    }
+  }
+
   async function onListKeydown(e: KeyboardEvent) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (isTextEditable(document.activeElement)) return;
+
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "c") {
+      const entry = vault.entries.find((item) => item.id === selection.selectedId);
+      if (!entry || entry.trashed) return;
+      if (e.shiftKey) {
+        if (!entry.hasPassword) return;
+        e.preventDefault();
+        void copySecret(entry, "password", "Password");
+      } else {
+        if (!entry.username) return;
+        e.preventDefault();
+        void copyUsername(entry);
+      }
+      return;
+    }
+
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (filtered.length === 0) return;
     const current = filtered.findIndex((item) => item.id === selection.selectedId);
     let next = current;
@@ -182,7 +283,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onListKeydown} />
+<svelte:window onkeydown={onListKeydown} onclick={onWindowClick} onblur={closeContextMenu} />
 
 <div class="item-list">
   <SearchField allowCreate={selection.filter.kind !== "trash"} />
@@ -209,6 +310,7 @@
               {entry}
               selected={entry.id === selection.selectedId}
               onclick={() => selection.requestNavigation(() => { selection.selectedId = entry.id; })}
+              oncontextmenu={(event) => openContextMenu(event, entry)}
             />
           {/each}
         </div>
@@ -244,6 +346,69 @@
     {/if}
   </div>
 </div>
+
+{#if contextMenu}
+  {@const menuEntry = contextMenu.entry}
+  <div
+    class="row-context-menu"
+    role="menu"
+    tabindex="-1"
+    aria-label="Actions for {menuEntry.title}"
+    style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+    bind:this={contextMenuEl}
+    onkeydown={onContextMenuKeydown}
+  >
+    <button
+      type="button"
+      role="menuitem"
+      disabled={!menuEntry.username}
+      onclick={() => runContextAction(() => void copyUsername(menuEntry))}
+    >
+      <Icon name="user" size={14} />Copy username
+    </button>
+    <button
+      type="button"
+      role="menuitem"
+      disabled={!menuEntry.hasPassword}
+      onclick={() => runContextAction(() => void copySecret(menuEntry, "password", "Password"))}
+    >
+      <Icon name="key" size={14} />Copy password
+    </button>
+    <button
+      type="button"
+      role="menuitem"
+      disabled={!menuEntry.hasTotp}
+      onclick={() => runContextAction(() => void copySecret(menuEntry, "totp", "TOTP"))}
+    >
+      <Icon name="clock-code" size={14} />Copy TOTP
+    </button>
+    <button
+      type="button"
+      role="menuitem"
+      disabled={!menuEntry.url}
+      onclick={() => runContextAction(() => openHttpUrl(menuEntry.url ?? ""))}
+    >
+      <Icon name="external-link" size={14} />Open URL
+    </button>
+    <div class="context-separator" role="separator"></div>
+    <button
+      type="button"
+      role="menuitem"
+      disabled={menuEntry.trashed}
+      onclick={() => runContextAction(() => vault.setEditingId(menuEntry.id))}
+    >
+      <Icon name="pencil" size={14} />Edit
+    </button>
+    <button
+      type="button"
+      role="menuitem"
+      class="danger-menu-item"
+      onclick={() => runContextAction(() => entryDeletion.request(menuEntry.id, menuEntry.title))}
+    >
+      <Icon name="trash" size={14} />Delete
+    </button>
+  </div>
+{/if}
 
 <style>
   .item-list {
@@ -293,11 +458,55 @@
   }
 
   .empty-action:hover {
-    background: var(--accent-subtle);
+    background: var(--bg-accent);
   }
 
   .empty-action:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+
+  .row-context-menu {
+    position: fixed;
+    z-index: 1000;
+    width: 200px;
+    padding: 5px;
+    background: var(--surface-1);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-dialog);
+  }
+
+  .row-context-menu button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 9px;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    text-align: left;
+  }
+
+  .row-context-menu button:hover:not(:disabled),
+  .row-context-menu button:focus-visible {
+    background: var(--border);
+    outline: none;
+  }
+
+  .row-context-menu button:disabled {
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  .row-context-menu .danger-menu-item {
+    color: var(--danger);
+  }
+
+  .context-separator {
+    height: 0.5px;
+    margin: 4px 6px;
+    background: var(--border);
   }
 </style>

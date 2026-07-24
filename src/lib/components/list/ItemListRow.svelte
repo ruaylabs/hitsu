@@ -7,10 +7,12 @@
     entry,
     selected = false,
     onclick,
+    oncontextmenu,
   }: {
     entry: EntrySummary;
     selected?: boolean;
     onclick?: () => void;
+    oncontextmenu?: (event: MouseEvent) => void;
   } = $props();
 </script>
 
@@ -18,6 +20,7 @@
   class="list-row"
   class:selected
   {onclick}
+  {oncontextmenu}
   role="option"
   aria-selected={selected}
   tabindex={selected ? 0 : -1}

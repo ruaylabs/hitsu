@@ -10,6 +10,8 @@ export function toSummary(entry: Entry): EntrySummary {
     subtitle: entry.subtitle,
     url: entry.url,
     username: entry.username,
+    hasPassword: entry.hasPassword,
+    hasTotp: entry.hasTotp,
     tags: entry.tags,
     favorite: entry.favorite,
     trashed: entry.trashed,

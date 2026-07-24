@@ -256,6 +256,8 @@ pub struct EntrySummary {
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    pub has_password: bool,
+    pub has_totp: bool,
     pub tags: Vec<String>,
     pub favorite: bool,
     pub trashed: bool,

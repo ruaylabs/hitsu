@@ -2,8 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
+import { clipboard } from "$lib/stores/clipboard.svelte";
+import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
+import { openHttpUrl } from "$lib/utils/openHttpUrl";
 import ItemList from "./ItemList.svelte";
 
 vi.mock("$lib/bridge/entries", async (importOriginal) => ({
@@ -11,7 +14,19 @@ vi.mock("$lib/bridge/entries", async (importOriginal) => ({
   entriesSearch: vi.fn(),
 }));
 
+vi.mock("$lib/stores/clipboard.svelte", () => ({
+  clipboard: {
+    copyPlain: vi.fn(),
+    copySecretField: vi.fn(),
+  },
+}));
+
+vi.mock("$lib/utils/openHttpUrl", () => ({ openHttpUrl: vi.fn() }));
+
 const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
+const copyPlainMock = vi.mocked(clipboard.copyPlain);
+const copySecretFieldMock = vi.mocked(clipboard.copySecretField);
+const openHttpUrlMock = vi.mocked(openHttpUrl);
 
 function makeEntries(count: number): EntrySummary[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -19,6 +34,10 @@ function makeEntries(count: number): EntrySummary[] {
     type: "login" as const,
     title: `Entry ${i}`,
     subtitle: `user${i}@example.com`,
+    username: `user${i}@example.com`,
+    url: "https://example.com",
+    hasPassword: true,
+    hasTotp: true,
     tags: i % 2 === 0 ? ["even"] : [],
     favorite: false,
   }));
@@ -27,6 +46,11 @@ function makeEntries(count: number): EntrySummary[] {
 beforeEach(() => {
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
+  copyPlainMock.mockReset();
+  copySecretFieldMock.mockReset();
+  openHttpUrlMock.mockReset();
+  entryDeletion.cancel();
+  vault.setEditingId(null);
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
@@ -114,6 +138,41 @@ describe("ItemList", () => {
     await fireEvent.click(await screen.findByRole("button", { name: "Search all items" }));
     expect(selection.filter).toEqual({ kind: "all" });
     expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
+  });
+
+  it("copies the selected username and password with keyboard shortcuts", async () => {
+    vault.setEntries(makeEntries(2));
+    render(ItemList);
+    await screen.findByRole("option", { selected: true });
+
+    await fireEvent.keyDown(window, { key: "c", metaKey: true });
+    expect(copyPlainMock).toHaveBeenCalledWith("user0@example.com");
+
+    await fireEvent.keyDown(window, { key: "c", metaKey: true, shiftKey: true });
+    expect(copySecretFieldMock).toHaveBeenCalledWith("id-0", "password");
+  });
+
+  it("provides row actions in the context menu", async () => {
+    vault.setEntries(makeEntries(2));
+    render(ItemList);
+    const row = await screen.findByRole("option", { name: /Entry 0/ });
+
+    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
+    expect(screen.getByRole("menu", { name: "Actions for Entry 0" })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Copy TOTP" }));
+    expect(copySecretFieldMock).toHaveBeenCalledWith("id-0", "totp");
+
+    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Open URL" }));
+    expect(openHttpUrlMock).toHaveBeenCalledWith("https://example.com");
+
+    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    expect(vault.editingId).toBe("id-0");
+
+    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    expect(entryDeletion.pending?.id).toBe("id-0");
   });
 
   it("moves selection with arrow keys", async () => {

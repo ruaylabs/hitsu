@@ -33,6 +33,8 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
     let item_type = read_item_type(entry_ref);
     let icon_hint = read_icon_hint(entry_ref);
     let favorite = read_favorite(entry_ref);
+    let has_password = entry_ref.get_password().is_some_and(|p| !p.is_empty());
+    let has_totp = read_totp_seed(entry_ref).is_some();
 
     let url = entry_ref.get_url().map(str::to_string);
 
@@ -60,6 +62,8 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         subtitle,
         url,
         username: Some(username),
+        has_password,
+        has_totp,
         tags: entry_ref.tags.clone(),
         favorite,
         trashed,
@@ -1275,7 +1279,13 @@ pub async fn entry_copy_field(
     let value = {
         let vaults = state.vaults.lock();
         let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
-        zeroize::Zeroizing::new(read_secret_value(vault, &id, field, version)?)
+        let value = read_secret_value(vault, &id, field, version)?;
+        let copy_value = if field == SecretField::Totp {
+            super::totp::compute_totp(&value)?.code
+        } else {
+            value
+        };
+        zeroize::Zeroizing::new(copy_value)
     }; // lock released before touching the clipboard
     super::clipboard::copy_secret(value, timeout_secs)
 }

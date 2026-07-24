@@ -15,6 +15,8 @@
     { keys: "?", description: "Open keyboard shortcuts" },
     { keys: `${mod}K`, description: "Search entries" },
     { keys: `${mod}N`, description: "New entry" },
+    { keys: `${mod}C`, description: "Copy selected username" },
+    { keys: `${mod}⇧C`, description: "Copy selected password" },
     { keys: `${mod}⌫`, description: "Delete selected entry" },
     { keys: `${mod}F`, description: "Focus search" },
     { keys: `${mod}⇧F`, description: "Toggle favorites filter" },

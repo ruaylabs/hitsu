@@ -126,6 +126,8 @@ export interface EntrySummary {
   subtitle: string;
   url?: string;
   username?: string;
+  hasPassword?: boolean;
+  hasTotp?: boolean;
   tags: string[];
   favorite: boolean;
   trashed?: boolean;
