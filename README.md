@@ -30,9 +30,9 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
 - **Lock with the OS session** via systemd-logind on Linux and NSWorkspace on macOS
 - Last vault path remembered; re-opened automatically on next launch
 
-### Entries (login, password, note, identity, card)
+### Entries (login, password, note, identity, card, software license, passport)
 
-- **Create** entries of five types
+- **Create** entries of seven types
 - **Edit** all fields (type-specific editors)
 - **Delete safely** to a KeePass-compatible Recycle Bin
 - **Restore** trashed entries to their previous group or delete them permanently
