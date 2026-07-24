@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { security } from "$lib/stores/security.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
@@ -24,9 +25,6 @@
      *  card number's "•••• 1234") to keep a non-secret hint visible. */
     masked?: string;
   } = $props();
-
-  /** Revealed secrets hide themselves after this long. */
-  const REVEAL_SECONDS = 30;
 
   let revealed = $state(false);
   let plaintext = $state("");
@@ -65,7 +63,9 @@
     try {
       plaintext = await reveal();
       revealed = true;
-      tick(Date.now() + REVEAL_SECONDS * 1000);
+      if (security.clipboardClearSeconds > 0) {
+        tick(Date.now() + security.clipboardClearSeconds * 1000);
+      }
     } catch (e) {
       console.error("Failed to reveal secret", e);
     }
@@ -90,7 +90,7 @@
 <DetailFieldRow {label}>
   <div class="field-main">
     <span class="field-value mono">{revealed ? plaintext : masked}</span>
-    {#if revealed}
+    {#if revealed && security.clipboardClearSeconds > 0}
       <span class="hide-countdown">Hides in {hideRemaining}s</span>
     {/if}
     <div class="field-actions">
@@ -106,7 +106,9 @@
         aria-label={revealed ? `Hide ${label.toLowerCase()}` : `Reveal ${label.toLowerCase()}`}
         title={revealed
           ? `Hide ${label.toLowerCase()}`
-          : `Reveal ${label.toLowerCase()} (hides after ${REVEAL_SECONDS}s)`}
+          : security.clipboardClearSeconds > 0
+            ? `Reveal ${label.toLowerCase()} (hides after ${security.clipboardClearSeconds}s)`
+            : `Reveal ${label.toLowerCase()}`}
       />
     </div>
     {#if showStrength && revealed}
