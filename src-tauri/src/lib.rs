@@ -10,6 +10,7 @@ pub mod state;
 pub mod commands;
 mod error;
 mod hardening;
+mod kdbx_fields;
 mod logging;
 pub mod models;
 mod session_lock;

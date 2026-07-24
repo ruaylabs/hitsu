@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, Value};
+use keepass::db::{fields, EntryId, Value};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tauri::{AppHandle, State};
@@ -10,6 +10,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use super::entries::build_entry_summaries;
 use crate::error::{HitsuError, HitsuResult};
+use crate::kdbx_fields::{set_custom_data, set_field};
 use crate::models::{EntrySummary, ItemType};
 use crate::state::AppState;
 
@@ -1288,12 +1289,12 @@ fn apply_import(
         set_custom_data(
             &mut entry,
             "hitsu.itemType",
-            item_type_name(&item.item_type),
+            Some(item_type_name(&item.item_type)),
         );
         set_custom_data(
             &mut entry,
             "hitsu.favorite",
-            if item.favorite { "true" } else { "false" },
+            Some(if item.favorite { "true" } else { "false" }),
         );
         let mut names = HashSet::new();
         for field in item.custom_fields {
@@ -1329,27 +1330,6 @@ fn apply_import(
         imported_items += 1;
     }
     (imported_items, imported_attachments, skipped_entries)
-}
-
-fn set_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>, protected: bool) {
-    let Some(value) = value.filter(|value| !value.is_empty()) else {
-        return;
-    };
-    if protected {
-        entry.set_protected(key, value);
-    } else {
-        entry.set_unprotected(key, value);
-    }
-}
-
-fn set_custom_data(entry: &mut keepass::db::Entry, key: &str, value: &str) {
-    entry.custom_data.insert(
-        key.to_string(),
-        CustomDataItem {
-            value: Some(CustomDataValue::Binary(value.as_bytes().to_vec())),
-            last_modification_time: None,
-        },
-    );
 }
 
 fn item_type_name(item_type: &ItemType) -> &'static str {

@@ -1,8 +1,9 @@
-use keepass::db::{fields, CustomDataItem, CustomDataValue, EntryId, GroupId, Value};
+use keepass::db::{fields, CustomDataValue, EntryId, GroupId, Value};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::error::{HitsuError, HitsuResult};
+use crate::kdbx_fields::{set_custom_data, set_field};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryEditPayload, EntryPatch,
     EntrySummary, FolderSummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields,
@@ -566,40 +567,6 @@ async fn save_snapshot(
     .map_err(HitsuError::from_join)?
 }
 
-fn set_kdbx_field(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
-    match value {
-        Some(v) => {
-            if is_protected_key(key) {
-                entry.set_protected(key, v);
-            } else {
-                entry.set_unprotected(key, v);
-            }
-        }
-        None => {
-            entry.fields.remove(key);
-        }
-    }
-}
-
-fn set_custom_data(entry: &mut keepass::db::Entry, key: &str, value: Option<&str>) {
-    match value {
-        Some(v) => {
-            // Use Binary variant so the library base64-encodes on serialisation.
-            // CustomDataValue::String is unreliable: the library's XML deserialiser
-            // tries base64 decode first, so plain strings like "note", "login",
-            // "true" are accidentally decoded as binary data.
-            let item = CustomDataItem {
-                value: Some(CustomDataValue::Binary(v.as_bytes().to_vec())),
-                last_modification_time: None,
-            };
-            entry.custom_data.insert(key.to_string(), item);
-        }
-        None => {
-            entry.custom_data.remove(key);
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
     let vaults = state.vaults.lock();
@@ -816,8 +783,8 @@ fn write_totp_seed(entry: &mut keepass::db::Entry, uri: &str) {
 /// `Some("value")` sets it, `None` leaves it unchanged.
 fn apply_opt(entry: &mut keepass::db::Entry, key: &str, value: &Option<String>) {
     match value {
-        Some(v) if v.is_empty() => set_kdbx_field(entry, key, None),
-        Some(v) => set_kdbx_field(entry, key, Some(v)),
+        Some(v) if v.is_empty() => set_field(entry, key, None, is_protected_key(key)),
+        Some(v) => set_field(entry, key, Some(v), is_protected_key(key)),
         None => {}
     }
 }
