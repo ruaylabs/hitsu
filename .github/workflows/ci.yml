@@ -134,7 +134,7 @@ jobs:
         run: cargo check --all-targets
 
   e2e:
-    needs: [svelte, rust]
+    needs: [svelte, rust, rust-macos]
     runs-on: ubuntu-24.04
     env:
       TAURI_DRIVER_VERSION: 2.0.6
