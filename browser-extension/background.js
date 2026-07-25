@@ -2,11 +2,11 @@ const NATIVE_HOST = "com.ruaylabs.hitsu.browser";
 
 export async function activeHttpTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || !tab.url) throw new Error("No active browser tab found");
+  if (!tab?.id || !tab.url) throw typedError("no_tab", "No active browser tab found");
 
   const url = new URL(tab.url);
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Hitsu can only fill HTTP and HTTPS pages");
+    throw typedError("invalid_page", "Hitsu can only fill HTTP and HTTPS pages");
   }
   return { id: tab.id, origin: url.origin };
 }
@@ -15,14 +15,23 @@ function nativeMessage(message) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendNativeMessage(NATIVE_HOST, message, (response) => {
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+        reject({ code: "not_installed", message: chrome.runtime.lastError.message });
       } else if (!response?.ok) {
-        reject(new Error(response?.error ?? "Hitsu did not respond"));
+        reject({
+          code: response?.code ?? "unknown",
+          message: response?.error ?? "Hitsu did not respond",
+        });
       } else {
         resolve(response);
       }
     });
   });
+}
+
+function typedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 export function loginEntries(response) {
@@ -36,14 +45,14 @@ export function loginEntries(response) {
         typeof entry.username === "string",
     )
   ) {
-    throw new Error("Hitsu returned an invalid login list");
+    throw typedError("invalid_response", "Hitsu returned an invalid login list");
   }
   return response.entries;
 }
 
 export function credentials(response) {
   if (typeof response.password !== "string" || typeof response.username !== "string") {
-    throw new Error("Hitsu returned invalid credentials");
+    throw typedError("invalid_response", "Hitsu returned invalid credentials");
   }
   return response;
 }
@@ -65,7 +74,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     activeHttpTab()
       .then(({ origin }) => nativeMessage({ type: "listLogins", origin }))
       .then((response) => sendResponse({ ok: true, entries: loginEntries(response) }))
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .catch((error) =>
+        sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
+      );
     return true;
   }
 
@@ -81,7 +92,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         );
         const currentTab = await chrome.tabs.get(tab.id);
         if (!pageMatchesOrigin(currentTab.url, tab.origin)) {
-          throw new Error("The page changed before Hitsu could fill it");
+          throw typedError("origin_changed", "The page changed before Hitsu could fill it");
         }
 
         // Discover all frames and their origins with one allFrames call.
@@ -98,7 +109,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           .map((r) => r.frameId);
 
         if (matchingFrameIds.length === 0) {
-          throw new Error("No matching frames found on this page");
+          throw typedError("no_frames", "No matching frames found on this page");
         }
 
         await chrome.scripting.executeScript({
@@ -128,12 +139,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             firstError?.status === "rejected"
               ? firstError.reason?.message
               : firstError?.value?.error;
-          throw new Error(msg ?? "Could not fill any frame on this page");
+          throw typedError("fill_failed", msg ?? "Could not fill any frame on this page");
         }
 
         sendResponse({ ok: true });
       })
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .catch((error) =>
+        sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
+      );
     return true;
   }
 

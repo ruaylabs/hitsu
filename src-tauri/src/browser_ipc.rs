@@ -391,7 +391,12 @@ fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStre
         Ok(Some(request)) => request,
         Ok(None) => return,
         Err(error) => {
-            let response = json!({ "ok": false, "error": error });
+            let code = if error == "Browser request timed out" {
+                "timeout"
+            } else {
+                "invalid_request"
+            };
+            let response = json!({ "ok": false, "code": code, "error": error });
             let _ = serde_json::to_writer(&mut stream, &response);
             let _ = stream.write_all(b"\n");
             return;
@@ -403,7 +408,7 @@ fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStre
     let response = if token_matches(request.token(), expected_token) {
         process_request(app, request)
     } else {
-        json!({ "ok": false, "error": "Unauthorized browser request" })
+        json!({ "ok": false, "code": "unauthorized", "error": "Unauthorized browser request" })
     };
     let _ = serde_json::to_writer(&mut stream, &response);
     let _ = stream.write_all(b"\n");
@@ -416,13 +421,13 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     state.reset_idle_lock();
     let vaults = state.vaults.lock();
     let Some((_vault_id, vault)) = vaults.iter().next() else {
-        return json!({ "ok": false, "error": "Hitsu is locked" });
+        return json!({ "ok": false, "code": "locked", "error": "Hitsu is locked" });
     };
 
     match request {
         BrowserRequest::ListLogins { origin, .. } => {
             let Ok(host) = origin_host(&origin) else {
-                return json!({ "ok": false, "error": "Invalid page origin" });
+                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
             };
             let mut entries = vault
                 .db
@@ -461,16 +466,16 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
         }
         BrowserRequest::GetCredentials { id, origin, .. } => {
             let Ok(host) = origin_host(&origin) else {
-                return json!({ "ok": false, "error": "Invalid page origin" });
+                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
             };
             if !valid_entry_id(&id) {
-                return json!({ "ok": false, "error": "Invalid entry ID" });
+                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid entry ID" });
             }
             let Some(entry) = crate::commands::entries::find_entry_ref(&vault.db, &id) else {
-                return json!({ "ok": false, "error": "Entry not found" });
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
             };
             if crate::commands::entries::entry_is_trashed(&vault.db, &entry) {
-                return json!({ "ok": false, "error": "Entry not found" });
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
             }
             let matches_origin = entry
                 .get_url()
@@ -478,11 +483,11 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                 .and_then(|entry_host| host_match(&entry_host, &host))
                 .is_some();
             if !matches_origin {
-                return json!({ "ok": false, "error": "Entry does not match this site" });
+                return json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" });
             }
             let Some(password) = entry.get_password().filter(|password| !password.is_empty())
             else {
-                return json!({ "ok": false, "error": "Entry has no password" });
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry has no password" });
             };
             json!({
                 "ok": true,

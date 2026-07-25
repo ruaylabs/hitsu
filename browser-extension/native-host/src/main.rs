@@ -49,11 +49,19 @@ fn read_token() -> Result<String, String> {
     Ok(token)
 }
 
+/// Build a native-messaging error response with a stable machine-readable
+/// code that the extension popup switches on.
+fn error_response(code: &str, message: &str) -> serde_json::Value {
+    serde_json::json!({ "ok": false, "code": code, "error": message })
+}
+
 #[cfg(unix)]
 fn main() {
-    if let Err(error) = run() {
-        let response = serde_json::json!({ "ok": false, "error": error });
-        let _ = write_native_message(&response);
+    match run() {
+        Ok(()) => {}
+        Err(response) => {
+            let _ = write_native_message(&response);
+        }
     }
 }
 
@@ -61,6 +69,7 @@ fn main() {
 fn main() {
     let response = serde_json::json!({
         "ok": false,
+        "code": "not_supported",
         "error": "Hitsu browser integration is not supported on this platform"
     });
     let bytes = serde_json::to_vec(&response).unwrap_or_default();
@@ -69,36 +78,39 @@ fn main() {
 }
 
 #[cfg(unix)]
-fn run() -> Result<(), String> {
-    let mut request = read_native_message()?;
-    let token = read_token()?;
+fn run() -> Result<(), serde_json::Value> {
+    let mut request =
+        read_native_message().map_err(|msg| error_response("invalid_request", &msg))?;
+    let token = read_token().map_err(|msg| error_response("not_running", &msg))?;
 
     // Inject the session token the extension can't read for itself (it has no
     // filesystem access). The backend verifies it before doing any work.
     let object = request
         .as_object_mut()
-        .ok_or_else(|| "Invalid extension request".to_string())?;
+        .ok_or_else(|| error_response("invalid_request", "Invalid extension request"))?;
     object.insert("token".to_string(), serde_json::Value::String(token));
-    let request = serde_json::to_vec(&request).map_err(|_| "Could not encode request")?;
+    let request = serde_json::to_vec(&request)
+        .map_err(|_| error_response("invalid_request", "Could not encode request"))?;
 
-    let mut stream = UnixStream::connect(socket_path())
-        .map_err(|_| "Open and unlock the Hitsu desktop app first".to_string())?;
+    let mut stream = UnixStream::connect(socket_path()).map_err(|_| {
+        error_response("not_running", "Open and unlock the Hitsu desktop app first")
+    })?;
     stream
         .write_all(&request)
         .and_then(|_| stream.write_all(b"\n"))
-        .map_err(|_| "Could not contact Hitsu".to_string())?;
+        .map_err(|_| error_response("io_error", "Could not contact Hitsu"))?;
 
     let mut response = Vec::new();
     BufReader::new(stream)
         .take(MAX_MESSAGE_BYTES as u64)
         .read_until(b'\n', &mut response)
-        .map_err(|_| "Could not read Hitsu's response".to_string())?;
+        .map_err(|_| error_response("io_error", "Could not read Hitsu's response"))?;
     if response.last() == Some(&b'\n') {
         response.pop();
     }
-    let response: serde_json::Value =
-        serde_json::from_slice(&response).map_err(|_| "Hitsu returned an invalid response")?;
-    write_native_message(&response)
+    let response: serde_json::Value = serde_json::from_slice(&response)
+        .map_err(|_| error_response("invalid_request", "Hitsu returned an invalid response"))?;
+    write_native_message(&response).map_err(|msg| error_response("io_error", &msg))
 }
 
 #[cfg(unix)]

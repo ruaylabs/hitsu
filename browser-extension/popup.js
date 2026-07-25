@@ -21,10 +21,13 @@ try {
 if (origin) {
   chrome.runtime.sendMessage({ type: "list-logins" }, (response) => {
     if (!response?.ok) {
-      const unavailable = response?.error?.includes("host")
-        ? "Hitsu browser integration is not installed."
-        : (response?.error ?? "Open and unlock Hitsu first.");
-      showMessage(unavailable, "error");
+      const message =
+        response?.code === "not_installed"
+          ? "Hitsu browser integration is not installed."
+          : response?.code === "not_running" || response?.code === "locked"
+            ? "Open and unlock Hitsu first."
+            : (response?.error ?? "Open and unlock Hitsu first.");
+      showMessage(message, "error");
       return;
     }
     if (response.entries.length === 0) {

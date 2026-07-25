@@ -127,6 +127,7 @@ describe("background integration", () => {
     expect(chromeMock.runtime.sendNativeMessage).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({
       ok: false,
+      code: "invalid_page",
       error: "Hitsu can only fill HTTP and HTTPS pages",
     });
   });
@@ -244,6 +245,7 @@ describe("background integration", () => {
 
     expect(sendResponse).toHaveBeenCalledWith({
       ok: false,
+      code: "no_frames",
       error: "No matching frames found on this page",
     });
     // Discovery call did happen, but no injection since no frames matched
@@ -290,6 +292,7 @@ describe("background integration", () => {
 
     expect(sendResponse).toHaveBeenCalledWith({
       ok: false,
+      code: "origin_changed",
       error: "The page changed before Hitsu could fill it",
     });
     expect(chromeMock.scripting.executeScript).not.toHaveBeenCalled();
