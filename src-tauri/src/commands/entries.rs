@@ -618,9 +618,7 @@ async fn mutate_and_save<T>(
 
 #[tauri::command]
 pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
-    let vaults = state.vaults.lock();
-
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
 
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
@@ -634,8 +632,7 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<En
 
 #[tauri::command]
 pub async fn entries_search(state: State<'_, AppState>, query: String) -> HitsuResult<Vec<String>> {
-    let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
     Ok(vault
         .db
         .iter_all_entries()
@@ -650,8 +647,7 @@ pub async fn entry_edit_payload(
     state: State<'_, AppState>,
     id: String,
 ) -> HitsuResult<EntryEditPayload> {
-    let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
     Ok(build_entry_edit_payload(&entry_ref))
@@ -1227,9 +1223,8 @@ pub async fn entry_reveal_field(
     field: SecretField,
     version: Option<u32>,
 ) -> HitsuResult<String> {
-    let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
-    read_secret_value(vault, &id, field, version)
+    let vault = state.open_vault()?;
+    read_secret_value(&vault, &id, field, version)
 }
 
 /// Copy a secret field to the clipboard entirely inside Rust — the plaintext
@@ -1243,9 +1238,8 @@ pub async fn entry_copy_field(
     version: Option<u32>,
 ) -> HitsuResult<()> {
     let value = {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
-        let value = read_secret_value(vault, &id, field, version)?;
+        let vault = state.open_vault()?;
+        let value = read_secret_value(&vault, &id, field, version)?;
         let copy_value = if field == SecretField::Totp {
             super::totp::compute_totp(&value)?.code
         } else {
@@ -1272,9 +1266,8 @@ pub async fn entry_reveal_custom_field(
     id: String,
     name: String,
 ) -> HitsuResult<String> {
-    let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
-    read_custom_field_value(vault, &id, &name)
+    let vault = state.open_vault()?;
+    read_custom_field_value(&vault, &id, &name)
 }
 
 #[tauri::command]
@@ -1285,9 +1278,8 @@ pub async fn entry_copy_custom_field(
     timeout_secs: u64,
 ) -> HitsuResult<()> {
     let value = {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
-        zeroize::Zeroizing::new(read_custom_field_value(vault, &id, &name)?)
+        let vault = state.open_vault()?;
+        zeroize::Zeroizing::new(read_custom_field_value(&vault, &id, &name)?)
     };
     super::clipboard::copy_secret(value, timeout_secs)
 }
@@ -1301,9 +1293,7 @@ pub async fn entry_history_list(
     state: State<'_, AppState>,
     id: String,
 ) -> HitsuResult<Vec<HistoryEntrySummary>> {
-    let vaults = state.vaults.lock();
-
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
 
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
@@ -1346,9 +1336,7 @@ pub async fn entry_history_get(
     id: String,
     version: u32,
 ) -> HitsuResult<Entry> {
-    let vaults = state.vaults.lock();
-
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
 
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
@@ -1374,8 +1362,7 @@ pub async fn entry_history_get(
 #[tauri::command]
 pub async fn entry_download_favicon(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
     let url_str = {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         let entry_ref =
             find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry_ref
@@ -1418,8 +1405,7 @@ pub async fn entry_get_custom_icon(
     state: State<'_, AppState>,
     id: String,
 ) -> HitsuResult<Option<String>> {
-    let vaults = state.vaults.lock();
-    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let vault = state.open_vault()?;
     let entry_ref =
         find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
     let (_has_icon, data) = read_custom_icon(&vault.db, &entry_ref);
@@ -1471,8 +1457,7 @@ pub async fn entry_attachment_save(
     // yet: it may be large or sensitive, and the dialog can remain open for
     // an arbitrary amount of time.
     {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         let entry_ref =
             find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         entry_ref
@@ -1500,8 +1485,7 @@ pub async fn entry_attachment_save(
     // Re-read only after the user approves the destination. If the vault was
     // locked while the dialog was open, fail instead of retaining stale data.
     let data = {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         let entry_ref =
             find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         let attachment = entry_ref
@@ -1544,8 +1528,7 @@ pub async fn entry_attachment_add(
     // Validate before opening a dialog. Revalidate after reading because the
     // vault may be locked or replaced while the dialog is open.
     {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         vault
             .db
             .entry(entry_id)

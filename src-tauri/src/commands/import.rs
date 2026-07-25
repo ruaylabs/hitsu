@@ -1367,8 +1367,7 @@ pub async fn vault_import_1pif(
 
     let _save_guard = state.save_lock.lock().await;
     let (mut db, key, vault_path, expected_disk_hash) = {
-        let vaults = state.vaults.lock();
-        let (_, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         (
             vault.db.clone(),
             vault.db_key.clone(),

@@ -425,8 +425,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     // Native-messaging requests are backend IPC too; an actively used browser
     // integration must refresh the same watchdog as webview commands.
     state.reset_idle_lock();
-    let vaults = state.vaults.lock();
-    let Some((_vault_id, vault)) = vaults.iter().next() else {
+    let Ok(vault) = state.open_vault() else {
         return json!({ "ok": false, "code": "locked", "error": "Hitsu is locked" });
     };
 

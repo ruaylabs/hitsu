@@ -642,7 +642,7 @@ pub async fn vault_open(
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
     let mut vaults = state.vaults.lock();
-    // Single-vault app: every read uses vaults.iter().next(), so opening a
+    // Single-vault app: every read uses open_vault(), so opening a
     // new vault must replace any previously open one — otherwise stale
     // entries from the old vault leak through and can shadow the new one
     // (entries_list returned the wrong vault's items).
@@ -684,8 +684,7 @@ pub async fn vault_refresh_if_changed(
     let _save_guard = state.save_lock.lock().await;
 
     let (path, key, expected_disk_hash, expected_root_id) = {
-        let vaults = state.vaults.lock();
-        let (_, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         (
             vault.path.clone(),
             vault.db_key.clone(),
@@ -783,8 +782,7 @@ pub async fn vault_empty_recycle_bin(
 ) -> HitsuResult<EmptyRecycleBinResult> {
     let _save_guard = state.save_lock.lock().await;
     let (mut db, key, path, expected_disk_hash) = {
-        let vaults = state.vaults.lock();
-        let (_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         (
             vault.db.clone(),
             vault.db_key.clone(),
@@ -982,11 +980,7 @@ pub async fn vault_change_password(
 
     // Verify the old password + snapshot under a brief vaults lock.
     let (db, path, expected_disk_hash) = {
-        let vaults = state.vaults.lock();
-
-        // Find the single open vault
-        let (_id, vault): (&VaultId, &OpenVault) =
-            vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
 
         // Verify old password matches the stored hash (constant-time).
         // Avoids timing side-channels from PartialEq on DatabaseKey.

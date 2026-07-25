@@ -39,8 +39,7 @@ pub(crate) fn compute_totp(uri: &str) -> HitsuResult<TotpCode> {
 #[tauri::command]
 pub async fn totp_compute(state: State<'_, AppState>, id: String) -> HitsuResult<TotpCode> {
     let uri = {
-        let vaults = state.vaults.lock();
-        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let vault = state.open_vault()?;
         let entry_ref = super::entries::find_entry_ref(&vault.db, &id)
             .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
         Zeroizing::new(

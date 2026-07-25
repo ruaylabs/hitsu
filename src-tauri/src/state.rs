@@ -1,11 +1,13 @@
 use keepass::{Database, DatabaseKey};
 // parking_lot::Mutex cannot be poisoned: a panic while holding the lock
 // simply releases it, so commands don't need per-call poison handling.
-use parking_lot::{Condvar, Mutex};
+use parking_lot::{Condvar, MappedMutexGuard, Mutex, MutexGuard};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+use crate::error::{HitsuError, HitsuResult};
 
 pub type VaultId = Uuid;
 
@@ -143,6 +145,17 @@ impl AppState {
 
             self.idle_lock_changed.wait_for(&mut idle, remaining);
         }
+    }
+
+    /// Lock the vault map and return a guard that references the single open
+    /// vault. For read-only commands — use `mutate_and_save` in entries.rs
+    /// for mutations that must persist.
+    pub fn open_vault(&self) -> HitsuResult<MappedMutexGuard<'_, OpenVault>> {
+        MutexGuard::try_map(
+            self.vaults.lock(),
+            |vaults: &mut HashMap<VaultId, OpenVault>| vaults.values_mut().next(),
+        )
+        .map_err(|_| HitsuError::NoOpenVault)
     }
 
     /// Record the on-disk hash after a successful save. No-op if the vault
