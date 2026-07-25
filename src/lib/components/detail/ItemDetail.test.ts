@@ -87,6 +87,7 @@ function passwordEntry(overrides: Partial<Entry> = {}): Entry {
     modifiedAt: "2026-07-11T00:00:00Z",
     createdAt: "2026-07-11T00:00:00Z",
     historyCount: 0,
+    hasCustomIcon: false,
     ...overrides,
   };
 }

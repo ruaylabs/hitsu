@@ -1,5 +1,6 @@
 pub mod clipboard;
 pub mod entries;
+pub mod favicon;
 pub mod generator;
 pub mod idle;
 pub mod import;

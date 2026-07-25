@@ -26,7 +26,14 @@
   tabindex={selected ? 0 : -1}
   data-entry-id={entry.id}
 >
-  <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={30} />
+  <EntryIcon
+    iconHint={entry.iconHint}
+    type={entry.type}
+    title={entry.title}
+    size={30}
+    hasCustomIcon={entry.hasCustomIcon}
+    entryId={entry.id}
+  />
   <div class="list-row-text">
     <div class="list-row-title">{entry.title}</div>
     <div class="list-row-subtitle">{entry.subtitle}</div>

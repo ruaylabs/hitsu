@@ -9,8 +9,11 @@
     onEdit,
     onMove,
     onTotpSetup,
+    onDownloadFavicon,
     showMove = false,
     showTotpSetup,
+    showDownloadFavicon = false,
+    downloadingFavicon = false,
     readOnly = false,
   }: {
     entry: Entry;
@@ -18,21 +21,43 @@
     onEdit?: () => void;
     onMove?: () => void;
     onTotpSetup?: () => void;
+    onDownloadFavicon?: () => void;
     showMove?: boolean;
     showTotpSetup?: boolean;
+    showDownloadFavicon?: boolean;
+    downloadingFavicon?: boolean;
     readOnly?: boolean;
   } = $props();
 </script>
 
 <div class="detail-header">
   <div class="detail-header-left">
-    <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={48} />
+    <EntryIcon
+      iconHint={entry.iconHint}
+      type={entry.type}
+      title={entry.title}
+      size={48}
+      hasCustomIcon={entry.hasCustomIcon}
+      customIconData={entry.customIconData}
+      entryId={entry.id}
+    />
     <div class="detail-header-text">
       <h1 class="detail-title">{entry.title}</h1>
     </div>
   </div>
   {#if !readOnly}
     <div class="detail-header-actions">
+      {#if showDownloadFavicon}
+        <IconButton
+          icon="photo-down"
+          iconSize={14}
+          variant="outline"
+          disabled={downloadingFavicon}
+          onclick={onDownloadFavicon}
+          aria-label="Download favicon"
+          title="Download favicon"
+        />
+      {/if}
       {#if showTotpSetup}
         <IconButton
           icon="key"

@@ -55,6 +55,8 @@ pub fn run() {
             commands::entries::entry_copy_custom_field,
             commands::entries::entry_history_list,
             commands::entries::entry_history_get,
+            commands::entries::entry_download_favicon,
+            commands::entries::entry_get_custom_icon,
             commands::entries::entry_attachment_save,
             commands::entries::entry_attachment_add,
             commands::entries::entry_attachment_remove,

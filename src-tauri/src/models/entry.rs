@@ -207,11 +207,19 @@ pub struct Entry {
     pub modified_at: String,
     pub created_at: String,
     pub history_count: u32,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub has_custom_icon: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_icon_data: Option<String>,
 }
 
 /// Render an `Option<T>` for `Debug` as `Some(<redacted>)` or `None`,
 /// without exposing the wrapped value. Used by the redacted `Debug`
 /// impls of the secret-bearing DTOs above.
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
 fn redacted_opt<T>(opt: &Option<T>) -> RedactedOpt<'_, T> {
     RedactedOpt(opt)
 }
@@ -267,6 +275,8 @@ pub struct EntrySummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_hint: Option<String>,
     pub modified_at: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub has_custom_icon: bool,
 }
 
 /// Custom `Debug` for `CustomField`: the `value` is redacted because

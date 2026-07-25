@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ItemType } from "$lib/bridge/types";
+  import { entryGetCustomIcon } from "$lib/bridge/entries";
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import Icon from "../ui/Icon.svelte";
 
@@ -28,30 +29,62 @@
     type,
     title,
     size = 30,
+    customIconData = undefined,
+    hasCustomIcon = false,
+    entryId = undefined,
   }: {
     iconHint?: string;
     type: ItemType;
     title: string;
     size?: number;
+    customIconData?: string;
+    hasCustomIcon?: boolean;
+    entryId?: string;
   } = $props();
 
   let brandKey = $derived(iconHint && brandIcons[iconHint] ? iconHint : null);
   let typeMetadata = $derived(ENTRY_TYPE_BY_TYPE[type]);
 
   let bgColor = $derived(brandKey ? brandColors[brandKey] : typeMetadata.color);
-
   let iconName = $derived(brandKey ? brandIcons[brandKey] : typeMetadata.icon);
+
+  let lazyIconData = $state<string | null>(null);
+
+  $effect(() => {
+    if (hasCustomIcon && entryId && !customIconData) {
+      entryGetCustomIcon(entryId)
+        .then((data) => {
+          lazyIconData = data;
+        })
+        .catch(() => {
+          lazyIconData = null;
+        });
+    }
+  });
+
+  let resolvedIcon = $derived(customIconData || lazyIconData);
 </script>
 
-<div
-  class="entry-icon"
-  style:width={`${size}px`}
-  style:height={`${size}px`}
-  style:background={bgColor}
-  style:border-radius={`${Math.round(size * 0.233)}px`}
->
-  <Icon name={iconName} size={Math.round(size * 0.53)} />
-</div>
+{#if resolvedIcon}
+  <img
+    class="entry-icon entry-icon--image"
+    style:width={`${size}px`}
+    style:height={`${size}px`}
+    style:border-radius={`${Math.round(size * 0.233)}px`}
+    src={resolvedIcon}
+    alt=""
+  />
+{:else}
+  <div
+    class="entry-icon"
+    style:width={`${size}px`}
+    style:height={`${size}px`}
+    style:background={bgColor}
+    style:border-radius={`${Math.round(size * 0.233)}px`}
+  >
+    <Icon name={iconName} size={Math.round(size * 0.53)} />
+  </div>
+{/if}
 
 <style>
   .entry-icon {
@@ -60,5 +93,9 @@
     justify-content: center;
     flex-shrink: 0;
     color: #fff;
+  }
+
+  .entry-icon--image {
+    object-fit: cover;
   }
 </style>

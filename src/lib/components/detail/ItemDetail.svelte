@@ -131,6 +131,7 @@
   let newMoveFolderError = $state("");
   let showGenerator = $state(false);
   let showTotpSetup = $state(false);
+  let downloadingFavicon = $state(false);
   let editTitle = $state("");
   let editUsername = $state("");
   let editPassword = $state("");
@@ -413,6 +414,21 @@
       toast.error(message);
       // No edit session here, so an external-change check may reload at once.
       vault.refreshIfChanged().catch(() => {});
+    }
+  }
+
+  async function downloadFavicon() {
+    if (!_entry || downloadingFavicon) return;
+    downloadingFavicon = true;
+    try {
+      const updated = await entriesBridge.entryDownloadFavicon(_entry.id);
+      installUpdatedEntry(updated);
+      toast.success("Favicon downloaded");
+    } catch (e) {
+      console.error("Failed to download favicon", e);
+      toast.error(errorMessage(e));
+    } finally {
+      downloadingFavicon = false;
     }
   }
 
@@ -845,6 +861,9 @@
         showMove={features.foldersEnabled && !entry.trashed}
         onTotpSetup={() => (showTotpSetup = true)}
         showTotpSetup={entry.type === "login" && !entry.hasTotp}
+        onDownloadFavicon={downloadFavicon}
+        showDownloadFavicon={Boolean(entry.url)}
+        {downloadingFavicon}
         readOnly={entry.trashed}
       />
     {/if}

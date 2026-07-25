@@ -38,6 +38,8 @@ export interface Entry {
   modifiedAt: string;
   createdAt: string;
   historyCount: number;
+  hasCustomIcon: boolean;
+  customIconData?: string;
 }
 
 export interface CustomField {
@@ -135,6 +137,7 @@ export interface EntrySummary {
   folderId?: string;
   iconHint?: string;
   modifiedAt?: string;
+  hasCustomIcon?: boolean;
 }
 
 export interface VaultMeta {

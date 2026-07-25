@@ -78,6 +78,7 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         folder_id: entry_folder_id(entry_ref, trashed),
         icon_hint,
         modified_at,
+        has_custom_icon: matches!(entry_ref.icon(), Some(keepass::db::Icon::Custom(_))),
     }
 }
 
@@ -319,6 +320,8 @@ fn map_entry_to_full(
         None
     };
 
+    let (has_custom_icon, custom_icon_data) = (false, None);
+
     Entry {
         id,
         item_type,
@@ -347,6 +350,8 @@ fn map_entry_to_full(
             .history
             .as_ref()
             .map_or(0, |h: &keepass::db::History| h.get_entries().len() as u32),
+        has_custom_icon,
+        custom_icon_data,
     }
 }
 
@@ -393,6 +398,30 @@ fn read_item_type(entry: &keepass::db::Entry) -> ItemType {
 
 fn read_icon_hint(entry: &keepass::db::Entry) -> Option<String> {
     read_custom_data_string(entry, "hitsu.iconHint")
+}
+
+/// Read custom icon data from a KDBX entry, returning a (has_icon, base64_data) tuple.
+fn read_custom_icon(db: &keepass::Database, entry: &keepass::db::Entry) -> (bool, Option<String>) {
+    let custom_id = match entry.icon() {
+        Some(keepass::db::Icon::Custom(id)) => *id,
+        _ => return (false, None),
+    };
+    let data = db.custom_icon(custom_id).map(|icon| {
+        use base64::Engine;
+        let mut buf = String::new();
+        // Prepend a data URL prefix so the frontend can use it directly in <img src>
+        buf.push_str("data:image/png;base64,");
+        base64::engine::general_purpose::STANDARD.encode_string(&icon.data[..], &mut buf);
+        buf
+    });
+    (true, data)
+}
+
+/// Set the custom icon fields on a mapped Entry from the database.
+fn apply_custom_icon(db: &keepass::Database, entry: &keepass::db::Entry, mapped: &mut Entry) {
+    let (has, data) = read_custom_icon(db, entry);
+    mapped.has_custom_icon = has;
+    mapped.custom_icon_data = data;
 }
 
 fn read_favorite(entry: &keepass::db::Entry) -> bool {
@@ -599,6 +628,7 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<En
     let folder_id = entry_folder_id(&entry_ref, trashed);
     let mut entry = map_entry_to_full(&entry_ref, trashed, folder_id);
     entry.attachments = read_attachments(&entry_ref);
+    apply_custom_icon(&vault.db, &entry_ref, &mut entry);
     Ok(entry)
 }
 
@@ -705,6 +735,8 @@ pub async fn entry_create(
         modified_at: now_rfc.clone(),
         created_at: now_rfc,
         history_count: 0,
+        has_custom_icon: false,
+        custom_icon_data: None,
     })
 }
 
@@ -742,6 +774,7 @@ pub async fn entry_update(
         let folder_id = entry_folder_id(&entry_ref, trashed);
         let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
         updated.attachments = read_attachments(&entry_ref);
+        apply_custom_icon(&vault.db, &entry_ref, &mut updated);
         Ok(updated)
     })
     .await
@@ -1048,6 +1081,7 @@ pub async fn entry_move(
         let folder_id = entry_folder_id(&entry_ref, false);
         let mut updated = map_entry_to_full(&entry_ref, false, folder_id);
         updated.attachments = read_attachments(&entry_ref);
+        apply_custom_icon(&vault.db, &entry_ref, &mut updated);
         Ok(updated)
     })
     .await
@@ -1331,8 +1365,65 @@ pub async fn entry_history_get(
 
     let mut result =
         map_entry_to_full(history_entry, entry_is_trashed(&vault.db, &entry_ref), None);
+    apply_custom_icon(&vault.db, history_entry, &mut result);
     result.id = id;
     Ok(result)
+}
+
+/// Download a favicon from the entry's URL and store it as a custom icon.
+#[tauri::command]
+pub async fn entry_download_favicon(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
+    let url_str = {
+        let vaults = state.vaults.lock();
+        let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+        let entry_ref =
+            find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+        entry_ref
+            .get_url()
+            .map(str::to_string)
+            .ok_or_else(|| HitsuError::Custom("Entry has no URL".into()))?
+    };
+
+    let favicon_data = super::favicon::fetch_favicon(&url_str).await?;
+
+    mutate_and_save(&state, move |vault| {
+        let entry_id = parse_entry_id(&id)?;
+        let mut em = vault
+            .db
+            .entry_mut(entry_id)
+            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+
+        em.edit_tracking(|tracked| {
+            tracked.set_icon_custom_new(favicon_data.clone());
+        });
+        em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or(HitsuError::EntryNotFound(id))?;
+        let trashed = entry_is_trashed(&vault.db, &entry_ref);
+        let folder_id = entry_folder_id(&entry_ref, trashed);
+        let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
+        updated.attachments = read_attachments(&entry_ref);
+        apply_custom_icon(&vault.db, &entry_ref, &mut updated);
+        Ok(updated)
+    })
+    .await
+}
+
+/// Get the custom icon data for an entry as a base64 data URL, or None.
+#[tauri::command]
+pub async fn entry_get_custom_icon(
+    state: State<'_, AppState>,
+    id: String,
+) -> HitsuResult<Option<String>> {
+    let vaults = state.vaults.lock();
+    let (_vault_id, vault) = vaults.iter().next().ok_or(HitsuError::NoOpenVault)?;
+    let entry_ref =
+        find_entry_ref(&vault.db, &id).ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+    let (_has_icon, data) = read_custom_icon(&vault.db, &entry_ref);
+    Ok(data)
 }
 
 fn safe_attachment_file_name(name: &str) -> String {

@@ -93,7 +93,14 @@
           role="option"
           aria-selected={index === selectedIndex}
         >
-          <EntryIcon iconHint={entry.iconHint} type={entry.type} title={entry.title} size={30} />
+          <EntryIcon
+            iconHint={entry.iconHint}
+            type={entry.type}
+            title={entry.title}
+            size={30}
+            hasCustomIcon={entry.hasCustomIcon}
+            entryId={entry.id}
+          />
           <span class="entry-palette-text">
             <span class="entry-palette-title">{entry.title}</span>
             <span class="entry-palette-subtitle">{entry.subtitle}</span>

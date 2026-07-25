@@ -19,6 +19,7 @@ export function toSummary(entry: Entry): EntrySummary {
     folderId: entry.folderId,
     iconHint: entry.iconHint,
     modifiedAt: entry.modifiedAt,
+    hasCustomIcon: entry.hasCustomIcon,
   };
 }
 
@@ -203,4 +204,14 @@ export async function entryAttachmentAdd(id: string): Promise<AttachmentMeta | n
 /** Remove an attachment from an entry. */
 export async function entryAttachmentRemove(id: string, name: string): Promise<void> {
   return invoke<void>("entry_attachment_remove", { id, name });
+}
+
+/** Download a favicon from the entry's URL and store it as a custom icon. */
+export async function entryDownloadFavicon(id: string): Promise<Entry> {
+  return invoke<Entry>("entry_download_favicon", { id });
+}
+
+/** Get the custom icon data for an entry as a base64 data URL, or null. */
+export async function entryGetCustomIcon(id: string): Promise<string | null> {
+  return invoke<string | null>("entry_get_custom_icon", { id });
 }
