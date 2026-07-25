@@ -260,6 +260,63 @@ describe("login filling", () => {
     expect(sendResponse).not.toHaveBeenCalled();
   });
 
+  it("silently ignores a fill message whose expectedOrigin does not match", () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="username" type="email">
+        <input name="password" type="password">
+      </form>
+    `;
+    const password = document.querySelector('input[type="password"]');
+    mockVisibility(password);
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        {
+          type: "fill-login",
+          username: "ada",
+          password: "secret",
+          expectedOrigin: "https://example.com",
+        },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(false);
+
+    // Fields must remain untouched
+    expect(document.querySelector('[name="username"]').value).toBe("");
+    expect(password.value).toBe("");
+    expect(sendResponse).not.toHaveBeenCalled();
+  });
+
+  it("fills when expectedOrigin matches the current frame origin", () => {
+    // content.js tests run with about:blank origin; no expectedOrigin means
+    // the check is skipped (backward-compatible with older callers).
+    document.body.innerHTML = `
+      <form>
+        <input name="username" type="email">
+        <input name="password" type="password">
+      </form>
+    `;
+    const password = document.querySelector('input[type="password"]');
+    mockVisibility(password);
+    const sendResponse = vi.fn();
+
+    // Omit expectedOrigin to simulate a pre-iframe-support caller
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(false);
+
+    expect(document.querySelector('[name="username"]').value).toBe("ada");
+    expect(password.value).toBe("secret");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
   it("reports when no writable password field appears before the retry deadline", async () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<input type="password" readonly>';

@@ -83,18 +83,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!pageMatchesOrigin(currentTab.url, tab.origin)) {
           throw new Error("The page changed before Hitsu could fill it");
         }
+
+        // Discover all frames and their origins with one allFrames call.
+        // executeScript returns { frameId, result } per frame, so we can
+        // filter to same-origin frames without needing the webNavigation
+        // permission.
+        const frameResults = await chrome.scripting.executeScript({
+          target: { tabId: tab.id, allFrames: true },
+          func: () => window.location.origin,
+        });
+
+        const matchingFrameIds = frameResults
+          .filter((r) => r.result === tab.origin)
+          .map((r) => r.frameId);
+
+        if (matchingFrameIds.length === 0) {
+          throw new Error("No matching frames found on this page");
+        }
+
         await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
+          target: { tabId: tab.id, frameIds: matchingFrameIds },
           files: ["content.js"],
         });
-        const fillResponse = await chrome.tabs.sendMessage(tab.id, {
+
+        const fillMessage = {
           type: "fill-login",
           username: response.username ?? "",
           password: response.password,
-        });
-        if (!fillResponse?.ok) {
-          throw new Error(fillResponse?.error ?? "Could not fill this page");
+          expectedOrigin: tab.origin,
+        };
+
+        const fillResults = await Promise.allSettled(
+          matchingFrameIds.map((frameId) =>
+            chrome.tabs.sendMessage(tab.id, fillMessage, { frameId }),
+          ),
+        );
+
+        const anyOk = fillResults.some((r) => r.status === "fulfilled" && r.value?.ok);
+        if (!anyOk) {
+          const firstError = fillResults.find(
+            (r) => (r.status === "fulfilled" && !r.value?.ok) || r.status === "rejected",
+          );
+          const msg =
+            firstError?.status === "rejected"
+              ? firstError.reason?.message
+              : firstError?.value?.error;
+          throw new Error(msg ?? "Could not fill any frame on this page");
         }
+
         sendResponse({ ok: true });
       })
       .catch((error) => sendResponse({ ok: false, error: error.message }));

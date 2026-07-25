@@ -153,6 +153,12 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id || message?.type !== "fill-login") return false;
 
+    // Only fill frames whose origin matches the expected origin; silently
+    // ignore cross-origin child frames (SSO widgets, embedded auth, etc.).
+    if (message.expectedOrigin && window.location.origin !== message.expectedOrigin) {
+      return false;
+    }
+
     const response = fillAvailableLogin(message);
     if (response) {
       sendResponse(response);

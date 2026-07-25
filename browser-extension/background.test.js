@@ -19,7 +19,7 @@ beforeEach(async () => {
       },
       sendNativeMessage: vi.fn(),
     },
-    scripting: { executeScript: vi.fn().mockResolvedValue(undefined) },
+    scripting: { executeScript: vi.fn() },
     tabs: {
       get: vi.fn(),
       query: vi.fn(),
@@ -137,6 +137,13 @@ describe("background integration", () => {
     chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
       callback({ ok: true, username: "ada", password: "secret" });
     });
+    // Frame discovery: top frame matches, one cross-origin child is excluded
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([
+        { frameId: 0, result: "https://example.com" },
+        { frameId: 42, result: "https://accounts.google.com" },
+      ])
+      .mockResolvedValueOnce(undefined);
     chromeMock.tabs.sendMessage.mockResolvedValue({ ok: true });
     const sendResponse = vi.fn();
 
@@ -148,15 +155,126 @@ describe("background integration", () => {
       { type: "getCredentials", id: "entry", origin: "https://example.com" },
       expect.any(Function),
     );
-    expect(chromeMock.scripting.executeScript).toHaveBeenCalledWith({
-      target: { tabId: 7 },
+    // First call: frame discovery (allFrames)
+    expect(chromeMock.scripting.executeScript).toHaveBeenNthCalledWith(1, {
+      target: { tabId: 7, allFrames: true },
+      func: expect.any(Function),
+    });
+    // Second call: inject content.js only into same-origin frames
+    expect(chromeMock.scripting.executeScript).toHaveBeenNthCalledWith(2, {
+      target: { tabId: 7, frameIds: [0] },
       files: ["content.js"],
     });
-    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(7, {
-      type: "fill-login",
-      username: "ada",
-      password: "secret",
+    // Sends fill message with expectedOrigin to each matching frame
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      7,
+      {
+        type: "fill-login",
+        username: "ada",
+        password: "secret",
+        expectedOrigin: "https://example.com",
+      },
+      { frameId: 0 },
+    );
+  });
+
+  it("injects and fills all same-origin frames including iframes", async () => {
+    chromeMock.tabs.query.mockResolvedValue([{ id: 7, url: "https://example.com/login" }]);
+    chromeMock.tabs.get.mockResolvedValue({ id: 7, url: "https://example.com/login" });
+    chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
+      callback({ ok: true, username: "ada", password: "secret" });
     });
+    // Discovery: frames 0 and 24 are same-origin, frame 99 is cross-origin
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([
+        { frameId: 0, result: "https://example.com" },
+        { frameId: 24, result: "https://example.com" },
+        { frameId: 99, result: "https://idp.other.test" },
+      ])
+      .mockResolvedValueOnce(undefined);
+    chromeMock.tabs.sendMessage.mockResolvedValue({ ok: true });
+    const sendResponse = vi.fn();
+
+    listener({ type: "fill-login", id: "entry" }, { id: "extension-id" }, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ ok: true }));
+
+    // Frame 99 is cross-origin and must be excluded
+    expect(chromeMock.scripting.executeScript).toHaveBeenNthCalledWith(2, {
+      target: { tabId: 7, frameIds: [0, 24] },
+      files: ["content.js"],
+    });
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledTimes(2);
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      7,
+      {
+        type: "fill-login",
+        username: "ada",
+        password: "secret",
+        expectedOrigin: "https://example.com",
+      },
+      { frameId: 0 },
+    );
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      7,
+      {
+        type: "fill-login",
+        username: "ada",
+        password: "secret",
+        expectedOrigin: "https://example.com",
+      },
+      { frameId: 24 },
+    );
+  });
+
+  it("reports failure when no frame matches the entry origin", async () => {
+    chromeMock.tabs.query.mockResolvedValue([{ id: 7, url: "https://example.com/login" }]);
+    chromeMock.tabs.get.mockResolvedValue({ id: 7, url: "https://example.com/login" });
+    chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
+      callback({ ok: true, username: "ada", password: "secret" });
+    });
+    // All frames are cross-origin (e.g., page is a shell embedding foreign widgets)
+    chromeMock.scripting.executeScript.mockResolvedValueOnce([
+      { frameId: 0, result: "https://idp.other.test" },
+      { frameId: 1, result: "https://cdn.different.test" },
+    ]);
+    const sendResponse = vi.fn();
+
+    listener({ type: "fill-login", id: "entry" }, { id: "extension-id" }, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      error: "No matching frames found on this page",
+    });
+    // Discovery call did happen, but no injection since no frames matched
+    expect(chromeMock.scripting.executeScript).toHaveBeenCalledTimes(1);
+    expect(chromeMock.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, allFrames: true },
+      func: expect.any(Function),
+    });
+  });
+
+  it("succeeds when at least one matching frame fills successfully", async () => {
+    chromeMock.tabs.query.mockResolvedValue([{ id: 7, url: "https://example.com/login" }]);
+    chromeMock.tabs.get.mockResolvedValue({ id: 7, url: "https://example.com/login" });
+    chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
+      callback({ ok: true, username: "ada", password: "secret" });
+    });
+    // Discovery: both frames match the entry origin
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([
+        { frameId: 0, result: "https://example.com" },
+        { frameId: 7, result: "https://example.com" },
+      ])
+      .mockResolvedValueOnce(undefined);
+    // Frame 0 has a form, frame 7 does not
+    chromeMock.tabs.sendMessage
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false, error: "No password field found on this page" });
+    const sendResponse = vi.fn();
+
+    listener({ type: "fill-login", id: "entry" }, { id: "extension-id" }, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ ok: true }));
   });
 
   it("aborts filling if the tab navigates to another origin", async () => {
