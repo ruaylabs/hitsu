@@ -468,6 +468,9 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
             };
+            if !is_https_origin(&origin) {
+                return json!({ "ok": false, "code": "insecure_page", "error": "Hitsu will not fill passwords on HTTP pages" });
+            }
             if !valid_entry_id(&id) {
                 return json!({ "ok": false, "code": "invalid_request", "error": "Invalid entry ID" });
             }
@@ -539,6 +542,12 @@ fn origin_host(origin: &str) -> Result<String, ()> {
     url.host_str()
         .map(|host| host.to_ascii_lowercase())
         .ok_or(())
+}
+
+fn is_https_origin(origin: &str) -> bool {
+    Url::parse(origin)
+        .map(|url| url.scheme() == "https")
+        .unwrap_or(false)
 }
 
 fn entry_host(raw: &str) -> Option<String> {

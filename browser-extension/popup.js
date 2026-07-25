@@ -26,7 +26,9 @@ if (origin) {
           ? "Hitsu browser integration is not installed."
           : response?.code === "not_running" || response?.code === "locked"
             ? "Open and unlock Hitsu first."
-            : (response?.error ?? "Open and unlock Hitsu first.");
+            : response?.code === "insecure_page"
+              ? "Hitsu will not fill passwords on HTTP pages."
+              : (response?.error ?? "Open and unlock Hitsu first.");
       showMessage(message, "error");
       return;
     }
