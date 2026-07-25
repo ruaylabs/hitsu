@@ -64,6 +64,11 @@ enum BrowserRequest {
         id: String,
         origin: String,
     },
+    GetTotp {
+        token: String,
+        id: String,
+        origin: String,
+    },
 }
 
 impl BrowserRequest {
@@ -72,7 +77,8 @@ impl BrowserRequest {
     fn token(&self) -> &str {
         match self {
             BrowserRequest::ListLogins { token, .. }
-            | BrowserRequest::GetCredentials { token, .. } => token,
+            | BrowserRequest::GetCredentials { token, .. }
+            | BrowserRequest::GetTotp { token, .. } => token,
         }
     }
 }
@@ -450,6 +456,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                             "id": entry.id().uuid().to_string(),
                             "title": entry.get_title().unwrap_or(""),
                             "username": entry.get_username().unwrap_or(""),
+                            "hasTotp": crate::commands::entries::read_totp_seed(&entry).is_some(),
                         }),
                     ))
                 })
@@ -497,6 +504,39 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                 "username": entry.get_username().unwrap_or(""),
                 "password": password,
             })
+        }
+        BrowserRequest::GetTotp { id, origin, .. } => {
+            let Ok(host) = origin_host(&origin) else {
+                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
+            };
+            if !valid_entry_id(&id) {
+                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid entry ID" });
+            }
+            let Some(entry) = crate::commands::entries::find_entry_ref(&vault.db, &id) else {
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
+            };
+            if crate::commands::entries::entry_is_trashed(&vault.db, &entry) {
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
+            }
+            let matches_origin = entry
+                .get_url()
+                .and_then(entry_host)
+                .and_then(|entry_host| host_match(&entry_host, &host))
+                .is_some();
+            if !matches_origin {
+                return json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" });
+            }
+            let Some(uri) = crate::commands::entries::read_totp_seed(&entry) else {
+                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry has no TOTP configured" });
+            };
+            match crate::commands::totp::compute_totp(&uri) {
+                Ok(code) => json!({
+                    "ok": true,
+                    "otp": code.code,
+                    "remaining": code.remaining,
+                }),
+                Err(e) => json!({ "ok": false, "code": "totp_error", "error": e.to_string() }),
+            }
         }
     }
 }

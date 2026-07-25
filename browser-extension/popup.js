@@ -52,6 +52,28 @@ function renderEntries(entries) {
     const username = document.createElement("span");
     username.textContent = entry.username || "No username";
     button.append(title, username);
+    if (entry.hasTotp) {
+      const totpBtn = document.createElement("button");
+      totpBtn.className = "totp";
+      totpBtn.textContent = "TOTP";
+      totpBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        totpBtn.disabled = true;
+        totpBtn.textContent = "…";
+        chrome.runtime.sendMessage({ type: "get-totp", id: entry.id }, (totpResponse) => {
+          totpBtn.disabled = false;
+          totpBtn.textContent = "TOTP";
+          if (totpResponse?.ok) {
+            navigator.clipboard.writeText(totpResponse.otp).catch(() => {});
+            totpBtn.textContent = "Copied!";
+            setTimeout(() => {
+              totpBtn.textContent = "TOTP";
+            }, 1500);
+          }
+        });
+      });
+      button.append(totpBtn);
+    }
     button.addEventListener("click", () => {
       button.disabled = true;
       chrome.runtime.sendMessage({ type: "fill-login", id: entry.id }, (fillResponse) => {

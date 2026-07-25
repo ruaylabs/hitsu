@@ -80,6 +80,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "get-totp" && typeof message.id === "string") {
+    activeHttpTab()
+      .then((tab) =>
+        nativeMessage({
+          type: "getTotp",
+          id: message.id,
+          origin: tab.origin,
+        }),
+      )
+      .then((response) =>
+        sendResponse({ ok: true, otp: response.otp, remaining: response.remaining }),
+      )
+      .catch((error) =>
+        sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
+      );
+    return true;
+  }
+
   if (message?.type === "fill-login" && typeof message.id === "string") {
     activeHttpTab()
       .then(async (tab) => {

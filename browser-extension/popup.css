@@ -141,3 +141,19 @@ p {
 .retry:hover {
   background: color-mix(in srgb, CanvasText 9%, transparent);
 }
+
+.totp {
+  align-self: flex-end;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 4px;
+  background: transparent;
+  color: GrayText;
+  cursor: pointer;
+  font-size: 11px;
+  margin-top: -18px;
+}
+
+.totp:hover {
+  background: color-mix(in srgb, CanvasText 9%, transparent);
+}
