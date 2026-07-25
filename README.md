@@ -97,7 +97,8 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
   and no native-messaging host is registered until you do
 - Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge — [install it from the Chrome
   Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
-- Firefox Manifest V3 extension with the same popup autofill workflow
+- Firefox Manifest V3 extension with the same popup autofill workflow — [install it from
+  Mozilla Add-ons](https://addons.mozilla.org/addon/hitsu-password-manager/)
 - Exact-host login lookup and popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
 - Owner-only local IPC, gated by a per-session token; trashed entries and
