@@ -453,7 +453,7 @@
               onchange={onIdleChange}
             >
               {#each [
-              { value: 0, label: "Never" },
+              ...(import.meta.env.DEV ? [{ value: 0, label: "Never (dev)" }] : []),
               { value: 1, label: "1 minute" },
               { value: 2, label: "2 minutes" },
               { value: 5, label: "5 minutes" },

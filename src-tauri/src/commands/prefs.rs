@@ -18,6 +18,16 @@ fn update_preferences_at_path(
     prefs.save_to(path)
 }
 
+/// In release builds, clamp "never lock" (0) to 1 minute.
+fn clamp_idle_lock(minutes: u32) -> u32 {
+    #[cfg(not(debug_assertions))]
+    {
+        return minutes.max(1);
+    }
+    #[cfg(debug_assertions)]
+    minutes
+}
+
 fn update_preferences(
     app: &AppHandle,
     state: &AppState,
@@ -54,6 +64,8 @@ pub async fn prefs_set_security(
     idle_lock_minutes: u32,
     clipboard_clear_seconds: u32,
 ) -> HitsuResult<()> {
+    // "Never" (0) exists only for development — a release build must lock.
+    let idle_lock_minutes = clamp_idle_lock(idle_lock_minutes);
     update_preferences(&app, &state, |prefs| {
         prefs.idle_lock_minutes = idle_lock_minutes;
         prefs.clipboard_clear_seconds = clipboard_clear_seconds;
