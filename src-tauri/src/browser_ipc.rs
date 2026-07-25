@@ -23,6 +23,7 @@
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
+use std::net::IpAddr;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
@@ -426,26 +427,37 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             let mut entries = vault
                 .db
                 .iter_all_entries()
-                .filter(|entry| {
-                    !crate::commands::entries::entry_is_trashed(&vault.db, entry)
-                        && entry
+                .filter_map(|entry| {
+                    if crate::commands::entries::entry_is_trashed(&vault.db, &entry)
+                        || !entry
                             .get_password()
                             .is_some_and(|password| !password.is_empty())
-                        && entry
-                            .get_url()
-                            .and_then(entry_host)
-                            .is_some_and(|entry_host| entry_host == host)
-                })
-                .map(|entry| {
-                    json!({
-                        "id": entry.id().uuid().to_string(),
-                        "title": entry.get_title().unwrap_or(""),
-                        "username": entry.get_username().unwrap_or(""),
-                    })
+                    {
+                        return None;
+                    }
+                    let match_quality = entry
+                        .get_url()
+                        .and_then(entry_host)
+                        .and_then(|entry_host| host_match(&entry_host, &host))?;
+                    Some((
+                        match_quality,
+                        json!({
+                            "id": entry.id().uuid().to_string(),
+                            "title": entry.get_title().unwrap_or(""),
+                            "username": entry.get_username().unwrap_or(""),
+                        }),
+                    ))
                 })
                 .collect::<Vec<_>>();
-            entries.sort_by(|a, b| a["title"].as_str().cmp(&b["title"].as_str()));
-            json!({ "ok": true, "entries": entries })
+            entries.sort_by(|(quality_a, entry_a), (quality_b, entry_b)| {
+                quality_b
+                    .cmp(quality_a)
+                    .then_with(|| entry_a["title"].as_str().cmp(&entry_b["title"].as_str()))
+            });
+            json!({
+                "ok": true,
+                "entries": entries.into_iter().map(|(_, entry)| entry).collect::<Vec<_>>(),
+            })
         }
         BrowserRequest::GetCredentials { id, origin, .. } => {
             let Ok(host) = origin_host(&origin) else {
@@ -463,7 +475,8 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             let matches_origin = entry
                 .get_url()
                 .and_then(entry_host)
-                .is_some_and(|entry_host| entry_host == host);
+                .and_then(|entry_host| host_match(&entry_host, &host))
+                .is_some();
             if !matches_origin {
                 return json!({ "ok": false, "error": "Entry does not match this site" });
             }
@@ -477,6 +490,34 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                 "password": password,
             })
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum HostMatch {
+    RegistrableDomain,
+    Exact,
+}
+
+fn registrable_domain(host: &str) -> Option<&str> {
+    if host.parse::<IpAddr>().is_ok() {
+        return None;
+    }
+    psl::domain_str(host)
+}
+
+fn host_match(entry_host: &str, page_host: &str) -> Option<HostMatch> {
+    if entry_host == page_host {
+        return Some(HostMatch::Exact);
+    }
+    match (
+        registrable_domain(entry_host),
+        registrable_domain(page_host),
+    ) {
+        (Some(entry_domain), Some(page_domain)) if entry_domain == page_domain => {
+            Some(HostMatch::RegistrableDomain)
+        }
+        _ => None,
     }
 }
 
@@ -510,9 +551,9 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        entry_host, generate_token, origin_host, read_request, remove_stale_socket,
+        entry_host, generate_token, host_match, origin_host, read_request, remove_stale_socket,
         runtime_dir_from, token_matches, valid_entry_id, write_native_host_manifests,
-        BrowserRequest, NATIVE_HOST_NAME,
+        BrowserRequest, HostMatch, NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::net::{UnixListener, UnixStream};
@@ -527,6 +568,40 @@ mod tests {
         assert_eq!(
             entry_host("example.com/login").as_deref(),
             Some("example.com")
+        );
+    }
+
+    #[test]
+    fn matches_registrable_domains_and_prefers_exact_hosts() {
+        let exact = host_match("login.example.co.uk", "login.example.co.uk").unwrap();
+        let related = host_match("example.co.uk", "login.example.co.uk").unwrap();
+
+        assert_eq!(exact, HostMatch::Exact);
+        assert_eq!(related, HostMatch::RegistrableDomain);
+        assert!(exact > related);
+        assert_eq!(
+            host_match("login.example.co.uk", "account.example.co.uk"),
+            Some(HostMatch::RegistrableDomain)
+        );
+        assert_eq!(host_match("example.co.uk", "attacker.co.uk"), None);
+    }
+
+    #[test]
+    fn matches_ip_addresses_only_when_exact() {
+        assert_eq!(host_match("192.0.2.1", "192.0.2.1"), Some(HostMatch::Exact));
+        assert_eq!(host_match("192.0.2.1", "192.0.2.2"), None);
+        assert_eq!(host_match("2001:db8::1", "2001:db8::2"), None);
+    }
+
+    #[test]
+    fn matches_unicode_hosts_after_url_punycode_normalization() {
+        let unicode_host = entry_host("https://bücher.de/login").unwrap();
+        let subdomain_host = entry_host("https://shop.xn--bcher-kva.de").unwrap();
+
+        assert_eq!(unicode_host, "xn--bcher-kva.de");
+        assert_eq!(
+            host_match(&unicode_host, &subdomain_host),
+            Some(HostMatch::RegistrableDomain)
         );
     }
 
