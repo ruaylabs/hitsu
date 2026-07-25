@@ -36,9 +36,17 @@ if (origin) {
     }
 
     content.replaceChildren();
-    for (const entry of response.entries) {
+
+    const search = document.createElement("input");
+    search.type = "text";
+    search.className = "search";
+    search.placeholder = "Filter logins…";
+
+    const buttons = response.entries.map((entry) => {
       const button = document.createElement("button");
       button.className = "login";
+      button.dataset.title = (entry.title || "").toLowerCase();
+      button.dataset.username = (entry.username || "").toLowerCase();
       const title = document.createElement("strong");
       title.textContent = entry.title || "Untitled login";
       const username = document.createElement("span");
@@ -54,7 +62,56 @@ if (origin) {
           }
         });
       });
-      content.append(button);
+      return button;
+    });
+
+    function visibleButtons() {
+      return buttons.filter((b) => !b.classList.contains("hidden"));
     }
+
+    function moveFocus(direction) {
+      const visible = visibleButtons();
+      if (visible.length === 0) return;
+      const current = document.activeElement;
+      const idx = visible.indexOf(current);
+      const next = idx === -1 ? 0 : Math.min(Math.max(idx + direction, 0), visible.length - 1);
+      visible[next].focus();
+    }
+
+    search.addEventListener("input", () => {
+      const query = search.value.toLowerCase();
+      for (const button of buttons) {
+        const match =
+          !query || button.dataset.title.includes(query) || button.dataset.username.includes(query);
+        button.classList.toggle("hidden", !match);
+      }
+    });
+
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveFocus(1);
+      } else if (event.key === "Escape") {
+        search.value = "";
+        search.dispatchEvent(new Event("input"));
+      }
+    });
+
+    for (const button of buttons) {
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          moveFocus(1);
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          moveFocus(-1);
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          button.click();
+        }
+      });
+    }
+
+    content.append(search, ...buttons);
   });
 }
