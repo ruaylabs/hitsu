@@ -57,9 +57,19 @@
   }
 
   function findVisiblePasswordInput() {
-    return queryAll(document, 'input[type="password"]:not([disabled]):not([readonly])').find(
+    const all = queryAll(document, 'input[type="password"]:not([disabled]):not([readonly])').filter(
       isVisible,
     );
+
+    if (all.length <= 1) return all[0] ?? null;
+
+    // Multiple password fields: prefer the one with autocomplete="current-password".
+    // If none is marked current-password this is likely a signup or change-password
+    // form — refuse to fill rather than dump credentials into a registration form.
+    const current = all.find((input) =>
+      input.autocomplete.toLowerCase().split(/\s+/).includes("current-password"),
+    );
+    return current ?? null;
   }
 
   function findUsernameOnlyInput() {
@@ -112,6 +122,16 @@
       passwordInput.focus();
       return { ok: true };
     }
+
+    // No fillable password field. If there are password fields at all but
+    // none are suitable (e.g. a signup form with only new-password fields),
+    // refuse to fill anything rather than dump credentials into a
+    // registration form.
+    const anyPassword = queryAll(
+      document,
+      'input[type="password"]:not([disabled]):not([readonly])',
+    ).filter(isVisible);
+    if (anyPassword.length > 0) return null;
 
     const usernameInput = findUsernameOnlyInput();
     if (!usernameInput || !message.username) return null;

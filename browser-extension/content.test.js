@@ -244,6 +244,81 @@ describe("login filling", () => {
     expect(passwords[1].value).toBe("secret");
   });
 
+  it("refuses to fill a signup form with new-password and confirm-password fields", () => {
+    document.body.innerHTML = `
+      <form id="signup">
+        <input name="email" type="email">
+        <input name="new-password" type="password" autocomplete="new-password">
+        <input name="confirm-password" type="password" autocomplete="new-password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const f of fields) mockVisibility(f);
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(true);
+
+    // No field should be filled — the observer eventually gives up
+    expect(fields[0].value).toBe("");
+    expect(fields[1].value).toBe("");
+    expect(fields[2].value).toBe("");
+  });
+
+  it("picks current-password among multiple password fields in a change-password form", () => {
+    document.body.innerHTML = `
+      <form id="change-password">
+        <input name="username" type="text" autocomplete="username">
+        <input name="current" type="password" autocomplete="current-password">
+        <input name="new1" type="password" autocomplete="new-password">
+        <input name="new2" type="password" autocomplete="new-password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const f of fields) mockVisibility(f);
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "fill-login", username: "ada", password: "secret" },
+      { id: "extension-id" },
+      sendResponse,
+    );
+
+    // Only the current-password field gets filled
+    expect(fields[0].value).toBe("ada");
+    expect(fields[1].value).toBe("secret");
+    expect(fields[2].value).toBe("");
+    expect(fields[3].value).toBe("");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
+  it("fills a lone password field with no autocomplete hint", () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="username" type="text">
+        <input name="password" type="password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const f of fields) mockVisibility(f);
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "fill-login", username: "ada", password: "secret" },
+      { id: "extension-id" },
+      sendResponse,
+    );
+
+    expect(fields[0].value).toBe("ada");
+    expect(fields[1].value).toBe("secret");
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
   it("rejects messages not sent by the extension itself", () => {
     document.body.innerHTML = '<input type="password">';
     const password = document.querySelector("input");
