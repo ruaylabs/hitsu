@@ -31,7 +31,7 @@ if (origin) {
       return;
     }
     if (response.entries.length === 0) {
-      showMessage("No matching logins for this site.");
+      showMessage("No matching logins for this site. Open Hitsu to add or unlock entries.");
       return;
     }
 
