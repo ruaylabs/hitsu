@@ -40,6 +40,16 @@ jobs:
       - name: Test browser extensions
         run: pnpm test:extension
 
+      - name: Build browser extension packages
+        run: |
+          node scripts/build-browser-extension.mjs chrome
+          node scripts/build-browser-extension.mjs firefox
+          (cd package/hitsu-chrome-extension && zip -q ../hitsu-chrome-extension.zip *)
+          (cd package/hitsu-firefox-extension && zip -q ../hitsu-firefox-extension.zip *)
+
+      - name: Lint Firefox extension package
+        run: pnpm exec web-ext lint --warnings-as-errors --source-dir package/hitsu-firefox-extension
+
   rust:
     runs-on: ubuntu-24.04
     steps:

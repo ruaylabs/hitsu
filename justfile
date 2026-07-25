@@ -55,6 +55,10 @@ firefox-extension-zip:
     cd package/hitsu-firefox-extension && zip -q ../hitsu-firefox-extension.zip *
     unzip -l package/hitsu-firefox-extension.zip
 
+# Build both store archives and run the same Firefox validation used by CI
+browser-extension-validate: chrome-extension-zip firefox-extension-zip
+    pnpm exec web-ext lint --warnings-as-errors --source-dir package/hitsu-firefox-extension
+
 # Prepare a clean Firefox extension build for local testing
 firefox-extension-dev:
     rm -rf package/hitsu-firefox-extension package/hitsu-firefox-extension.zip
