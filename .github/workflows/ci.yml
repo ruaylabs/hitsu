@@ -37,6 +37,22 @@ jobs:
       - name: Test frontend
         run: pnpm test:frontend
 
+  browser-extensions:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
       - name: Test browser extensions
         run: pnpm test:extension
 
@@ -144,7 +160,7 @@ jobs:
         run: cargo check --all-targets
 
   e2e:
-    needs: [svelte, rust, rust-macos]
+    needs: [svelte, browser-extensions, rust, rust-macos]
     runs-on: ubuntu-24.04
     env:
       TAURI_DRIVER_VERSION: 2.0.6
