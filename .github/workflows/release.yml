@@ -111,7 +111,7 @@ jobs:
       - name: Generate release body
         id: changelog
         run: |
-          PREVIOUS_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep '^v' | sed -n '2p')
           if [ -z "$PREVIOUS_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
           else
