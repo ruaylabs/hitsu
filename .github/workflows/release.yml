@@ -1,0 +1,157 @@
+---
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm tauri build
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/dmg/*.dmg artifacts/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: artifacts/*
+
+  build-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm tauri build
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/deb/*.deb artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/rpm/*.rpm artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/appimage/*.AppImage artifacts/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: artifacts/*
+
+  publish:
+    runs-on: ubuntu-24.04
+    needs: [build-macos, build-linux]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos
+          path: macos/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux
+          path: linux/
+
+      - name: Generate release body
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          if [ -z "$PREVIOUS_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)
+          fi
+          {
+            echo "body<<EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...${{ github.ref_name }}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Collect asset paths
+          ASSETS=()
+          for f in macos/*.dmg linux/*.deb linux/*.rpm linux/*.AppImage; do
+            [ -f "$f" ] && ASSETS+=("$f")
+          done
+
+          if [ ${#ASSETS[@]} -eq 0 ]; then
+            echo "No build artifacts found. Aborting publish."
+            exit 1
+          fi
+
+          # Detect if this is a pre-release from the tag name
+          PRERELEASE_FLAG=""
+          case "${{ github.ref_name }}" in
+            *-rc*|*-beta*|*-alpha*|*-pre*) PRERELEASE_FLAG="--prerelease" ;;
+          esac
+
+          gh release create "${{ github.ref_name }}" \
+            --target="${{ github.sha }}" \
+            --notes "${{ steps.changelog.outputs.body }}" \
+            $PRERELEASE_FLAG \
+            "${ASSETS[@]}"
