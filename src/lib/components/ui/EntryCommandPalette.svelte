@@ -21,10 +21,22 @@
 
   const entrySearch = createEntrySearch(() => search, { debounceMs: 100 });
 
-  let filtered = $derived.by(() => {
+  // Only ~10 rows are ever visible; render a bounded slice and let the query
+  // narrow it, as the backend does with SEARCH_RESULT_LIMIT.
+  const MAX_RESULTS = 50;
+
+  let matches = $derived.by(() => {
     if (!search.trim()) return entries;
     return entries.filter((entry) => entrySearch.matches(entry));
   });
+
+  let filtered = $derived(matches.slice(0, MAX_RESULTS));
+
+  let truncatedLabel = $derived(
+    matches.length > filtered.length
+      ? `Showing ${filtered.length} of ${matches.length} — keep typing to narrow`
+      : "",
+  );
 
   $effect(() => {
     filtered;
@@ -116,6 +128,10 @@
         </div>
       {/each}
     </div>
+
+    {#if truncatedLabel}
+      <div class="entry-palette-footer">{truncatedLabel}</div>
+    {/if}
   </div>
 </Dialog>
 
@@ -229,5 +245,13 @@
     padding: 28px 20px;
     color: var(--text-muted);
     font-size: 13px;
+  }
+
+  .entry-palette-footer {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    color: var(--text-muted);
+    border-top: 0.5px solid var(--border);
+    font-size: 11.5px;
   }
 </style>
