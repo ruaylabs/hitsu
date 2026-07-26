@@ -11,7 +11,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
-  import { CARD_BRANDS, cardBrandName, formatCardNumber } from "$lib/utils/format";
+  import { cardBrandName, formatCardNumber } from "$lib/utils/format";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import { tagColor } from "$lib/utils/tagColor";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
@@ -19,11 +19,9 @@
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
-  import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
-  import TagInput from "../ui/TagInput.svelte";
   import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import AttachmentList from "./AttachmentList.svelte";
-  import DetailFieldRow from "./DetailFieldRow.svelte";
+  import EntryEditForm from "./EntryEditForm.svelte";
   import DetailFooter from "./DetailFooter.svelte";
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
@@ -33,7 +31,6 @@
   import MoveToFolderDialog from "./MoveToFolderDialog.svelte";
   import NotesField from "./NotesField.svelte";
   import PasswordField from "./PasswordField.svelte";
-  import SecretEditInput from "./SecretEditInput.svelte";
   import TOTPField from "./TOTPField.svelte";
 
   let _entry = $state<Entry | undefined>(undefined);
@@ -805,504 +802,61 @@
     {/if}
 
     {#if editing}
-      <!-- Edit mode: type-specific fields -->
-      <FieldGroup>
-        {#if entry.type === "login"}
-          <DetailFieldRow label="Username">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Username"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editUsername}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Password">
-            <div class="password-edit-col">
-              <div class="password-edit-row">
-                <SecretEditInput
-                  bind:value={editPassword}
-                  label="password"
-                  placeholder="Password"
-                />
-                <button
-                  class="generate-btn"
-                  onclick={() => (showGenerator = true)}
-                  aria-label="Generate password"
-                  title="Generate password"
-                >
-                  <Icon name="bolt" size={14} />
-                </button>
-              </div>
-              <PasswordStrengthMeter password={editPassword} showWhenEmpty />
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="URL">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="URL"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editUrl}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="TOTP">
-            <div class="totp-edit-wrap">
-              <SecretEditInput
-                bind:value={editTotp}
-                label="TOTP URI"
-                placeholder="otpauth:// URI"
-              />
-              <button
-                class="totp-setup-btn-small"
-                onclick={() => (showTotpSetup = true)}
-                aria-label="Setup TOTP from seed"
-                title="Setup TOTP from seed"
-              >
-                <Icon name="key" size={13} />
-              </button>
-            </div>
-          </DetailFieldRow>
-        {:else if entry.type === "password"}
-          <DetailFieldRow label="Password">
-            <div class="password-edit-col">
-              <div class="password-edit-row">
-                <SecretEditInput
-                  bind:value={editPassword}
-                  label="password"
-                  placeholder="Password"
-                />
-                <button
-                  class="generate-btn"
-                  onclick={() => (showGenerator = true)}
-                  aria-label="Generate password"
-                  title="Generate password"
-                >
-                  <Icon name="bolt" size={14} />
-                </button>
-              </div>
-              <PasswordStrengthMeter password={editPassword} showWhenEmpty />
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="URL">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="URL"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editUrl}
-            />
-          </DetailFieldRow>
-        {:else if entry.type === "identity"}
-          <DetailFieldRow label="First name">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="First name"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editFirstName}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Last name">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Last name"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editLastName}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Email">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Email"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editEmail}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Phone">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Phone"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editPhone}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Address">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Address"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editAddress}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Date of birth">
-            <input
-              class="control control--compact edit-input"
-              type="date"
-              aria-label="Date of birth"
-              autocomplete="bday"
-              bind:value={editDob}
-            />
-          </DetailFieldRow>
-        {:else if entry.type === "card"}
-          <DetailFieldRow label="Holder">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Card holder"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              bind:value={editCardHolder}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Number" alignStart>
-            <div class="card-input-wrap">
-              <SecretEditInput
-                bind:value={editCardNumber}
-                label="card number"
-                placeholder="Card number"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                invalid={Boolean(cardNumberError)}
-                sanitize={(value) => value.replace(/\D/g, "")}
-              />
-              {#if cardNumberError}
-                <span class="control-error">{cardNumberError}</span>
-              {/if}
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="Type">
-            <select class="control control--compact control--select" bind:value={editCardType}>
-              <option value="">Select brand</option>
-              {#each Object.entries(CARD_BRANDS) as [ key, name ]}
-                <option value={key}>{name}</option>
-              {/each}
-            </select>
-          </DetailFieldRow>
-          <DetailFieldRow label="Exp month" alignStart>
-            <div class="card-input-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                aria-invalid={Boolean(cardExpMonthError)}
-                placeholder="MM"
-                maxlength="2"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editCardExpMonth}
-                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); editCardExpMonth = el.value; }}
-              />
-              {#if cardExpMonthError}
-                <span class="control-error">{cardExpMonthError}</span>
-              {/if}
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="Exp year" alignStart>
-            <div class="card-input-wrap">
-              <input
-                class="control control--compact edit-input"
-                type="text"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                aria-invalid={Boolean(cardExpYearError)}
-                placeholder="YYYY"
-                maxlength="4"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                bind:value={editCardExpYear}
-                oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardExpYear = el.value; }}
-              />
-              {#if cardExpYearError}
-                <span class="control-error">{cardExpYearError}</span>
-              {/if}
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="CVV" alignStart>
-            <div class="card-input-wrap">
-              <SecretEditInput
-                bind:value={editCardCvv}
-                label="CVV"
-                placeholder="CVV"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength={4}
-                invalid={Boolean(cardCvvError)}
-                sanitize={(value) => value.replace(/\D/g, "").slice(0, 4)}
-              />
-              {#if cardCvvError}
-                <span class="control-error">{cardCvvError}</span>
-              {/if}
-            </div>
-          </DetailFieldRow>
-          <DetailFieldRow label="PIN" alignStart>
-            <div class="card-input-wrap">
-              <SecretEditInput
-                bind:value={editCardPin}
-                label="PIN"
-                placeholder="PIN"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength={12}
-                invalid={Boolean(cardPinError)}
-                sanitize={(value) => value.replace(/\D/g, "").slice(0, 12)}
-              />
-              {#if cardPinError}
-                <span class="control-error">{cardPinError}</span>
-              {/if}
-            </div>
-          </DetailFieldRow>
-        {:else if entry.type === "software_license"}
-          <DetailFieldRow label="Version">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Version"
-              autocomplete="off"
-              bind:value={editLicenseVersion}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="License key">
-            <SecretEditInput
-              bind:value={editLicenseKey}
-              label="license key"
-              placeholder="License key"
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Licensed to">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Licensed to"
-              autocomplete="off"
-              bind:value={editLicenseLicensedTo}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Registered email">
-            <input
-              class="control control--compact edit-input"
-              type="email"
-              placeholder="Registered email"
-              autocomplete="off"
-              bind:value={editLicenseRegisteredEmail}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Company">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Company"
-              autocomplete="off"
-              bind:value={editLicenseCompany}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Download page">
-            <input
-              class="control control--compact edit-input"
-              type="url"
-              placeholder="Download page"
-              autocomplete="off"
-              bind:value={editLicenseDownloadPage}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Publisher">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Publisher"
-              autocomplete="off"
-              bind:value={editLicensePublisher}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Website">
-            <input
-              class="control control--compact edit-input"
-              type="url"
-              placeholder="Website"
-              autocomplete="off"
-              bind:value={editLicenseWebsite}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Retail price">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Retail price"
-              autocomplete="off"
-              bind:value={editLicenseRetailPrice}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Support email">
-            <input
-              class="control control--compact edit-input"
-              type="email"
-              placeholder="Support email"
-              autocomplete="off"
-              bind:value={editLicenseSupportEmail}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Purchase date">
-            <input
-              class="control control--compact edit-input"
-              type="date"
-              aria-label="Purchase date"
-              autocomplete="off"
-              bind:value={editLicensePurchaseDate}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Order number">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Order number"
-              autocomplete="off"
-              bind:value={editLicenseOrderNumber}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Order total">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Order total"
-              autocomplete="off"
-              bind:value={editLicenseOrderTotal}
-            />
-          </DetailFieldRow>
-        {:else if entry.type === "passport"}
-          <DetailFieldRow label="Type">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Passport type"
-              autocomplete="off"
-              bind:value={editPassportType}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Issuing country">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Issuing country"
-              autocomplete="off"
-              bind:value={editPassportIssuingCountry}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Number">
-            <SecretEditInput
-              bind:value={editPassportNumber}
-              label="passport number"
-              placeholder="Passport number"
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Full name">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Full name"
-              autocomplete="off"
-              bind:value={editPassportFullName}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Sex">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Sex"
-              autocomplete="off"
-              bind:value={editPassportSex}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Nationality">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Nationality"
-              autocomplete="off"
-              bind:value={editPassportNationality}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Issuing authority">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Issuing authority"
-              autocomplete="off"
-              bind:value={editPassportIssuingAuthority}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Date of birth">
-            <input
-              class="control control--compact edit-input"
-              type="date"
-              aria-label="Passport date of birth"
-              autocomplete="bday"
-              bind:value={editPassportBirthDate}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Place of birth">
-            <input
-              class="control control--compact edit-input"
-              type="text"
-              placeholder="Place of birth"
-              autocomplete="off"
-              bind:value={editPassportBirthPlace}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Issued on">
-            <input
-              class="control control--compact edit-input"
-              type="date"
-              aria-label="Passport issue date"
-              autocomplete="off"
-              bind:value={editPassportIssueDate}
-            />
-          </DetailFieldRow>
-          <DetailFieldRow label="Expiry date">
-            <input
-              class="control control--compact edit-input"
-              type="date"
-              aria-label="Passport expiry date"
-              autocomplete="off"
-              bind:value={editPassportExpiryDate}
-            />
-          </DetailFieldRow>
-        {/if}
-      </FieldGroup>
+      <EntryEditForm
+        entryType={entry.type}
+        bind:editUsername
+        bind:editPassword
+        bind:editUrl
+        bind:editTotp
+        bind:editFirstName
+        bind:editLastName
+        bind:editEmail
+        bind:editPhone
+        bind:editAddress
+        bind:editDob
+        bind:editCardHolder
+        bind:editCardNumber
+        bind:editCardType
+        bind:editCardExpMonth
+        bind:editCardExpYear
+        bind:editCardCvv
+        bind:editCardPin
+        {cardNumberError}
+        {cardExpMonthError}
+        {cardExpYearError}
+        {cardCvvError}
+        {cardPinError}
+        bind:editLicenseVersion
+        bind:editLicenseKey
+        bind:editLicenseLicensedTo
+        bind:editLicenseRegisteredEmail
+        bind:editLicenseCompany
+        bind:editLicenseDownloadPage
+        bind:editLicensePublisher
+        bind:editLicenseWebsite
+        bind:editLicenseRetailPrice
+        bind:editLicenseSupportEmail
+        bind:editLicensePurchaseDate
+        bind:editLicenseOrderNumber
+        bind:editLicenseOrderTotal
+        bind:editPassportType
+        bind:editPassportIssuingCountry
+        bind:editPassportNumber
+        bind:editPassportFullName
+        bind:editPassportSex
+        bind:editPassportNationality
+        bind:editPassportIssuingAuthority
+        bind:editPassportBirthDate
+        bind:editPassportBirthPlace
+        bind:editPassportIssueDate
+        bind:editPassportExpiryDate
+        bind:editExpiresAt
+        bind:editCustomFields
+        bind:editTags
+        bind:editNotes
+        onShowGenerator={() => (showGenerator = true)}
+        onShowTotpSetup={() => (showTotpSetup = true)}
+      />
     {:else if entry.type === "password"}
       {#if entry.hasPassword}
         <FieldGroup>
@@ -1556,97 +1110,7 @@
       </div>
     {/if}
 
-    {#if editing}
-      <div class="edit-expiration">
-        <span class="notes-label">Expiration date</span>
-        <input
-          class="control control--compact expiration-input"
-          type="date"
-          aria-label="Entry expiration date"
-          autocomplete="off"
-          bind:value={editExpiresAt}
-        />
-      </div>
-      <div class="custom-fields-editor">
-        <div class="custom-fields-heading">
-          <span class="notes-label">Custom fields</span>
-          <button
-            type="button"
-            class="add-custom-field"
-            onclick={() => {
-              editCustomFields = [
-                ...editCustomFields,
-                { name: "", value: "", protected: false },
-              ];
-            }}
-          >
-            <Icon name="plus" size={13} />
-            Add field
-          </button>
-        </div>
-        {#each editCustomFields as field, index}
-          <div class="custom-field-edit-row">
-            <input
-              class="control control--compact custom-field-name"
-              placeholder="Field name"
-              aria-label="Custom field name"
-              autocomplete="off"
-              bind:value={field.name}
-            />
-            {#if field.protected}
-              <SecretEditInput
-                bind:value={field.value}
-                label="custom field value"
-                placeholder="Value"
-                class="custom-field-value"
-              />
-            {:else}
-              <input
-                class="control control--compact custom-field-value"
-                type="text"
-                placeholder="Value"
-                aria-label="Custom field value"
-                autocomplete="off"
-                bind:value={field.value}
-              />
-            {/if}
-            <label class="protect-custom-field" title="Protect this value in the vault">
-              <input
-                type="checkbox"
-                bind:checked={field.protected}
-                aria-label="Protect custom field"
-              />
-              <Icon name="lock" size={13} />
-            </label>
-            <button
-              type="button"
-              class="remove-custom-field"
-              aria-label="Remove custom field"
-              title="Remove custom field"
-              onclick={() => {
-                editCustomFields = editCustomFields.filter((_, itemIndex) => itemIndex !== index);
-              }}
-            >
-              <Icon name="x" size={14} />
-            </button>
-          </div>
-        {/each}
-      </div>
-      <div class="edit-tags">
-        <span class="notes-label">Tags</span>
-        <TagInput initialTags={editTags} onupdate={(t) => (editTags = t)} />
-      </div>
-      <div class="edit-notes">
-        <span class="notes-label">Notes</span>
-        <textarea
-          class="control edit-textarea"
-          placeholder="Notes"
-          autocomplete="off"
-          spellcheck="false"
-          bind:value={editNotes}
-        ></textarea>
-      </div>
-    {:else}
+    {#if !editing}
       {#if entry.tags.length > 0}
         <div class="tags-display">
           {#each entry.tags as tag}
@@ -1813,49 +1277,6 @@
     outline: none;
   }
 
-  .card-input-wrap {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .card-input-wrap .edit-input {
-    width: 100%;
-  }
-
-  .password-edit-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .password-edit-row {
-    display: flex;
-    flex: 1;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .generate-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    color: var(--accent);
-    flex-shrink: 0;
-    transition: background 0.1s;
-  }
-
-  .generate-btn:hover {
-    background: var(--bg-accent);
-  }
-
   .expiration-indicator {
     display: flex;
     align-items: center;
@@ -1872,104 +1293,6 @@
   .expiration-indicator.due {
     color: var(--danger);
     background: var(--danger-bg);
-  }
-
-  .edit-expiration {
-    margin-bottom: 16px;
-  }
-
-  .expiration-input {
-    width: 170px;
-  }
-
-  .custom-fields-editor {
-    margin-bottom: 16px;
-  }
-
-  .custom-fields-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-
-  .custom-fields-heading .notes-label {
-    margin-bottom: 0;
-  }
-
-  .add-custom-field {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--accent);
-    font-size: 12px;
-  }
-
-  .custom-field-edit-row {
-    display: grid;
-    grid-template-columns: minmax(100px, 0.7fr) minmax(140px, 1.3fr) 28px 28px;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-
-  .custom-field-name,
-  .custom-field-value {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .protect-custom-field,
-  .remove-custom-field {
-    display: flex;
-    width: 28px;
-    height: 28px;
-    align-items: center;
-    justify-content: center;
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-
-  .protect-custom-field:has(input:checked) {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--bg-accent);
-  }
-
-  .protect-custom-field input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .remove-custom-field:hover {
-    color: var(--danger);
-    background: color-mix(in srgb, var(--danger) 9%, transparent);
-  }
-
-  .edit-notes {
-    margin-bottom: 16px;
-  }
-
-  .notes-label {
-    display: block;
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-
-  .edit-textarea {
-    min-height: 80px;
-    border-radius: var(--radius);
-    font-size: 13px;
-    line-height: 1.55;
-    resize: vertical;
-  }
-
-  .edit-tags {
-    margin-bottom: 12px;
   }
 
   .tags-display {
@@ -2020,31 +1343,5 @@
 
   .save-error-action:hover {
     color: var(--text-primary);
-  }
-
-  .totp-edit-wrap {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .totp-setup-btn-small {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    flex-shrink: 0;
-    transition: background 0.1s;
-  }
-
-  .totp-setup-btn-small:hover {
-    background: var(--border);
-    color: var(--accent);
   }
 </style>

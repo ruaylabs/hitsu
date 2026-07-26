@@ -1,0 +1,78 @@
+<script lang="ts">
+  import Icon from "../ui/Icon.svelte";
+  import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
+  import DetailFieldRow from "./DetailFieldRow.svelte";
+  import SecretEditInput from "./SecretEditInput.svelte";
+
+  let {
+    editPassword = $bindable(""),
+    editUrl = $bindable(""),
+    onShowGenerator,
+  }: {
+    editPassword?: string;
+    editUrl?: string;
+    onShowGenerator: () => void;
+  } = $props();
+</script>
+
+<DetailFieldRow label="Password">
+  <div class="password-edit-col">
+    <div class="password-edit-row">
+      <SecretEditInput bind:value={editPassword} label="password" placeholder="Password" />
+      <button
+        class="generate-btn"
+        onclick={onShowGenerator}
+        aria-label="Generate password"
+        title="Generate password"
+      >
+        <Icon name="bolt" size={14} />
+      </button>
+    </div>
+    <PasswordStrengthMeter password={editPassword} showWhenEmpty />
+  </div>
+</DetailFieldRow>
+<DetailFieldRow label="URL">
+  <input
+    class="control control--compact edit-input"
+    type="text"
+    placeholder="URL"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
+    spellcheck="false"
+    bind:value={editUrl}
+  />
+</DetailFieldRow>
+
+<style>
+  .password-edit-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+  .password-edit-row {
+    display: flex;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .password-edit-row :global(input) {
+    flex: 1;
+  }
+  .generate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .generate-btn:hover {
+    background: var(--hover-bg);
+  }
+</style>
