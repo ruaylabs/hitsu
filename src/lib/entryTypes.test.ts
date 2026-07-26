@@ -9,6 +9,7 @@ const EXPECTED_TYPES = [
   "card",
   "software_license",
   "passport",
+  "pgp_key",
 ];
 
 describe("entry type metadata", () => {

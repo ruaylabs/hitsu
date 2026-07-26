@@ -40,6 +40,7 @@ export interface EntryEditPayload {
   cardPin: string;
   licenseKey: string;
   passportNumber: string;
+  pgpPrivateKey: string;
   customFields: CustomField[];
 }
 
@@ -134,6 +135,13 @@ export interface EntryPatch {
   passportBirthPlace?: string | null;
   passportIssueDate?: string | null;
   passportExpiryDate?: string | null;
+  pgpPublicKey?: string | null;
+  pgpPrivateKey?: string | null;
+  pgpFingerprint?: string | null;
+  pgpKeyId?: string | null;
+  pgpUserIds?: string | null;
+  pgpAlgorithm?: string | null;
+  pgpExpiresAt?: string | null;
   expiresAt?: string | null;
   customFields?: CustomField[];
 }

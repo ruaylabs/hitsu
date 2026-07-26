@@ -7,7 +7,7 @@ use crate::kdbx_fields::{set_custom_data, set_field};
 use crate::models::{
     AttachmentMeta, CardFields, CustomField, Entry, EntryDraft, EntryEditPayload, EntryPatch,
     EntrySummary, FolderSummary, HistoryEntrySummary, IdentityFields, ItemType, PassportFields,
-    SecretField, SoftwareLicenseFields,
+    PgpKeyFields, SecretField, SoftwareLicenseFields,
 };
 use crate::state::{AppState, OpenVault};
 
@@ -25,6 +25,7 @@ fn is_protected_key(key: &str) -> bool {
             | "card.number"
             | "license.key"
             | "passport.number"
+            | "pgp.privateKey"
     )
 }
 
@@ -57,6 +58,11 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
         ItemType::Passport => entry_ref
             .get("passport.fullName")
             .or_else(|| entry_ref.get("passport.issuingCountry"))
+            .unwrap_or(&username)
+            .to_string(),
+        ItemType::PgpKey => entry_ref
+            .get("pgp.fingerprint")
+            .or_else(|| entry_ref.get("pgp.keyId"))
             .unwrap_or(&username)
             .to_string(),
         _ => username.clone(),
@@ -226,6 +232,11 @@ fn map_entry_to_full(
             .or_else(|| entry_ref.get("passport.issuingCountry"))
             .unwrap_or(&username)
             .to_string(),
+        ItemType::PgpKey => entry_ref
+            .get("pgp.fingerprint")
+            .or_else(|| entry_ref.get("pgp.keyId"))
+            .unwrap_or(&username)
+            .to_string(),
         _ => username.clone(),
     };
 
@@ -320,6 +331,22 @@ fn map_entry_to_full(
         None
     };
 
+    let pgp_key = if item_type == ItemType::PgpKey {
+        Some(PgpKeyFields {
+            has_private_key: entry_ref
+                .get("pgp.privateKey")
+                .is_some_and(|v| !v.is_empty()),
+            public_key: entry_ref.get("pgp.publicKey").map(str::to_string),
+            fingerprint: entry_ref.get("pgp.fingerprint").map(str::to_string),
+            key_id: entry_ref.get("pgp.keyId").map(str::to_string),
+            user_ids: entry_ref.get("pgp.userIds").map(str::to_string),
+            algorithm: entry_ref.get("pgp.algorithm").map(str::to_string),
+            expires_at: entry_ref.get("pgp.expiresAt").map(str::to_string),
+        })
+    } else {
+        None
+    };
+
     let (has_custom_icon, custom_icon_data) = (false, None);
 
     Entry {
@@ -341,6 +368,7 @@ fn map_entry_to_full(
         card,
         software_license,
         passport,
+        pgp_key,
         attachments: Vec::new(),
         custom_fields: read_custom_fields(entry_ref),
         expires_at: entry_expiration_date(entry_ref),
@@ -473,6 +501,7 @@ fn build_entry_edit_payload(entry: &keepass::db::Entry) -> EntryEditPayload {
         card_pin: value("card.pin"),
         license_key: value("license.key"),
         passport_number: value("passport.number"),
+        pgp_private_key: value("pgp.privateKey"),
         custom_fields: read_custom_fields_with_secrets(entry, true),
     }
 }
@@ -725,6 +754,7 @@ pub async fn entry_create(
         card: None,
         software_license: None,
         passport: None,
+        pgp_key: None,
         attachments: Vec::new(),
         custom_fields: Vec::new(),
         expires_at: None,
@@ -898,6 +928,14 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     apply_opt(entry, "passport.birthPlace", &patch.passport_birth_place);
     apply_opt(entry, "passport.issueDate", &patch.passport_issue_date);
     apply_opt(entry, "passport.expiryDate", &patch.passport_expiry_date);
+
+    apply_opt(entry, "pgp.publicKey", &patch.pgp_public_key);
+    apply_opt(entry, "pgp.privateKey", &patch.pgp_private_key);
+    apply_opt(entry, "pgp.fingerprint", &patch.pgp_fingerprint);
+    apply_opt(entry, "pgp.keyId", &patch.pgp_key_id);
+    apply_opt(entry, "pgp.userIds", &patch.pgp_user_ids);
+    apply_opt(entry, "pgp.algorithm", &patch.pgp_algorithm);
+    apply_opt(entry, "pgp.expiresAt", &patch.pgp_expires_at);
 
     if let Some(expires_at) = &patch.expires_at {
         if expires_at.is_empty() {
@@ -1189,6 +1227,7 @@ fn read_secret_value(
             SecretField::CardPin => e.get("card.pin").map(str::to_string),
             SecretField::LicenseKey => e.get("license.key").map(str::to_string),
             SecretField::PassportNumber => e.get("passport.number").map(str::to_string),
+            SecretField::PgpPrivateKey => e.get("pgp.privateKey").map(str::to_string),
         }
     };
 

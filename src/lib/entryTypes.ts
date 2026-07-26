@@ -58,6 +58,13 @@ export const ENTRY_TYPES = [
     icon: "e-passport",
     color: "#0f6e56",
   },
+  {
+    type: "pgp_key",
+    label: "PGP Key",
+    pluralLabel: "PGP Keys",
+    icon: "fingerprint",
+    color: "#6e3fa8",
+  },
 ] as const satisfies readonly EntryTypeMetadata[];
 
 export const ENTRY_TYPE_BY_TYPE = Object.fromEntries(

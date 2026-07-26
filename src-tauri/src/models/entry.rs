@@ -88,6 +88,13 @@ impl std::fmt::Debug for EntryPatch {
             .field("passport_birth_place", &self.passport_birth_place)
             .field("passport_issue_date", &self.passport_issue_date)
             .field("passport_expiry_date", &self.passport_expiry_date)
+            .field("pgp_public_key", &redacted_opt(&self.pgp_public_key))
+            .field("pgp_private_key", &redacted_opt(&self.pgp_private_key))
+            .field("pgp_fingerprint", &self.pgp_fingerprint)
+            .field("pgp_key_id", &self.pgp_key_id)
+            .field("pgp_user_ids", &self.pgp_user_ids)
+            .field("pgp_algorithm", &self.pgp_algorithm)
+            .field("pgp_expires_at", &self.pgp_expires_at)
             .field("expires_at", &self.expires_at)
             .field("custom_fields", &self.custom_fields)
             .finish()
@@ -142,6 +149,13 @@ pub struct EntryPatch {
     pub passport_birth_place: Option<String>,
     pub passport_issue_date: Option<String>,
     pub passport_expiry_date: Option<String>,
+    pub pgp_public_key: Option<String>,
+    pub pgp_private_key: Option<String>,
+    pub pgp_fingerprint: Option<String>,
+    pub pgp_key_id: Option<String>,
+    pub pgp_user_ids: Option<String>,
+    pub pgp_algorithm: Option<String>,
+    pub pgp_expires_at: Option<String>,
     pub expires_at: Option<String>,
     pub custom_fields: Option<Vec<CustomField>>,
 }
@@ -159,6 +173,7 @@ pub struct EntryEditPayload {
     pub card_pin: String,
     pub license_key: String,
     pub passport_number: String,
+    pub pgp_private_key: String,
     pub custom_fields: Vec<CustomField>,
 }
 
@@ -200,6 +215,8 @@ pub struct Entry {
     pub software_license: Option<SoftwareLicenseFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passport: Option<PassportFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pgp_key: Option<PgpKeyFields>,
     pub attachments: Vec<AttachmentMeta>,
     pub custom_fields: Vec<CustomField>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -387,6 +404,26 @@ pub struct SoftwareLicenseFields {
     pub order_total: Option<String>,
 }
 
+/// PGP key fields as shown in the detail view. The private key stays
+/// backend-side and is represented only by `has_private_key`.
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(rename_all = "camelCase")]
+pub struct PgpKeyFields {
+    pub has_private_key: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_ids: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub algorithm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+}
+
 /// Card fields as shown in the detail view: the number is pre-masked and
 /// CVV/PIN are reduced to presence flags (see [`Entry`]).
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -421,6 +458,7 @@ pub enum SecretField {
     CardPin,
     LicenseKey,
     PassportNumber,
+    PgpPrivateKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -536,6 +574,13 @@ mod tests {
             passport_birth_place: None,
             passport_issue_date: None,
             passport_expiry_date: None,
+            pgp_public_key: None,
+            pgp_private_key: Some("PGP-PRIVATE-KEY-SECRET".into()),
+            pgp_fingerprint: Some("AAAA BBBB CCCC DDDD EEEE FFFF 9999 8888 7777 6666".into()),
+            pgp_key_id: Some("AAAA99998888".into()),
+            pgp_user_ids: Some("Alice <alice@example.com>".into()),
+            pgp_algorithm: Some("Ed25519".into()),
+            pgp_expires_at: Some("2027-01-01".into()),
             expires_at: Some("2030-01-01".into()),
             custom_fields: Some(vec![CustomField {
                 name: "Recovery answer".into(),
@@ -554,6 +599,9 @@ mod tests {
             "2030",
             "1990-01-02",
             "alice@example.com",
+            "AAAA BBBB CCCC DDDD EEEE FFFF 9999 8888 7777 6666",
+            "AAAA99998888",
+            "Ed25519",
         ] {
             assert!(s.contains(visible), "expected {visible:?} in Debug: {s}");
         }
@@ -567,6 +615,7 @@ mod tests {
             "0000",
             "LICENSE-KEY-SECRET",
             "PASSPORT-NUMBER-SECRET",
+            "PGP-PRIVATE-KEY-SECRET",
             "custom-SECRET",
         ] {
             assert!(

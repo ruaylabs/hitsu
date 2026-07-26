@@ -7,6 +7,7 @@
   import CardEditForm from "./CardEditForm.svelte";
   import SoftwareLicenseEditForm from "./SoftwareLicenseEditForm.svelte";
   import PassportEditForm from "./PassportEditForm.svelte";
+  import PgpKeyEditForm from "./PgpKeyEditForm.svelte";
   import CommonEditFields from "./CommonEditFields.svelte";
 
   let {
@@ -62,6 +63,14 @@
     editPassportBirthPlace = $bindable(""),
     editPassportIssueDate = $bindable(""),
     editPassportExpiryDate = $bindable(""),
+    // pgp key
+    editPgpPublicKey = $bindable(""),
+    editPgpPrivateKey = $bindable(""),
+    editPgpFingerprint = $bindable(""),
+    editPgpKeyId = $bindable(""),
+    editPgpUserIds = $bindable(""),
+    editPgpAlgorithm = $bindable(""),
+    editPgpExpiresAt = $bindable(""),
     // common
     editExpiresAt = $bindable(""),
     editCustomFields = $bindable([] as CustomField[]),
@@ -118,6 +127,13 @@
     editPassportBirthPlace?: string;
     editPassportIssueDate?: string;
     editPassportExpiryDate?: string;
+    editPgpPublicKey?: string;
+    editPgpPrivateKey?: string;
+    editPgpFingerprint?: string;
+    editPgpKeyId?: string;
+    editPgpUserIds?: string;
+    editPgpAlgorithm?: string;
+    editPgpExpiresAt?: string;
     editExpiresAt?: string;
     editCustomFields?: CustomField[];
     editTags?: string[];
@@ -192,6 +208,16 @@
       bind:editPassportBirthPlace
       bind:editPassportIssueDate
       bind:editPassportExpiryDate
+    />
+  {:else if entryType === "pgp_key"}
+    <PgpKeyEditForm
+      bind:editPgpPublicKey
+      bind:editPgpPrivateKey
+      bind:editPgpFingerprint
+      bind:editPgpKeyId
+      bind:editPgpUserIds
+      bind:editPgpAlgorithm
+      bind:editPgpExpiresAt
     />
   {/if}
 </FieldGroup>

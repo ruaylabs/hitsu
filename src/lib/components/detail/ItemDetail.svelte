@@ -173,6 +173,14 @@
   let editPassportBirthPlace = $state("");
   let editPassportIssueDate = $state("");
   let editPassportExpiryDate = $state("");
+  // PGP key fields
+  let editPgpPublicKey = $state("");
+  let editPgpPrivateKey = $state("");
+  let editPgpFingerprint = $state("");
+  let editPgpKeyId = $state("");
+  let editPgpUserIds = $state("");
+  let editPgpAlgorithm = $state("");
+  let editPgpExpiresAt = $state("");
 
   // Validation errors for card fields
   let cardNumberError = $state("");
@@ -230,6 +238,13 @@
       passportBirthPlace: editPassportBirthPlace,
       passportIssueDate: editPassportIssueDate,
       passportExpiryDate: editPassportExpiryDate,
+      pgpPublicKey: editPgpPublicKey,
+      pgpPrivateKey: editPgpPrivateKey,
+      pgpFingerprint: editPgpFingerprint,
+      pgpKeyId: editPgpKeyId,
+      pgpUserIds: editPgpUserIds,
+      pgpAlgorithm: editPgpAlgorithm,
+      pgpExpiresAt: editPgpExpiresAt,
     };
   }
 
@@ -264,6 +279,7 @@
     editCardPin = "";
     editLicenseKey = "";
     editPassportNumber = "";
+    editPgpPrivateKey = "";
     editCustomFields = [];
     initialEditForm = null;
   }
@@ -367,6 +383,12 @@
     editPassportBirthPlace = e.passport?.birthPlace ?? "";
     editPassportIssueDate = e.passport?.issueDate ?? "";
     editPassportExpiryDate = e.passport?.expiryDate ?? "";
+    editPgpPublicKey = e.pgpKey?.publicKey ?? "";
+    editPgpFingerprint = e.pgpKey?.fingerprint ?? "";
+    editPgpKeyId = e.pgpKey?.keyId ?? "";
+    editPgpUserIds = e.pgpKey?.userIds ?? "";
+    editPgpAlgorithm = e.pgpKey?.algorithm ?? "";
+    editPgpExpiresAt = e.pgpKey?.expiresAt ?? "";
     // Fetch all protected edit values with one backend lock and entry lookup.
     // Entries without protected values can use their existing safe DTO directly.
     const needsSecretPayload =
@@ -375,6 +397,7 @@
       Boolean(e.card?.hasNumber || e.card?.hasCvv || e.card?.hasPin) ||
       Boolean(e.softwareLicense?.hasLicenseKey) ||
       Boolean(e.passport?.hasNumber) ||
+      Boolean(e.pgpKey?.hasPrivateKey) ||
       e.customFields.some((field) => field.protected);
     const payload = needsSecretPayload ? await entriesBridge.entryEditPayload(e.id) : null;
     editPassword = payload?.password ?? "";
@@ -384,6 +407,7 @@
     editCardPin = payload?.cardPin ?? "";
     editLicenseKey = payload?.licenseKey ?? "";
     editPassportNumber = payload?.passportNumber ?? "";
+    editPgpPrivateKey = payload?.pgpPrivateKey ?? "";
     editCustomFields = (payload?.customFields ?? e.customFields).map((field) => ({ ...field }));
     initialEditForm = captureEditForm();
     clearCardErrors();
@@ -850,6 +874,13 @@
         bind:editPassportBirthPlace
         bind:editPassportIssueDate
         bind:editPassportExpiryDate
+        bind:editPgpPublicKey
+        bind:editPgpPrivateKey
+        bind:editPgpFingerprint
+        bind:editPgpKeyId
+        bind:editPgpUserIds
+        bind:editPgpAlgorithm
+        bind:editPgpExpiresAt
         bind:editExpiresAt
         bind:editCustomFields
         bind:editTags
@@ -1100,6 +1131,56 @@
           <Field label="Expiry date" value={passport.expiryDate} />
         {/if}
       </FieldGroup>
+    {/if}
+
+    {#if !editing && entry.type === "pgp_key" && entry.pgpKey}
+      {@const pgp = entry.pgpKey}
+      <FieldGroup>
+        {#if pgp.fingerprint}
+          <Field
+            label="Fingerprint"
+            value={pgp.fingerprint}
+            mono={true}
+            onCopy={() => clipboard.copyPlain(pgp.fingerprint!)}
+          />
+        {/if}
+        {#if pgp.keyId}
+          <Field
+            label="Key ID"
+            value={pgp.keyId}
+            mono={true}
+            onCopy={() => clipboard.copyPlain(pgp.keyId!)}
+          />
+        {/if}
+        {#if pgp.userIds}
+          <Field label="User IDs" value={pgp.userIds} />
+        {/if}
+        {#if pgp.algorithm}
+          <Field label="Algorithm" value={pgp.algorithm} />
+        {/if}
+        {#if pgp.expiresAt}
+          <Field label="Expires" value={pgp.expiresAt} />
+        {/if}
+      </FieldGroup>
+      {#if pgp.publicKey}
+        <FieldGroup>
+          <Field
+            label="Public key"
+            value={pgp.publicKey}
+            mono={true}
+            onCopy={() => clipboard.copyPlain(pgp.publicKey!)}
+          />
+        </FieldGroup>
+      {/if}
+      {#if pgp.hasPrivateKey}
+        <FieldGroup>
+          <PasswordField
+            label="Private key"
+            reveal={() => entriesBridge.entryRevealField(entry.id, "pgpPrivateKey")}
+            copy={() => clipboard.copySecretField(entry.id, "pgpPrivateKey")}
+          />
+        </FieldGroup>
+      {/if}
     {/if}
 
     {#if !editing && entry.expiresAt}

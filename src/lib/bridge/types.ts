@@ -5,7 +5,8 @@ export type ItemType =
   | "identity"
   | "card"
   | "software_license"
-  | "passport";
+  | "passport"
+  | "pgp_key";
 
 /**
  * Detail view of an entry. Carries NO secret material: the backend reduces
@@ -32,6 +33,7 @@ export interface Entry {
   card?: CardFields;
   softwareLicense?: SoftwareLicenseFields;
   passport?: PassportFields;
+  pgpKey?: PgpKeyFields;
   attachments: AttachmentMeta[];
   customFields: CustomField[];
   expiresAt?: string;
@@ -77,6 +79,16 @@ export interface PassportFields {
   expiryDate?: string;
 }
 
+export interface PgpKeyFields {
+  hasPrivateKey: boolean;
+  publicKey?: string;
+  fingerprint?: string;
+  keyId?: string;
+  userIds?: string;
+  algorithm?: string;
+  expiresAt?: string;
+}
+
 export interface SoftwareLicenseFields {
   version?: string;
   hasLicenseKey: boolean;
@@ -113,7 +125,8 @@ export type SecretField =
   | "cardCvv"
   | "cardPin"
   | "licenseKey"
-  | "passportNumber";
+  | "passportNumber"
+  | "pgpPrivateKey";
 
 export interface FolderSummary {
   id: string;

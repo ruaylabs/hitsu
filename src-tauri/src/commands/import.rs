@@ -776,6 +776,7 @@ fn apply_1password_field(item: &mut ImportedItem, field: &JsonValue) {
             _ => false,
         },
         ItemType::Note => false,
+        ItemType::PgpKey => false,
     };
     // IDs containing `;opid=__` are 1Password's captured HTML form-control
     // metadata, not user-created custom fields. Keep designated standard
@@ -1341,6 +1342,7 @@ fn item_type_name(item_type: &ItemType) -> &'static str {
         ItemType::Card => "card",
         ItemType::SoftwareLicense => "software_license",
         ItemType::Passport => "passport",
+        ItemType::PgpKey => "pgp_key",
     }
 }
 
