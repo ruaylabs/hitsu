@@ -53,7 +53,9 @@ describe("standalone vault lifecycle", () => {
     await unlock();
 
     await $('[aria-label="Add entry"]').click();
-    await (await button("Password")).click();
+    const passwordType = await $('[role="option"][aria-label="Password"]');
+    await passwordType.waitForDisplayed();
+    await passwordType.click();
 
     const title = await $('input[placeholder="Title"]');
     await title.waitForDisplayed();

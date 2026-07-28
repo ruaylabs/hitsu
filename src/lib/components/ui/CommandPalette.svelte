@@ -16,9 +16,12 @@
   let search = $state("");
   let selectedIndex = $state(0);
 
+  let normalizedSearch = $derived(search.trim().toLowerCase());
   let filtered = $derived(
-    search
-      ? ENTRY_TYPES.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
+    normalizedSearch
+      ? ENTRY_TYPES.filter((item) =>
+          `${item.label} ${item.description}`.toLowerCase().includes(normalizedSearch),
+        )
       : ENTRY_TYPES,
   );
 
@@ -45,9 +48,9 @@
   showHeader={false}
   placement="top"
   topOffset="120px"
-  width="320px"
+  width="400px"
   maxWidth="calc(100vw - 32px)"
-  maxHeight="min(360px, calc(100vh - 152px))"
+  maxHeight="min(480px, calc(100vh - 152px))"
   bodyPadding="none"
   bodyOverflow="hidden"
   bodyFill={true}
@@ -60,7 +63,7 @@
       <input
         class="search-input"
         type="text"
-        placeholder="Type to filter…"
+        placeholder="Search entry types…"
         autofocus
         autocomplete="off"
         autocorrect="off"
@@ -79,9 +82,16 @@
           onmouseenter={() => (selectedIndex = i)}
           role="option"
           aria-selected={i === selectedIndex}
+          aria-label={item.label}
+          aria-describedby={`entry-type-${item.type}-description`}
         >
-          <Icon name={item.icon} size={15} />
-          <span>{item.label}</span>
+          <Icon name={item.icon} size={16} />
+          <span class="palette-item-text">
+            <span class="palette-item-label">{item.label}</span>
+            <span id={`entry-type-${item.type}-description`} class="palette-item-description">
+              {item.description}
+            </span>
+          </span>
         </button>
       {:else}
         <div class="palette-empty">No matching types</div>
@@ -132,12 +142,11 @@
 
   .palette-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     width: 100%;
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-radius: var(--radius-sm);
-    font-size: 13.5px;
     color: var(--text-primary);
     text-align: left;
   }
@@ -145,6 +154,30 @@
   .palette-item:hover,
   .palette-item.selected {
     background: var(--bg-accent);
+    color: var(--text-accent);
+  }
+
+  .palette-item-text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .palette-item-label {
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+
+  .palette-item-description {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+
+  .palette-item:hover .palette-item-description,
+  .palette-item.selected .palette-item-description {
     color: var(--text-accent);
   }
 
