@@ -180,6 +180,21 @@ jobs:
         with:
           cache: true
 
+      # The Rust job runs first and populates this lockfile-keyed cache. E2E
+      # restores it to reuse compiled dependencies without adding per-commit
+      # cache uploads to the regular Rust jobs.
+      - name: Restore Rust build artifacts
+        uses: actions/cache@v6
+        with:
+          path: |
+            src-tauri/target
+            browser-extension/native-host/target
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Cache tauri-driver
         id: cache-tauri-driver
         uses: actions/cache@v6
