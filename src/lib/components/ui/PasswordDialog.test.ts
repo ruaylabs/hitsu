@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { describe, expect, it, vi } from "vitest";
 import PasswordDialog from "./PasswordDialog.svelte";
 
@@ -83,6 +83,47 @@ describe("PasswordDialog", () => {
 
     expect(onconfirm).toHaveBeenCalledOnce();
     expect(onconfirm).toHaveBeenCalledWith("valid-password");
+  });
+
+  it("prevents dismissal and duplicate submissions while pending", async () => {
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const onconfirm = vi.fn(() => pending);
+    const oncancel = vi.fn();
+    render(PasswordDialog, { confirmLabel: "Unlock", onconfirm, oncancel });
+
+    await fireEvent.input(passwordInput(), { target: { value: "valid-password" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+    expect(screen.getByRole("button", { name: "Unlocking…" })).toBeDisabled();
+    expect(passwordInput()).toBeDisabled();
+    for (const cancel of screen.getAllByRole("button", { name: "Cancel" })) {
+      expect(cancel).toBeDisabled();
+    }
+
+    await fireEvent.keyDown(window, { key: "Enter" });
+    await fireEvent.keyDown(window, { key: "Escape" });
+    expect(onconfirm).toHaveBeenCalledOnce();
+    expect(oncancel).not.toHaveBeenCalled();
+
+    finish();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Unlock" })).toBeEnabled());
+  });
+
+  it("keeps the password and shows rejected operations inline", async () => {
+    render(PasswordDialog, {
+      onconfirm: vi.fn().mockRejectedValue(new Error("Invalid master password")),
+      oncancel: vi.fn(),
+    });
+
+    await fireEvent.input(passwordInput(), { target: { value: "incorrect-password" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+    expect(await screen.findByText("Invalid master password")).toBeInTheDocument();
+    expect(passwordInput()).toHaveValue("incorrect-password");
+    expect(screen.getByRole("dialog", { name: "Enter master password" })).toBeInTheDocument();
   });
 
   it("reveals and masks password fields independently", async () => {

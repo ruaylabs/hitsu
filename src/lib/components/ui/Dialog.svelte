@@ -25,6 +25,7 @@
     bodyFill = false,
     transparent = false,
     closeLabel = "Close",
+    closeDisabled = false,
   }: {
     title: string;
     onclose?: () => void;
@@ -48,12 +49,13 @@
     bodyFill?: boolean;
     transparent?: boolean;
     closeLabel?: string;
+    closeDisabled?: boolean;
   } = $props();
 
   let pane: HTMLDivElement;
 
   function handleBackdropClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) onclose?.();
+    if (!closeDisabled && event.target === event.currentTarget) onclose?.();
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -74,7 +76,7 @@
         event.preventDefault();
         focusable[0].focus();
       }
-    } else if (event.key === "Escape" && onclose) {
+    } else if (event.key === "Escape" && onclose && !closeDisabled) {
       event.preventDefault();
       onclose();
     } else if (event.key === "Enter" && onconfirm) {
@@ -132,6 +134,7 @@
             icon="x"
             iconSize={16}
             onclick={onclose}
+            disabled={closeDisabled}
             aria-label={closeLabel}
             title={closeLabel}
           />

@@ -120,25 +120,15 @@
   }
 
   async function doOpen(password: string) {
+    await vault.open(selectedPath, password);
     dialog = null;
-    try {
-      await vault.open(selectedPath, password);
-      app.view = "main";
-    } catch (e) {
-      statusError = true;
-      statusMsg = String(e);
-    }
+    app.view = "main";
   }
 
   async function doCreate(password: string) {
+    await vault.create(selectedPath, password);
     dialog = null;
-    try {
-      await vault.create(selectedPath, password);
-      app.view = "main";
-    } catch (e) {
-      statusError = true;
-      statusMsg = String(e);
-    }
+    app.view = "main";
   }
 
   /** Pick the destination path first, then open the password dialog —
@@ -169,15 +159,11 @@
   }
 
   async function handleSetNewPassword(newPassword: string) {
+    await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
+    pendingOldPw = "";
     dialog = null;
-    try {
-      await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
-      statusError = false;
-      statusMsg = "Password changed successfully";
-    } catch (e) {
-      statusError = true;
-      statusMsg = String(e);
-    }
+    statusError = false;
+    statusMsg = "Password changed successfully";
   }
 
   async function handleImport1pif() {

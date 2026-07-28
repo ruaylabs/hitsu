@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage as getErrorMessage } from "$lib/utils/errorMessage";
   import { estimateStrength } from "$lib/utils/passwordStrength";
   import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
@@ -9,6 +10,7 @@
     title = "Enter master password",
     vaultPath = "",
     confirmLabel = "Unlock",
+    pendingLabel,
     showConfirm = true,
     showCancel = true,
     errorMessage = "",
@@ -26,6 +28,7 @@
     /** Path of the vault being unlocked, shown above the password field. */
     vaultPath?: string;
     confirmLabel?: string;
+    pendingLabel?: string;
     showConfirm?: boolean;
     showCancel?: boolean;
     errorMessage?: string;
@@ -38,7 +41,7 @@
     /** Minimum strength level (0–4) required to enable the confirm button.
      *  Only applies when `showStrength` is true. See passwordStrength.ts levels. */
     minStrength?: number;
-    onconfirm?: (password: string) => void;
+    onconfirm?: (password: string) => void | Promise<void>;
     oncancel?: () => void;
   } = $props();
 
@@ -49,18 +52,30 @@
   let showConfirmPassword = $state(false);
   let capsLockOn = $state(false);
   let focusedField = $state<"password" | "confirm" | null>(null);
+  let busy = $state(false);
+
+  const DEFAULT_PENDING_LABELS: Record<string, string> = {
+    Unlock: "Unlocking…",
+    Open: "Opening…",
+    Create: "Creating…",
+    Change: "Changing…",
+  };
 
   let displayError = $derived(localError || errorMessage);
+  let submitLabel = $derived(
+    busy ? (pendingLabel ?? DEFAULT_PENDING_LABELS[confirmLabel] ?? "Working…") : confirmLabel,
+  );
   let strengthOk = $derived(!showStrength || estimateStrength(password).level >= minStrength);
   let canSubmit = $derived(
-    password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
+    !busy && password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
   );
 
   function updateCapsLock(event: KeyboardEvent) {
     capsLockOn = event.getModifierState("CapsLock");
   }
 
-  function submit() {
+  async function submit() {
+    if (busy) return;
     if (!password) {
       localError = "Password is required";
       return;
@@ -70,7 +85,14 @@
       return;
     }
     localError = "";
-    onconfirm?.(password);
+    busy = true;
+    try {
+      await onconfirm?.(password);
+    } catch (error) {
+      localError = getErrorMessage(error);
+    } finally {
+      busy = false;
+    }
   }
 </script>
 
@@ -82,9 +104,10 @@
   transparent={transparentOverlay}
   showFooter={showConfirm}
   closeLabel="Cancel"
+  closeDisabled={busy}
 >
   {#snippet children()}
-    <div class="password-field">
+    <div class="password-field" aria-busy={busy}>
       {#if vaultPath}
         <!-- The &lrm; keeps the RTL truncation below from visually moving the
              path's leading "/" to the end. -->
@@ -104,6 +127,7 @@
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
+          disabled={busy}
           bind:value={password}
           oninput={() => { localError = ""; }}
           onkeydown={updateCapsLock}
@@ -116,6 +140,7 @@
           class="reveal-button"
           aria-label={showPassword ? "Hide master password" : "Show master password"}
           aria-pressed={showPassword}
+          disabled={busy}
           onclick={() => (showPassword = !showPassword)}
         >
           <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
@@ -148,6 +173,7 @@
             autocorrect="off"
             autocapitalize="off"
             spellcheck="false"
+            disabled={busy}
             bind:value={confirmPassword}
             oninput={() => { localError = ""; }}
             onkeydown={updateCapsLock}
@@ -160,6 +186,7 @@
             class="reveal-button"
             aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
             aria-pressed={showConfirmPassword}
+            disabled={busy}
             onclick={() => (showConfirmPassword = !showConfirmPassword)}
           >
             <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={16} />
@@ -177,13 +204,39 @@
 
   {#snippet footer()}
     {#if showCancel}
-      <Button onclick={oncancel}>Cancel</Button>
+      <Button onclick={oncancel} disabled={busy}>Cancel</Button>
     {/if}
-    <Button variant="primary" onclick={submit} disabled={!canSubmit}>{confirmLabel}</Button>
+    <Button variant="primary" onclick={submit} disabled={!canSubmit}>
+      {#if busy}
+        <span class="busy-spinner" aria-hidden="true"></span>
+      {/if}
+      {submitLabel}
+    </Button>
   {/snippet}
 </Dialog>
 
 <style>
+  .busy-spinner {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: busy-spin 0.7s linear infinite;
+  }
+
+  @keyframes busy-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .busy-spinner {
+      animation: none;
+    }
+  }
+
   .password-field {
     display: flex;
     flex-direction: column;

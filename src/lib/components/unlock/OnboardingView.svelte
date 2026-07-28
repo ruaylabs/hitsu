@@ -61,15 +61,14 @@
   }
 
   async function doOpen(password: string) {
-    dialog = null;
     busy = true;
     error = "";
     try {
       await vault.open(pendingPath, password);
-    } catch (e) {
-      error = errorMessage(e);
+      dialog = null;
+    } finally {
+      busy = false;
     }
-    busy = false;
   }
 
   async function handleCreate() {
@@ -91,15 +90,14 @@
   }
 
   async function doCreate(password: string) {
-    dialog = null;
     busy = true;
     error = "";
     try {
       await vault.create(pendingPath, password);
-    } catch (e) {
-      error = errorMessage(e);
+      dialog = null;
+    } finally {
+      busy = false;
     }
-    busy = false;
   }
 </script>
 

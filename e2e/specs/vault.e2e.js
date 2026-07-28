@@ -17,6 +17,30 @@ async function unlock() {
   await $('[aria-label="Add entry"]').waitForDisplayed();
 }
 
+async function saveEntry(expectedTitle) {
+  const save = await button("Save");
+  await save.waitForEnabled();
+  await save.click();
+  await browser.waitUntil(
+    async () => {
+      const state = await browser.execute((title) => {
+        const heading = [...document.querySelectorAll("h1")].some(
+          (element) => element.textContent?.trim() === title,
+        );
+        const error = document.querySelector(".save-error")?.textContent?.trim() ?? "";
+        return { heading, error };
+      }, expectedTitle);
+      if (state.error) throw new Error(`Entry save failed: ${state.error}`);
+      return state.heading;
+    },
+    {
+      timeout: 45_000,
+      interval: 200,
+      timeoutMsg: `Entry save did not finish for "${expectedTitle}"`,
+    },
+  );
+}
+
 describe("standalone vault lifecycle", () => {
   after(async () => {
     if (vaultPath) {
@@ -62,16 +86,14 @@ describe("standalone vault lifecycle", () => {
     await title.setValue("E2E password");
     await $('input[placeholder="Password"]').setValue("generated-secret");
     await $('input[placeholder="URL"]').setValue("https://example.com");
-    await (await button("Save")).click();
-    await $("h1=E2E password").waitForDisplayed();
+    await saveEntry("E2E password");
 
     await $('[aria-label="Edit entry"]').click();
     const editedTitle = await $('input[placeholder="Title"]');
     await editedTitle.waitForDisplayed();
     await editedTitle.setValue("E2E password updated");
     await $('input[placeholder="URL"]').setValue("https://example.org/updated");
-    await (await button("Save")).click();
-    await $("h1=E2E password updated").waitForDisplayed();
+    await saveEntry("E2E password updated");
 
     await $('[aria-label="Lock vault"]').click();
     await unlock();
