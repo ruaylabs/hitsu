@@ -906,14 +906,16 @@
         onShowTotpSetup={() => (showTotpSetup = true)}
       />
     {:else if entry.type === "password"}
-      {#if entry.hasPassword}
+      {#if entry.hasPassword || entry.url}
         <FieldGroup>
-          <PasswordField
-            label="Password"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
-            copy={() => clipboard.copySecretField(entry.id, "password")}
-            showStrength
-          />
+          {#if entry.hasPassword}
+            <PasswordField
+              label="Password"
+              reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
+              copy={() => clipboard.copySecretField(entry.id, "password")}
+              showStrength
+            />
+          {/if}
           {#if entry.url}
             <Field
               label="URL"
