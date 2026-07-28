@@ -136,7 +136,8 @@
   // before the user clicks a row — on launch the first entry is auto-selected
   // but not focused, so a div-scoped handler would never fire. We bail out
   // when focus is in a text-editable element so search/caret editing is
-  // unaffected, and when a modifier key is held (letting ⌘F etc. through).
+  // unaffected, and when a modifier key is held (letting Cmd/Ctrl+F
+  // etc. through).
   function isTextEditable(el: Element | null): boolean {
     if (!(el instanceof HTMLElement)) return false;
     const tag = el.tagName;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { selection } from "$lib/stores/selection.svelte";
+  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 
   let {
@@ -11,10 +12,7 @@
     onCreate?: () => void;
   } = $props();
   let search = $state(selection.search);
-  const searchShortcut =
-    typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac")
-      ? "⌘F"
-      : "Ctrl F";
+  const searchShortcut = keyboardShortcut("F");
 
   // The input echoes keystrokes immediately, but filtering the list is
   // deferred so fast typing doesn't re-filter on every keystroke.

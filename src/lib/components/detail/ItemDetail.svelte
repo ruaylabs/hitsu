@@ -12,6 +12,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { cardBrandName, formatCardNumber } from "$lib/utils/format";
+  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import { tagColor } from "$lib/utils/tagColor";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
@@ -21,10 +22,10 @@
   import Icon from "../ui/Icon.svelte";
   import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import AttachmentList from "./AttachmentList.svelte";
-  import EntryEditForm from "./EntryEditForm.svelte";
   import DetailFooter from "./DetailFooter.svelte";
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
+  import EntryEditForm from "./EntryEditForm.svelte";
   import Field from "./Field.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import HistoryDialog from "./HistoryDialog.svelte";
@@ -712,7 +713,7 @@
     pendingNavigation = () => {};
   }
 
-  // Edit-mode shortcuts: ⌘S saves, Esc requests cancellation. Skipped when a child dialog
+  // Edit-mode shortcuts: Cmd/Ctrl+S saves, Esc requests cancellation. Skipped when a child dialog
   // (generator / delete-confirm / history) is open — those own Escape — and
   // when not editing. Bound at the window level so it works regardless of
   // where focus sits in the detail pane.
@@ -783,7 +784,7 @@
           class="toolbar-btn toolbar-save"
           onclick={saveEdit}
           aria-label="Save"
-          title="Save (⌘S)"
+          title={`Save (${keyboardShortcut("S")})`}
           disabled={!hasUnsavedChanges()}
         >
           <Icon name="check" size={14} />

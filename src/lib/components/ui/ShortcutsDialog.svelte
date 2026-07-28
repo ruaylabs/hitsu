@@ -1,10 +1,8 @@
 <script lang="ts">
+  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Dialog from "./Dialog.svelte";
 
   let { onclose }: { onclose: () => void } = $props();
-
-  const isMac = navigator.platform.toLowerCase().includes("mac");
-  const mod = isMac ? "⌘" : "Ctrl";
 
   interface Shortcut {
     keys: string;
@@ -13,19 +11,19 @@
 
   const shortcuts: Shortcut[] = [
     { keys: "?", description: "Open keyboard shortcuts" },
-    { keys: `${mod}K`, description: "Search entries" },
-    { keys: `${mod}N`, description: "New entry" },
-    { keys: `${mod}C`, description: "Copy selected username" },
-    { keys: `${mod}⇧C`, description: "Copy selected password" },
-    { keys: `${mod}⌫`, description: "Delete selected entry" },
-    { keys: `${mod}F`, description: "Focus search" },
-    { keys: `${mod}⇧F`, description: "Toggle favorites filter" },
-    { keys: `${mod}L`, description: "Lock vault" },
-    { keys: `${mod},`, description: "Toggle settings" },
+    { keys: keyboardShortcut("K"), description: "Search entries" },
+    { keys: keyboardShortcut("N"), description: "New entry" },
+    { keys: keyboardShortcut("C"), description: "Copy selected username" },
+    { keys: keyboardShortcut("C", { shift: true }), description: "Copy selected password" },
+    { keys: keyboardShortcut("Backspace"), description: "Delete selected entry" },
+    { keys: keyboardShortcut("F"), description: "Focus search" },
+    { keys: keyboardShortcut("F", { shift: true }), description: "Toggle favorites filter" },
+    { keys: keyboardShortcut("L"), description: "Lock vault" },
+    { keys: keyboardShortcut(","), description: "Toggle settings" },
     { keys: "Esc", description: "Close dialog / exit settings" },
     { keys: "↑ ↓", description: "Navigate items" },
     { keys: "Home / End", description: "Jump to first / last item" },
-    { keys: `${mod}S`, description: "Save entry (edit mode)" },
+    { keys: keyboardShortcut("S"), description: "Save entry (edit mode)" },
     { keys: "Esc", description: "Cancel edit (edit mode)" },
   ];
 </script>

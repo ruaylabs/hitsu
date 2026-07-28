@@ -3,6 +3,7 @@
   import { saveStatus } from "$lib/stores/saveStatus.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
+  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 
   let {
@@ -59,7 +60,7 @@
         class="lock-btn"
         onclick={() => selection.requestNavigation(() => void vault.lock())}
         aria-label="Lock vault"
-        title="Lock vault (⌘L)"
+        title={`Lock vault (${keyboardShortcut("L")})`}
       >
         <Icon name="lock" size={12} />
         <span class="lock-name">{vault.meta.name}</span>

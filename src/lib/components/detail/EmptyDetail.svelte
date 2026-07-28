@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 </script>
 
@@ -7,8 +8,8 @@
   <p>Select an item to view its details</p>
   <div class="shortcut-hints" aria-label="Keyboard shortcuts">
     <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-    <span><kbd>⌘K</kbd> Search</span>
-    <span><kbd>⌘N</kbd> New</span>
+    <span><kbd>{keyboardShortcut("K")}</kbd> Search</span>
+    <span><kbd>{keyboardShortcut("N")}</kbd> New</span>
   </div>
 </div>
 
