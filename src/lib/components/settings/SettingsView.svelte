@@ -225,6 +225,7 @@
         confirmLabel="Create"
         confirm={true}
         showStrength={true}
+        showRecoveryWarning={true}
         minStrength={1}
         onconfirm={doCreate}
         oncancel={() => (dialog = null)}
@@ -242,6 +243,7 @@
         confirmLabel="Change"
         confirm={true}
         showStrength={true}
+        showRecoveryWarning={true}
         minStrength={1}
         onconfirm={handleSetNewPassword}
         oncancel={() => (dialog = null)}

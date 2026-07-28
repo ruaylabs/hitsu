@@ -18,6 +18,7 @@
     confirm = false,
     confirmLabel2 = "Confirm password",
     showStrength = false,
+    showRecoveryWarning = false,
     /** Minimum strength level (0–4) required to enable the confirm button.
      *  Only applies when `showStrength` is true. See passwordStrength.ts levels. */
     minStrength = 1,
@@ -38,6 +39,8 @@
     confirmLabel2?: string;
     /** Show a strength meter under the password field. */
     showStrength?: boolean;
+    /** Explain that the master password cannot be recovered. */
+    showRecoveryWarning?: boolean;
     /** Minimum strength level (0–4) required to enable the confirm button.
      *  Only applies when `showStrength` is true. See passwordStrength.ts levels. */
     minStrength?: number;
@@ -60,12 +63,18 @@
     Create: "Creating…",
     Change: "Changing…",
   };
+  const STRENGTH_LEVEL_LABELS = ["Very weak", "Weak", "Fair", "Good", "Strong"];
 
   let displayError = $derived(localError || errorMessage);
   let submitLabel = $derived(
     busy ? (pendingLabel ?? DEFAULT_PENDING_LABELS[confirmLabel] ?? "Working…") : confirmLabel,
   );
   let strengthOk = $derived(!showStrength || estimateStrength(password).level >= minStrength);
+  let strengthHelp = $derived(
+    strengthOk
+      ? "Use a long, unique passphrase and store it in a separate secure location."
+      : `${confirmLabel} is disabled until password strength is ${STRENGTH_LEVEL_LABELS[minStrength]} or better. Try a longer, unique passphrase.`,
+  );
   let canSubmit = $derived(
     !busy && password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
   );
@@ -113,6 +122,15 @@
              path's leading "/" to the end. -->
         <span class="vault-path" title={vaultPath}>&lrm;{vaultPath}</span>
       {/if}
+      {#if showRecoveryWarning}
+        <div class="recovery-warning" role="note">
+          <Icon name="alert-triangle" size={16} />
+          <span>
+            <strong>Hitsu cannot recover this password if you forget it.</strong>
+            Store a backup in another secure location.
+          </span>
+        </div>
+      {/if}
       <label class="control-label" for="master-pw">Master password</label>
       <div class="password-input-wrap">
         <!-- svelte-ignore a11y_autofocus -->
@@ -158,6 +176,7 @@
 
       {#if showStrength}
         <PasswordStrengthMeter {password} showWhenEmpty />
+        <p class="strength-help" aria-live="polite">{strengthHelp}</p>
       {/if}
 
       {#if confirm}
@@ -235,6 +254,39 @@
     .busy-spinner {
       animation: none;
     }
+  }
+
+  .recovery-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    background: var(--surface-1);
+    border: 0.5px solid var(--warning);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .recovery-warning :global(.ti) {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--warning);
+  }
+
+  .recovery-warning strong {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .strength-help {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    line-height: 1.4;
   }
 
   .password-field {

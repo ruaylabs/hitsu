@@ -47,13 +47,32 @@ describe("PasswordDialog", () => {
     });
     const submit = screen.getByRole("button", { name: "Create" });
 
+    expect(screen.getByText(/Create is disabled until password strength is Good/)).toBeVisible();
     await fireEvent.input(passwordInput(), { target: { value: "abcdefgh" } });
     expect(submit).toBeDisabled();
+    expect(screen.getByRole("status", { name: "Password strength: Very weak" })).toBeVisible();
 
     await fireEvent.input(passwordInput(), {
       target: { value: "Correct-Horse-Battery-Staple-42" },
     });
     expect(submit).toBeEnabled();
+    expect(screen.getByRole("status", { name: "Password strength: Strong" })).toBeVisible();
+  });
+
+  it("explains that master passwords cannot be recovered", () => {
+    render(PasswordDialog, {
+      confirm: true,
+      confirmLabel: "Create",
+      showStrength: true,
+      showRecoveryWarning: true,
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Hitsu cannot recover this password if you forget it.",
+    );
+    expect(screen.getByText(/Store a backup in another secure location/)).toBeVisible();
   });
 
   it("clears local validation errors after editing", async () => {

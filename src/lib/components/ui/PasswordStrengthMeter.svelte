@@ -12,11 +12,14 @@
 
   let strength = $derived.by(() => estimateStrength(password));
   let visible = $derived(showWhenEmpty || password.length > 0);
+  let statusLabel = $derived(
+    password ? `Password strength: ${strength.label}` : "Password strength: not yet evaluated",
+  );
 </script>
 
 {#if visible}
-  <div class="strength-meter" aria-hidden="true">
-    <div class="strength-bar">
+  <div class="strength-meter" role="status" aria-live="polite" aria-label={statusLabel}>
+    <div class="strength-bar" aria-hidden="true">
       <div
         class="strength-fill"
         style="width: {password ? strength.fraction * 100 : 0}%; background: {strengthColor(strength.level)};"
@@ -24,7 +27,7 @@
     </div>
     {#if password}
       <span class="strength-label" style="color: {strengthColor(strength.level)}">
-        {strength.label}
+        Strength: {strength.label}
       </span>
     {/if}
   </div>
@@ -59,7 +62,7 @@
     font-size: 11px;
     font-weight: 500;
     white-space: nowrap;
-    min-width: 56px;
+    min-width: 92px;
     text-align: right;
   }
 </style>
