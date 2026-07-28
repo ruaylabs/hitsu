@@ -447,6 +447,18 @@
     }
   }
 
+  /** Auto-download favicon silently (no toast, fire-and-forget). */
+  function downloadFaviconSilent(entryId: string) {
+    entriesBridge
+      .entryDownloadFavicon(entryId)
+      .then((withIcon) => {
+        if (selection.selectedId === entryId) installUpdatedEntry(withIcon);
+      })
+      .catch((e) => {
+        console.error("Failed to auto-download favicon", e);
+      });
+  }
+
   async function startEdit() {
     if (!_entry) return;
     newEntryId = null;
@@ -554,11 +566,16 @@
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, patch);
       installUpdatedEntry(updated);
+      const isNewEntry = newEntryId !== null;
       editing = false;
       newEntryId = null;
       clearEditSecrets();
       clearCardErrors();
       saveStatus.markSaved();
+      // Auto-download favicon on new entry creation when URL is present
+      if (isNewEntry && updated.url && !updated.hasCustomIcon) {
+        downloadFaviconSilent(updated.id);
+      }
       return true;
     } catch (e) {
       // Surface the failure (e.g. the vault file changed on disk) instead
