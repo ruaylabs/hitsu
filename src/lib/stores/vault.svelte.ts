@@ -158,6 +158,25 @@ export const vault = {
     folders = folders.map((folder) => (folder.id === id ? updated : folder));
     return updated;
   },
+  async renameTag(oldName: string, newName: string) {
+    const { tagRename } = await import("$lib/bridge/entries");
+    await tagRename(oldName, newName);
+    entries = entries.map((e) => ({
+      ...e,
+      tags: e.tags.map((t) => (t === oldName ? newName : t)),
+    }));
+    // Refresh from backend so the detail view stays in sync too
+    vault.refreshIfChanged().catch(() => {});
+  },
+  async deleteTag(name: string) {
+    const { tagDelete } = await import("$lib/bridge/entries");
+    await tagDelete(name);
+    entries = entries.map((e) => ({
+      ...e,
+      tags: e.tags.filter((t) => t !== name),
+    }));
+    vault.refreshIfChanged().catch(() => {});
+  },
   folderIdsWithin(id: string) {
     const ids = new Set([id]);
     let changed = true;

@@ -1451,6 +1451,71 @@ pub async fn entry_get_custom_icon(
     Ok(data)
 }
 
+/// Rename a tag across all entries in the vault.
+#[tauri::command]
+pub async fn tag_rename(
+    state: State<'_, AppState>,
+    old_name: String,
+    new_name: String,
+) -> HitsuResult<()> {
+    let new_name = new_name.trim().to_string();
+    if new_name.is_empty() || new_name == old_name {
+        return Err(HitsuError::Custom("Invalid tag name".into()));
+    }
+
+    mutate_and_save(&state, move |vault| {
+        let ids: Vec<_> = vault
+            .db
+            .iter_all_entries()
+            .filter(|e| e.tags.contains(&old_name))
+            .map(|e| e.id())
+            .collect();
+        for id in ids {
+            if let Some(mut entry) = vault.db.entry_mut(id) {
+                entry.tags = entry
+                    .tags
+                    .iter()
+                    .map(|t| {
+                        if t == &old_name {
+                            new_name.clone()
+                        } else {
+                            t.clone()
+                        }
+                    })
+                    .collect();
+                entry.times.last_modification = Some(chrono::Utc::now().naive_utc());
+            }
+        }
+        Ok(())
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Delete a tag from all entries in the vault.
+#[tauri::command]
+pub async fn tag_delete(state: State<'_, AppState>, name: String) -> HitsuResult<()> {
+    mutate_and_save(&state, move |vault| {
+        let ids: Vec<_> = vault
+            .db
+            .iter_all_entries()
+            .filter(|e| e.tags.contains(&name))
+            .map(|e| e.id())
+            .collect();
+        for id in ids {
+            if let Some(mut entry) = vault.db.entry_mut(id) {
+                entry.tags.retain(|t| t != &name);
+                entry.times.last_modification = Some(chrono::Utc::now().naive_utc());
+            }
+        }
+        Ok(())
+    })
+    .await?;
+
+    Ok(())
+}
+
 fn safe_attachment_file_name(name: &str) -> String {
     let file_name = name
         .rsplit(['/', '\\'])
@@ -2178,5 +2243,164 @@ mod tests {
         assert_eq!(metas[1].id, "photo.jpg");
         assert_eq!(metas[1].name, "photo.jpg");
         assert_eq!(metas[1].size_bytes, 4096);
+    }
+
+    /// Apply tag rename logic directly against an in-memory database and
+    /// assert that only the targeted tag changes across all entries.
+    fn rename_tag_in_db(db: &mut keepass::Database, old: &str, new: &str) {
+        let old = old.to_string();
+        let ids: Vec<_> = db
+            .iter_all_entries()
+            .filter(|e| e.tags.contains(&old))
+            .map(|e| e.id())
+            .collect();
+        for id in ids {
+            if let Some(mut entry) = db.entry_mut(id) {
+                entry.tags = entry
+                    .tags
+                    .iter()
+                    .map(|t| {
+                        if *t == old {
+                            new.to_string()
+                        } else {
+                            t.clone()
+                        }
+                    })
+                    .collect();
+            }
+        }
+    }
+
+    /// Apply tag delete logic directly against an in-memory database.
+    fn delete_tag_in_db(db: &mut keepass::Database, name: &str) {
+        let name = name.to_string();
+        let ids: Vec<_> = db
+            .iter_all_entries()
+            .filter(|e| e.tags.contains(&name))
+            .map(|e| e.id())
+            .collect();
+        for id in ids {
+            if let Some(mut entry) = db.entry_mut(id) {
+                entry.tags.retain(|t| *t != name);
+            }
+        }
+    }
+
+    fn entry_tags(db: &keepass::Database, id: keepass::db::EntryId) -> Vec<String> {
+        db.entry(id).map(|e| e.tags.clone()).unwrap_or_default()
+    }
+
+    #[test]
+    fn tag_rename_does_not_affect_other_tags_or_entries() {
+        let mut db = keepass::Database::new();
+
+        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        let e2 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        let e3 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+
+        // Entry 1: has the target tag plus others
+        db.root_mut()
+            .add_entry_with_id(e1)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E1");
+        db.entry_mut(e1).unwrap().tags = vec!["email".into(), "work".into(), "important".into()];
+
+        // Entry 2: only has the target tag
+        db.root_mut()
+            .add_entry_with_id(e2)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E2");
+        db.entry_mut(e2).unwrap().tags = vec!["email".into()];
+
+        // Entry 3: does NOT have the target tag
+        db.root_mut()
+            .add_entry_with_id(e3)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E3");
+        db.entry_mut(e3).unwrap().tags = vec!["finance".into(), "personal".into()];
+
+        rename_tag_in_db(&mut db, "email", "e-mail");
+
+        // Entry 1: "email" → "e-mail"; "work" and "important" untouched
+        assert_eq!(entry_tags(&db, e1), vec!["e-mail", "work", "important"]);
+
+        // Entry 2: sole tag renamed
+        assert_eq!(entry_tags(&db, e2), vec!["e-mail"]);
+
+        // Entry 3: completely unaffected
+        assert_eq!(entry_tags(&db, e3), vec!["finance", "personal"]);
+    }
+
+    #[test]
+    fn tag_delete_does_not_affect_other_tags_or_entries() {
+        let mut db = keepass::Database::new();
+
+        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        let e2 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        let e3 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+
+        // Entry 1: has the target tag plus others
+        db.root_mut()
+            .add_entry_with_id(e1)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E1");
+        db.entry_mut(e1).unwrap().tags = vec!["email".into(), "work".into(), "important".into()];
+
+        // Entry 2: only has the target tag
+        db.root_mut()
+            .add_entry_with_id(e2)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E2");
+        db.entry_mut(e2).unwrap().tags = vec!["email".into()];
+
+        // Entry 3: does NOT have the target tag
+        db.root_mut()
+            .add_entry_with_id(e3)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E3");
+        db.entry_mut(e3).unwrap().tags = vec!["finance".into(), "personal".into()];
+
+        delete_tag_in_db(&mut db, "email");
+
+        // Entry 1: "email" removed; "work" and "important" untouched
+        assert_eq!(entry_tags(&db, e1), vec!["work", "important"]);
+
+        // Entry 2: all tags removed (only had the target)
+        assert!(entry_tags(&db, e2).is_empty());
+
+        // Entry 3: completely unaffected
+        assert_eq!(entry_tags(&db, e3), vec!["finance", "personal"]);
+    }
+
+    #[test]
+    fn tag_rename_noop_when_no_entries_match() {
+        let mut db = keepass::Database::new();
+
+        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(e1)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E1");
+        db.entry_mut(e1).unwrap().tags = vec!["work".into(), "finance".into()];
+
+        rename_tag_in_db(&mut db, "nonexistent", "renamed");
+
+        assert_eq!(entry_tags(&db, e1), vec!["work", "finance"]);
+    }
+
+    #[test]
+    fn tag_delete_noop_when_no_entries_match() {
+        let mut db = keepass::Database::new();
+
+        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        db.root_mut()
+            .add_entry_with_id(e1)
+            .unwrap()
+            .set_unprotected(keepass::db::fields::TITLE, "E1");
+        db.entry_mut(e1).unwrap().tags = vec!["work".into(), "finance".into()];
+
+        delete_tag_in_db(&mut db, "nonexistent");
+
+        assert_eq!(entry_tags(&db, e1), vec!["work", "finance"]);
     }
 }

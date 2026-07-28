@@ -49,6 +49,13 @@
   let folderError = $state("");
   let savingFolder = $state(false);
 
+  // Tag rename dialog
+  let tagRenameDialog = $state<{ oldName: string } | null>(null);
+  let tagRenameInput = $state("");
+  let tagRenameError = $state("");
+  let savingTag = $state(false);
+  let tagDeletePrompt = $state<string | null>(null);
+
   function openCreateFolder(parent?: FolderSummary) {
     folderName = "";
     folderError = "";
@@ -82,6 +89,39 @@
       folderError = errorMessage(error);
     } finally {
       savingFolder = false;
+    }
+  }
+
+  function openRenameTag(tag: string) {
+    tagRenameDialog = { oldName: tag };
+    tagRenameInput = tag;
+    tagRenameError = "";
+  }
+
+  async function saveTagRename() {
+    const dialog = tagRenameDialog;
+    const newName = tagRenameInput.trim();
+    if (!dialog || !newName || savingTag || newName === dialog.oldName) return;
+    savingTag = true;
+    tagRenameError = "";
+    try {
+      await vault.renameTag(dialog.oldName, newName);
+      tagRenameDialog = null;
+    } catch (error) {
+      tagRenameError = errorMessage(error);
+    } finally {
+      savingTag = false;
+    }
+  }
+
+  async function confirmDeleteTag() {
+    const tag = tagDeletePrompt;
+    if (!tag) return;
+    tagDeletePrompt = null;
+    try {
+      await vault.deleteTag(tag);
+    } catch (error) {
+      console.error("Failed to delete tag", error);
     }
   }
 
@@ -209,6 +249,8 @@
           tagColor={tagColor(tag)}
           onclick={() => selectFilter({ kind: "tag", tag })}
           selected={isSelected("tag", tag)}
+          onedit={() => openRenameTag(tag)}
+          ondelete={() => (tagDeletePrompt = tag)}
         />
       {/each}
     </SidebarSection>
@@ -246,6 +288,61 @@
       <Button variant="primary" onclick={saveFolder} disabled={savingFolder || !folderName.trim()}>
         {savingFolder ? "Saving…" : folderDialog?.mode === "rename" ? "Rename" : "Create"}
       </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if tagRenameDialog}
+  <Dialog
+    title="Rename tag"
+    size="sm"
+    onclose={() => (tagRenameDialog = null)}
+    onconfirm={saveTagRename}
+  >
+    <div class="folder-form">
+      <label class="control-label" for="tag-rename">
+        Rename <strong>{tagRenameDialog.oldName}</strong> across all entries
+      </label>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        id="tag-rename"
+        class="control control--compact"
+        bind:value={tagRenameInput}
+        autocomplete="off"
+        autofocus
+      />
+      {#if tagRenameError}
+        <p class="control-error">{tagRenameError}</p>
+      {/if}
+    </div>
+
+    {#snippet footer()}
+      <Button onclick={() => (tagRenameDialog = null)}>Cancel</Button>
+      <Button
+        variant="primary"
+        onclick={saveTagRename}
+        disabled={savingTag || !tagRenameInput.trim() || tagRenameInput.trim() === tagRenameDialog?.oldName}
+      >
+        {savingTag ? "Saving…" : "Rename"}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if tagDeletePrompt}
+  <Dialog
+    title="Delete tag"
+    size="sm"
+    onclose={() => (tagDeletePrompt = null)}
+    onconfirm={confirmDeleteTag}
+  >
+    <p class="control-error">
+      Remove <strong>{tagDeletePrompt}</strong> from all entries? This cannot be undone.
+    </p>
+
+    {#snippet footer()}
+      <Button onclick={() => (tagDeletePrompt = null)}>Cancel</Button>
+      <Button variant="primary" onclick={confirmDeleteTag}> Delete </Button>
     {/snippet}
   </Dialog>
 {/if}

@@ -219,6 +219,16 @@ export async function entryDownloadFavicon(id: string): Promise<Entry> {
   return invoke<Entry>("entry_download_favicon", { id });
 }
 
+/** Rename a tag across all entries in the vault. */
+export async function tagRename(oldName: string, newName: string): Promise<void> {
+  return invoke<void>("tag_rename", { oldName, newName });
+}
+
+/** Delete a tag from all entries in the vault. */
+export async function tagDelete(name: string): Promise<void> {
+  return invoke<void>("tag_delete", { name });
+}
+
 /** Get the custom icon data for an entry as a base64 data URL, or null. */
 export async function entryGetCustomIcon(id: string): Promise<string | null> {
   return invoke<string | null>("entry_get_custom_icon", { id });

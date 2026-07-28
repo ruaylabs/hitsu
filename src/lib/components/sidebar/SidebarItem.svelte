@@ -11,6 +11,7 @@
     onclick,
     onadd,
     onedit,
+    ondelete,
   }: {
     label: string;
     icon?: string;
@@ -21,10 +22,11 @@
     onclick?: () => void;
     onadd?: () => void;
     onedit?: () => void;
+    ondelete?: () => void;
   } = $props();
 </script>
 
-<div class="sidebar-row" class:has-actions={Boolean(onadd || onedit)}>
+<div class="sidebar-row" class:has-actions={Boolean(onadd || onedit || ondelete)}>
   <button
     class="sidebar-item"
     class:selected
@@ -43,7 +45,7 @@
       <span class="sidebar-count">{count}</span>
     {/if}
   </button>
-  {#if onadd || onedit}
+  {#if onadd || onedit || ondelete}
     <div class="sidebar-actions">
       {#if onadd}
         <button type="button" aria-label={`Add folder inside ${label}`} onclick={onadd}>
@@ -53,6 +55,16 @@
       {#if onedit}
         <button type="button" aria-label={`Rename ${label}`} onclick={onedit}>
           <Icon name="pencil" size={12} />
+        </button>
+      {/if}
+      {#if ondelete}
+        <button
+          type="button"
+          class="action-delete"
+          aria-label={`Delete ${label}`}
+          onclick={ondelete}
+        >
+          <Icon name="trash" size={12} />
         </button>
       {/if}
     </div>
@@ -138,6 +150,11 @@
   .sidebar-actions button:hover {
     color: var(--text-primary);
     background: var(--border);
+  }
+
+  .sidebar-actions .action-delete:hover {
+    color: var(--danger);
+    background: var(--danger-bg);
   }
 
   .tag-dot {
