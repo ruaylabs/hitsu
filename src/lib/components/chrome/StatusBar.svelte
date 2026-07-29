@@ -89,7 +89,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
   }
 
@@ -159,13 +159,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 20px;
-    border-radius: 3px;
+    height: 32px;
+    border-radius: var(--radius-sm);
     color: var(--text-muted);
   }
 
   .settings-gear {
-    width: 20px;
+    width: 32px;
   }
 
   .lock-btn {

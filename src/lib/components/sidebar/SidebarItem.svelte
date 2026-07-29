@@ -80,6 +80,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 32px;
     padding: 6px 10px;
     border-radius: var(--radius-sm);
     width: 100%;
@@ -141,8 +142,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
   }

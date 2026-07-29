@@ -398,7 +398,7 @@
   }
 
   .list-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -434,7 +434,7 @@
   }
 
   .rev-date {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
   }
 

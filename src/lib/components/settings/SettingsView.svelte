@@ -589,7 +589,7 @@
   }
 
   .section-heading {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -606,7 +606,7 @@
   }
 
   .vault-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
   }
 
@@ -616,7 +616,7 @@
   }
 
   .vault-path-sub {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -826,7 +826,7 @@
 
   .setting-description {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 13px;
   }
 
   .setting-select {

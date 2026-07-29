@@ -101,7 +101,7 @@
   }
 
   .list-row-subtitle {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;

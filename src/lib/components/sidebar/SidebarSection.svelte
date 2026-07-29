@@ -59,7 +59,7 @@
 
   .section-label {
     flex: 1;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
   }
 
@@ -68,8 +68,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
   }

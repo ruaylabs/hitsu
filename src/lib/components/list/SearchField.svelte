@@ -128,9 +128,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
+    width: 32px;
+    height: 32px;
+    margin-block: -6px;
+    border-radius: var(--radius-sm);
     color: var(--text-muted);
     flex-shrink: 0;
   }
@@ -150,9 +151,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
+    width: 32px;
+    height: 32px;
+    margin-block: -6px;
+    border-radius: var(--radius-sm);
     color: var(--text-muted);
     flex-shrink: 0;
   }

@@ -8,8 +8,8 @@
 
   /* Text */
   --text-primary: #1a1915;
-  --text-secondary: #6b6a64;
-  --text-muted: #a1a09a;
+  --text-secondary: #55544f;
+  --text-muted: #6b6a64;
   --text-accent: #185fa5;
 
   /* Borders */
@@ -49,7 +49,7 @@
   --radius: 8px;
   --radius-sm: 6px;
   --radius-card: 12px;
-  --icon-button-size: 28px;
+  --icon-button-size: 32px;
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
@@ -60,7 +60,7 @@
   --list-width: 224px;
   --resizer-width: 1px;
   --titlebar-height: 38px;
-  --statusbar-height: 26px;
+  --statusbar-height: 34px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -70,8 +70,8 @@
     --surface-1: #252525;
     --surface-2: #2c2c2c;
     --text-primary: #f0ede5;
-    --text-secondary: #a0a098;
-    --text-muted: #6a6a64;
+    --text-secondary: #b8b6ae;
+    --text-muted: #96958d;
     --text-accent: #85b7eb;
     --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.14);
@@ -89,8 +89,8 @@
   --surface-1: #252525;
   --surface-2: #2c2c2c;
   --text-primary: #f0ede5;
-  --text-secondary: #a0a098;
-  --text-muted: #6a6a64;
+  --text-secondary: #b8b6ae;
+  --text-muted: #96958d;
   --text-accent: #85b7eb;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);

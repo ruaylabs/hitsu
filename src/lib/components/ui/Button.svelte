@@ -38,6 +38,7 @@
   }
 
   .button-sm {
+    min-height: 32px;
     padding: 6px 14px;
     font-size: 13px;
   }
