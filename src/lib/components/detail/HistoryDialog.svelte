@@ -38,10 +38,6 @@
     }
   });
 
-  // Card numbers are shown in full (matching the detail view), fetched per
-  // revision alongside the sanitized entry.
-  let cardNumberPlain = $state("");
-
   $effect(() => {
     if (selectedVersion !== null) {
       const thisFetch = ++fetchId;
@@ -53,21 +49,12 @@
       // below re-trigger the effect, refetching in a loop on every completion.
       if (!untrack(() => detailEntry)) loadingDetail = true;
       error = "";
-      cardNumberPlain = "";
       entriesBridge
         .entryHistoryGet(entryId, version)
         .then((e) => {
           if (thisFetch === fetchId) {
             detailEntry = e;
             loadingDetail = false;
-            if (e.card?.hasNumber) {
-              entriesBridge
-                .entryRevealField(entryId, "cardNumber", version)
-                .then((n) => {
-                  if (thisFetch === fetchId) cardNumberPlain = n;
-                })
-                .catch((err) => console.error("Failed to load card number", err));
-            }
           }
         })
         .catch((e) => {
@@ -150,12 +137,14 @@
                   {/if}
                   {#if detailEntry.hasPassword}
                     {@const version = selectedVersion ?? undefined}
-                    <PasswordField
-                      label="Password"
-                      reveal={() => entriesBridge.entryRevealField(entryId, "password", version)}
-                      copy={() => clipboard.copySecretField(entryId, "password", version)}
-                      showStrength
-                    />
+                    {#key selectedVersion}
+                      <PasswordField
+                        label="Password"
+                        reveal={() => entriesBridge.entryRevealField(entryId, "password", version)}
+                        copy={() => clipboard.copySecretField(entryId, "password", version)}
+                        showStrength
+                      />
+                    {/key}
                   {/if}
                   {#if detailEntry.url}
                     <Field
@@ -223,19 +212,27 @@
                     />
                   {/if}
                   {#if detailEntry.card.hasNumber}
-                    <Field
-                      label="Number"
-                      value={cardNumberPlain
-                          ? formatCardNumber(cardNumberPlain, detailEntry.card.type)
-                          : (detailEntry.card.numberMasked ?? "")}
-                      mono
-                      onCopy={() =>
+                    {#key selectedVersion}
+                      <PasswordField
+                        label="Number"
+                        masked={detailEntry.card.numberMasked || undefined}
+                        reveal={async () =>
+                          formatCardNumber(
+                            await entriesBridge.entryRevealField(
+                              entryId,
+                              "cardNumber",
+                              selectedVersion ?? undefined,
+                            ),
+                            detailEntry?.card?.type,
+                          )}
+                        copy={() =>
                           clipboard.copySecretField(
                             entryId,
                             "cardNumber",
                             selectedVersion ?? undefined,
                           )}
-                    />
+                      />
+                    {/key}
                   {/if}
                   {#if detailEntry.card.expMonth && detailEntry.card.expYear}
                     <Field
@@ -245,11 +242,13 @@
                   {/if}
                   {#if detailEntry.card.hasCvv}
                     {@const version = selectedVersion ?? undefined}
-                    <PasswordField
-                      label="CVV"
-                      reveal={() => entriesBridge.entryRevealField(entryId, "cardCvv", version)}
-                      copy={() => clipboard.copySecretField(entryId, "cardCvv", version)}
-                    />
+                    {#key selectedVersion}
+                      <PasswordField
+                        label="CVV"
+                        reveal={() => entriesBridge.entryRevealField(entryId, "cardCvv", version)}
+                        copy={() => clipboard.copySecretField(entryId, "cardCvv", version)}
+                      />
+                    {/key}
                   {/if}
                 </FieldGroup>
               {/if}
@@ -261,11 +260,13 @@
                     <Field label="Version" value={license.version} />
                   {/if}
                   {#if license.hasLicenseKey}
-                    <PasswordField
-                      label="License key"
-                      reveal={() => entriesBridge.entryRevealField(entryId, "licenseKey", selectedVersion ?? undefined)}
-                      copy={() => clipboard.copySecretField(entryId, "licenseKey", selectedVersion ?? undefined)}
-                    />
+                    {#key selectedVersion}
+                      <PasswordField
+                        label="License key"
+                        reveal={() => entriesBridge.entryRevealField(entryId, "licenseKey", selectedVersion ?? undefined)}
+                        copy={() => clipboard.copySecretField(entryId, "licenseKey", selectedVersion ?? undefined)}
+                      />
+                    {/key}
                   {/if}
                   {#if license.licensedTo}
                     <Field label="Licensed to" value={license.licensedTo} />
@@ -313,11 +314,13 @@
                     <Field label="Issuing country" value={passport.issuingCountry} />
                   {/if}
                   {#if passport.hasNumber}
-                    <PasswordField
-                      label="Number"
-                      reveal={() => entriesBridge.entryRevealField(entryId, "passportNumber", selectedVersion ?? undefined)}
-                      copy={() => clipboard.copySecretField(entryId, "passportNumber", selectedVersion ?? undefined)}
-                    />
+                    {#key selectedVersion}
+                      <PasswordField
+                        label="Number"
+                        reveal={() => entriesBridge.entryRevealField(entryId, "passportNumber", selectedVersion ?? undefined)}
+                        copy={() => clipboard.copySecretField(entryId, "passportNumber", selectedVersion ?? undefined)}
+                      />
+                    {/key}
                   {/if}
                   {#if passport.fullName}
                     <Field label="Full name" value={passport.fullName} />
