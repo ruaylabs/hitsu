@@ -4,12 +4,14 @@ import type { EntrySummary, VaultMeta, VaultRefreshResult } from "./types";
 export interface SkippedImportEntry {
   title: string;
   reason: string;
+  failed: boolean;
 }
 
 export interface ImportReport {
   importedItems: number;
   importedAttachments: number;
   skippedItems: number;
+  failedItems: number;
   skippedEntries: SkippedImportEntry[];
   entries: EntrySummary[];
 }
@@ -53,4 +55,8 @@ export async function vaultEmptyRecycleBin(): Promise<EmptyRecycleBinResult> {
 /** Open a native picker and import a 1Password 7 .1pif export into the open vault. */
 export async function vaultImport1pif(): Promise<ImportReport | null> {
   return invoke<ImportReport | null>("vault_import_1pif");
+}
+
+export async function importReportExport(path: string, contents: string): Promise<void> {
+  return invoke<void>("import_report_export", { path, contents });
 }

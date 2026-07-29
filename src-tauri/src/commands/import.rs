@@ -17,6 +17,7 @@ use crate::state::AppState;
 const MAX_1PIF_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES: u64 = 100 * 1024 * 1024;
 const MAX_INDEXED_FILES: usize = 20_000;
+const MAX_IMPORT_REPORT_BYTES: usize = 1024 * 1024;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +25,7 @@ pub struct ImportReport {
     pub imported_items: usize,
     pub imported_attachments: usize,
     pub skipped_items: usize,
+    pub failed_items: usize,
     pub skipped_entries: Vec<SkippedImportEntry>,
     pub entries: Vec<EntrySummary>,
 }
@@ -33,6 +35,7 @@ pub struct ImportReport {
 pub struct SkippedImportEntry {
     pub title: String,
     pub reason: String,
+    pub failed: bool,
 }
 
 struct ImportedAttachment {
@@ -224,20 +227,21 @@ fn parse_1pif(path: &Path) -> HitsuResult<ParsedImport> {
             Some(item) => items.push(item),
             None => {
                 let type_name = string_at(&record, &["typeName"]).unwrap_or_default();
-                let reason = if bool_at(&record, &["trashed"]).unwrap_or(false)
+                let (reason, failed) = if bool_at(&record, &["trashed"]).unwrap_or(false)
                     || string_at(&record, &["category"]).as_deref() == Some("099")
                 {
-                    "Item is in the 1Password trash"
+                    ("Item is in the 1Password trash", false)
                 } else if type_name.to_ascii_lowercase().contains("folder") {
-                    "Folders aren't imported"
+                    ("Folders aren't imported", false)
                 } else {
-                    "The item couldn't be converted"
+                    ("The item couldn't be converted", true)
                 };
                 skipped_entries.push(SkippedImportEntry {
                     title: string_at(&record, &["title"])
                         .or_else(|| string_at(&record, &["overview", "title"]))
                         .unwrap_or_else(|| "Untitled item".into()),
                     reason: reason.into(),
+                    failed,
                 });
             }
         }
@@ -277,6 +281,7 @@ fn parse_1pif(path: &Path) -> HitsuResult<ParsedImport> {
                 .map(|(_, item)| SkippedImportEntry {
                     title: item.title.clone(),
                     reason: "Attachment was merged into its parent entry".into(),
+                    failed: false,
                 }),
         );
         items = items
@@ -1090,6 +1095,7 @@ fn apply_import(
             skipped_entries.push(SkippedImportEntry {
                 title: item.title,
                 reason: "Hitsu couldn't create this entry".into(),
+                failed: true,
             });
             continue;
         };
@@ -1379,6 +1385,7 @@ pub async fn vault_import_1pif(
     };
     let (imported_items, imported_attachments, skipped_entries) = apply_import(&mut db, parsed);
     let skipped_items = skipped_entries.len();
+    let failed_items = skipped_entries.iter().filter(|entry| entry.failed).count();
     let entries = build_entry_summaries(&db);
 
     let save_db = db.clone();
@@ -1409,9 +1416,23 @@ pub async fn vault_import_1pif(
         imported_items,
         imported_attachments,
         skipped_items,
+        failed_items,
         skipped_entries,
         entries,
     }))
+}
+
+#[tauri::command]
+pub async fn import_report_export(path: String, contents: String) -> HitsuResult<()> {
+    if contents.len() > MAX_IMPORT_REPORT_BYTES {
+        return Err(HitsuError::Custom(
+            "The import report is too large to export".into(),
+        ));
+    }
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(path, contents))
+        .await
+        .map_err(HitsuError::from_join)??;
+    Ok(())
 }
 
 fn string_at(value: &JsonValue, path: &[&str]) -> Option<String> {
@@ -1772,10 +1793,12 @@ mod tests {
         assert_eq!(parsed.skipped_entries.len(), 2);
         assert_eq!(parsed.skipped_entries[0].title, "Work");
         assert_eq!(parsed.skipped_entries[0].reason, "Folders aren't imported");
+        assert!(!parsed.skipped_entries[0].failed);
         assert_eq!(parsed.skipped_entries[1].title, "Deleted");
         assert_eq!(
             parsed.skipped_entries[1].reason,
             "Item is in the 1Password trash"
         );
+        assert!(!parsed.skipped_entries[1].failed);
     }
 }

@@ -6,6 +6,8 @@ import SettingsView from "./SettingsView.svelte";
 
 const mocks = vi.hoisted(() => ({
   import1pif: vi.fn(),
+  exportImportReport: vi.fn(),
+  saveDialog: vi.fn(),
   setFoldersEnabled: vi.fn(),
   emptyRecycleBin: vi.fn(),
   toastSuccess: vi.fn(),
@@ -15,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
-  save: vi.fn(),
+  save: mocks.saveDialog,
 }));
 
 vi.mock("$lib/bridge/prefs", () => ({
@@ -33,6 +35,7 @@ vi.mock("$lib/bridge/prefs", () => ({
 
 vi.mock("$lib/bridge/vault", () => ({
   vaultImport1pif: mocks.import1pif,
+  importReportExport: mocks.exportImportReport,
   vaultEmptyRecycleBin: mocks.emptyRecycleBin,
 }));
 
@@ -55,16 +58,36 @@ describe("SettingsView", () => {
     vault.setEntries([]);
     document.documentElement.removeAttribute("data-theme");
     mocks.setTheme.mockResolvedValue(undefined);
+    mocks.saveDialog.mockResolvedValue("/tmp/hitsu-import-report.csv");
+    mocks.exportImportReport.mockResolvedValue(undefined);
     mocks.emptyRecycleBin.mockResolvedValue({ deletedEntries: 2 });
     mocks.import1pif.mockResolvedValue({
       importedItems: 1,
       importedAttachments: 0,
       skippedItems: 2,
+      failedItems: 1,
       skippedEntries: [
-        { title: "Archived login", reason: "Item is in the 1Password trash" },
-        { title: "Unsupported document", reason: "The item couldn't be converted" },
+        {
+          title: "Archived login",
+          reason: "Item is in the 1Password trash",
+          failed: false,
+        },
+        {
+          title: "Unsupported document",
+          reason: "The item couldn't be converted",
+          failed: true,
+        },
       ],
-      entries: [],
+      entries: [
+        {
+          id: "imported-1",
+          type: "login",
+          title: "Imported login",
+          subtitle: "user@example.com",
+          tags: [],
+          favorite: false,
+        },
+      ],
     });
   });
 
@@ -130,18 +153,67 @@ describe("SettingsView", () => {
     expect(recycleBin.pending).toBe(true);
   });
 
-  it("shows skipped entry names in a simple list", async () => {
+  it("confirms the destination and shows progress while importing", async () => {
+    let finishImport: (value: null) => void = () => {};
+    mocks.import1pif.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishImport = resolve;
+      }),
+    );
     render(SettingsView);
 
     await fireEvent.click(screen.getByRole("button", { name: /Import 1Password 7/ }));
-    await fireEvent.click(await screen.findByRole("button", { name: "View 2 skipped entries" }));
 
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Imported 1 item (2 skipped).");
-    expect(screen.getByRole("dialog", { name: "Entries not imported" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Import 1Password 7 data" })).toHaveTextContent(
+      "Import into Test?",
+    );
+    expect(screen.getByText(/will be merged into this vault/)).toBeInTheDocument();
+    expect(mocks.import1pif).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Choose export…" }));
+    expect(screen.getByRole("status", { name: "Import in progress" })).toBeInTheDocument();
+
+    finishImport(null);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Import 1Password 7/ })).toBeEnabled(),
+    );
+  });
+
+  it("keeps a persistent completion summary", async () => {
+    render(SettingsView);
+
+    await fireEvent.click(screen.getByRole("button", { name: /Import 1Password 7/ }));
+    await fireEvent.click(screen.getByRole("button", { name: "Choose export…" }));
+
+    const summary = await screen.findByText("Import complete");
+    expect(summary.closest(".import-summary")).toHaveTextContent(
+      /Imported\s*1\s*Attachments\s*0\s*Skipped\s*1\s*Failed\s*1/,
+    );
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Imported 1 item. 1 skipped. 1 failed.");
+    expect(screen.queryByText("Imported login")).not.toBeInTheDocument();
+  });
+
+  it("shows not-imported details and exports them as CSV", async () => {
+    render(SettingsView);
+
+    await fireEvent.click(screen.getByRole("button", { name: /Import 1Password 7/ }));
+    await fireEvent.click(screen.getByRole("button", { name: "Choose export…" }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "Review 2 items not imported" }),
+    );
+
+    expect(screen.getByRole("dialog", { name: "Items not imported" })).toBeInTheDocument();
     const entries = screen.getAllByRole("listitem");
-    expect(entries[0]).toHaveTextContent("Archived login");
+    expect(entries[0]).toHaveTextContent("Skipped Archived login");
     expect(entries[0]).toHaveTextContent("Item is in the 1Password trash");
-    expect(entries[1]).toHaveTextContent("Unsupported document");
+    expect(entries[1]).toHaveTextContent("Failed Unsupported document");
     expect(entries[1]).toHaveTextContent("The item couldn't be converted");
+
+    await fireEvent.click(screen.getByRole("button", { name: "Export CSV…" }));
+
+    expect(mocks.exportImportReport).toHaveBeenCalledWith(
+      "/tmp/hitsu-import-report.csv",
+      expect.stringContaining('"Failed","Unsupported document","The item couldn\'t be converted"'),
+    );
   });
 });
