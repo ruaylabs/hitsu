@@ -1,18 +1,39 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import type { SidebarFilter } from "$lib/bridge/types";
+  import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
+  import { vault } from "$lib/stores/vault.svelte";
   import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 
   let {
     allowCreate = true,
     onCreate = () => {},
+    onSearchStart = () => {},
+    onSearchClear = () => {},
   }: {
     allowCreate?: boolean;
     onCreate?: () => void;
+    onSearchStart?: () => void;
+    onSearchClear?: () => void;
   } = $props();
   let search = $state(selection.search);
   const searchShortcut = keyboardShortcut("F");
+
+  function getScopeName(filter: SidebarFilter): string {
+    if (filter.kind === "all") return "All items";
+    if (filter.kind === "favorites") return "Favorites";
+    if (filter.kind === "recent") return "Recent";
+    if (filter.kind === "trash") return "Recycle Bin";
+    if (filter.kind === "type") return ENTRY_TYPE_BY_TYPE[filter.type].pluralLabel;
+    if (filter.kind === "tag") return `#${filter.tag}`;
+    return vault.folders.find((folder) => folder.id === filter.folderId)?.name ?? "Folder";
+  }
+
+  let scoped = $derived(selection.filter.kind !== "all");
+  let scopeName = $derived(getScopeName(selection.filter));
+  let placeholder = $derived(scoped ? `Search in ${scopeName}…` : "Search all items…");
 
   // The input echoes keystrokes immediately, but filtering the list is
   // deferred so fast typing doesn't re-filter on every keystroke.
@@ -20,6 +41,7 @@
   let debounce: ReturnType<typeof setTimeout> | undefined;
 
   function setSearch(value: string) {
+    if (!search && value) onSearchStart();
     search = value;
     clearTimeout(debounce);
     debounce = setTimeout(() => {
@@ -31,6 +53,13 @@
     search = "";
     clearTimeout(debounce);
     selection.search = "";
+    onSearchClear();
+  }
+
+  function clearScope() {
+    selection.requestNavigation(() => {
+      selection.filter = { kind: "all" };
+    });
   }
 
   onDestroy(() => clearTimeout(debounce));
@@ -52,7 +81,8 @@
     <input
       type="text"
       class="entry-search-input"
-      placeholder="Search..."
+      {placeholder}
+      aria-label={placeholder}
       autocomplete="off"
       autocorrect="off"
       autocapitalize="off"
@@ -80,6 +110,25 @@
       </button>
     {/if}
   </div>
+  {#if scoped}
+    <div class="scope-row" aria-label="Search scope">
+      <span class="scope-chip">
+        <Icon name="filter" size={12} />
+        <span>{scopeName}</span>
+        <button
+          type="button"
+          onclick={clearScope}
+          aria-label={`Remove ${scopeName} search scope`}
+          title="Search all items"
+        >
+          <Icon name="x" size={11} />
+        </button>
+      </span>
+      {#if search}
+        <button type="button" class="search-all" onclick={clearScope}>Search all items</button>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -162,5 +211,60 @@
   .add-btn:hover {
     background: var(--border);
     color: var(--text-secondary);
+  }
+
+  .scope-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .scope-chip {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    padding-left: 7px;
+    color: var(--text-secondary);
+    background: var(--bg-accent);
+    border-radius: 999px;
+    font-size: 11.5px;
+  }
+
+  .scope-chip > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .scope-chip button {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    border-radius: 50%;
+  }
+
+  .scope-chip button:hover {
+    color: var(--text-primary);
+    background: var(--border);
+  }
+
+  .search-all {
+    flex-shrink: 0;
+    padding: 5px 7px;
+    color: var(--text-accent);
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  .search-all:hover {
+    background: var(--bg-accent);
   }
 </style>

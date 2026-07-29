@@ -155,6 +155,24 @@ describe("ItemList", () => {
     expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
   });
 
+  it("restores selection and scroll position after clearing search", async () => {
+    vault.setEntries(makeEntries(20));
+    selection.selectedId = "id-3";
+    render(ItemList);
+    const list = screen.getByRole("listbox");
+    list.scrollTop = 120;
+    await fireEvent.scroll(list);
+
+    await fireEvent.input(screen.getByRole("textbox"), { target: { value: "Entry 1" } });
+    await waitFor(() => expect(selection.search).toBe("Entry 1"));
+    await waitFor(() => expect(selection.selectedId).toBe("id-1"));
+
+    await fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(selection.selectedId).toBe("id-3");
+    await waitFor(() => expect(list.scrollTop).toBe(120));
+  });
+
   it("sorts entries by title or modification date", async () => {
     const entries = makeEntries(3);
     entries[0] = { ...entries[0], title: "Zulu", modifiedAt: "2025-01-02T00:00:00Z" };

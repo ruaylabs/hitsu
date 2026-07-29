@@ -43,10 +43,6 @@
   });
 
   let hasActiveEntries = $derived(vault.entries.some((entry) => !entry.trashed));
-  let hasMatchesOutsideFilter = $derived.by(() => {
-    if (!selection.search || selection.filter.kind === "all") return false;
-    return vault.entries.some((entry) => !entry.trashed && entrySearch.matches(entry));
-  });
 
   let filtered = $derived.by(() => {
     const f = selection.filter;
@@ -84,6 +80,37 @@
   let scrollEl = $state<HTMLDivElement | undefined>();
   let scrollTop = $state(0);
   let viewportHeight = $state(0);
+  let searchContext: {
+    selectedId: string | null;
+    scrollTop: number;
+    filter: typeof selection.filter;
+  } | null = null;
+
+  function rememberSearchContext() {
+    if (searchContext) return;
+    searchContext = {
+      selectedId: selection.selectedId,
+      scrollTop: scrollEl?.scrollTop ?? 0,
+      filter: selection.filter,
+    };
+  }
+
+  function restoreSearchContext() {
+    const context = searchContext;
+    if (!context) return;
+    selection.requestNavigation(() => {
+      searchContext = null;
+      if (context.selectedId && filtered.some((entry) => entry.id === context.selectedId)) {
+        selection.selectedId = context.selectedId;
+      }
+      if (selection.filter !== context.filter) return;
+      void tick().then(() => {
+        if (!scrollEl) return;
+        scrollEl.scrollTop = context.scrollTop;
+        scrollTop = context.scrollTop;
+      });
+    });
+  }
 
   let startIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN));
   let endIndex = $derived(
@@ -278,7 +305,12 @@
 <svelte:window onkeydown={onListKeydown} onclick={onWindowClick} onblur={closeContextMenu} />
 
 <div class="item-list">
-  <SearchField allowCreate={selection.filter.kind !== "trash"} {onCreate} />
+  <SearchField
+    allowCreate={selection.filter.kind !== "trash"}
+    {onCreate}
+    onSearchStart={rememberSearchContext}
+    onSearchClear={restoreSearchContext}
+  />
   <div class="sort-bar">
     <Icon name="arrows-sort" size={13} />
     <label for="entry-sort">Sort</label>
@@ -333,15 +365,6 @@
         {#if selection.search}
           <Icon name="search-off" size={18} />
           <p>No items match "{selection.search}"</p>
-          {#if hasMatchesOutsideFilter}
-            <button
-              type="button"
-              class="empty-action"
-              onclick={() => selection.requestNavigation(() => { selection.filter = { kind: "all" }; })}
-            >
-              Search all items
-            </button>
-          {/if}
         {:else if selection.filter.kind === "trash"}
           <Icon name="trash" size={18} />
           <p>Recycle Bin is empty</p>
