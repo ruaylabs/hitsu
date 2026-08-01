@@ -3,12 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 let listener;
 
 beforeEach(async () => {
+  globalThis.hitsuContentScriptCleanup?.();
   listener = undefined;
   document.body.innerHTML = "";
   globalThis.hitsuContentScriptLoaded = false;
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension-id",
+      lastError: undefined,
+      sendMessage: vi.fn(),
       onMessage: {
         addListener: vi.fn((registered) => {
           listener = registered;
@@ -21,6 +24,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  globalThis.hitsuContentScriptCleanup?.();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
@@ -42,6 +46,109 @@ function mockVisibility(
 }
 
 describe("login filling", () => {
+  it("offers secure login suggestions and fills the keyboard selection", async () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="email" type="email" autocomplete="username">
+        <input name="password" type="password" autocomplete="current-password">
+      </form>
+    `;
+    const [username, password] = document.querySelectorAll("input");
+    mockVisibility(username);
+    mockVisibility(password);
+    chrome.runtime.sendMessage.mockImplementation((message, callback) => {
+      if (message.type === "list-logins") {
+        callback({
+          ok: true,
+          entries: [{ id: "entry-1", title: "Example", username: "ada@example.com" }],
+        });
+      } else if (message.type === "fill-login") {
+        callback({ ok: true });
+      }
+    });
+
+    username.focus();
+
+    await vi.waitFor(() =>
+      expect(document.querySelector("hitsu-login-suggestions")).not.toBeNull(),
+    );
+    const host = document.querySelector("hitsu-login-suggestions");
+    expect(host.shadowRoot).toBeNull();
+    expect(host.textContent).toBe("");
+    expect(host.style.width).toBe("max-content");
+    expect(host.style.maxWidth).toBe("calc(100vw - 16px)");
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "list-logins" },
+      expect.any(Function),
+    );
+
+    username.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    username.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "fill-login", id: "entry-1" },
+      expect.any(Function),
+    );
+  });
+
+  it("keeps suggestions closed when autofill focuses the password field", async () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="email" type="email" autocomplete="username">
+        <input name="password" type="password" autocomplete="current-password">
+      </form>
+    `;
+    const [username, password] = document.querySelectorAll("input");
+    mockVisibility(username);
+    mockVisibility(password);
+    chrome.runtime.sendMessage.mockImplementation((message, callback) => {
+      if (message.type === "list-logins") {
+        callback({
+          ok: true,
+          entries: [{ id: "entry-1", title: "Example", username: "ada@example.com" }],
+        });
+      }
+    });
+
+    username.focus();
+    await vi.waitFor(() =>
+      expect(document.querySelector("hitsu-login-suggestions")).not.toBeNull(),
+    );
+    const host = document.querySelector("hitsu-login-suggestions");
+    chrome.runtime.sendMessage.mockClear();
+
+    expect(
+      listener(
+        {
+          type: "fill-login",
+          username: "ada@example.com",
+          password: "secret",
+        },
+        { id: "extension-id" },
+        vi.fn(),
+      ),
+    ).toBe(false);
+
+    expect(document.activeElement).toBe(password);
+    expect(host.style.display).toBe("none");
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not offer suggestions on signup password fields", () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="email" type="email">
+        <input name="password" type="password" autocomplete="new-password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const field of fields) mockVisibility(field);
+
+    fields[1].focus();
+
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
   it("fills the matching username and password fields and dispatches form events", () => {
     document.body.innerHTML = `
       <form>

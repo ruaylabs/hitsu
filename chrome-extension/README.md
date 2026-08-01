@@ -36,8 +36,8 @@ with that ID. The equivalent manual steps are:
    Running the script without an ID registers the permanent Web Store extension instead.
 
 5. Start the release build of Hitsu, enable **Settings → Features → Browser integration**, and
-   unlock a vault. Open an HTTP(S) page whose hostname exactly matches a login URL, then select the
-   Hitsu toolbar button.
+   unlock a vault. Open an HTTP(S) page whose hostname exactly matches a login URL, then focus a
+   login field to choose an inline suggestion or use the Hitsu toolbar button.
 
 A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. When the
 browser integration is enabled in Settings, the release app registers that host for the permanent
@@ -51,8 +51,9 @@ testing; release builds continue to require HTTPS.
 
 ## Security model
 
-- The extension uses `activeTab`, `nativeMessaging`, and `scripting`; it has no persistent host
-  permissions and injects the local fill script only after the user selects a login.
+- A bundled content script runs on HTTP(S) pages to detect focused login fields and render
+  suggestions in a closed shadow root. It requests matching login metadata only after an eligible
+  field receives focus.
 - The integration is opt-in and off by default: enable it in the desktop app under
   Settings → Features. Until then no socket listens and no native-messaging host manifest
   is registered.
@@ -75,7 +76,6 @@ testing; release builds continue to require HTTPS.
 - macOS and Linux only; the local IPC transport does not yet support Windows.
 - Exact hostname matching only; related subdomains are intentionally not inferred.
 - Fills the first visible password field and nearest preceding username-like field.
-- No inline suggestions, save/update prompts, generated-password capture, HTTP-auth support, or
-  iframe handling.
+- No save/update prompts, generated-password capture, or HTTP-auth support.
 - A store archive can be created with `just chrome-extension-zip`; publishing and desktop release
   distribution remain separate manual steps.

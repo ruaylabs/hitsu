@@ -7,6 +7,13 @@
   "background": {
     "scripts": ["background-loader.js"]
   },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_title": "Hitsu",
     "default_popup": "popup.html"

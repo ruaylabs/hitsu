@@ -9,6 +9,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_title": "Hitsu",
     "default_popup": "popup.html"

@@ -11,7 +11,7 @@ The Hitsu desktop app stores your vault locally on your device and sends no tele
 
 ## Browser extension
 
-When you open the extension, it temporarily processes:
+When you focus an eligible login field or open the extension, it temporarily processes:
 
 - The active tab's origin, to find logins matching the current site.
 - Login titles and usernames returned by the locally installed Hitsu desktop app.
@@ -28,11 +28,11 @@ Policy, including its Limited Use requirements.
 
 ### Permissions
 
-- **activeTab** — read the active page's origin when you open Hitsu.
-- **scripting** — inject the bundled credential-filling script after you select a login.
+- **Website access (HTTP and HTTPS)** — detect focused login fields and display matching Hitsu
+  suggestions. Login metadata is requested only after an eligible field receives focus.
+- **activeTab** — read the active page's origin when you open Hitsu from the toolbar.
+- **scripting** — run the bundled credential-filling script after you select a login.
 - **nativeMessaging** — communicate with the locally installed Hitsu desktop app.
-
-The extension does not request persistent access to all websites.
 
 ## Data sharing
 

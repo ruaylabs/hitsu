@@ -31,8 +31,8 @@ host. The equivalent manual steps are:
    ```
 
 4. Start the release build of Hitsu, enable **Settings → Features → Browser integration**, and
-   unlock a vault. Open an HTTP(S) page whose hostname exactly matches a login URL, then select the
-   Hitsu toolbar button.
+   unlock a vault. Open an HTTP(S) page whose hostname exactly matches a login URL, then focus a
+   login field to choose an inline suggestion or use the Hitsu toolbar button.
 
 A release built with `pnpm tauri build` contains the native host as a Tauri sidecar. Enabling
 browser integration registers it for the stable Firefox extension ID `hitsu@ruaylabs.com`. The
@@ -45,8 +45,9 @@ testing; release builds continue to require HTTPS.
 
 ## Security model
 
-- The extension uses `activeTab`, `nativeMessaging`, and `scripting`; it has no persistent host
-  permissions and injects the local fill script only after the user selects a login.
+- A bundled content script runs on HTTP(S) pages to detect focused login fields and render
+  suggestions in a closed shadow root. It requests matching login metadata only after an eligible
+  field receives focus.
 - The extension declares that it collects no user data.
 - Browser integration is opt-in and off by default. Until enabled, no socket listens and no
   native-messaging host manifest is registered.
@@ -62,5 +63,4 @@ testing; release builds continue to require HTTPS.
 - macOS and Linux only; Windows support is not planned.
 - Exact hostname matching only; related subdomains are intentionally not inferred.
 - Fills the first writable password field and nearest preceding username-like field.
-- No inline suggestions, save/update prompts, generated-password capture, HTTP-auth support, or
-  iframe handling.
+- No save/update prompts, generated-password capture, or HTTP-auth support.
