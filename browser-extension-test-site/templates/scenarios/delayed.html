@@ -1,0 +1,17 @@
+{{define "scenario-body"}}
+  <div class="placeholder" id="delayed-form">
+    Login form appears in <strong id="countdown">2</strong> seconds…
+  </div>
+  <script>
+	let remaining = 2;
+	const timer = setInterval(() => {
+		remaining -= 1;
+		const countdown = document.querySelector("#countdown");
+		if (countdown) countdown.textContent = remaining;
+	}, 1000);
+	setTimeout(() => {
+		clearInterval(timer);
+		document.querySelector("#delayed-form").outerHTML = '<form class="test-form"><label>Email <input name="email" type="email" autocomplete="username"></label><label>Password <input name="password" type="password" autocomplete="current-password"></label><button type="button">Sign in</button></form>';
+	}, 2000);
+  </script>
+{{end}}

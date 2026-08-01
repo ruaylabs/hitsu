@@ -1,5 +1,5 @@
 # Format all source files
-format: format-js format-rust
+format: format-js format-rust format-html
 
 # Format JS/TS/Svelte files
 format-js:
@@ -9,6 +9,10 @@ format-js:
 format-rust:
     cd src-tauri && cargo fmt
     cd browser-extension/native-host && cargo fmt
+
+# Format HTML views
+format-html:
+    cd browser-extension-test-site && uvx djlint==1.43.1 --profile=golang --indent 2 --reformat templates/
 
 # Check formatting
 format-check:
@@ -72,6 +76,10 @@ firefox-extension-dev:
     @printf "     %s/package/hitsu-firefox-extension/manifest.json\n" "$PWD"
     @echo "  4. Start Hitsu, enable Settings > Features > Browser integration, and unlock a vault"
     @echo "  5. Open an HTTP(S) login page and click the Hitsu toolbar icon"
+
+# Run the browser-extension scenario site
+browser-extension-test-site:
+    go run browser-extension-test-site/main.go
 
 # Run dev server
 dev:

@@ -1,0 +1,9 @@
+{{define "scenario-body"}}
+  <login-shell></login-shell>
+  <script>
+	const shell = document.querySelector("login-shell").attachShadow({ mode: "open" });
+	shell.innerHTML = '<style>:host{display:block}label{display:grid;gap:.35rem;margin-bottom:1rem;font-weight:650}input{box-sizing:border-box;width:100%;padding:.7rem;border:1px solid #aab2c0;border-radius:.4rem;font:inherit}button{padding:.65rem 1rem;border:0;border-radius:.4rem;background:#3157d5;color:white;font:inherit;font-weight:700}</style><login-form></login-form>';
+	const nested = shell.querySelector("login-form").attachShadow({ mode: "open" });
+	nested.innerHTML = '<form><label>Username <input name="username" type="email" autocomplete="username"></label><label>Password <input name="password" type="password" autocomplete="current-password"></label><button type="button">Sign in</button></form>';
+  </script>
+{{end}}

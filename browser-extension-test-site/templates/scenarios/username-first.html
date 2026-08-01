@@ -1,0 +1,19 @@
+{{define "scenario-body"}}
+  <form class="test-form" id="two-step-form">
+    <label>
+      Email
+      <input id="identifier"
+             name="identifier"
+             type="email"
+             autocomplete="username"
+             aria-label="Email or phone">
+    </label>
+    <button type="submit">Continue</button>
+  </form>
+  <script>
+	document.querySelector("#two-step-form").addEventListener("submit", (event) => {
+		event.preventDefault();
+		event.currentTarget.innerHTML = '<label>Password <input name="password" type="password" autocomplete="current-password"></label><button type="button">Sign in</button>';
+	});
+  </script>
+{{end}}

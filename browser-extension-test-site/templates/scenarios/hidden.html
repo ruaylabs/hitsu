@@ -1,0 +1,23 @@
+{{define "scenario-body"}}
+  <form class="test-form" hidden>
+    <label>
+      Hidden email
+      <input name="hidden-email" type="email">
+    </label>
+    <label>
+      Hidden password
+      <input name="hidden-password" type="password">
+    </label>
+  </form>
+  <form class="test-form">
+    <label>
+      Visible email
+      <input name="visible-email" type="email">
+    </label>
+    <label>
+      Visible password
+      <input name="visible-password" type="password">
+    </label>
+    <button type="button">Sign in</button>
+  </form>
+{{end}}

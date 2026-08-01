@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{if .Scenario.Name}}{{.Scenario.Name}} · {{end}}Hitsu extension test site</title>
+    <style>
+		:root { color-scheme: light dark; font-family: system-ui, sans-serif; background: #f4f6fa; color: #182033; }
+		* { box-sizing: border-box; }
+		[hidden] { display: none !important; }
+		body { margin: 0; }
+		header { background: #182033; color: white; }
+		header div, main { width: min(58rem, calc(100% - 2rem)); margin: auto; }
+		header div { display: flex; align-items: center; justify-content: space-between; min-height: 3.5rem; }
+		header a { color: inherit; text-decoration: none; font-weight: 750; }
+		main { padding: 2rem 0 4rem; }
+		h1 { margin-top: 0; }
+		.intro, .expected, .scenario-card, .test-area, .event-log { border: 1px solid #d7dce5; border-radius: .65rem; background: white; padding: 1rem; }
+		.intro { margin-bottom: 1.5rem; }
+		.scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+		.scenario-card { color: inherit; text-decoration: none; }
+		.scenario-card:hover { border-color: #3157d5; }
+		.scenario-card h2 { margin: 0 0 .4rem; font-size: 1.05rem; }
+		.scenario-card p { margin: 0; color: #566176; }
+		.back { display: inline-block; margin-bottom: 1rem; }
+		.expected { margin: 1rem 0; border-left: .3rem solid #3157d5; }
+		.test-area { min-height: 13rem; }
+		.test-form { display: grid; gap: 1rem; max-width: 30rem; }
+		label { display: grid; gap: .35rem; font-weight: 650; }
+		input { width: 100%; padding: .7rem; border: 1px solid #aab2c0; border-radius: .4rem; font: inherit; }
+		button { justify-self: start; padding: .65rem 1rem; border: 0; border-radius: .4rem; background: #3157d5; color: white; font: inherit; font-weight: 700; }
+		.placeholder { color: #566176; }
+		.frame-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+		.frame-grid h2 { font-size: 1rem; }
+		iframe { width: 100%; height: 14rem; border: 1px solid #aab2c0; border-radius: .4rem; background: white; }
+		.event-log { margin-top: 1rem; }
+		.event-log h2 { margin-top: 0; font-size: 1rem; }
+		#events { min-height: 1.3rem; margin: 0; padding-left: 1.4rem; color: #566176; font: .85rem ui-monospace, monospace; }
+		@media (prefers-color-scheme: dark) {
+			:root { background: #111522; color: #e8ebf2; }
+			.intro, .expected, .scenario-card, .test-area, .event-log { background: #1a2030; border-color: #343d51; }
+			.scenario-card p, #events, .placeholder { color: #acb5c7; }
+			input { background: #111522; color: #e8ebf2; border-color: #566176; }
+		}
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <a href="/">Hitsu extension test site</a><small>localhost only</small>
+      </div>
+    </header>
+    <main>
+      {{if .Scenario.Name}}
+        <a class="back" href="/">← All scenarios</a>
+        <h1>{{.Scenario.Name}}</h1>
+        <p>{{.Scenario.Description}}</p>
+        <div class="expected">
+          <strong>Expected:</strong> {{.Scenario.Expected}}
+        </div>
+        <section class="test-area">
+          {{template "scenario-body" .}}
+        </section>
+        <section class="event-log">
+          <h2>Input events</h2>
+          <ol id="events">
+            <li>Waiting for changes…</li>
+          </ol>
+        </section>
+      {{else}}
+        <h1>Browser-extension scenarios</h1>
+        <div class="intro">
+          <p>Use these pages to manually exercise Hitsu autofill behavior.</p>
+          <ol>
+            <li>
+              Create or edit a Hitsu login whose URL is <code id="origin"></code>.
+            </li>
+            <li>Open a scenario below.</li>
+            <li>Select the Hitsu toolbar icon and fill the login.</li>
+          </ol>
+        </div>
+        <div class="scenario-grid">
+          {{range .Scenarios}}<a class="scenario-card" href="/scenario/{{.Slug}}">
+            <h2>{{.Name}}</h2>
+            <p>{{.Description}}</p>
+          </a>{{end}}
+        </div>
+    {{end}}
+  </main>
+  <script>
+	const origin = document.querySelector("#origin");
+	if (origin) origin.textContent = location.origin;
+	const events = document.querySelector("#events");
+	if (events) {
+		document.addEventListener("input", recordEvent, true);
+		document.addEventListener("change", recordEvent, true);
+		function recordEvent(event) {
+			if (events.children.length === 1 && events.textContent.includes("Waiting")) events.textContent = "";
+			const item = document.createElement("li");
+			item.textContent = event.type + " → " + (event.target.name || event.target.id || event.target.tagName.toLowerCase());
+			events.append(item);
+		}
+	}
+  </script>
+</body>
+</html>
+{{define "scenario-body"}}{{end}}

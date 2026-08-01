@@ -17,7 +17,8 @@
       "!**/.output",
       "!**/coverage",
       "!**/node_modules",
-      "!**/src-tauri/target"
+      "!**/src-tauri/target",
+      "!browser-extension-test-site/templates"
     ]
   },
   "html": {

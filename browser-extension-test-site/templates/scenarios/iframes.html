@@ -1,0 +1,14 @@
+{{define "scenario-body"}}
+  <div class="frame-grid">
+    <section>
+      <h2>Same origin</h2>
+      <iframe title="Same-origin login" src="/frame/login"></iframe>
+    </section>
+    <section>
+      <h2>Opaque origin</h2>
+      <iframe title="Opaque-origin login"
+              sandbox="allow-forms"
+              srcdoc="&lt;!doctype html&gt;&lt;html lang='en'&gt;&lt;head&gt;&lt;meta charset='utf-8'&gt;&lt;style&gt;body{font-family:system-ui,sans-serif;padding:1rem}label{display:grid;gap:.25rem;margin-bottom:.75rem;font-weight:650}input{padding:.55rem;font:inherit}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;form&gt;&lt;label&gt;Email &lt;input name='frame-email' type='email' autocomplete='username'&gt;&lt;/label&gt;&lt;label&gt;Password &lt;input name='frame-password' type='password' autocomplete='current-password'&gt;&lt;/label&gt;&lt;/form&gt;&lt;/body&gt;&lt;/html&gt;"></iframe>
+    </section>
+  </div>
+{{end}}
