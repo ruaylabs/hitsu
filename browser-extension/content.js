@@ -56,20 +56,21 @@
     );
   }
 
-  function findVisiblePasswordInput() {
-    const all = queryAll(document, 'input[type="password"]:not([disabled]):not([readonly])').filter(
+  function visiblePasswordInputs() {
+    return queryAll(document, 'input[type="password"]:not([disabled]):not([readonly])').filter(
       isVisible,
     );
+  }
 
-    if (all.length <= 1) return all[0] ?? null;
-
-    // Multiple password fields: prefer the one with autocomplete="current-password".
-    // If none is marked current-password this is likely a signup or change-password
-    // form — refuse to fill rather than dump credentials into a registration form.
-    const current = all.find((input) =>
+  function selectPasswordInput(inputs) {
+    const current = inputs.find((input) =>
       input.autocomplete.toLowerCase().split(/\s+/).includes("current-password"),
     );
-    return current ?? null;
+    if (current) return current;
+
+    if (inputs.length !== 1) return null;
+    const autocomplete = inputs[0].autocomplete.toLowerCase().split(/\s+/);
+    return autocomplete.includes("new-password") ? null : inputs[0];
   }
 
   function findUsernameOnlyInput() {
@@ -100,7 +101,7 @@
   function fillPasswordWhenAvailable(password) {
     let timeout;
     const observer = new MutationObserver(() => {
-      const passwordInput = findVisiblePasswordInput();
+      const passwordInput = selectPasswordInput(visiblePasswordInputs());
       if (!passwordInput) return;
 
       observer.disconnect();
@@ -114,7 +115,8 @@
   }
 
   function fillAvailableLogin(message) {
-    const passwordInput = findVisiblePasswordInput();
+    const passwordInputs = visiblePasswordInputs();
+    const passwordInput = selectPasswordInput(passwordInputs);
     if (passwordInput) {
       const usernameInput = findUsernameInput(passwordInput);
       if (usernameInput && message.username) setInputValue(usernameInput, message.username);
@@ -123,15 +125,17 @@
       return { ok: true };
     }
 
-    // No fillable password field. If there are password fields at all but
-    // none are suitable (e.g. a signup form with only new-password fields),
-    // refuse to fill anything rather than dump credentials into a
-    // registration form.
-    const anyPassword = queryAll(
-      document,
-      'input[type="password"]:not([disabled]):not([readonly])',
-    ).filter(isVisible);
-    if (anyPassword.length > 0) return null;
+    if (passwordInputs.length > 0) {
+      const isSignup = passwordInputs.every((input) =>
+        input.autocomplete.toLowerCase().split(/\s+/).includes("new-password"),
+      );
+      return {
+        ok: false,
+        error: isSignup
+          ? "Hitsu does not fill signup forms"
+          : "Hitsu could not determine which password field to fill",
+      };
+    }
 
     const usernameInput = findUsernameOnlyInput();
     if (!usernameInput || !message.username) return null;

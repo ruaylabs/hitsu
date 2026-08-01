@@ -244,7 +244,7 @@ describe("login filling", () => {
     expect(passwords[1].value).toBe("secret");
   });
 
-  it("refuses to fill a signup form with new-password and confirm-password fields", () => {
+  it("immediately refuses a signup form with new-password fields", () => {
     document.body.innerHTML = `
       <form id="signup">
         <input name="email" type="email">
@@ -262,12 +262,69 @@ describe("login filling", () => {
         { id: "extension-id" },
         sendResponse,
       ),
-    ).toBe(true);
+    ).toBe(false);
 
-    // No field should be filled — the observer eventually gives up
     expect(fields[0].value).toBe("");
     expect(fields[1].value).toBe("");
     expect(fields[2].value).toBe("");
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      error: "Hitsu does not fill signup forms",
+    });
+  });
+
+  it("refuses a single new-password field", () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="email" type="email">
+        <input name="password" type="password" autocomplete="new-password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const field of fields) mockVisibility(field);
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(false);
+
+    expect(fields[0].value).toBe("");
+    expect(fields[1].value).toBe("");
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      error: "Hitsu does not fill signup forms",
+    });
+  });
+
+  it("immediately refuses ambiguous password fields", () => {
+    document.body.innerHTML = `
+      <form>
+        <input name="username" type="text">
+        <input name="password-one" type="password">
+        <input name="password-two" type="password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const field of fields) mockVisibility(field);
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "fill-login", username: "ada", password: "secret" },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(false);
+
+    expect([...fields].every((field) => field.value === "")).toBe(true);
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      error: "Hitsu could not determine which password field to fill",
+    });
   });
 
   it("picks current-password among multiple password fields in a change-password form", () => {
