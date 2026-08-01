@@ -12,6 +12,8 @@
   let suggestionButtons = [];
   let selectedSuggestion = -1;
   let suggestionRequest = 0;
+  let inlineFillRequest = 0;
+  let pendingInlineFill;
   let suppressSuggestions = false;
   let cachedEntries;
   let cacheTime = 0;
@@ -85,8 +87,8 @@
     );
   }
 
-  function visiblePasswordInputs() {
-    return queryAll(document, 'input[type="password"]:not([disabled]):not([readonly])').filter(
+  function visiblePasswordInputs(root = document) {
+    return queryAll(root, 'input[type="password"]:not([disabled]):not([readonly])').filter(
       isVisible,
     );
   }
@@ -229,13 +231,27 @@
     const input = suggestionInput;
     if (!entry || !input) return;
 
+    const requestId = String(++inlineFillRequest);
+    pendingInlineFill = { requestId, input };
     hideSuggestions();
     try {
-      chrome.runtime.sendMessage({ type: "fill-login", id: entry.id }, (response) => {
-        if (chrome.runtime.lastError || response?.ok || !inputHasFocus(input)) return;
-        showSuggestionMessage(input, response?.error ?? "Could not fill this page.");
-      });
+      chrome.runtime.sendMessage(
+        { type: "fill-login-inline", id: entry.id, requestId },
+        (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError || !response?.ok) {
+            if (pendingInlineFill?.requestId === requestId) pendingInlineFill = undefined;
+            if (inputHasFocus(input)) {
+              showSuggestionMessage(
+                input,
+                response?.error ?? runtimeError?.message ?? "Could not fill this page.",
+              );
+            }
+          }
+        },
+      );
     } catch {
+      pendingInlineFill = undefined;
       // The extension was reloaded while the page remained open.
     }
   }
@@ -326,14 +342,14 @@
     subtree: true,
   };
 
-  function observeOpenRoots(observer) {
-    for (const root of openRoots()) observer.observe(root, observerOptions);
+  function observeOpenRoots(observer, root = document) {
+    for (const openRoot of openRoots(root)) observer.observe(openRoot, observerOptions);
   }
 
-  function fillPasswordWhenAvailable(password) {
+  function fillPasswordWhenAvailable(password, root = document) {
     let timeout;
     const observer = new MutationObserver(() => {
-      const passwordInput = selectPasswordInput(visiblePasswordInputs());
+      const passwordInput = selectPasswordInput(visiblePasswordInputs(root));
       if (!passwordInput) return;
 
       observer.disconnect();
@@ -342,8 +358,40 @@
       focusAfterFill(passwordInput);
     });
 
-    observeOpenRoots(observer);
+    observeOpenRoots(observer, root);
     timeout = setTimeout(() => observer.disconnect(), 15_000);
+  }
+
+  function fillTargetedLogin(message, input) {
+    if (!input?.isConnected || input.disabled || input.readOnly || !isVisible(input)) {
+      return { ok: false, error: "The selected login field is no longer available" };
+    }
+
+    const scope = input.form ?? input.getRootNode();
+    const passwordInputs = visiblePasswordInputs(scope);
+    const passwordInput = input.type === "password" ? input : selectPasswordInput(passwordInputs);
+    if (
+      (passwordInput && selectPasswordInput(passwordInputs) !== passwordInput) ||
+      (!passwordInput && passwordInputs.length > 0)
+    ) {
+      return { ok: false, error: "Hitsu could not determine which password field to fill" };
+    }
+
+    const usernameInput = input.type === "password" ? findUsernameInput(passwordInput) : input;
+    if (passwordInput) {
+      if (usernameInput && message.username) setInputValue(usernameInput, message.username);
+      setInputValue(passwordInput, message.password);
+      focusAfterFill(passwordInput);
+      return { ok: true };
+    }
+
+    if (!message.username) {
+      return { ok: false, error: "No username is available for this login field" };
+    }
+    setInputValue(usernameInput, message.username);
+    focusAfterFill(usernameInput);
+    fillPasswordWhenAvailable(message.password, scope);
+    return { ok: true, usernameOnly: true };
   }
 
   function fillAvailableLogin(message) {
@@ -481,6 +529,17 @@
     // Only fill frames whose origin matches the expected origin; silently
     // ignore cross-origin child frames (SSO widgets, embedded auth, etc.).
     if (message.expectedOrigin && window.location.origin !== message.expectedOrigin) {
+      return false;
+    }
+
+    if (message.inlineRequestId) {
+      const pending = pendingInlineFill;
+      pendingInlineFill = undefined;
+      const response =
+        pending?.requestId === message.inlineRequestId
+          ? fillTargetedLogin(message, pending.input)
+          : { ok: false, error: "The selected login field is no longer available" };
+      sendResponse(response);
       return false;
     }
 

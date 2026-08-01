@@ -67,11 +67,28 @@ export function pageMatchesOrigin(pageUrl, expectedOrigin) {
   }
 }
 
+function senderHttpFrame(sender) {
+  if (!sender.tab?.id || typeof sender.url !== "string") {
+    throw typedError("invalid_sender", "No browser tab is available for this request");
+  }
+
+  const url = new URL(sender.url);
+  if (!pageMatchesOrigin(url.href, url.origin)) {
+    throw typedError("invalid_page", "Hitsu can only fill HTTP and HTTPS pages");
+  }
+  if (sender.tab.url && !pageMatchesOrigin(sender.tab.url, url.origin)) {
+    throw typedError("cross_origin_frame", "Hitsu does not suggest logins in cross-origin frames");
+  }
+
+  return { id: sender.tab.id, frameId: sender.frameId ?? 0, origin: url.origin };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
 
   if (message?.type === "list-logins") {
-    activeHttpTab()
+    Promise.resolve()
+      .then(() => (sender.tab ? senderHttpFrame(sender) : activeHttpTab()))
       .then(({ origin }) => nativeMessage({ type: "listLogins", origin }))
       .then((response) => sendResponse({ ok: true, entries: loginEntries(response) }))
       .catch((error) =>
@@ -92,6 +109,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then((response) =>
         sendResponse({ ok: true, otp: response.otp, remaining: response.remaining }),
       )
+      .catch((error) =>
+        sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
+      );
+    return true;
+  }
+
+  if (
+    message?.type === "fill-login-inline" &&
+    typeof message.id === "string" &&
+    typeof message.requestId === "string"
+  ) {
+    Promise.resolve()
+      .then(async () => {
+        const frame = senderHttpFrame(sender);
+        const response = credentials(
+          await nativeMessage({
+            type: "getCredentials",
+            id: message.id,
+            origin: frame.origin,
+          }),
+        );
+        const fillResponse = await chrome.tabs.sendMessage(
+          frame.id,
+          {
+            type: "fill-login",
+            username: response.username ?? "",
+            password: response.password,
+            expectedOrigin: frame.origin,
+            inlineRequestId: message.requestId,
+          },
+          { frameId: frame.frameId },
+        );
+        if (!fillResponse?.ok) {
+          throw typedError(
+            "fill_failed",
+            fillResponse?.error ?? "Could not fill the selected login field",
+          );
+        }
+        sendResponse({ ok: true });
+      })
       .catch((error) =>
         sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
       );

@@ -46,7 +46,7 @@ function mockVisibility(
 }
 
 describe("login filling", () => {
-  it("offers secure login suggestions and fills the keyboard selection", async () => {
+  it("offers secure login suggestions and requests the keyboard selection", async () => {
     document.body.innerHTML = `
       <form>
         <input name="email" type="email" autocomplete="username">
@@ -62,7 +62,7 @@ describe("login filling", () => {
           ok: true,
           entries: [{ id: "entry-1", title: "Example", username: "ada@example.com" }],
         });
-      } else if (message.type === "fill-login") {
+      } else if (message.type === "fill-login-inline") {
         callback({ ok: true });
       }
     });
@@ -86,9 +86,71 @@ describe("login filling", () => {
     username.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-      { type: "fill-login", id: "entry-1" },
+      {
+        type: "fill-login-inline",
+        id: "entry-1",
+        requestId: expect.any(String),
+      },
       expect.any(Function),
     );
+  });
+
+  it("fills only the form where an inline suggestion was selected", async () => {
+    document.body.innerHTML = `
+      <form id="first-login">
+        <input name="first-email" type="email" autocomplete="username">
+        <input name="first-password" type="password" autocomplete="current-password">
+      </form>
+      <form id="second-login">
+        <input name="second-email" type="email" autocomplete="username">
+        <input name="second-password" type="password" autocomplete="current-password">
+      </form>
+    `;
+    const fields = document.querySelectorAll("input");
+    for (const field of fields) mockVisibility(field);
+    let inlineMessage;
+    let inlineCallback;
+    chrome.runtime.sendMessage.mockImplementation((message, callback) => {
+      if (message.type === "list-logins") {
+        callback({
+          ok: true,
+          entries: [{ id: "entry-1", title: "Example", username: "ada@example.com" }],
+        });
+      } else if (message.type === "fill-login-inline") {
+        inlineMessage = message;
+        inlineCallback = callback;
+      }
+    });
+
+    fields[2].focus();
+    await vi.waitFor(() =>
+      expect(document.querySelector("hitsu-login-suggestions")).not.toBeNull(),
+    );
+    fields[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    fields[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(inlineMessage.requestId).toEqual(expect.any(String));
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        {
+          type: "fill-login",
+          username: "ada@example.com",
+          password: "secret",
+          inlineRequestId: inlineMessage.requestId,
+        },
+        { id: "extension-id" },
+        sendResponse,
+      ),
+    ).toBe(false);
+    inlineCallback({ ok: true });
+
+    expect(fields[0].value).toBe("");
+    expect(fields[1].value).toBe("");
+    expect(fields[2].value).toBe("ada@example.com");
+    expect(fields[3].value).toBe("secret");
+    expect(document.activeElement).toBe(fields[3]);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
   });
 
   it("keeps suggestions closed when autofill focuses the password field", async () => {

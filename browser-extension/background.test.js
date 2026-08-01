@@ -117,6 +117,61 @@ describe("background integration", () => {
     });
   });
 
+  it("uses the sender origin for inline suggestions without activeTab", async () => {
+    chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
+      callback({ ok: true, entries: [{ id: "entry", title: "Example", username: "ada" }] });
+    });
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "list-logins" },
+        {
+          id: "extension-id",
+          frameId: 4,
+          url: "https://example.com/login",
+          tab: { id: 7, url: "https://example.com/account" },
+        },
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+
+    expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+    expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
+      "com.ruaylabs.hitsu.browser",
+      { type: "listLogins", origin: "https://example.com" },
+      expect.any(Function),
+    );
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: true,
+      entries: [{ id: "entry", title: "Example", username: "ada" }],
+    });
+  });
+
+  it("rejects inline suggestions from cross-origin frames", async () => {
+    const sendResponse = vi.fn();
+
+    listener(
+      { type: "list-logins" },
+      {
+        id: "extension-id",
+        frameId: 4,
+        url: "https://embedded.example/frame",
+        tab: { id: 7, url: "https://example.com/login" },
+      },
+      sendResponse,
+    );
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+
+    expect(chromeMock.runtime.sendNativeMessage).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({
+      ok: false,
+      code: "cross_origin_frame",
+      error: "Hitsu does not suggest logins in cross-origin frames",
+    });
+  });
+
   it("rejects non-HTTP pages before contacting the native host", async () => {
     chromeMock.tabs.query.mockResolvedValue([{ id: 7, url: "about:logins" }]);
     const sendResponse = vi.fn();
@@ -176,6 +231,48 @@ describe("background integration", () => {
         expectedOrigin: "https://example.com",
       },
       { frameId: 0 },
+    );
+  });
+
+  it("fills an inline suggestion only in its originating frame without script injection", async () => {
+    chromeMock.runtime.sendNativeMessage.mockImplementation((_host, _message, callback) => {
+      callback({ ok: true, username: "ada", password: "secret" });
+    });
+    chromeMock.tabs.sendMessage.mockResolvedValue({ ok: true });
+    const sendResponse = vi.fn();
+
+    expect(
+      listener(
+        { type: "fill-login-inline", id: "entry", requestId: "request-1" },
+        {
+          id: "extension-id",
+          frameId: 24,
+          url: "https://example.com/frame-login",
+          tab: { id: 7, url: "https://example.com/login" },
+        },
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ ok: true }));
+
+    expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+    expect(chromeMock.tabs.get).not.toHaveBeenCalled();
+    expect(chromeMock.scripting.executeScript).not.toHaveBeenCalled();
+    expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
+      "com.ruaylabs.hitsu.browser",
+      { type: "getCredentials", id: "entry", origin: "https://example.com" },
+      expect.any(Function),
+    );
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      7,
+      {
+        type: "fill-login",
+        username: "ada",
+        password: "secret",
+        expectedOrigin: "https://example.com",
+        inlineRequestId: "request-1",
+      },
+      { frameId: 24 },
     );
   });
 
