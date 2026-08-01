@@ -93,6 +93,19 @@ tauri-dev:
 version:
     @grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([0-9.]*\)".*/\1/'
 
+# Bump both browser-extension manifests, build publish archives, and commit the change
+# Usage: just bump-browser-extension-version 0.2.0
+bump-browser-extension-version version:
+    @printf '%s\n' "{{ version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || (echo "Version must use x.y.z format" >&2; exit 2)
+    sed -i'' -e 's/"version": "[0-9.]*"/"version": "{{ version }}"/' chrome-extension/manifest.json firefox-extension/manifest.json
+    @node -e 'for (const file of process.argv.slice(2)) { const manifest = require("./" + file); if (manifest.version !== process.argv[1]) throw new Error(file + " was not updated"); }' "{{ version }}" chrome-extension/manifest.json firefox-extension/manifest.json
+    git add chrome-extension/manifest.json firefox-extension/manifest.json
+    if ! git diff --cached --quiet; then git commit -m "chore(browser-extension): bump v{{ version }}"; fi
+    just browser-extension-validate
+    @echo ""
+    @echo "Upload package/hitsu-chrome-extension.zip to the Chrome Web Store."
+    @echo "Upload package/hitsu-firefox-extension.zip to Mozilla Add-ons."
+
 # Bump desktop app version in all config files and create a tag
 # Usage: just bump-version 0.2.0
 bump-version version:
