@@ -5,7 +5,8 @@
   "description": "Fill login credentials from the unlocked Hitsu desktop app.",
   "permissions": ["activeTab", "nativeMessaging", "scripting"],
   "background": {
-    "scripts": ["background-loader.js"]
+    "scripts": ["background.js"],
+    "type": "module"
   },
   "content_scripts": [
     {

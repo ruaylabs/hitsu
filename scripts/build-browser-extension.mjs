@@ -14,14 +14,7 @@ const builds = {
   firefox: {
     configDirectory: "firefox-extension",
     outputDirectory: "hitsu-firefox-extension",
-    files: [
-      "background.js",
-      "background-loader.js",
-      "content.js",
-      "popup.html",
-      "popup.js",
-      "popup.css",
-    ],
+    files: ["background.js", "content.js", "popup.html", "popup.js", "popup.css"],
   },
 };
 
