@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hitsu Password Manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fill login credentials from the unlocked Hitsu desktop app.",
   "permissions": ["activeTab", "nativeMessaging", "scripting"],
   "background": {
