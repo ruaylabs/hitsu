@@ -474,7 +474,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
             };
-            if !is_https_origin(&origin) {
+            if !credential_fill_allowed(&origin) {
                 return json!({ "ok": false, "code": "insecure_page", "error": "Hitsu will not fill passwords on HTTP pages" });
             }
             if !valid_entry_id(&id) {
@@ -583,10 +583,10 @@ fn origin_host(origin: &str) -> Result<String, ()> {
         .ok_or(())
 }
 
-fn is_https_origin(origin: &str) -> bool {
-    Url::parse(origin)
-        .map(|url| url.scheme() == "https")
-        .unwrap_or(false)
+fn credential_fill_allowed(origin: &str) -> bool {
+    Url::parse(origin).is_ok_and(|url| {
+        url.scheme() == "https" || (cfg!(debug_assertions) && url.scheme() == "http")
+    })
 }
 
 fn entry_host(raw: &str) -> Option<String> {
@@ -604,9 +604,9 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        entry_host, generate_token, host_match, origin_host, read_request, remove_stale_socket,
-        runtime_dir_from, token_matches, valid_entry_id, write_native_host_manifests,
-        BrowserRequest, HostMatch, NATIVE_HOST_NAME,
+        credential_fill_allowed, entry_host, generate_token, host_match, origin_host, read_request,
+        remove_stale_socket, runtime_dir_from, token_matches, valid_entry_id,
+        write_native_host_manifests, BrowserRequest, HostMatch, NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::net::{UnixListener, UnixStream};
@@ -622,6 +622,16 @@ mod tests {
             entry_host("example.com/login").as_deref(),
             Some("example.com")
         );
+    }
+
+    #[test]
+    fn allows_http_credential_fills_only_in_development_builds() {
+        assert!(credential_fill_allowed("https://example.com"));
+        assert_eq!(
+            credential_fill_allowed("http://localhost:5173"),
+            cfg!(debug_assertions)
+        );
+        assert!(!credential_fill_allowed("file:///tmp/login.html"));
     }
 
     #[test]

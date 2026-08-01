@@ -46,7 +46,8 @@ development extensions whose IDs differ from the store ID.
 
 After changing files in `browser-extension/`, rebuild with
 `node scripts/build-browser-extension.mjs chrome` and reload the extension from
-`chrome://extensions`.
+`chrome://extensions`. Debug builds of the Hitsu desktop app permit HTTP credential fills for local
+testing; release builds continue to require HTTPS.
 
 ## Security model
 

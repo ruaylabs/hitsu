@@ -40,7 +40,8 @@ install script is useful for local development or an alternate extension ID.
 
 After changing files in `browser-extension/`, rebuild with
 `node scripts/build-browser-extension.mjs firefox` and reload the temporary extension from
-`about:debugging`.
+`about:debugging`. Debug builds of the Hitsu desktop app permit HTTP credential fills for local
+testing; release builds continue to require HTTPS.
 
 ## Security model
 
