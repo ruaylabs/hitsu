@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import type { EntrySummary } from "$lib/bridge/types";
 import { features } from "$lib/stores/features.svelte";
@@ -131,6 +132,24 @@ describe("Sidebar", () => {
 
     expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
     expect(await screen.findByRole("tab", { name: "Customers 0" })).toBeInTheDocument();
+  });
+
+  it("uses the shared danger confirmation when deleting a tag", async () => {
+    vault.setEntries([{ ...entries[0], tags: ["work"] }]);
+    vi.spyOn(entriesBridge, "tagDelete").mockResolvedValue();
+    render(Sidebar);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Delete work" }));
+
+    expect(screen.getByRole("dialog", { name: "Delete tag" })).toHaveTextContent(
+      "Remove work from all entries? This cannot be undone.",
+    );
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    expect(deleteButton).toHaveClass("button-danger");
+
+    await fireEvent.click(deleteButton);
+
+    await waitFor(() => expect(entriesBridge.tagDelete).toHaveBeenCalledWith("work"));
   });
 
   it("gives arbitrary tags a stable palette color", () => {

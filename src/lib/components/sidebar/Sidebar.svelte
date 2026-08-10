@@ -7,8 +7,8 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { tagColor } from "$lib/utils/tagColor";
-  import Button from "../ui/Button.svelte";
-  import Dialog from "../ui/Dialog.svelte";
+  import ConfirmDialog from "../ui/ConfirmDialog.svelte";
+  import FormDialog from "../ui/FormDialog.svelte";
   import SidebarItem from "./SidebarItem.svelte";
   import SidebarSection from "./SidebarSection.svelte";
 
@@ -258,14 +258,16 @@
 </aside>
 
 {#if folderDialog}
-  <Dialog
+  <FormDialog
     title={folderDialog.mode === "rename"
       ? "Rename folder"
       : folderDialog.parentName
         ? `New folder in ${folderDialog.parentName}`
         : "New folder"}
-    size="sm"
-    onclose={() => (folderDialog = null)}
+    confirmLabel={folderDialog.mode === "rename" ? "Rename" : "Create"}
+    busy={savingFolder}
+    disabled={!folderName.trim()}
+    oncancel={() => (folderDialog = null)}
     onconfirm={saveFolder}
   >
     <div class="folder-form">
@@ -282,21 +284,16 @@
         <p class="control-error">{folderError}</p>
       {/if}
     </div>
-
-    {#snippet footer()}
-      <Button onclick={() => (folderDialog = null)}>Cancel</Button>
-      <Button variant="primary" onclick={saveFolder} disabled={savingFolder || !folderName.trim()}>
-        {savingFolder ? "Saving…" : folderDialog?.mode === "rename" ? "Rename" : "Create"}
-      </Button>
-    {/snippet}
-  </Dialog>
+  </FormDialog>
 {/if}
 
 {#if tagRenameDialog}
-  <Dialog
+  <FormDialog
     title="Rename tag"
-    size="sm"
-    onclose={() => (tagRenameDialog = null)}
+    confirmLabel="Rename"
+    busy={savingTag}
+    disabled={!tagRenameInput.trim() || tagRenameInput.trim() === tagRenameDialog.oldName}
+    oncancel={() => (tagRenameDialog = null)}
     onconfirm={saveTagRename}
   >
     <div class="folder-form">
@@ -315,36 +312,18 @@
         <p class="control-error">{tagRenameError}</p>
       {/if}
     </div>
-
-    {#snippet footer()}
-      <Button onclick={() => (tagRenameDialog = null)}>Cancel</Button>
-      <Button
-        variant="primary"
-        onclick={saveTagRename}
-        disabled={savingTag || !tagRenameInput.trim() || tagRenameInput.trim() === tagRenameDialog?.oldName}
-      >
-        {savingTag ? "Saving…" : "Rename"}
-      </Button>
-    {/snippet}
-  </Dialog>
+  </FormDialog>
 {/if}
 
 {#if tagDeletePrompt}
-  <Dialog
+  <ConfirmDialog
     title="Delete tag"
-    size="sm"
-    onclose={() => (tagDeletePrompt = null)}
+    message={`Remove ${tagDeletePrompt} from all entries? This cannot be undone.`}
+    confirmLabel="Delete"
+    danger
+    oncancel={() => (tagDeletePrompt = null)}
     onconfirm={confirmDeleteTag}
-  >
-    <p class="control-error">
-      Remove <strong>{tagDeletePrompt}</strong> from all entries? This cannot be undone.
-    </p>
-
-    {#snippet footer()}
-      <Button onclick={() => (tagDeletePrompt = null)}>Cancel</Button>
-      <Button variant="primary" onclick={confirmDeleteTag}> Delete </Button>
-    {/snippet}
-  </Dialog>
+  />
 {/if}
 
 <style>
