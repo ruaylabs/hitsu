@@ -146,13 +146,14 @@
     filtered.length > 0 && filtered.some((e) => e.id === selection.selectedId),
   );
 
-  // Auto-select first when filter/search changes and nothing is selected
+  // Keep the detail selection in sync with the current filter/search.
   $effect(() => {
-    if (filtered.length > 0 && !hasSelection) {
-      selection.requestNavigation(() => {
-        selection.selectedId = filtered[0].id;
-      });
-    }
+    if (hasSelection) return;
+    const nextId = filtered[0]?.id ?? null;
+    if (selection.selectedId === nextId) return;
+    selection.requestNavigation(() => {
+      selection.selectedId = nextId;
+    });
   });
 
   // Keyboard navigation: ↑/↓ move selection, Home/End jump to ends.

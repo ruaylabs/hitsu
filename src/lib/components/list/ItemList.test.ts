@@ -126,6 +126,17 @@ describe("ItemList", () => {
     expect(screen.queryByRole("option", { name: /Root/ })).not.toBeInTheDocument();
   });
 
+  it("clears the selection when the current category has no entries", async () => {
+    vault.setEntries(makeEntries(2));
+    selection.selectedId = "id-0";
+    render(ItemList);
+
+    selection.filter = { kind: "favorites" };
+
+    await waitFor(() => expect(selection.selectedId).toBeNull());
+    expect(screen.getByText("No entries in this view")).toBeInTheDocument();
+  });
+
   it("shows the empty state when nothing matches", async () => {
     vault.setEntries(makeEntries(5));
     render(ItemList, { onCreate: vi.fn() });
