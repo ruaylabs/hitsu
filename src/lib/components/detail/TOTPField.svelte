@@ -1,8 +1,7 @@
 <script lang="ts">
   import * as totpBridge from "$lib/bridge/totp";
   import { clipboard } from "$lib/stores/clipboard.svelte";
-  import { toast } from "$lib/stores/toast.svelte";
-  import { errorMessage } from "$lib/utils/errorMessage";
+  import { createCopyFeedback } from "$lib/utils/copyFeedback.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
 
@@ -14,8 +13,7 @@
   let period = $state(30);
   let remaining = $state(30);
   let flash = $state(false);
-  let copied = $state(false);
-  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  const copied = createCopyFeedback();
 
   let circumference = $derived(2 * Math.PI * 8); // r=8 → ~50.27
   let dashoffset = $derived(circumference - (remaining / period) * circumference);
@@ -79,19 +77,6 @@
   let formattedCode = $derived(code.length >= 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code);
   let expiring = $derived(remaining <= 10);
   let fillColor = $derived(expiring ? "var(--danger)" : "var(--success)");
-
-  async function copyCode() {
-    try {
-      await clipboard.copy(code);
-    } catch (error) {
-      toast.error(errorMessage(error));
-      return;
-    }
-    toast.success("TOTP code copied");
-    if (copyTimer) clearTimeout(copyTimer);
-    copied = true;
-    copyTimer = setTimeout(() => (copied = false), 1000);
-  }
 </script>
 
 <DetailFieldRow
@@ -119,8 +104,8 @@
     <span class="totp-seconds">{remaining}</span>
   </div>
   <IconButton
-    icon={copied ? "check" : "copy"}
-    onclick={copyCode}
+    icon={copied.active ? "check" : "copy"}
+    onclick={() => copied.run(() => clipboard.copy(code), "TOTP code copied")}
     aria-label="Copy TOTP code"
     title="Copy TOTP code"
   />

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { security } from "$lib/stores/security.svelte";
-  import { toast } from "$lib/stores/toast.svelte";
-  import { errorMessage } from "$lib/utils/errorMessage";
+  import { createCopyFeedback } from "$lib/utils/copyFeedback.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
@@ -33,8 +32,7 @@
   let hideRemaining = $state(0);
   let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let copied = $state(false);
-  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  const copied = createCopyFeedback();
 
   function hide() {
     revealed = false;
@@ -75,19 +73,6 @@
 
   // Drop the plaintext when the component unmounts or switches entries.
   $effect(() => () => hide());
-
-  async function copy() {
-    try {
-      await copyFn();
-    } catch (e) {
-      toast.error(errorMessage(e));
-      return;
-    }
-    toast.success(`${label} copied`);
-    if (copyTimer) clearTimeout(copyTimer);
-    copied = true;
-    copyTimer = setTimeout(() => (copied = false), 1000);
-  }
 </script>
 
 <DetailFieldRow {label}>
@@ -98,8 +83,8 @@
     {/if}
     <div class="field-actions">
       <IconButton
-        icon={copied ? "check" : "copy"}
-        onclick={copy}
+        icon={copied.active ? "check" : "copy"}
+        onclick={() => copied.run(copyFn, `${label} copied`)}
         aria-label={`Copy ${label.toLowerCase()}`}
         title={`Copy ${label.toLowerCase()}`}
       />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createCopyFeedback } from "$lib/utils/copyFeedback.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
 
@@ -28,14 +29,11 @@
     label.toLowerCase().includes("password") && !reveal ? "•".repeat(14) : visibleValue,
   );
 
-  let copied = $state(false);
-  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  const copied = createCopyFeedback();
 
   function handleCopy() {
     onCopy?.();
-    if (copyTimer) clearTimeout(copyTimer);
-    copied = true;
-    copyTimer = setTimeout(() => (copied = false), 1000);
+    copied.show();
   }
 </script>
 
@@ -54,7 +52,7 @@
   {:else if onCopy}
     <div class="field-actions">
       <IconButton
-        icon={copied ? "check" : "copy"}
+        icon={copied.active ? "check" : "copy"}
         onclick={handleCopy}
         aria-label="Copy {label}"
         title="Copy {label}"
