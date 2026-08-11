@@ -1,6 +1,8 @@
 <script lang="ts">
   import * as totpBridge from "$lib/bridge/totp";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import IconButton from "../ui/IconButton.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
 
@@ -78,8 +80,14 @@
   let expiring = $derived(remaining <= 10);
   let fillColor = $derived(expiring ? "var(--danger)" : "var(--success)");
 
-  function copyCode() {
-    clipboard.copy(code);
+  async function copyCode() {
+    try {
+      await clipboard.copy(code);
+    } catch (error) {
+      toast.error(errorMessage(error));
+      return;
+    }
+    toast.success("TOTP code copied");
     if (copyTimer) clearTimeout(copyTimer);
     copied = true;
     copyTimer = setTimeout(() => (copied = false), 1000);

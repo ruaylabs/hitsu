@@ -1,5 +1,7 @@
 <script lang="ts">
   import { security } from "$lib/stores/security.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import IconButton from "../ui/IconButton.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
@@ -78,9 +80,10 @@
     try {
       await copyFn();
     } catch (e) {
-      console.error("Failed to copy secret", e);
+      toast.error(errorMessage(e));
       return;
     }
+    toast.success(`${label} copied`);
     if (copyTimer) clearTimeout(copyTimer);
     copied = true;
     copyTimer = setTimeout(() => (copied = false), 1000);
