@@ -1706,6 +1706,29 @@ mod tests {
     use crate::models::{CustomField, EntryPatch, HistoryEntrySummary, ItemType};
     use keepass::db::fields;
 
+    fn entry_fixture(
+        db: &mut keepass::Database,
+        title: &str,
+        configure: impl FnOnce(&mut keepass::db::EntryMut<'_>),
+    ) -> keepass::db::EntryId {
+        let id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
+        let mut root = db.root_mut();
+        let mut entry = root.add_entry_with_id(id).expect("duplicate entry id");
+        entry.set_unprotected(fields::TITLE, title);
+        configure(&mut entry);
+        id
+    }
+
+    fn tagged_entry_fixture(
+        db: &mut keepass::Database,
+        title: &str,
+        tags: &[&str],
+    ) -> keepass::db::EntryId {
+        entry_fixture(db, title, |entry| {
+            entry.tags = tags.iter().map(|tag| (*tag).into()).collect();
+        })
+    }
+
     #[test]
     fn history_revisions_are_sorted_newest_first() {
         let mut revisions = vec![
@@ -1752,11 +1775,7 @@ mod tests {
     #[test]
     fn recycle_bin_is_created_once_and_marks_moved_entries() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(entry_id)
-            .expect("duplicate entry id")
-            .set_unprotected(keepass::db::fields::TITLE, "Deleted entry");
+        let entry_id = entry_fixture(&mut db, "Deleted entry", |_| {});
 
         let recycle_id = ensure_recycle_bin(&mut db);
         assert_eq!(ensure_recycle_bin(&mut db), recycle_id);
@@ -1775,11 +1794,7 @@ mod tests {
     #[test]
     fn search_matches_all_non_secret_fields_without_exposing_protected_values() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root.add_entry_with_id(entry_id).unwrap();
-            entry.set_unprotected(fields::TITLE, "Example account");
+        let entry_id = entry_fixture(&mut db, "Example account", |entry| {
             entry.set_unprotected(fields::NOTES, "Buried recovery instructions");
             entry.set_unprotected("identity.address", "42 Galaxy Way");
             entry.set_unprotected("card.holder", "Ada Lovelace");
@@ -1787,7 +1802,7 @@ mod tests {
             entry.set_protected(fields::PASSWORD, "password-secret");
             entry.set_protected("custom.API key", "custom-secret");
             entry.tags = vec!["finance".into()];
-        }
+        });
         let entry = db.entry(entry_id).unwrap();
 
         for query in [
@@ -1809,11 +1824,9 @@ mod tests {
     #[test]
     fn custom_fields_roundtrip_and_protected_values_are_sanitized() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(entry_id)
-            .expect("duplicate entry id")
-            .set_unprotected("PluginData", "preserved");
+        let entry_id = entry_fixture(&mut db, "", |entry| {
+            entry.set_unprotected("PluginData", "preserved");
+        });
         let mut patch = EntryPatch::default();
         patch.custom_fields = Some(vec![
             CustomField {
@@ -1845,13 +1858,8 @@ mod tests {
     #[test]
     fn edit_payload_reads_all_secrets_in_one_projection() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            entry.set_protected(keepass::db::fields::PASSWORD, "password-secret");
+        let entry_id = entry_fixture(&mut db, "", |entry| {
+            entry.set_protected(fields::PASSWORD, "password-secret");
             entry.set_protected("card.number", "4111111111111111");
             entry.set_protected("card.cvv", "123");
             entry.set_protected("card.pin", "4567");
@@ -1859,8 +1867,8 @@ mod tests {
             entry.set_protected("passport.number", "passport-secret");
             entry.set_protected("custom.API key", "custom-secret");
             entry.set_unprotected("custom.Environment", "Production");
-            super::write_totp_seed(&mut entry, "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP");
-        }
+            super::write_totp_seed(entry, "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP");
+        });
 
         let payload = build_entry_edit_payload(&db.entry(entry_id).unwrap());
         assert_eq!(payload.password, "password-secret");
@@ -1879,10 +1887,7 @@ mod tests {
     #[test]
     fn entry_expiration_roundtrips_clears_and_validates() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(entry_id)
-            .expect("duplicate entry id");
+        let entry_id = entry_fixture(&mut db, "", |_| {});
 
         let mut patch = EntryPatch::default();
         patch.expires_at = Some("2030-05-20".into());
@@ -1914,15 +1919,10 @@ mod tests {
     #[test]
     fn reads_legacy_entry_metadata_and_prefers_current_values() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            super::set_custom_data(&mut entry, "kagi.itemType", Some("card"));
-            super::set_custom_data(&mut entry, "kagi.favorite", Some("true"));
-        }
+        let entry_id = entry_fixture(&mut db, "", |entry| {
+            super::set_custom_data(entry, "kagi.itemType", Some("card"));
+            super::set_custom_data(entry, "kagi.favorite", Some("true"));
+        });
 
         let entry = db.entry(entry_id).unwrap();
         assert_eq!(super::read_item_type(&entry), ItemType::Card);
@@ -1942,10 +1942,7 @@ mod tests {
     #[test]
     fn favorite_updates_write_only_the_current_identifier() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(entry_id)
-            .expect("duplicate entry id");
+        let entry_id = entry_fixture(&mut db, "", |_| {});
         let mut patch = EntryPatch::default();
         patch.favorite = Some(true);
 
@@ -1959,16 +1956,10 @@ mod tests {
     #[test]
     fn full_card_entry_keeps_masked_number_subtitle() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            entry.set_unprotected(keepass::db::fields::TITLE, "Visa");
+        let entry_id = entry_fixture(&mut db, "Visa", |entry| {
             entry.set_protected("card.number", "4111111111111111");
-            super::set_custom_data(&mut entry, "hitsu.itemType", Some("card"));
-        }
+            super::set_custom_data(entry, "hitsu.itemType", Some("card"));
+        });
 
         let mapped = map_entry_to_full(&db.entry(entry_id).unwrap(), false, None);
         assert_eq!(mapped.item_type, ItemType::Card);
@@ -1978,15 +1969,9 @@ mod tests {
     #[test]
     fn software_license_fields_roundtrip_and_key_is_sanitized() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            entry.set_unprotected(keepass::db::fields::TITLE, "Editor Pro");
-            super::set_custom_data(&mut entry, "hitsu.itemType", Some("software_license"));
-        }
+        let entry_id = entry_fixture(&mut db, "Editor Pro", |entry| {
+            super::set_custom_data(entry, "hitsu.itemType", Some("software_license"));
+        });
 
         let mut patch = EntryPatch::default();
         patch.license_version = Some("4.2".into());
@@ -2010,15 +1995,9 @@ mod tests {
     #[test]
     fn passport_fields_roundtrip_and_number_is_sanitized() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut entry = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            entry.set_unprotected(keepass::db::fields::TITLE, "US Passport");
-            super::set_custom_data(&mut entry, "hitsu.itemType", Some("passport"));
-        }
+        let entry_id = entry_fixture(&mut db, "US Passport", |entry| {
+            super::set_custom_data(entry, "hitsu.itemType", Some("passport"));
+        });
 
         let mut patch = EntryPatch::default();
         patch.passport_issuing_country = Some("United States".into());
@@ -2168,21 +2147,16 @@ mod tests {
         let padded_secret = "JBSWY3DPEHPK3PXP====";
 
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        {
-            let mut root = db.root_mut();
-            let mut em = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            em.fields.insert(
+        entry_fixture(&mut db, "", |entry| {
+            entry.fields.insert(
                 "TOTP Seed".to_string(),
                 keepass::db::Value::unprotected(padded_secret),
             );
-            em.fields.insert(
+            entry.fields.insert(
                 "TOTP Settings".to_string(),
                 keepass::db::Value::unprotected("30;6"),
             );
-        } // drop EntryMut + RootMut, releasing the mutable borrow on db
+        });
 
         let entry = db.iter_all_entries().next().expect("entry should exist");
         let uri = read_totp_seed(&entry).expect("should produce a URI");
@@ -2208,24 +2182,16 @@ mod tests {
     #[test]
     fn test_read_attachments_returns_name_and_size() {
         let mut db = keepass::Database::new();
-        let entry_id = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-
-        {
-            let mut root = db.root_mut();
-            let mut em = root
-                .add_entry_with_id(entry_id)
-                .expect("duplicate entry id");
-            em.set_unprotected(keepass::db::fields::TITLE, "Test");
-
-            em.add_attachment(
+        entry_fixture(&mut db, "Test", |entry| {
+            entry.add_attachment(
                 "notes.txt",
                 keepass::db::Value::unprotected(b"hello world".to_vec()),
             );
-            em.add_attachment(
+            entry.add_attachment(
                 "photo.jpg",
                 keepass::db::Value::unprotected(vec![0u8; 4096]),
             );
-        }
+        });
 
         let entry = db.iter_all_entries().next().expect("entry should exist");
         let metas = read_attachments(&entry);
@@ -2293,31 +2259,9 @@ mod tests {
     #[test]
     fn tag_rename_does_not_affect_other_tags_or_entries() {
         let mut db = keepass::Database::new();
-
-        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        let e2 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        let e3 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-
-        // Entry 1: has the target tag plus others
-        db.root_mut()
-            .add_entry_with_id(e1)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E1");
-        db.entry_mut(e1).unwrap().tags = vec!["email".into(), "work".into(), "important".into()];
-
-        // Entry 2: only has the target tag
-        db.root_mut()
-            .add_entry_with_id(e2)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E2");
-        db.entry_mut(e2).unwrap().tags = vec!["email".into()];
-
-        // Entry 3: does NOT have the target tag
-        db.root_mut()
-            .add_entry_with_id(e3)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E3");
-        db.entry_mut(e3).unwrap().tags = vec!["finance".into(), "personal".into()];
+        let e1 = tagged_entry_fixture(&mut db, "E1", &["email", "work", "important"]);
+        let e2 = tagged_entry_fixture(&mut db, "E2", &["email"]);
+        let e3 = tagged_entry_fixture(&mut db, "E3", &["finance", "personal"]);
 
         rename_tag_in_db(&mut db, "email", "e-mail");
 
@@ -2334,31 +2278,9 @@ mod tests {
     #[test]
     fn tag_delete_does_not_affect_other_tags_or_entries() {
         let mut db = keepass::Database::new();
-
-        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        let e2 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        let e3 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-
-        // Entry 1: has the target tag plus others
-        db.root_mut()
-            .add_entry_with_id(e1)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E1");
-        db.entry_mut(e1).unwrap().tags = vec!["email".into(), "work".into(), "important".into()];
-
-        // Entry 2: only has the target tag
-        db.root_mut()
-            .add_entry_with_id(e2)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E2");
-        db.entry_mut(e2).unwrap().tags = vec!["email".into()];
-
-        // Entry 3: does NOT have the target tag
-        db.root_mut()
-            .add_entry_with_id(e3)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E3");
-        db.entry_mut(e3).unwrap().tags = vec!["finance".into(), "personal".into()];
+        let e1 = tagged_entry_fixture(&mut db, "E1", &["email", "work", "important"]);
+        let e2 = tagged_entry_fixture(&mut db, "E2", &["email"]);
+        let e3 = tagged_entry_fixture(&mut db, "E3", &["finance", "personal"]);
 
         delete_tag_in_db(&mut db, "email");
 
@@ -2375,13 +2297,7 @@ mod tests {
     #[test]
     fn tag_rename_noop_when_no_entries_match() {
         let mut db = keepass::Database::new();
-
-        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(e1)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E1");
-        db.entry_mut(e1).unwrap().tags = vec!["work".into(), "finance".into()];
+        let e1 = tagged_entry_fixture(&mut db, "E1", &["work", "finance"]);
 
         rename_tag_in_db(&mut db, "nonexistent", "renamed");
 
@@ -2391,13 +2307,7 @@ mod tests {
     #[test]
     fn tag_delete_noop_when_no_entries_match() {
         let mut db = keepass::Database::new();
-
-        let e1 = keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4());
-        db.root_mut()
-            .add_entry_with_id(e1)
-            .unwrap()
-            .set_unprotected(keepass::db::fields::TITLE, "E1");
-        db.entry_mut(e1).unwrap().tags = vec!["work".into(), "finance".into()];
+        let e1 = tagged_entry_fixture(&mut db, "E1", &["work", "finance"]);
 
         delete_tag_in_db(&mut db, "nonexistent");
 
