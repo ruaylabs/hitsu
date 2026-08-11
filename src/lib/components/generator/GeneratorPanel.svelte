@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as generatorBridge from "$lib/bridge/generator";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import IconButton from "../ui/IconButton.svelte";
@@ -21,9 +22,15 @@
 
   let password = $state("");
   let error = $state("");
+  let hasCharacterSet = $derived(uppercase || lowercase || digits || symbols);
 
   async function generate() {
     error = "";
+    if (!hasCharacterSet) {
+      password = "";
+      error = "Select at least one character type";
+      return;
+    }
     try {
       password = await generatorBridge.generatePassword({
         length,
@@ -33,9 +40,9 @@
         symbols,
         excludeLookalikes,
       });
-    } catch {
+    } catch (generationError) {
       password = "";
-      error = "Failed to generate a password";
+      error = errorMessage(generationError) || "Failed to generate a password";
     }
   }
 
@@ -49,7 +56,7 @@
     <div class="panel-content">
       <div class="password-display">
         {#if error}
-          <span class="generator-error">{error}</span>
+          <span class="generator-error" role="alert">{error}</span>
         {:else}
           <code class="generated-pw">{password}</code>
         {/if}
