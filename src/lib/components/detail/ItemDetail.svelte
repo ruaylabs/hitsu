@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { type EntryPatch, toSummary } from "$lib/bridge/entries";
-  import type { CustomField, Entry } from "$lib/bridge/types";
+  import type { Entry } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { features } from "$lib/stores/features.svelte";
@@ -26,6 +26,7 @@
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
   import EntryEditForm from "./EntryEditForm.svelte";
+  import { cloneEditForm, createEditForm, type EditFormState } from "./editForm";
   import Field from "./Field.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import HistoryDialog from "./HistoryDialog.svelte";
@@ -124,64 +125,7 @@
   let showGenerator = $state(false);
   let showTotpSetup = $state(false);
   let downloadingFavicon = $state(false);
-  let editTitle = $state("");
-  let editUsername = $state("");
-  let editPassword = $state("");
-  let editUrl = $state("");
-  let editTotp = $state("");
-  let editNotes = $state("");
-  let editExpiresAt = $state("");
-  let editTags = $state<string[]>([]);
-  let editCustomFields = $state<CustomField[]>([]);
-  // Identity fields
-  let editFirstName = $state("");
-  let editLastName = $state("");
-  let editEmail = $state("");
-  let editPhone = $state("");
-  let editAddress = $state("");
-  let editDob = $state("");
-  // Card fields
-  let editCardHolder = $state("");
-  let editCardNumber = $state("");
-  let editCardType = $state("");
-  let editCardExpMonth = $state("");
-  let editCardExpYear = $state("");
-  let editCardCvv = $state("");
-  let editCardPin = $state("");
-  // Software license fields
-  let editLicenseVersion = $state("");
-  let editLicenseKey = $state("");
-  let editLicenseLicensedTo = $state("");
-  let editLicenseRegisteredEmail = $state("");
-  let editLicenseCompany = $state("");
-  let editLicenseDownloadPage = $state("");
-  let editLicensePublisher = $state("");
-  let editLicenseWebsite = $state("");
-  let editLicenseRetailPrice = $state("");
-  let editLicenseSupportEmail = $state("");
-  let editLicensePurchaseDate = $state("");
-  let editLicenseOrderNumber = $state("");
-  let editLicenseOrderTotal = $state("");
-  // Passport fields
-  let editPassportType = $state("");
-  let editPassportIssuingCountry = $state("");
-  let editPassportNumber = $state("");
-  let editPassportFullName = $state("");
-  let editPassportSex = $state("");
-  let editPassportNationality = $state("");
-  let editPassportIssuingAuthority = $state("");
-  let editPassportBirthDate = $state("");
-  let editPassportBirthPlace = $state("");
-  let editPassportIssueDate = $state("");
-  let editPassportExpiryDate = $state("");
-  // PGP key fields
-  let editPgpPublicKey = $state("");
-  let editPgpPrivateKey = $state("");
-  let editPgpFingerprint = $state("");
-  let editPgpKeyId = $state("");
-  let editPgpUserIds = $state("");
-  let editPgpAlgorithm = $state("");
-  let editPgpExpiresAt = $state("");
+  let form = $state(createEditForm());
 
   // Validation errors for card fields
   let cardNumberError = $state("");
@@ -191,78 +135,19 @@
   let cardPinError = $state("");
   let pendingNavigation = $state<(() => void) | null>(null);
 
-  function captureEditForm() {
-    return {
-      title: editTitle,
-      username: editUsername,
-      password: editPassword,
-      url: editUrl,
-      totp: editTotp,
-      notes: editNotes,
-      expiresAt: editExpiresAt,
-      tags: [...editTags],
-      customFields: editCustomFields.map((field) => ({ ...field })),
-      firstName: editFirstName,
-      lastName: editLastName,
-      email: editEmail,
-      phone: editPhone,
-      address: editAddress,
-      dob: editDob,
-      cardHolder: editCardHolder,
-      cardNumber: editCardNumber,
-      cardType: editCardType,
-      cardExpMonth: editCardExpMonth,
-      cardExpYear: editCardExpYear,
-      cardCvv: editCardCvv,
-      cardPin: editCardPin,
-      licenseVersion: editLicenseVersion,
-      licenseKey: editLicenseKey,
-      licenseLicensedTo: editLicenseLicensedTo,
-      licenseRegisteredEmail: editLicenseRegisteredEmail,
-      licenseCompany: editLicenseCompany,
-      licenseDownloadPage: editLicenseDownloadPage,
-      licensePublisher: editLicensePublisher,
-      licenseWebsite: editLicenseWebsite,
-      licenseRetailPrice: editLicenseRetailPrice,
-      licenseSupportEmail: editLicenseSupportEmail,
-      licensePurchaseDate: editLicensePurchaseDate,
-      licenseOrderNumber: editLicenseOrderNumber,
-      licenseOrderTotal: editLicenseOrderTotal,
-      passportType: editPassportType,
-      passportIssuingCountry: editPassportIssuingCountry,
-      passportNumber: editPassportNumber,
-      passportFullName: editPassportFullName,
-      passportSex: editPassportSex,
-      passportNationality: editPassportNationality,
-      passportIssuingAuthority: editPassportIssuingAuthority,
-      passportBirthDate: editPassportBirthDate,
-      passportBirthPlace: editPassportBirthPlace,
-      passportIssueDate: editPassportIssueDate,
-      passportExpiryDate: editPassportExpiryDate,
-      pgpPublicKey: editPgpPublicKey,
-      pgpPrivateKey: editPgpPrivateKey,
-      pgpFingerprint: editPgpFingerprint,
-      pgpKeyId: editPgpKeyId,
-      pgpUserIds: editPgpUserIds,
-      pgpAlgorithm: editPgpAlgorithm,
-      pgpExpiresAt: editPgpExpiresAt,
-    };
-  }
+  let initialEditForm: EditFormState | null = null;
 
-  type EditForm = ReturnType<typeof captureEditForm>;
-  let initialEditForm: EditForm | null = null;
-
-  function editFormsMatch(left: EditForm, right: EditForm) {
+  function editFormsMatch(left: EditFormState, right: EditFormState) {
     return JSON.stringify(left) === JSON.stringify(right);
   }
 
   function buildEditPatch(): EntryPatch {
-    const current = captureEditForm();
+    const current = form;
     if (!initialEditForm) return current;
 
     const patch: EntryPatch = {};
     const writablePatch = patch as Record<string, unknown>;
-    for (const key of Object.keys(current) as (keyof EditForm)[]) {
+    for (const key of Object.keys(current) as (keyof EditFormState)[]) {
       if (JSON.stringify(current[key]) === JSON.stringify(initialEditForm[key])) continue;
       writablePatch[key] =
         key === "customFields"
@@ -273,23 +158,21 @@
   }
 
   function clearEditSecrets() {
-    editPassword = "";
-    editTotp = "";
-    editCardNumber = "";
-    editCardCvv = "";
-    editCardPin = "";
-    editLicenseKey = "";
-    editPassportNumber = "";
-    editPgpPrivateKey = "";
-    editCustomFields = [];
+    form.password = "";
+    form.totp = "";
+    form.cardNumber = "";
+    form.cardCvv = "";
+    form.cardPin = "";
+    form.licenseKey = "";
+    form.passportNumber = "";
+    form.pgpPrivateKey = "";
+    form.customFields = [];
     initialEditForm = null;
   }
 
   function hasUnsavedChanges() {
     return (
-      newEntryId !== null ||
-      initialEditForm === null ||
-      !editFormsMatch(captureEditForm(), initialEditForm)
+      newEntryId !== null || initialEditForm === null || !editFormsMatch(form, initialEditForm)
     );
   }
 
@@ -346,50 +229,6 @@
   async function populateEdit() {
     if (!_entry) return;
     const e = _entry;
-    editTitle = e.title;
-    editUsername = e.username ?? "";
-    editUrl = e.url ?? "";
-    editTags = [...e.tags];
-    editNotes = e.notes ?? "";
-    editExpiresAt = e.expiresAt ?? "";
-    editFirstName = e.identity?.firstName ?? "";
-    editLastName = e.identity?.lastName ?? "";
-    editEmail = e.identity?.email ?? "";
-    editPhone = e.identity?.phone ?? "";
-    editAddress = e.identity?.address ?? "";
-    editDob = e.identity?.dob ?? "";
-    editCardHolder = e.card?.holder ?? "";
-    editCardType = e.card?.type ?? "";
-    editCardExpMonth = e.card?.expMonth?.toString() ?? "";
-    editCardExpYear = e.card?.expYear?.toString() ?? "";
-    editLicenseVersion = e.softwareLicense?.version ?? "";
-    editLicenseLicensedTo = e.softwareLicense?.licensedTo ?? "";
-    editLicenseRegisteredEmail = e.softwareLicense?.registeredEmail ?? "";
-    editLicenseCompany = e.softwareLicense?.company ?? "";
-    editLicenseDownloadPage = e.softwareLicense?.downloadPage ?? "";
-    editLicensePublisher = e.softwareLicense?.publisher ?? "";
-    editLicenseWebsite = e.softwareLicense?.website ?? "";
-    editLicenseRetailPrice = e.softwareLicense?.retailPrice ?? "";
-    editLicenseSupportEmail = e.softwareLicense?.supportEmail ?? "";
-    editLicensePurchaseDate = e.softwareLicense?.purchaseDate ?? "";
-    editLicenseOrderNumber = e.softwareLicense?.orderNumber ?? "";
-    editLicenseOrderTotal = e.softwareLicense?.orderTotal ?? "";
-    editPassportType = e.passport?.type ?? "";
-    editPassportIssuingCountry = e.passport?.issuingCountry ?? "";
-    editPassportFullName = e.passport?.fullName ?? "";
-    editPassportSex = e.passport?.sex ?? "";
-    editPassportNationality = e.passport?.nationality ?? "";
-    editPassportIssuingAuthority = e.passport?.issuingAuthority ?? "";
-    editPassportBirthDate = e.passport?.birthDate ?? "";
-    editPassportBirthPlace = e.passport?.birthPlace ?? "";
-    editPassportIssueDate = e.passport?.issueDate ?? "";
-    editPassportExpiryDate = e.passport?.expiryDate ?? "";
-    editPgpPublicKey = e.pgpKey?.publicKey ?? "";
-    editPgpFingerprint = e.pgpKey?.fingerprint ?? "";
-    editPgpKeyId = e.pgpKey?.keyId ?? "";
-    editPgpUserIds = e.pgpKey?.userIds ?? "";
-    editPgpAlgorithm = e.pgpKey?.algorithm ?? "";
-    editPgpExpiresAt = e.pgpKey?.expiresAt ?? "";
     // Fetch all protected edit values with one backend lock and entry lookup.
     // Entries without protected values can use their existing safe DTO directly.
     const needsSecretPayload =
@@ -401,16 +240,8 @@
       Boolean(e.pgpKey?.hasPrivateKey) ||
       e.customFields.some((field) => field.protected);
     const payload = needsSecretPayload ? await entriesBridge.entryEditPayload(e.id) : null;
-    editPassword = payload?.password ?? "";
-    editTotp = payload?.totp ?? "";
-    editCardNumber = payload?.cardNumber ?? "";
-    editCardCvv = payload?.cardCvv ?? "";
-    editCardPin = payload?.cardPin ?? "";
-    editLicenseKey = payload?.licenseKey ?? "";
-    editPassportNumber = payload?.passportNumber ?? "";
-    editPgpPrivateKey = payload?.pgpPrivateKey ?? "";
-    editCustomFields = (payload?.customFields ?? e.customFields).map((field) => ({ ...field }));
-    initialEditForm = captureEditForm();
+    form = createEditForm(e, payload);
+    initialEditForm = cloneEditForm(form);
     clearCardErrors();
   }
 
@@ -500,18 +331,18 @@
   function validateCardFields(): boolean {
     let valid = true;
     // Card number: digits only, 13-19 chars (standard card lengths)
-    if (editCardNumber && editCardNumber.length > 0 && editCardNumber.length < 13) {
+    if (form.cardNumber && form.cardNumber.length > 0 && form.cardNumber.length < 13) {
       cardNumberError = "Card number too short";
       valid = false;
     } else {
       cardNumberError = "";
     }
     // Exp month: 2 digits, 01-12
-    if (editCardExpMonth && editCardExpMonth.length !== 2) {
+    if (form.cardExpMonth && form.cardExpMonth.length !== 2) {
       cardExpMonthError = "Must be 2 digits (01-12)";
       valid = false;
-    } else if (editCardExpMonth) {
-      const m = Number.parseInt(editCardExpMonth, 10);
+    } else if (form.cardExpMonth) {
+      const m = Number.parseInt(form.cardExpMonth, 10);
       if (m < 1 || m > 12) {
         cardExpMonthError = "Must be 01-12";
         valid = false;
@@ -522,21 +353,21 @@
       cardExpMonthError = "";
     }
     // Exp year: 4 digits
-    if (editCardExpYear && editCardExpYear.length !== 4) {
+    if (form.cardExpYear && form.cardExpYear.length !== 4) {
       cardExpYearError = "Year must be 4 digits";
       valid = false;
     } else {
       cardExpYearError = "";
     }
     // CVV: 3 or 4 digits
-    if (editCardCvv && editCardCvv.length !== 3 && editCardCvv.length !== 4) {
+    if (form.cardCvv && form.cardCvv.length !== 3 && form.cardCvv.length !== 4) {
       cardCvvError = "CVV must be 3 or 4 digits";
       valid = false;
     } else {
       cardCvvError = "";
     }
     // PIN: 4-12 digits (ISO 9564 range)
-    if (editCardPin && (editCardPin.length < 4 || editCardPin.length > 12)) {
+    if (form.cardPin && (form.cardPin.length < 4 || form.cardPin.length > 12)) {
       cardPinError = "PIN must be 4-12 digits";
       valid = false;
     } else {
@@ -735,7 +566,7 @@
 
 {#if showGenerator}
   <GeneratorPanel
-    onUse={(pw) => { editPassword = pw; showGenerator = false; }}
+    onUse={(pw) => { form.password = pw; showGenerator = false; }}
     oncancel={() => (showGenerator = false)}
   />
 {/if}
@@ -824,7 +655,7 @@
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
-          bind:value={editTitle}
+          bind:value={form.title}
         />
       </div>
     {:else}
@@ -846,63 +677,12 @@
     {#if editing}
       <EntryEditForm
         entryType={entry.type}
-        bind:editUsername
-        bind:editPassword
-        bind:editUrl
-        bind:editTotp
-        bind:editFirstName
-        bind:editLastName
-        bind:editEmail
-        bind:editPhone
-        bind:editAddress
-        bind:editDob
-        bind:editCardHolder
-        bind:editCardNumber
-        bind:editCardType
-        bind:editCardExpMonth
-        bind:editCardExpYear
-        bind:editCardCvv
-        bind:editCardPin
+        bind:form
         {cardNumberError}
         {cardExpMonthError}
         {cardExpYearError}
         {cardCvvError}
         {cardPinError}
-        bind:editLicenseVersion
-        bind:editLicenseKey
-        bind:editLicenseLicensedTo
-        bind:editLicenseRegisteredEmail
-        bind:editLicenseCompany
-        bind:editLicenseDownloadPage
-        bind:editLicensePublisher
-        bind:editLicenseWebsite
-        bind:editLicenseRetailPrice
-        bind:editLicenseSupportEmail
-        bind:editLicensePurchaseDate
-        bind:editLicenseOrderNumber
-        bind:editLicenseOrderTotal
-        bind:editPassportType
-        bind:editPassportIssuingCountry
-        bind:editPassportNumber
-        bind:editPassportFullName
-        bind:editPassportSex
-        bind:editPassportNationality
-        bind:editPassportIssuingAuthority
-        bind:editPassportBirthDate
-        bind:editPassportBirthPlace
-        bind:editPassportIssueDate
-        bind:editPassportExpiryDate
-        bind:editPgpPublicKey
-        bind:editPgpPrivateKey
-        bind:editPgpFingerprint
-        bind:editPgpKeyId
-        bind:editPgpUserIds
-        bind:editPgpAlgorithm
-        bind:editPgpExpiresAt
-        bind:editExpiresAt
-        bind:editCustomFields
-        bind:editTags
-        bind:editNotes
         onShowGenerator={() => (showGenerator = true)}
         onShowTotpSetup={() => (showTotpSetup = true)}
       />
@@ -1298,7 +1078,7 @@
       try {
         const updated = await entriesBridge.entryUpdate(_entry.id, { totp: uri });
         installUpdatedEntry(updated);
-        if (editing && selection.selectedId === updated.id) editTotp = uri;
+        if (editing && selection.selectedId === updated.id) form.totp = uri;
         toast.success("TOTP configured successfully");
       } catch (e) {
         toast.error(errorMessage(e));

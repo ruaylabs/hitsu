@@ -1,143 +1,33 @@
 <script lang="ts">
-  import type { CustomField } from "$lib/bridge/types";
-  import FieldGroup from "./FieldGroup.svelte";
-  import LoginEditForm from "./LoginEditForm.svelte";
-  import PasswordEditForm from "./PasswordEditForm.svelte";
-  import IdentityEditForm from "./IdentityEditForm.svelte";
   import CardEditForm from "./CardEditForm.svelte";
-  import SoftwareLicenseEditForm from "./SoftwareLicenseEditForm.svelte";
-  import PassportEditForm from "./PassportEditForm.svelte";
-  import PgpKeyEditForm from "./PgpKeyEditForm.svelte";
   import CommonEditFields from "./CommonEditFields.svelte";
+  import type { EditFormState } from "./editForm";
+  import FieldGroup from "./FieldGroup.svelte";
+  import IdentityEditForm from "./IdentityEditForm.svelte";
+  import LoginEditForm from "./LoginEditForm.svelte";
+  import PassportEditForm from "./PassportEditForm.svelte";
+  import PasswordEditForm from "./PasswordEditForm.svelte";
+  import PgpKeyEditForm from "./PgpKeyEditForm.svelte";
+  import SoftwareLicenseEditForm from "./SoftwareLicenseEditForm.svelte";
 
   let {
     entryType,
-    // login
-    editUsername = $bindable(""),
-    editPassword = $bindable(""),
-    editUrl = $bindable(""),
-    editTotp = $bindable(""),
-    // identity
-    editFirstName = $bindable(""),
-    editLastName = $bindable(""),
-    editEmail = $bindable(""),
-    editPhone = $bindable(""),
-    editAddress = $bindable(""),
-    editDob = $bindable(""),
-    // card
-    editCardHolder = $bindable(""),
-    editCardNumber = $bindable(""),
-    editCardType = $bindable(""),
-    editCardExpMonth = $bindable(""),
-    editCardExpYear = $bindable(""),
-    editCardCvv = $bindable(""),
-    editCardPin = $bindable(""),
+    form = $bindable(),
     cardNumberError = "",
     cardExpMonthError = "",
     cardExpYearError = "",
     cardCvvError = "",
     cardPinError = "",
-    // software license
-    editLicenseVersion = $bindable(""),
-    editLicenseKey = $bindable(""),
-    editLicenseLicensedTo = $bindable(""),
-    editLicenseRegisteredEmail = $bindable(""),
-    editLicenseCompany = $bindable(""),
-    editLicenseDownloadPage = $bindable(""),
-    editLicensePublisher = $bindable(""),
-    editLicenseWebsite = $bindable(""),
-    editLicenseRetailPrice = $bindable(""),
-    editLicenseSupportEmail = $bindable(""),
-    editLicensePurchaseDate = $bindable(""),
-    editLicenseOrderNumber = $bindable(""),
-    editLicenseOrderTotal = $bindable(""),
-    // passport
-    editPassportType = $bindable(""),
-    editPassportIssuingCountry = $bindable(""),
-    editPassportNumber = $bindable(""),
-    editPassportFullName = $bindable(""),
-    editPassportSex = $bindable(""),
-    editPassportNationality = $bindable(""),
-    editPassportIssuingAuthority = $bindable(""),
-    editPassportBirthDate = $bindable(""),
-    editPassportBirthPlace = $bindable(""),
-    editPassportIssueDate = $bindable(""),
-    editPassportExpiryDate = $bindable(""),
-    // pgp key
-    editPgpPublicKey = $bindable(""),
-    editPgpPrivateKey = $bindable(""),
-    editPgpFingerprint = $bindable(""),
-    editPgpKeyId = $bindable(""),
-    editPgpUserIds = $bindable(""),
-    editPgpAlgorithm = $bindable(""),
-    editPgpExpiresAt = $bindable(""),
-    // common
-    editExpiresAt = $bindable(""),
-    editCustomFields = $bindable([] as CustomField[]),
-    editTags = $bindable([] as string[]),
-    editNotes = $bindable(""),
-    // callbacks
     onShowGenerator,
     onShowTotpSetup,
   }: {
     entryType: string;
-    editUsername?: string;
-    editPassword?: string;
-    editUrl?: string;
-    editTotp?: string;
-    editFirstName?: string;
-    editLastName?: string;
-    editEmail?: string;
-    editPhone?: string;
-    editAddress?: string;
-    editDob?: string;
-    editCardHolder?: string;
-    editCardNumber?: string;
-    editCardType?: string;
-    editCardExpMonth?: string;
-    editCardExpYear?: string;
-    editCardCvv?: string;
-    editCardPin?: string;
+    form: EditFormState;
     cardNumberError?: string;
     cardExpMonthError?: string;
     cardExpYearError?: string;
     cardCvvError?: string;
     cardPinError?: string;
-    editLicenseVersion?: string;
-    editLicenseKey?: string;
-    editLicenseLicensedTo?: string;
-    editLicenseRegisteredEmail?: string;
-    editLicenseCompany?: string;
-    editLicenseDownloadPage?: string;
-    editLicensePublisher?: string;
-    editLicenseWebsite?: string;
-    editLicenseRetailPrice?: string;
-    editLicenseSupportEmail?: string;
-    editLicensePurchaseDate?: string;
-    editLicenseOrderNumber?: string;
-    editLicenseOrderTotal?: string;
-    editPassportType?: string;
-    editPassportIssuingCountry?: string;
-    editPassportNumber?: string;
-    editPassportFullName?: string;
-    editPassportSex?: string;
-    editPassportNationality?: string;
-    editPassportIssuingAuthority?: string;
-    editPassportBirthDate?: string;
-    editPassportBirthPlace?: string;
-    editPassportIssueDate?: string;
-    editPassportExpiryDate?: string;
-    editPgpPublicKey?: string;
-    editPgpPrivateKey?: string;
-    editPgpFingerprint?: string;
-    editPgpKeyId?: string;
-    editPgpUserIds?: string;
-    editPgpAlgorithm?: string;
-    editPgpExpiresAt?: string;
-    editExpiresAt?: string;
-    editCustomFields?: CustomField[];
-    editTags?: string[];
-    editNotes?: string;
     onShowGenerator: () => void;
     onShowTotpSetup: () => void;
   } = $props();
@@ -146,33 +36,33 @@
 <FieldGroup>
   {#if entryType === "login"}
     <LoginEditForm
-      bind:editUsername
-      bind:editPassword
-      bind:editUrl
-      bind:editTotp
+      bind:editUsername={form.username}
+      bind:editPassword={form.password}
+      bind:editUrl={form.url}
+      bind:editTotp={form.totp}
       {onShowGenerator}
       {onShowTotpSetup}
     />
   {:else if entryType === "password"}
-    <PasswordEditForm bind:editPassword bind:editUrl {onShowGenerator} />
+    <PasswordEditForm bind:editPassword={form.password} bind:editUrl={form.url} {onShowGenerator} />
   {:else if entryType === "identity"}
     <IdentityEditForm
-      bind:editFirstName
-      bind:editLastName
-      bind:editEmail
-      bind:editPhone
-      bind:editAddress
-      bind:editDob
+      bind:editFirstName={form.firstName}
+      bind:editLastName={form.lastName}
+      bind:editEmail={form.email}
+      bind:editPhone={form.phone}
+      bind:editAddress={form.address}
+      bind:editDob={form.dob}
     />
   {:else if entryType === "card"}
     <CardEditForm
-      bind:editCardHolder
-      bind:editCardNumber
-      bind:editCardType
-      bind:editCardExpMonth
-      bind:editCardExpYear
-      bind:editCardCvv
-      bind:editCardPin
+      bind:editCardHolder={form.cardHolder}
+      bind:editCardNumber={form.cardNumber}
+      bind:editCardType={form.cardType}
+      bind:editCardExpMonth={form.cardExpMonth}
+      bind:editCardExpYear={form.cardExpYear}
+      bind:editCardCvv={form.cardCvv}
+      bind:editCardPin={form.cardPin}
       {cardNumberError}
       {cardExpMonthError}
       {cardExpYearError}
@@ -181,45 +71,50 @@
     />
   {:else if entryType === "software_license"}
     <SoftwareLicenseEditForm
-      bind:editLicenseVersion
-      bind:editLicenseKey
-      bind:editLicenseLicensedTo
-      bind:editLicenseRegisteredEmail
-      bind:editLicenseCompany
-      bind:editLicenseDownloadPage
-      bind:editLicensePublisher
-      bind:editLicenseWebsite
-      bind:editLicenseRetailPrice
-      bind:editLicenseSupportEmail
-      bind:editLicensePurchaseDate
-      bind:editLicenseOrderNumber
-      bind:editLicenseOrderTotal
+      bind:editLicenseVersion={form.licenseVersion}
+      bind:editLicenseKey={form.licenseKey}
+      bind:editLicenseLicensedTo={form.licenseLicensedTo}
+      bind:editLicenseRegisteredEmail={form.licenseRegisteredEmail}
+      bind:editLicenseCompany={form.licenseCompany}
+      bind:editLicenseDownloadPage={form.licenseDownloadPage}
+      bind:editLicensePublisher={form.licensePublisher}
+      bind:editLicenseWebsite={form.licenseWebsite}
+      bind:editLicenseRetailPrice={form.licenseRetailPrice}
+      bind:editLicenseSupportEmail={form.licenseSupportEmail}
+      bind:editLicensePurchaseDate={form.licensePurchaseDate}
+      bind:editLicenseOrderNumber={form.licenseOrderNumber}
+      bind:editLicenseOrderTotal={form.licenseOrderTotal}
     />
   {:else if entryType === "passport"}
     <PassportEditForm
-      bind:editPassportType
-      bind:editPassportIssuingCountry
-      bind:editPassportNumber
-      bind:editPassportFullName
-      bind:editPassportSex
-      bind:editPassportNationality
-      bind:editPassportIssuingAuthority
-      bind:editPassportBirthDate
-      bind:editPassportBirthPlace
-      bind:editPassportIssueDate
-      bind:editPassportExpiryDate
+      bind:editPassportType={form.passportType}
+      bind:editPassportIssuingCountry={form.passportIssuingCountry}
+      bind:editPassportNumber={form.passportNumber}
+      bind:editPassportFullName={form.passportFullName}
+      bind:editPassportSex={form.passportSex}
+      bind:editPassportNationality={form.passportNationality}
+      bind:editPassportIssuingAuthority={form.passportIssuingAuthority}
+      bind:editPassportBirthDate={form.passportBirthDate}
+      bind:editPassportBirthPlace={form.passportBirthPlace}
+      bind:editPassportIssueDate={form.passportIssueDate}
+      bind:editPassportExpiryDate={form.passportExpiryDate}
     />
   {:else if entryType === "pgp_key"}
     <PgpKeyEditForm
-      bind:editPgpPublicKey
-      bind:editPgpPrivateKey
-      bind:editPgpFingerprint
-      bind:editPgpKeyId
-      bind:editPgpUserIds
-      bind:editPgpAlgorithm
-      bind:editPgpExpiresAt
+      bind:editPgpPublicKey={form.pgpPublicKey}
+      bind:editPgpPrivateKey={form.pgpPrivateKey}
+      bind:editPgpFingerprint={form.pgpFingerprint}
+      bind:editPgpKeyId={form.pgpKeyId}
+      bind:editPgpUserIds={form.pgpUserIds}
+      bind:editPgpAlgorithm={form.pgpAlgorithm}
+      bind:editPgpExpiresAt={form.pgpExpiresAt}
     />
   {/if}
 </FieldGroup>
 
-<CommonEditFields bind:editExpiresAt bind:editCustomFields bind:editTags bind:editNotes />
+<CommonEditFields
+  bind:editExpiresAt={form.expiresAt}
+  bind:editCustomFields={form.customFields}
+  bind:editTags={form.tags}
+  bind:editNotes={form.notes}
+/>
