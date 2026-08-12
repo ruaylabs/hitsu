@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use keepass::db::{fields, CustomDataValue, EntryId, GroupId, Value};
+use serde::Serialize;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
+use tokio::sync::Semaphore;
 
 use crate::error::{HitsuError, HitsuResult};
 use crate::kdbx_fields::{set_custom_data, set_field};
@@ -14,6 +19,31 @@ use crate::state::{AppState, OpenVault};
 /// Bounds broad searches so large vaults cannot produce oversized IPC payloads
 /// or force the frontend to allocate and filter an unbounded list of IDs.
 const SEARCH_RESULT_LIMIT: usize = 500;
+const FAVICON_FETCH_CONCURRENCY: usize = 8;
+const FAVICON_FAILURE_LIMIT: usize = 200;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaviconBatchFailure {
+    pub title: String,
+    pub reason: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FaviconBatchReport {
+    pub total: usize,
+    pub downloaded: usize,
+    pub skipped: usize,
+    pub failed: usize,
+    pub failures: Vec<FaviconBatchFailure>,
+    pub entries: Vec<EntrySummary>,
+}
+
+struct FaviconFetchGroup {
+    url: String,
+    entries: Vec<(String, String)>,
+}
 
 /// Which KDBX standard field names should be stored as Protected values.
 fn is_protected_key(key: &str) -> bool {
@@ -1410,7 +1440,8 @@ pub async fn entry_download_favicon(state: State<'_, AppState>, id: String) -> H
             .ok_or_else(|| HitsuError::Custom("Entry has no URL".into()))?
     };
 
-    let favicon_data = super::favicon::fetch_favicon(&url_str).await?;
+    let client = super::favicon::http_client()?;
+    let favicon_data = super::favicon::fetch_favicon(&client, &url_str).await?;
 
     mutate_and_save(&state, move |vault| {
         let entry_id = parse_entry_id(&id)?;
@@ -1436,6 +1467,140 @@ pub async fn entry_download_favicon(state: State<'_, AppState>, id: String) -> H
         Ok(updated)
     })
     .await
+}
+
+/// Download missing favicons with bounded concurrency and save the vault once.
+#[tauri::command]
+pub async fn entries_download_favicons(
+    state: State<'_, AppState>,
+    overwrite: bool,
+) -> HitsuResult<FaviconBatchReport> {
+    let (total, mut skipped, mut failures, groups) = {
+        let vault = state.open_vault()?;
+        let total = vault.db.iter_all_entries().count();
+        let mut skipped = 0;
+        let mut failures = Vec::new();
+        let mut groups: HashMap<String, FaviconFetchGroup> = HashMap::new();
+
+        for entry in vault.db.iter_all_entries() {
+            if entry_is_trashed(&vault.db, &entry)
+                || (!overwrite && matches!(entry.icon(), Some(keepass::db::Icon::Custom(_))))
+            {
+                skipped += 1;
+                continue;
+            }
+            let Some(url) = entry.get_url().filter(|url| !url.trim().is_empty()) else {
+                skipped += 1;
+                continue;
+            };
+            let Some(origin) = super::favicon::extract_base_url(url) else {
+                failures.push(FaviconBatchFailure {
+                    title: entry.get_title().unwrap_or("Untitled").to_string(),
+                    reason: "URL is invalid or points to a local address".into(),
+                });
+                continue;
+            };
+            groups
+                .entry(origin)
+                .or_insert_with(|| FaviconFetchGroup {
+                    url: url.to_string(),
+                    entries: Vec::new(),
+                })
+                .entries
+                .push((
+                    entry.id().uuid().to_string(),
+                    entry.get_title().unwrap_or("Untitled").to_string(),
+                ));
+        }
+        (total, skipped, failures, groups)
+    };
+
+    let client = super::favicon::http_client()?;
+    let semaphore = Arc::new(Semaphore::new(FAVICON_FETCH_CONCURRENCY));
+    let mut tasks = Vec::with_capacity(groups.len());
+    for group in groups.into_values() {
+        let client = client.clone();
+        let semaphore = Arc::clone(&semaphore);
+        tasks.push(tauri::async_runtime::spawn(async move {
+            let _permit = semaphore
+                .acquire_owned()
+                .await
+                .map_err(|_| HitsuError::Custom("Favicon download was cancelled".into()))?;
+            let result = super::favicon::fetch_favicon(&client, &group.url).await;
+            Ok::<_, HitsuError>((group.entries, result))
+        }));
+    }
+
+    let mut fetched = Vec::new();
+    let mut failed = failures.len();
+    failures.truncate(FAVICON_FAILURE_LIMIT);
+    for task in tasks {
+        let (entries, result) = task.await.map_err(HitsuError::from_join)??;
+        match result {
+            Ok(data) => fetched.push((entries, data)),
+            Err(error) => {
+                failed += entries.len();
+                if failures.len() < FAVICON_FAILURE_LIMIT {
+                    let reason = error.to_string();
+                    let remaining = FAVICON_FAILURE_LIMIT - failures.len();
+                    failures.extend(
+                        entries
+                            .into_iter()
+                            .map(|(_, title)| FaviconBatchFailure {
+                                title,
+                                reason: reason.clone(),
+                            })
+                            .take(remaining),
+                    );
+                }
+            }
+        }
+    }
+
+    let (entries, downloaded) = if fetched.is_empty() {
+        let vault = state.open_vault()?;
+        (build_entry_summaries(&vault.db), 0)
+    } else {
+        mutate_and_save(&state, move |vault| {
+            let mut downloaded = 0;
+            for (entry_ids, data) in fetched {
+                let mut shared_icon_id = None;
+                for (id, _) in entry_ids {
+                    let Ok(entry_id) = parse_entry_id(&id) else {
+                        continue;
+                    };
+                    let Some(mut entry) = vault.db.entry_mut(entry_id) else {
+                        continue;
+                    };
+                    if !overwrite && matches!(entry.icon(), Some(keepass::db::Icon::Custom(_))) {
+                        continue;
+                    }
+                    entry.edit_tracking(|tracked| {
+                        if let Some(icon_id) = shared_icon_id {
+                            let _ = tracked.set_icon_custom(icon_id);
+                        } else {
+                            shared_icon_id = Some(tracked.set_icon_custom_new(data.clone()).id());
+                        }
+                    });
+                    entry.times.last_modification = Some(chrono::Utc::now().naive_utc());
+                    downloaded += 1;
+                }
+            }
+            Ok((build_entry_summaries(&vault.db), downloaded))
+        })
+        .await?
+    };
+
+    // Entries removed while downloads were running are reported as skipped.
+    skipped += total.saturating_sub(downloaded + failed + skipped);
+    Ok(FaviconBatchReport {
+        total,
+        downloaded,
+        skipped,
+        failed,
+        failures,
+        entries,
+    })
 }
 
 /// Get the custom icon data for an entry as a base64 data URL, or None.

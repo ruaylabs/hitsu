@@ -219,6 +219,25 @@ export async function entryDownloadFavicon(id: string): Promise<Entry> {
   return invoke<Entry>("entry_download_favicon", { id });
 }
 
+export interface FaviconBatchFailure {
+  title: string;
+  reason: string;
+}
+
+export interface FaviconBatchReport {
+  total: number;
+  downloaded: number;
+  skipped: number;
+  failed: number;
+  failures: FaviconBatchFailure[];
+  entries: EntrySummary[];
+}
+
+/** Download favicons for all eligible entries and save the vault once. */
+export async function entriesDownloadFavicons(overwrite = false): Promise<FaviconBatchReport> {
+  return invoke<FaviconBatchReport>("entries_download_favicons", { overwrite });
+}
+
 /** Rename a tag across all entries in the vault. */
 export async function tagRename(oldName: string, newName: string): Promise<void> {
   return invoke<void>("tag_rename", { oldName, newName });

@@ -1,10 +1,57 @@
+use std::net::IpAddr;
+
 use crate::error::{HitsuError, HitsuResult};
+
+const MAX_FAVICON_BYTES: usize = 1024 * 1024;
+
+fn is_safe_http_url(url: &url::Url) -> bool {
+    if !matches!(url.scheme(), "http" | "https") {
+        return false;
+    }
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let host = host.trim_end_matches('.');
+    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+        return false;
+    }
+    match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(ip)) => {
+            !(ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_broadcast()
+                || ip.is_unspecified())
+        }
+        Ok(IpAddr::V6(ip)) => !(ip.is_loopback() || ip.is_unspecified() || ip.is_unique_local()),
+        Err(_) => true,
+    }
+}
+
+pub(crate) fn http_client() -> HitsuResult<reqwest::Client> {
+    reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (compatible; Hitsu/1.0)")
+        .timeout(std::time::Duration::from_secs(10))
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 5 {
+                attempt.error("too many redirects")
+            } else if is_safe_http_url(attempt.url()) {
+                attempt.follow()
+            } else {
+                attempt.stop()
+            }
+        }))
+        .build()
+        .map_err(|e| HitsuError::Custom(format!("Failed to create HTTP client: {e}")))
+}
 
 /// Extract the base URL (scheme + authority) from a full URL string.
 pub(crate) fn extract_base_url(url_str: &str) -> Option<String> {
     let parsed = url::Url::parse(url_str).ok()?;
-    let base = format!("{}://{}", parsed.scheme(), parsed.authority());
-    Some(base)
+    if !is_safe_http_url(&parsed) {
+        return None;
+    }
+    Some(format!("{}://{}", parsed.scheme(), parsed.authority()))
 }
 
 /// Try to find a favicon URL from an HTML page body.
@@ -16,7 +63,9 @@ pub(crate) fn find_favicon_in_html(base: &str, html: &str) -> Option<String> {
         "rel=\"shortcut icon\"",
         "rel='shortcut icon'",
     ] {
-        let pos = lower.find(pattern)?;
+        let Some(pos) = lower.find(pattern) else {
+            continue;
+        };
         let link_start = html[..pos].rfind("<link").unwrap_or(0);
         let tag_end = html[pos..]
             .find('>')
@@ -73,15 +122,9 @@ fn resolve_favicon_url(base: &str, href: &str) -> Option<String> {
 /// Fetch a favicon from a website. Tries `/favicon.ico` first, then falls back
 /// to parsing the page's `<link rel="icon">` tags.
 /// Returns the raw image bytes on success.
-pub(crate) async fn fetch_favicon(url_str: &str) -> HitsuResult<Vec<u8>> {
-    let base_url =
-        extract_base_url(url_str).ok_or_else(|| HitsuError::Custom("Invalid URL".into()))?;
-
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (compatible; Hitsu/1.0)")
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| HitsuError::Custom(format!("Failed to create HTTP client: {e}")))?;
+pub(crate) async fn fetch_favicon(client: &reqwest::Client, url_str: &str) -> HitsuResult<Vec<u8>> {
+    let base_url = extract_base_url(url_str)
+        .ok_or_else(|| HitsuError::Custom("URL is invalid or points to a local address".into()))?;
 
     // Try the standard /favicon.ico location first
     let favicon_url = format!("{base_url}/favicon.ico");
@@ -97,7 +140,7 @@ pub(crate) async fn fetch_favicon(url_str: &str) -> HitsuResult<Vec<u8>> {
                     .await
                     .map(|b| b.to_vec())
                     .ok()
-                    .filter(|data| !data.is_empty() && data.len() < 1024 * 1024)
+                    .filter(|data| !data.is_empty() && data.len() < MAX_FAVICON_BYTES)
             } else {
                 None
             }
@@ -133,11 +176,36 @@ pub(crate) async fn fetch_favicon(url_str: &str) -> HitsuResult<Vec<u8>> {
             .map_err(|e| HitsuError::Custom(format!("Failed to read favicon: {e}")))?
     };
 
-    if favicon_data.is_empty() || favicon_data.len() >= 1024 * 1024 {
+    if favicon_data.is_empty() || favicon_data.len() >= MAX_FAVICON_BYTES {
         return Err(HitsuError::Custom(
             "Downloaded favicon is too large or empty".into(),
         ));
     }
 
     Ok(favicon_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_base_url, find_favicon_in_html};
+
+    #[test]
+    fn rejects_local_and_non_http_urls() {
+        assert!(extract_base_url("http://127.0.0.1/login").is_none());
+        assert!(extract_base_url("http://localhost/login").is_none());
+        assert!(extract_base_url("file:///tmp/icon.png").is_none());
+        assert_eq!(
+            extract_base_url("https://example.com/login").as_deref(),
+            Some("https://example.com")
+        );
+    }
+
+    #[test]
+    fn tries_each_supported_icon_relation() {
+        let html = "<html><head><link rel='shortcut icon' href='/brand.ico'></head></html>";
+        assert_eq!(
+            find_favicon_in_html("https://example.com", html).as_deref(),
+            Some("https://example.com/brand.ico")
+        );
+    }
 }

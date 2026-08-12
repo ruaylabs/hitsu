@@ -1,6 +1,7 @@
 <script lang="ts">
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
+  import * as entriesBridge from "$lib/bridge/entries";
   import type { ThemePreference } from "$lib/bridge/prefs";
   import type { ImportReport, SkippedImportEntry } from "$lib/bridge/vault";
   import * as vaultBridge from "$lib/bridge/vault";
@@ -26,11 +27,13 @@
     | { kind: "new-password" }
     | { kind: "import-confirm" }
     | { kind: "import-details" }
+    | { kind: "favicon-confirm" }
     | null = $state(null);
 
   let statusMsg = $state("");
   let statusError = $state(false);
   let importing = $state(false);
+  let downloadingFavicons = $state(false);
   let importReport = $state<ImportReport | null>(null);
   let importError = $state("");
   let skippedEntries = $state<SkippedImportEntry[]>([]);
@@ -208,6 +211,27 @@
     }
   }
 
+  async function downloadFavicons() {
+    dialog = null;
+    downloadingFavicons = true;
+    statusMsg = "";
+    try {
+      const report = await entriesBridge.entriesDownloadFavicons();
+      vault.setEntries(report.entries);
+      if (vault.meta) {
+        vault.setMeta({ ...vault.meta, entries: report.entries });
+      }
+      statusError = false;
+      const failed = report.failed ? ` ${report.failed} failed.` : "";
+      statusMsg = `Downloaded ${report.downloaded} website icon${report.downloaded === 1 ? "" : "s"}.${failed}`;
+    } catch (error) {
+      statusError = true;
+      statusMsg = errorMessage(error);
+    } finally {
+      downloadingFavicons = false;
+    }
+  }
+
   async function handleImport1pif() {
     dialog = null;
     importing = true;
@@ -264,6 +288,20 @@
             Export CSV…
           </Button>
           <Button variant="primary" onclick={() => (dialog = null)}>Done</Button>
+        {/snippet}
+      </Dialog>
+    {:else if dialog.kind === "favicon-confirm"}
+      <Dialog title="Download website icons" onclose={() => (dialog = null)}>
+        <div class="import-confirm">
+          <p>Download missing website icons for entries in this vault?</p>
+          <p>
+            This contacts the domains stored in your vault, which may reveal which services you use.
+            Existing custom icons will not be replaced.
+          </p>
+        </div>
+        {#snippet footer()}
+          <Button onclick={() => (dialog = null)}>Cancel</Button>
+          <Button variant="primary" onclick={downloadFavicons}>Download icons</Button>
         {/snippet}
       </Dialog>
     {:else if dialog.kind === "import-confirm"}
@@ -369,7 +407,19 @@
                 <Icon name="exchange" size={14} />
                 Change master password…
               </button>
-              <button class="settings-btn" onclick={requestImport} disabled={importing}>
+              <button
+                class="settings-btn"
+                onclick={() => (dialog = { kind: "favicon-confirm" })}
+                disabled={importing || downloadingFavicons}
+              >
+                <Icon name="photo-down" size={14} />
+                {downloadingFavicons ? "Downloading icons…" : "Download website icons…"}
+              </button>
+              <button
+                class="settings-btn"
+                onclick={requestImport}
+                disabled={importing || downloadingFavicons}
+              >
                 <Icon name="database-import" size={14} />
                 {importing ? "Importing…" : "Import 1Password 7 (.1pif)…"}
               </button>
@@ -382,6 +432,14 @@
               <div>
                 <strong>Importing items…</strong>
                 <span>Reading entries and attachments. Large exports may take a while.</span>
+              </div>
+            </div>
+          {:else if downloadingFavicons}
+            <div class="import-progress" role="status" aria-label="Icon download in progress">
+              <span class="import-spinner" aria-hidden="true"></span>
+              <div>
+                <strong>Downloading website icons…</strong>
+                <span>Large vaults may take a while. The vault will be saved once.</span>
               </div>
             </div>
           {:else if importError}
@@ -418,6 +476,9 @@
                   <dd>{importReport.failedItems}</dd>
                 </div>
               </dl>
+              <button class="details-btn" onclick={() => (dialog = { kind: "favicon-confirm" })}>
+                Download missing website icons
+              </button>
               {#if skippedEntries.length > 0}
                 <button class="details-btn" onclick={() => (dialog = { kind: "import-details" })}>
                   Review {skippedEntries.length} item{skippedEntries.length === 1 ? "" : "s"}
