@@ -65,6 +65,28 @@ describe("clipboard store", () => {
     expect(clipboard.active).toBe(false);
   });
 
+  it("keeps only the newest countdown when copies resolve out of order", async () => {
+    let resolveFirst!: () => void;
+    let resolveSecond!: () => void;
+    const firstCopy = new Promise<void>((resolve) => (resolveFirst = resolve));
+    const secondCopy = new Promise<void>((resolve) => (resolveSecond = resolve));
+    mocks.copyField.mockReturnValueOnce(firstCopy).mockReturnValueOnce(secondCopy);
+
+    const first = clipboard.copySecretField("entry-1", "password");
+    const second = clipboard.copySecretField("entry-2", "password");
+    resolveSecond();
+    await second;
+
+    vi.advanceTimersByTime(1000);
+    expect(clipboard.remainingMs).toBe(1000);
+
+    resolveFirst();
+    await first;
+
+    expect(clipboard.remainingMs).toBe(1000);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
   it("cancels the countdown and clears the clipboard", async () => {
     await clipboard.copySecretField("entry-1", "password");
 

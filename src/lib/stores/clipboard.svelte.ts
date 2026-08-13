@@ -5,6 +5,7 @@ import type { SecretField } from "$lib/bridge/types";
 let remainingMs = $state(0);
 let defaultTimeoutSecs = $state(15);
 let timer: ReturnType<typeof setInterval> | null = null;
+let copyGeneration = 0;
 
 function stop() {
   if (timer !== null) clearInterval(timer);
@@ -12,19 +13,28 @@ function stop() {
   remainingMs = 0;
 }
 
-function startCountdown(secs: number) {
+function startCountdown(secs: number, generation: number) {
   if (secs <= 0) return;
   remainingMs = secs * 1000;
-  timer = setInterval(() => {
+  const countdown = setInterval(() => {
+    if (generation !== copyGeneration) {
+      clearInterval(countdown);
+      return;
+    }
     remainingMs = Math.max(0, remainingMs - 1000);
-    if (remainingMs <= 0) stop();
+    if (remainingMs <= 0) {
+      clearInterval(countdown);
+      if (timer === countdown) timer = null;
+    }
   }, 1000);
+  timer = countdown;
 }
 
 async function copyAndTrack(copy: () => Promise<void>, timeoutSecs = 0) {
+  const generation = ++copyGeneration;
   stop();
   await copy();
-  startCountdown(timeoutSecs);
+  if (generation === copyGeneration) startCountdown(timeoutSecs, generation);
 }
 
 export const clipboard = {
@@ -74,6 +84,7 @@ export const clipboard = {
     await copyAndTrack(() => clipboardBridge.clipboardCopy(value));
   },
   cancel() {
+    copyGeneration += 1;
     stop();
     clipboardBridge.clipboardClear().catch(() => {});
   },
