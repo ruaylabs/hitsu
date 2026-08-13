@@ -37,7 +37,7 @@ keepass = { version = "0.13", features = ["save_kdbx4", "totp"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = "0.4"
 thiserror = "1"
-tokio = { version = "1", features = ["time", "sync"] }
+tokio = { version = "1", features = ["time", "sync", "net"] }
 arboard = { version = "3", features = ["wayland-data-control"] }
 rand = "0.8"
 zeroize = { version = "1", features = ["derive"] }
@@ -46,7 +46,11 @@ base64 = "0.22"
 sha2 = "0.10"
 subtle = "2"
 percent-encoding = "2"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
+reqwest = {
+  version = "0.12",
+  default-features = false,
+  features = ["rustls-tls", "gzip", "brotli"],
+}
 parking_lot = "0.12"
 psl = "2"
 url = "2"
@@ -62,5 +66,14 @@ zbus = "5.16"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["block2", "NSDistributedNotificationCenter", "NSNotification", "NSOperation", "NSString"] }
+objc2-foundation = {
+  version = "0.3",
+  features = [
+    "block2",
+    "NSDistributedNotificationCenter",
+    "NSNotification",
+    "NSOperation",
+    "NSString",
+  ],
+}
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace"] }

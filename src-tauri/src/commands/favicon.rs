@@ -1,35 +1,74 @@
 use std::net::IpAddr;
+use std::sync::Arc;
 
 use crate::error::{HitsuError, HitsuResult};
 
 const MAX_FAVICON_BYTES: usize = 1024 * 1024;
 
-fn is_safe_http_url(url: &url::Url) -> bool {
-    if !matches!(url.scheme(), "http" | "https") {
-        return false;
-    }
-    let Some(host) = url.host_str() else {
-        return false;
-    };
-    let host = host.trim_end_matches('.');
-    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
-        return false;
-    }
-    match host.parse::<IpAddr>() {
-        Ok(IpAddr::V4(ip)) => {
+fn is_public_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
             !(ip.is_private()
                 || ip.is_loopback()
                 || ip.is_link_local()
                 || ip.is_broadcast()
+                || ip.is_multicast()
                 || ip.is_unspecified())
         }
-        Ok(IpAddr::V6(ip)) => !(ip.is_loopback() || ip.is_unspecified() || ip.is_unique_local()),
-        Err(_) => true,
+        IpAddr::V6(ip) => {
+            if let Some(ipv4) = ip.to_ipv4_mapped() {
+                return is_public_ip(IpAddr::V4(ipv4));
+            }
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+                || ip.is_multicast())
+        }
+    }
+}
+
+fn is_safe_http_url(url: &url::Url) -> bool {
+    if !matches!(url.scheme(), "http" | "https") {
+        return false;
+    }
+    match url.host() {
+        Some(url::Host::Domain(host)) => {
+            let host = host.trim_end_matches('.');
+            !host.eq_ignore_ascii_case("localhost") && !host.ends_with(".localhost")
+        }
+        Some(url::Host::Ipv4(ip)) => is_public_ip(IpAddr::V4(ip)),
+        Some(url::Host::Ipv6(ip)) => is_public_ip(IpAddr::V6(ip)),
+        None => false,
+    }
+}
+
+/// Resolve hostnames once and give reqwest only public addresses. Filtering in
+/// the resolver prevents a second DNS lookup from rebinding a validated name to
+/// a loopback or private address before the connection is opened.
+struct PublicDnsResolver;
+
+impl reqwest::dns::Resolve for PublicDnsResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_string();
+        Box::pin(async move {
+            let addresses = tokio::net::lookup_host((host.as_str(), 0))
+                .await?
+                .filter(|address| is_public_ip(address.ip()))
+                .collect::<Vec<_>>();
+            if addresses.is_empty() {
+                return Err(
+                    std::io::Error::other("hostname did not resolve to a public address").into(),
+                );
+            }
+            Ok(Box::new(addresses.into_iter()) as reqwest::dns::Addrs)
+        })
     }
 }
 
 pub(crate) fn http_client() -> HitsuResult<reqwest::Client> {
     reqwest::Client::builder()
+        .dns_resolver(Arc::new(PublicDnsResolver))
         .user_agent("Mozilla/5.0 (compatible; Hitsu/1.0)")
         .timeout(std::time::Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
@@ -101,22 +140,12 @@ fn extract_html_attr(tag: &str, attr: &str) -> Option<String> {
     }
 }
 
-/// Resolve a possibly-relative favicon URL against a base URL.
+/// Resolve a possibly-relative favicon URL against a base URL, then apply the
+/// same local-address guard used for page URLs and redirects.
 fn resolve_favicon_url(base: &str, href: &str) -> Option<String> {
-    if href.starts_with("http://") || href.starts_with("https://") {
-        Some(href.to_string())
-    } else if href.starts_with("//") {
-        let proto = if base.starts_with("https") {
-            "https"
-        } else {
-            "http"
-        };
-        Some(format!("{proto}:{href}"))
-    } else if href.starts_with('/') {
-        Some(format!("{base}{href}"))
-    } else {
-        Some(format!("{base}/{href}"))
-    }
+    let base = url::Url::parse(base).ok()?;
+    let resolved = base.join(href).ok()?;
+    is_safe_http_url(&resolved).then(|| resolved.to_string())
 }
 
 /// Fetch a favicon from a website. Tries `/favicon.ico` first, then falls back
@@ -192,12 +221,21 @@ mod tests {
     #[test]
     fn rejects_local_and_non_http_urls() {
         assert!(extract_base_url("http://127.0.0.1/login").is_none());
+        assert!(extract_base_url("http://[::1]/login").is_none());
+        assert!(extract_base_url("http://[::ffff:127.0.0.1]/login").is_none());
         assert!(extract_base_url("http://localhost/login").is_none());
         assert!(extract_base_url("file:///tmp/icon.png").is_none());
         assert_eq!(
             extract_base_url("https://example.com/login").as_deref(),
             Some("https://example.com")
         );
+    }
+
+    #[test]
+    fn rejects_local_absolute_favicon_url_from_remote_page() {
+        let html = r#"<link rel="icon" href="http://127.0.0.1:8080/private">"#;
+
+        assert_eq!(find_favicon_in_html("https://example.com", html), None);
     }
 
     #[test]
