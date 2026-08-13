@@ -110,12 +110,35 @@ pub fn backed_up_atomic_write(
             Ok(())
         }
         Err(e) => {
-            // Log the real reason locally, but tell the user a safe message
+            // Log the real reason locally, but tell the user a safe message.
             tracing::warn!("vault verification failed; restoring original");
             tracing::debug!(error = %e, "vault verification failure detail");
-            // 5. Restore original from backup and remove the backup
-            let _ = fs::copy(&backup, path);
-            let _ = fs::remove_file(&backup);
+
+            // Restore atomically so another failure cannot partially overwrite
+            // the destination. Keep the backup whenever recovery is incomplete.
+            let restore_result = fs::read(&backup).and_then(|bytes| atomic_write(path, &bytes));
+            if let Err(restore_error) = restore_result {
+                tracing::error!("vault restoration failed; preserving recovery backup");
+                tracing::debug!(
+                    error = %restore_error,
+                    backup = %backup.display(),
+                    "vault restoration failure detail"
+                );
+                return Err(
+                    "Could not verify or restore the saved vault. A recovery backup has been \
+                     preserved."
+                        .to_string(),
+                );
+            }
+
+            if let Err(remove_error) = fs::remove_file(&backup) {
+                tracing::warn!("restored vault backup could not be removed");
+                tracing::debug!(
+                    error = %remove_error,
+                    backup = %backup.display(),
+                    "restored vault backup cleanup failure detail"
+                );
+            }
             Err(
                 "Could not verify the saved vault. The original file has been restored."
                     .to_string(),
@@ -196,6 +219,34 @@ mod tests {
         assert!(!bad_tmp.exists(), "temp file must be cleaned up");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn preserves_backup_when_verification_restore_fails() {
+        let dir = std::env::temp_dir().join(format!("hitsu-restore-fail-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("vault.kdbx");
+        fs::write(&path, b"original vault").unwrap();
+
+        let result = backed_up_atomic_write(&path, b"invalid replacement", |candidate| {
+            fs::remove_file(candidate).unwrap();
+            fs::create_dir(candidate).unwrap();
+            Err("forced verification failure".to_string())
+        });
+
+        let backup_contents = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .find(|entry| entry.file_name().to_string_lossy().ends_with(".bak"))
+            .and_then(|entry| fs::read(entry.path()).ok());
+
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert!(result.is_err());
+        assert_eq!(
+            backup_contents.as_deref(),
+            Some(b"original vault".as_slice())
+        );
     }
 
     #[test]
