@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::error::{HitsuError, HitsuResult};
 
 const MAX_FAVICON_BYTES: usize = 1024 * 1024;
+const MAX_HTML_BYTES: usize = 2 * 1024 * 1024;
 
 fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
@@ -148,6 +149,32 @@ fn resolve_favicon_url(base: &str, href: &str) -> Option<String> {
     is_safe_http_url(&resolved).then(|| resolved.to_string())
 }
 
+async fn read_limited_response(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+    description: &str,
+) -> HitsuResult<Vec<u8>> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > max_bytes as u64)
+    {
+        return Err(HitsuError::Custom(format!("{description} is too large")));
+    }
+
+    let mut data = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| HitsuError::Custom(format!("Failed to read {description}: {error}")))?
+    {
+        if data.len().saturating_add(chunk.len()) > max_bytes {
+            return Err(HitsuError::Custom(format!("{description} is too large")));
+        }
+        data.extend_from_slice(&chunk);
+    }
+    Ok(data)
+}
+
 /// Fetch a favicon from a website. Tries `/favicon.ico` first, then falls back
 /// to parsing the page's `<link rel="icon">` tags.
 /// Returns the raw image bytes on success.
@@ -165,11 +192,10 @@ pub(crate) async fn fetch_favicon(client: &reqwest::Client, url_str: &str) -> Hi
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
             if content_type.starts_with("image/") {
-                resp.bytes()
+                read_limited_response(resp, MAX_FAVICON_BYTES, "Downloaded favicon")
                     .await
-                    .map(|b| b.to_vec())
                     .ok()
-                    .filter(|data| !data.is_empty() && data.len() < MAX_FAVICON_BYTES)
+                    .filter(|data| !data.is_empty())
             } else {
                 None
             }
@@ -182,13 +208,18 @@ pub(crate) async fn fetch_favicon(client: &reqwest::Client, url_str: &str) -> Hi
         data
     } else {
         let page_html = match client.get(url_str).send().await {
-            Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
+            Ok(resp) if resp.status().is_success() => {
+                read_limited_response(resp, MAX_HTML_BYTES, "Web page")
+                    .await
+                    .ok()
+            }
             _ => None,
         };
 
         let html = page_html.ok_or_else(|| {
             HitsuError::Custom("Could not fetch the web page to look for a favicon".into())
         })?;
+        let html = String::from_utf8_lossy(&html);
 
         let fav_url = find_favicon_in_html(&base_url, &html)
             .ok_or_else(|| HitsuError::Custom("No favicon found on the page".into()))?;
@@ -198,14 +229,27 @@ pub(crate) async fn fetch_favicon(client: &reqwest::Client, url_str: &str) -> Hi
             .send()
             .await
             .map_err(|e| HitsuError::Custom(format!("Failed to download favicon: {e}")))?;
+        if !resp.status().is_success() {
+            return Err(HitsuError::Custom(format!(
+                "Favicon download returned HTTP {}",
+                resp.status()
+            )));
+        }
+        let content_type = resp
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("");
+        if !content_type.starts_with("image/") {
+            return Err(HitsuError::Custom(
+                "Favicon response is not an image".into(),
+            ));
+        }
 
-        resp.bytes()
-            .await
-            .map(|b| b.to_vec())
-            .map_err(|e| HitsuError::Custom(format!("Failed to read favicon: {e}")))?
+        read_limited_response(resp, MAX_FAVICON_BYTES, "Downloaded favicon").await?
     };
 
-    if favicon_data.is_empty() || favicon_data.len() >= MAX_FAVICON_BYTES {
+    if favicon_data.is_empty() || favicon_data.len() > MAX_FAVICON_BYTES {
         return Err(HitsuError::Custom(
             "Downloaded favicon is too large or empty".into(),
         ));
@@ -216,7 +260,9 @@ pub(crate) async fn fetch_favicon(client: &reqwest::Client, url_str: &str) -> Hi
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_base_url, find_favicon_in_html};
+    use super::{extract_base_url, fetch_favicon, find_favicon_in_html, MAX_FAVICON_BYTES};
+    use std::io::{Read, Write};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn rejects_local_and_non_http_urls() {
@@ -244,6 +290,66 @@ mod tests {
         assert_eq!(
             find_favicon_in_html("https://example.com", html).as_deref(),
             Some("https://example.com/brand.ico")
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_oversized_favicon_from_headers_without_reading_body() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        std::thread::spawn(move || {
+            let started = Instant::now();
+            while started.elapsed() < Duration::from_secs(3) {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                };
+                std::thread::spawn(move || {
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(1)))
+                        .unwrap();
+                    let mut request = [0u8; 4096];
+                    let bytes_read = stream.read(&mut request).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&request[..bytes_read]);
+                    if request.starts_with("GET /favicon.ico ") {
+                        write!(
+                            stream,
+                            "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\
+                             Content-Length: {}\r\nConnection: close\r\n\r\n",
+                            MAX_FAVICON_BYTES + 1
+                        )
+                        .unwrap();
+                        stream.flush().unwrap();
+                        std::thread::sleep(Duration::from_secs(2));
+                    } else {
+                        let body = "<html></html>";
+                        write!(
+                            stream,
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\
+                             Content-Length: {}\r\nConnection: close\r\n\r\n{}",
+                            body.len(),
+                            body
+                        )
+                        .unwrap();
+                    }
+                });
+            }
+        });
+
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .resolve("favicon-size.test", address)
+            .build()
+            .unwrap();
+        let url = format!("http://favicon-size.test:{}/", address.port());
+        let fetch = fetch_favicon(&client, &url);
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(500), fetch)
+                .await
+                .is_ok(),
+            "oversized favicon should be rejected from Content-Length without reading its body"
         );
     }
 }
