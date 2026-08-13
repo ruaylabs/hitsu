@@ -1742,7 +1742,7 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hitsu"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",
