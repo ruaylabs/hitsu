@@ -3,6 +3,7 @@
   import type { AttachmentMeta } from "$lib/bridge/types";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { errorMessage } from "$lib/utils/errorMessage";
   import { formatFileSize } from "$lib/utils/format";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -26,7 +27,7 @@
       if (bytes === null) return; // user cancelled the Rust-owned native dialog
       toast.success(`Saved ${att.name} (${formatFileSize(bytes)})`);
     } catch (e) {
-      toast.error(`Failed to save ${att.name}: ${e}`);
+      toast.error(`Failed to save ${att.name}: ${errorMessage(e)}`);
     }
   }
 
@@ -37,7 +38,7 @@
       toast.success(`Added ${attachment.name}`);
       onchange?.();
     } catch (e) {
-      toast.error(`Failed to add attachment: ${e}`);
+      toast.error(`Failed to add attachment: ${errorMessage(e)}`);
     }
   }
 
@@ -60,7 +61,7 @@
       toast.success(`Removed ${att.name}`);
       onchange?.();
     } catch (e) {
-      toast.error(`Failed to remove ${att.name}: ${e}`);
+      toast.error(`Failed to remove ${att.name}: ${errorMessage(e)}`);
     }
   }
 </script>

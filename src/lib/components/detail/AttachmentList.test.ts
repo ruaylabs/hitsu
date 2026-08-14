@@ -45,9 +45,7 @@ describe("AttachmentList errors", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Add attachment" }));
 
     await waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        "Failed to add attachment: Error: Upload failed",
-      ),
+      expect(mocks.toastError).toHaveBeenCalledWith("Failed to add attachment: Upload failed"),
     );
     expect(mocks.add).toHaveBeenCalledWith("entry-1");
     expect(onchange).not.toHaveBeenCalled();
@@ -70,6 +68,20 @@ describe("AttachmentList errors", () => {
     expect(onchange).not.toHaveBeenCalled();
   });
 
+  it("reports download failures without the Error prefix", async () => {
+    mocks.save.mockRejectedValue(new Error("Download failed"));
+    render(AttachmentList, {
+      entryId: "entry-1",
+      attachments: [attachment],
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Download recovery.txt" }));
+
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith("Failed to save recovery.txt: Download failed"),
+    );
+  });
+
   it("keeps the attachment visible when removal fails", async () => {
     const onchange = vi.fn();
     mocks.remove.mockRejectedValue(new Error("Removal failed"));
@@ -84,7 +96,7 @@ describe("AttachmentList errors", () => {
 
     await waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
-        "Failed to remove recovery.txt: Error: Removal failed",
+        "Failed to remove recovery.txt: Removal failed",
       ),
     );
     expect(screen.getByText("recovery.txt")).toBeInTheDocument();
