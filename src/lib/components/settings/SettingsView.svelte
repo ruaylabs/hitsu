@@ -16,6 +16,8 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import Button from "../ui/Button.svelte";
+
+  const appVersion = import.meta.env.VITE_APP_VERSION;
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -652,7 +654,7 @@
           <h2 class="section-heading">About</h2>
           <div class="about-card">
             <span class="about-name">Hitsu</span>
-            <span class="version">Version 0.1.0</span>
+            <span class="version">Version {appVersion}</span>
           </div>
         </section>
       </div>

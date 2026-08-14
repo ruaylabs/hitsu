@@ -1,12 +1,18 @@
+import { readFileSync } from "node:fs";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { svelteTesting } from "@testing-library/svelte/vite";
 import { defineConfig } from "vitest/config";
 
+const packageJson = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [sveltekit(), svelteTesting()],
+
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(packageJson.version),
+  },
 
   test: {
     environment: "jsdom",
