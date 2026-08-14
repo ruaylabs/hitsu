@@ -165,8 +165,9 @@ export const vault = {
       ...e,
       tags: e.tags.map((t) => (t === oldName ? newName : t)),
     }));
-    // Refresh from backend so the detail view stays in sync too
-    vault.refreshIfChanged().catch(() => {});
+    // The backend already committed this write, so disk-change detection
+    // cannot reload it. Bump the data revision to re-project selected details.
+    revision += 1;
   },
   async deleteTag(name: string) {
     const { tagDelete } = await import("$lib/bridge/entries");
@@ -175,7 +176,7 @@ export const vault = {
       ...e,
       tags: e.tags.filter((t) => t !== name),
     }));
-    vault.refreshIfChanged().catch(() => {});
+    revision += 1;
   },
   folderIdsWithin(id: string) {
     const ids = new Set([id]);

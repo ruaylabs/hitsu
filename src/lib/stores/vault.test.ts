@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, VaultMeta } from "$lib/bridge/types";
@@ -110,6 +111,27 @@ describe("vault store", () => {
     expect(foldersBridge.folderCreate).toHaveBeenCalledWith("work", "Clients");
     expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
     expect(vault.folders).toEqual([parent, { ...child, name: "Customers" }]);
+  });
+
+  it("updates tag summaries and invalidates selected entry details", async () => {
+    const tagRename = vi.spyOn(entriesBridge, "tagRename").mockResolvedValue(undefined);
+    const tagDelete = vi.spyOn(entriesBridge, "tagDelete").mockResolvedValue(undefined);
+    const refresh = vi.spyOn(vaultBridge, "vaultRefreshIfChanged");
+    vault.setEntries([{ ...firstEntry, tags: ["work", "shared"] }]);
+    const initialRevision = vault.revision;
+
+    await vault.renameTag("work", "office");
+
+    expect(tagRename).toHaveBeenCalledWith("work", "office");
+    expect(vault.entries[0].tags).toEqual(["office", "shared"]);
+    expect(vault.revision).toBe(initialRevision + 1);
+
+    await vault.deleteTag("shared");
+
+    expect(tagDelete).toHaveBeenCalledWith("shared");
+    expect(vault.entries[0].tags).toEqual(["office"]);
+    expect(vault.revision).toBe(initialRevision + 2);
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("installs external changes while preserving the current view", async () => {

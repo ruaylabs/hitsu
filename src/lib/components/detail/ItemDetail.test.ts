@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   entryRevealCustomField: vi.fn(),
   entryCopyCustomField: vi.fn(),
   entryAttachmentRemove: vi.fn(),
+  tagRename: vi.fn(),
+  tagDelete: vi.fn(),
   folderCreate: vi.fn(),
   folderRename: vi.fn(),
   clipboardCopy: vi.fn(),
@@ -41,6 +43,8 @@ vi.mock("$lib/bridge/entries", () => ({
   entryRevealCustomField: mocks.entryRevealCustomField,
   entryCopyCustomField: mocks.entryCopyCustomField,
   entryAttachmentRemove: mocks.entryAttachmentRemove,
+  tagRename: mocks.tagRename,
+  tagDelete: mocks.tagDelete,
   toSummary: (entry: Entry): EntrySummary => ({
     id: entry.id,
     type: entry.type,
@@ -152,6 +156,8 @@ beforeEach(() => {
   mocks.entryRevealCustomField.mockResolvedValue("protected-value");
   mocks.entryCopyCustomField.mockResolvedValue(undefined);
   mocks.entryAttachmentRemove.mockResolvedValue(undefined);
+  mocks.tagRename.mockResolvedValue(undefined);
+  mocks.tagDelete.mockResolvedValue(undefined);
   mocks.folderCreate.mockResolvedValue({ id: "new-folder", name: "New folder" });
   mocks.folderRename.mockResolvedValue({ id: "new-folder", name: "Renamed folder" });
   mocks.clipboardCopy.mockResolvedValue(undefined);
@@ -216,6 +222,19 @@ describe("edit actions", () => {
 });
 
 describe("tag colors", () => {
+  it("refreshes selected details after a global tag rename", async () => {
+    const entry = passwordEntry({ tags: ["work"] });
+    selectEntry(entry);
+    render(ItemDetail);
+    expect(await screen.findByText("work")).toBeInTheDocument();
+
+    mocks.entryGet.mockResolvedValue(passwordEntry({ tags: ["office"] }));
+    await vault.renameTag("work", "office");
+
+    expect(await screen.findByText("office")).toBeInTheDocument();
+    expect(mocks.entryGet).toHaveBeenCalledTimes(2);
+  });
+
   it("applies the stable palette color to detail badges", async () => {
     selectEntry(passwordEntry({ tags: ["finance"] }));
     render(ItemDetail);
