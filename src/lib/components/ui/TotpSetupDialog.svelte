@@ -20,8 +20,11 @@
   let fileInput = $state<HTMLInputElement>();
 
   const BASE32_RE = /^[A-Z2-7]+=*$/i;
+  const SUPPORTED_ALGORITHMS = new Set(["SHA1", "SHA256", "SHA512"]);
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
   const MAX_SCAN_DIMENSION = 2048;
+  const MAX_TOTP_PERIOD = 24 * 60 * 60;
+  const MAX_TOTP_DIGITS = 10;
 
   function normalizeSeed(raw: string): string {
     return raw.replace(/[\s-]/g, "").toUpperCase();
@@ -29,6 +32,23 @@
 
   function isValidBase32(value: string): boolean {
     return value.length > 0 && BASE32_RE.test(value);
+  }
+
+  function integerParameter(
+    uri: URL,
+    name: "period" | "digits",
+    fallback: number,
+    maximum: number,
+  ): number {
+    const raw = uri.searchParams.get(name);
+    if (raw === null) return fallback;
+    if (!/^\d+$/.test(raw)) throw new Error(`The QR code contains invalid TOTP ${name}`);
+
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
+      throw new Error(`The QR code contains invalid TOTP ${name}`);
+    }
+    return value;
   }
 
   function validateOtpAuthUri(raw: string): { uri: string; label: string } {
@@ -48,10 +68,37 @@
       throw new Error("The QR code contains an invalid TOTP secret");
     }
 
-    const account = decodeURIComponent(uri.pathname.replace(/^\//, ""));
+    const period = integerParameter(uri, "period", 30, MAX_TOTP_PERIOD);
+    const digits = integerParameter(uri, "digits", 6, MAX_TOTP_DIGITS);
+    const rawAlgorithm = uri.searchParams.get("algorithm");
+    const algorithm = (rawAlgorithm ?? "SHA1").toUpperCase().replaceAll("-", "");
+    if (!SUPPORTED_ALGORITHMS.has(algorithm)) {
+      throw new Error("The QR code uses an unsupported TOTP algorithm");
+    }
+    const encoder = uri.searchParams.get("encoder");
+    if (encoder && encoder.toLowerCase() !== "numeric") {
+      throw new Error("The QR code uses an unsupported TOTP encoder");
+    }
+
+    const labelPath = uri.pathname.replace(/^\/+/, "") || "entry";
+    let label: string;
+    try {
+      label = decodeURIComponent(labelPath);
+    } catch {
+      throw new Error("The QR code contains an invalid TOTP account label");
+    }
+    const issuer = uri.searchParams.get("issuer")?.trim() ?? "";
+    const params = new URLSearchParams({
+      secret,
+      period: String(period),
+      digits: String(digits),
+    });
+    if (issuer) params.set("issuer", issuer);
+    if (rawAlgorithm) params.set("algorithm", algorithm);
+
     return {
-      uri: createDefaultTotpUri(secret),
-      label: account || "TOTP account",
+      uri: `otpauth://totp/${labelPath}?${params}`,
+      label: label || issuer || "TOTP account",
     };
   }
 

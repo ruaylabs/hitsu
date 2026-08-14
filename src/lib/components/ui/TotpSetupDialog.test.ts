@@ -7,6 +7,15 @@ vi.mock("jsqr", () => ({ default: vi.fn() }));
 
 const mockedJsQr = vi.mocked(jsQR);
 
+async function scanQr(container: HTMLElement, data: string) {
+  mockedJsQr.mockReturnValue({ data } as ReturnType<typeof jsQR>);
+  const input = container.querySelector<HTMLInputElement>("#totp-qr-file");
+  if (!input) throw new Error("QR file input was not rendered");
+  await fireEvent.change(input, {
+    target: { files: [new File(["qr"], "totp.png", { type: "image/png" })] },
+  });
+}
+
 beforeEach(() => {
   mockedJsQr.mockReset();
   vi.stubGlobal(
@@ -24,41 +33,76 @@ beforeEach(() => {
 });
 
 describe("TotpSetupDialog", () => {
-  it("imports a QR seed using the same defaults as manual entry", async () => {
-    mockedJsQr.mockReturnValue({
-      data: "otpauth://totp/Example:alice?secret=jbswy3dpehpk3pxp&issuer=Example&digits=8",
-    } as ReturnType<typeof jsQR>);
+  it("preserves the QR label, issuer, and non-default TOTP settings", async () => {
     const onconfirm = vi.fn();
     const { container } = render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });
-    const input = container.querySelector<HTMLInputElement>("#totp-qr-file");
-    if (!input) throw new Error("QR file input was not rendered");
+    await scanQr(
+      container,
+      "otpauth://totp/Example:alice?secret=jbswy3dpehpk3pxp" +
+        "&issuer=Example&period=60&digits=8&algorithm=SHA256",
+    );
 
-    await fireEvent.change(input, {
-      target: { files: [new File(["qr"], "totp.png", { type: "image/png" })] },
-    });
+    await waitFor(() => expect(screen.getByText("QR code ready")).toBeInTheDocument());
+    expect(screen.getByText("Example:alice")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onconfirm).toHaveBeenCalledWith(
+      "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&period=60" +
+        "&digits=8&issuer=Example&algorithm=SHA256",
+    );
+  });
+
+  it("applies standard defaults when QR settings are omitted", async () => {
+    const onconfirm = vi.fn();
+    const { container } = render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });
+    await scanQr(container, "otpauth://totp/alice?secret=JBSWY3DPEHPK3PXP");
+
     await waitFor(() => expect(screen.getByText("QR code ready")).toBeInTheDocument());
     await fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onconfirm).toHaveBeenCalledWith(
-      "otpauth://totp/entry?secret=JBSWY3DPEHPK3PXP&period=30&digits=6",
+      "otpauth://totp/alice?secret=JBSWY3DPEHPK3PXP&period=30&digits=6",
     );
   });
 
   it("rejects QR codes that do not contain a TOTP setup link", async () => {
-    mockedJsQr.mockReturnValue({ data: "https://example.com" } as ReturnType<typeof jsQR>);
     const { container } = render(TotpSetupDialog, {
       onconfirm: vi.fn(),
       oncancel: vi.fn(),
     });
-    const input = container.querySelector<HTMLInputElement>("#totp-qr-file");
-    if (!input) throw new Error("QR file input was not rendered");
-
-    await fireEvent.change(input, {
-      target: { files: [new File(["qr"], "not-totp.png", { type: "image/png" })] },
-    });
+    await scanQr(container, "https://example.com");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The QR code is not a TOTP setup code",
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("rejects unsupported Steam encoders instead of saving incorrect codes", async () => {
+    const { container } = render(TotpSetupDialog, {
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+    await scanQr(
+      container,
+      "otpauth://totp/Steam:alice?secret=JBSWY3DPEHPK3PXP&digits=5&encoder=steam",
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The QR code uses an unsupported TOTP encoder",
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("rejects a zero period before it reaches the backend", async () => {
+    const { container } = render(TotpSetupDialog, {
+      onconfirm: vi.fn(),
+      oncancel: vi.fn(),
+    });
+    await scanQr(container, "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&period=0");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The QR code contains invalid TOTP period",
     );
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
