@@ -1,10 +1,13 @@
 import * as entriesBridge from "$lib/bridge/entries";
+import type { EntrySearchResult } from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import { entryHaystack } from "$lib/utils/search";
 
 export interface EntrySearch {
   /** True when `entry` matches the current query (always true for an empty query). */
   matches(entry: EntrySummary): boolean;
+  /** True when the backend found more full-field matches than it returned. */
+  readonly truncated: boolean;
 }
 
 /**
@@ -24,22 +27,22 @@ export function createEntrySearch(
   query: () => string,
   { debounceMs = 0, refreshOn }: { debounceMs?: number; refreshOn?: () => void } = {},
 ): EntrySearch {
-  let matchIds = $state<string[] | null>(null);
-  const matchIdSet = $derived(matchIds === null ? null : new Set(matchIds));
+  let searchResult = $state<EntrySearchResult | null>(null);
+  const matchIdSet = $derived(searchResult === null ? null : new Set(searchResult.ids));
   let searchRequest = 0;
 
   $effect(() => {
     refreshOn?.();
     const q = query().trim();
     const request = ++searchRequest;
-    matchIds = null;
+    searchResult = null;
     if (!q) return;
 
     const run = () => {
       void entriesBridge
         .entriesSearch(q)
-        .then((ids) => {
-          if (request === searchRequest && query().trim() === q) matchIds = ids;
+        .then((result) => {
+          if (request === searchRequest && query().trim() === q) searchResult = result;
         })
         .catch(() => {
           // Keep the summary-field fallback when backend search is unavailable.
@@ -58,6 +61,9 @@ export function createEntrySearch(
   });
 
   return {
+    get truncated() {
+      return searchResult?.truncated ?? false;
+    },
     matches(entry: EntrySummary): boolean {
       const q = query().trim().toLowerCase();
       if (!q) return true;

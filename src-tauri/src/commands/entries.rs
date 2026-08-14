@@ -22,6 +22,13 @@ const SEARCH_RESULT_LIMIT: usize = 500;
 const FAVICON_FETCH_CONCURRENCY: usize = 8;
 const FAVICON_FAILURE_LIMIT: usize = 200;
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntrySearchResult {
+    pub ids: Vec<String>,
+    pub truncated: bool,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FaviconBatchFailure {
@@ -690,15 +697,26 @@ pub async fn entry_get(state: State<'_, AppState>, id: String) -> HitsuResult<En
 }
 
 #[tauri::command]
-pub async fn entries_search(state: State<'_, AppState>, query: String) -> HitsuResult<Vec<String>> {
+pub async fn entries_search(
+    state: State<'_, AppState>,
+    query: String,
+) -> HitsuResult<EntrySearchResult> {
     let vault = state.open_vault()?;
-    Ok(vault
-        .db
-        .iter_all_entries()
-        .filter(|entry| entry_matches_search(entry, &query))
-        .take(SEARCH_RESULT_LIMIT)
-        .map(|entry| entry.id().uuid().to_string())
-        .collect())
+    let mut ids = Vec::with_capacity(SEARCH_RESULT_LIMIT);
+    let mut truncated = false;
+
+    for entry in vault.db.iter_all_entries() {
+        if !entry_matches_search(&entry, &query) {
+            continue;
+        }
+        if ids.len() == SEARCH_RESULT_LIMIT {
+            truncated = true;
+            break;
+        }
+        ids.push(entry.id().uuid().to_string());
+    }
+
+    Ok(EntrySearchResult { ids, truncated })
 }
 
 #[tauri::command]

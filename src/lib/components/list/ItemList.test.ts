@@ -86,7 +86,7 @@ describe("ItemList", () => {
 
   it("filters entries by search across fields", async () => {
     vault.setEntries(makeEntries(20));
-    entriesSearchMock.mockResolvedValue([]);
+    entriesSearchMock.mockResolvedValue({ ids: [], truncated: false });
     render(ItemList);
 
     selection.search = "user13@";
@@ -98,7 +98,7 @@ describe("ItemList", () => {
 
   it("uses backend matches for fields absent from entry summaries", async () => {
     vault.setEntries(makeEntries(20));
-    entriesSearchMock.mockResolvedValue(["id-7"]);
+    entriesSearchMock.mockResolvedValue({ ids: ["id-7"], truncated: false });
     render(ItemList);
 
     selection.search = "buried note";
@@ -106,6 +106,22 @@ describe("ItemList", () => {
     const match = await screen.findByRole("option", { name: /Entry 7/ });
     expect(match).toBeInTheDocument();
     expect(listRows()).toHaveLength(1);
+  });
+
+  it("warns when the backend finds more than 500 full-field matches", async () => {
+    vault.setEntries(makeEntries(20));
+    entriesSearchMock.mockResolvedValue({ ids: [], truncated: true });
+    render(ItemList);
+
+    await fireEvent.input(screen.getByRole("textbox"), {
+      target: { value: "buried note" },
+    });
+
+    expect(
+      await screen.findByText(
+        "More than 500 full-field matches were found; keep typing to narrow the search.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("filters a folder recursively", async () => {

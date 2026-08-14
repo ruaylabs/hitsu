@@ -309,6 +309,7 @@
   <SearchField
     allowCreate={selection.filter.kind !== "trash"}
     {onCreate}
+    searchLimited={entrySearch.truncated}
     onSearchStart={rememberSearchContext}
     onSearchClear={restoreSearchContext}
   />

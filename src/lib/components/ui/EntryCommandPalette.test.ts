@@ -53,7 +53,7 @@ describe("EntryCommandPalette", () => {
   });
 
   it("includes backend matches from full entry fields", async () => {
-    entriesSearchMock.mockResolvedValue(["one"]);
+    entriesSearchMock.mockResolvedValue({ ids: ["one"], truncated: false });
     render(EntryCommandPalette, { entries, onSelect: vi.fn(), onClose: vi.fn() });
 
     await fireEvent.input(screen.getByRole("textbox", { name: "Search entries" }), {
@@ -62,6 +62,21 @@ describe("EntryCommandPalette", () => {
 
     expect(await screen.findByRole("option", { name: /Hitsu/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Travel card/ })).not.toBeInTheDocument();
+  });
+
+  it("warns when the backend finds more than 500 full-field matches", async () => {
+    entriesSearchMock.mockResolvedValue({ ids: [], truncated: true });
+    render(EntryCommandPalette, { entries, onSelect: vi.fn(), onClose: vi.fn() });
+
+    await fireEvent.input(screen.getByRole("textbox", { name: "Search entries" }), {
+      target: { value: "buried note" },
+    });
+
+    expect(
+      await screen.findByText(
+        "More than 500 full-field matches were found; keep typing to narrow the search.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("supports Ctrl+N and Ctrl+P navigation", async () => {

@@ -23,9 +23,12 @@ describe("entries bridge", () => {
   });
 
   it("searches entry fields in the backend", async () => {
-    invokeMock.mockResolvedValue(["entry-1"]);
+    invokeMock.mockResolvedValue({ ids: ["entry-1"], truncated: false });
 
-    await expect(entriesSearch("recovery note")).resolves.toEqual(["entry-1"]);
+    await expect(entriesSearch("recovery note")).resolves.toEqual({
+      ids: ["entry-1"],
+      truncated: false,
+    });
 
     expect(invokeMock).toHaveBeenCalledWith("entries_search", { query: "recovery note" });
   });

@@ -12,11 +12,13 @@
     onCreate = () => {},
     onSearchStart = () => {},
     onSearchClear = () => {},
+    searchLimited = false,
   }: {
     allowCreate?: boolean;
     onCreate?: () => void;
     onSearchStart?: () => void;
     onSearchClear?: () => void;
+    searchLimited?: boolean;
   } = $props();
   let search = $state(selection.search);
   const searchShortcut = keyboardShortcut("F");
@@ -110,6 +112,11 @@
       </button>
     {/if}
   </div>
+  {#if search && searchLimited}
+    <div class="search-warning" role="status">
+      More than 500 full-field matches were found; keep typing to narrow the search.
+    </div>
+  {/if}
   {#if scoped}
     <div class="scope-row" aria-label="Search scope">
       <span class="scope-chip">
@@ -211,6 +218,13 @@
   .add-btn:hover {
     background: var(--border);
     color: var(--text-secondary);
+  }
+
+  .search-warning {
+    margin-top: 7px;
+    color: var(--warning);
+    font-size: 11.5px;
+    line-height: 1.35;
   }
 
   .scope-row {

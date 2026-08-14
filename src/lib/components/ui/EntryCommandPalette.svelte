@@ -132,6 +132,11 @@
     {#if truncatedLabel}
       <div class="entry-palette-footer">{truncatedLabel}</div>
     {/if}
+    {#if search && entrySearch.truncated}
+      <div class="entry-palette-warning" role="status">
+        More than 500 full-field matches were found; keep typing to narrow the search.
+      </div>
+    {/if}
   </div>
 </Dialog>
 
@@ -253,5 +258,14 @@
     color: var(--text-muted);
     border-top: 0.5px solid var(--border);
     font-size: 11.5px;
+  }
+
+  .entry-palette-warning {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    color: var(--warning);
+    border-top: 0.5px solid var(--border);
+    font-size: 11.5px;
+    line-height: 1.35;
   }
 </style>

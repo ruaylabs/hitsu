@@ -160,14 +160,14 @@ async fn create_adds_to_memory_not_to_disk() {
 }
 
 #[tokio::test]
-async fn search_caps_broad_query_results() {
+async fn search_reports_broad_query_truncation() {
     let tv = setup();
     let state = tv.state();
     {
         let mut vaults = state.vaults.lock();
         let (_id, vault) = vaults.iter_mut().next().expect("no open vault");
         let mut root = vault.db.root_mut();
-        for index in 0..525 {
+        for index in 0..500 {
             root.add_entry_with_id(keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4()))
                 .expect("duplicate entry id")
                 .set_unprotected(
@@ -177,10 +177,26 @@ async fn search_caps_broad_query_results() {
         }
     }
 
+    let matches = entries_search(state.clone(), "matching".to_string())
+        .await
+        .expect("search should succeed");
+    assert_eq!(matches.ids.len(), 500);
+    assert!(!matches.truncated);
+
+    {
+        let mut vaults = state.vaults.lock();
+        let (_id, vault) = vaults.iter_mut().next().expect("no open vault");
+        let mut root = vault.db.root_mut();
+        root.add_entry_with_id(keepass::db::EntryId::from_uuid(uuid::Uuid::new_v4()))
+            .expect("duplicate entry id")
+            .set_unprotected(keepass::db::fields::TITLE, "Matching overflow entry");
+    }
+
     let matches = entries_search(state, "matching".to_string())
         .await
         .expect("search should succeed");
-    assert_eq!(matches.len(), 500);
+    assert_eq!(matches.ids.len(), 500);
+    assert!(matches.truncated);
 }
 
 #[tokio::test]
