@@ -203,6 +203,29 @@ describe("vault store", () => {
     consoleError.mockRestore();
   });
 
+  it("switches to another vault by locking and prompting for the new path", async () => {
+    const meta: VaultMeta = {
+      path: "/tmp/test.kdbx",
+      name: "Test vault",
+      itemCount: 1,
+      syncProvider: "local",
+      entries: [firstEntry],
+      folders: [],
+    };
+    vault.setMeta(meta);
+    vault.setEntries([firstEntry]);
+    selection.selectedId = firstEntry.id;
+    const lock = vi.spyOn(vaultBridge, "vaultLock").mockResolvedValue(undefined);
+
+    await vault.switchTo("/tmp/other.kdbx");
+
+    expect(lock).toHaveBeenCalledOnce();
+    expect(vault.locked).toBe(true);
+    expect(vault.entries).toEqual([]);
+    expect(selection.selectedId).toBeNull();
+    expect(vault.meta).toMatchObject({ path: "/tmp/other.kdbx", name: "other.kdbx" });
+  });
+
   it("applies an OS session lock without another backend call", () => {
     const lock = vi.spyOn(vaultBridge, "vaultLock");
     vault.setEntries([firstEntry]);

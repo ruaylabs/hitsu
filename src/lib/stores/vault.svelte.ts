@@ -211,4 +211,18 @@ export const vault = {
   unlock() {
     locked = false;
   },
+  /** Lock the current vault and prompt to unlock a different vault file.
+   * The placeholder meta points +page at the new path so the regular
+   * locked-vault unlock screen handles the switch. */
+  async switchTo(path: string) {
+    await this.lock();
+    vaultMeta = {
+      path,
+      name: path.split(/[\\/]/).pop() || path,
+      itemCount: 0,
+      syncProvider: "unknown",
+      entries: [],
+      folders: [],
+    };
+  },
 };

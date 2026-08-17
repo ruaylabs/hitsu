@@ -11,6 +11,7 @@
   import FormDialog from "../ui/FormDialog.svelte";
   import SidebarItem from "./SidebarItem.svelte";
   import SidebarSection from "./SidebarSection.svelte";
+  import VaultSelector from "./VaultSelector.svelte";
 
   let activeEntries = $derived(vault.entries.filter((e) => !e.trashed));
   let allCount = $derived(activeEntries.length);
@@ -181,6 +182,10 @@
 </script>
 
 <aside class="sidebar">
+  {#if vault.meta}
+    <VaultSelector />
+  {/if}
+
   <SidebarSection label="Groups">
     <SidebarItem
       label="All items"
