@@ -1352,6 +1352,23 @@ fn item_type_name(item_type: &ItemType) -> &'static str {
     }
 }
 
+/// Install the imported database into the still-open vault with the same
+/// path. The disk write has already succeeded, so a missing or different
+/// open vault (e.g. the idle watchdog locked it mid-save) is not an error —
+/// the next unlock reloads the imported data from disk.
+fn install_imported_db(
+    state: &AppState,
+    vault_path: &Path,
+    db: keepass::Database,
+    disk_hash: [u8; 32],
+) {
+    let mut vaults = state.vaults.lock();
+    if let Some((_, vault)) = vaults.iter_mut().find(|(_, v)| v.path == vault_path) {
+        vault.db = db;
+        vault.disk_hash = disk_hash;
+    }
+}
+
 #[tauri::command]
 pub async fn vault_import_1pif(
     app: AppHandle,
@@ -1402,15 +1419,12 @@ pub async fn vault_import_1pif(
     .await
     .map_err(HitsuError::from_join)??;
 
-    let mut vaults = state.vaults.lock();
-    let (_, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
-    if vault.path != vault_path {
-        return Err(HitsuError::Custom(
-            "The open vault changed during import".into(),
-        ));
-    }
-    vault.db = db;
-    vault.disk_hash = new_disk_hash;
+    // The write to disk already succeeded, so the import is done. If the
+    // idle watchdog locked the vault (or the open vault changed) mid-save,
+    // only the in-memory refresh must be skipped — returning NoOpenVault
+    // here would falsely report the import as failed. The next unlock
+    // reloads the imported data from disk.
+    install_imported_db(&state, &vault_path, db, new_disk_hash);
 
     Ok(Some(ImportReport {
         imported_items,
@@ -1644,6 +1658,64 @@ fn humanize(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::OpenVault;
+    use uuid::Uuid;
+
+    fn imported_db() -> keepass::Database {
+        let mut db = keepass::Database::new();
+        db.root_mut().name = "1pif-import".into();
+        db
+    }
+
+    fn open_vault(state: &AppState, path: &str) {
+        state.vaults.lock().insert(
+            Uuid::new_v4(),
+            OpenVault {
+                db: keepass::Database::new(),
+                path: PathBuf::from(path),
+                db_key: keepass::DatabaseKey::new().with_password("test-password"),
+                password_hash: [0; 32],
+                disk_hash: [0; 32],
+            },
+        );
+    }
+
+    #[test]
+    fn install_imported_db_replaces_the_matching_open_vault() {
+        let state = AppState::new();
+        open_vault(&state, "test.kdbx");
+
+        install_imported_db(&state, &PathBuf::from("test.kdbx"), imported_db(), [7; 32]);
+
+        let vaults = state.vaults.lock();
+        let vault = vaults.values().next().unwrap();
+        assert_eq!(vault.db.root().name, "1pif-import");
+        assert_eq!(vault.disk_hash, [7; 32]);
+    }
+
+    #[test]
+    fn install_imported_db_tolerates_a_locked_vault() {
+        // The idle watchdog can drop the vault after the import was written
+        // to disk; the import still succeeded and must not surface an error.
+        let state = AppState::new();
+
+        install_imported_db(&state, &PathBuf::from("test.kdbx"), imported_db(), [7; 32]);
+
+        assert!(state.vaults.lock().is_empty());
+    }
+
+    #[test]
+    fn install_imported_db_leaves_a_different_open_vault_untouched() {
+        let state = AppState::new();
+        open_vault(&state, "other.kdbx");
+
+        install_imported_db(&state, &PathBuf::from("test.kdbx"), imported_db(), [7; 32]);
+
+        let vaults = state.vaults.lock();
+        let vault = vaults.values().next().unwrap();
+        assert_ne!(vault.db.root().name, "1pif-import");
+        assert_eq!(vault.disk_hash, [0; 32]);
+    }
 
     fn write_export(lines: &[JsonValue], attachment: Option<(&str, &[u8])>) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("hitsu-1pif-{}", uuid::Uuid::new_v4()));
