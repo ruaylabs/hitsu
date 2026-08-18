@@ -136,7 +136,7 @@
   }
 
   .hide-countdown {
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;

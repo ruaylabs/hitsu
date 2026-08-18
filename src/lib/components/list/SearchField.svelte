@@ -175,7 +175,7 @@
     border-radius: 3px;
     color: var(--text-muted);
     font-family: var(--font-sans);
-    font-size: 10px;
+    font-size: var(--text-xs);
     line-height: 1.4;
     opacity: 0.75;
   }
@@ -223,7 +223,7 @@
   .search-warning {
     margin-top: 7px;
     color: var(--warning);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     line-height: 1.35;
   }
 
@@ -244,7 +244,7 @@
     color: var(--text-secondary);
     background: var(--bg-accent);
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .scope-chip > span {
@@ -274,7 +274,7 @@
     padding: 5px 7px;
     color: var(--text-accent);
     border-radius: var(--radius-sm);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     font-weight: 500;
   }
 

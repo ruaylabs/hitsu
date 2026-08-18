@@ -37,7 +37,7 @@
     gap: 8px 14px;
     margin-top: 4px;
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
 
   .shortcut-hints span {

@@ -765,7 +765,7 @@
   }
 
   .section-heading {
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -782,7 +782,7 @@
   }
 
   .vault-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
@@ -925,7 +925,7 @@
   .import-failure div > span {
     margin-top: 2px;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   .import-failure {
@@ -994,7 +994,7 @@
 
   .import-counts dt {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
 
   .import-counts dd {
@@ -1006,7 +1006,7 @@
 
   .details-btn {
     color: var(--accent);
-    font-size: 12px;
+    font-size: var(--text-sm);
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -1033,7 +1033,7 @@
     color: var(--text-secondary);
     background: var(--surface-1);
     border-radius: 3px;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     font-weight: 500;
     text-transform: uppercase;
   }
@@ -1055,7 +1055,7 @@
   .skipped-reason {
     margin-top: 2px;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   .empty-text {
@@ -1211,7 +1211,7 @@
   }
 
   .version {
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 </style>

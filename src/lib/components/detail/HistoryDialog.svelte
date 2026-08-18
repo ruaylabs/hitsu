@@ -398,7 +398,7 @@
   }
 
   .list-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -434,7 +434,7 @@
   }
 
   .rev-date {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
@@ -481,7 +481,7 @@
     background: color-mix(in srgb, var(--tag-color) 12%, transparent);
     border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
     border-radius: 4px;
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .tag-badge::before {

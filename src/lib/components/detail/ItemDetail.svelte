@@ -1116,7 +1116,7 @@
     padding: 4px 10px;
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     background: var(--surface-1);
   }
@@ -1175,7 +1175,7 @@
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     background: var(--surface-1);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   .expiration-indicator.due {
@@ -1199,7 +1199,7 @@
     background: color-mix(in srgb, var(--tag-color) 12%, transparent);
     border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
     border-radius: 4px;
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .tag-badge::before {
@@ -1217,7 +1217,7 @@
 
   .save-error {
     color: var(--danger);
-    font-size: 12px;
+    font-size: var(--text-sm);
     line-height: 1.4;
     margin-bottom: 12px;
   }

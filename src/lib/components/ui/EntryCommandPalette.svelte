@@ -182,7 +182,7 @@
     border: 0.5px solid var(--border);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
 
   .entry-palette-items {
@@ -230,7 +230,7 @@
 
   .entry-palette-subtitle {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .entry-palette-badge {
@@ -239,7 +239,7 @@
     color: var(--text-muted);
     background: var(--surface-1);
     border-radius: 999px;
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
 
   .entry-palette-empty {
@@ -257,7 +257,7 @@
     padding: 7px 14px;
     color: var(--text-muted);
     border-top: 0.5px solid var(--border);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .entry-palette-warning {
@@ -265,7 +265,7 @@
     padding: 7px 14px;
     color: var(--warning);
     border-top: 0.5px solid var(--border);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     line-height: 1.35;
   }
 </style>

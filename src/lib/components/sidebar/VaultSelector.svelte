@@ -251,7 +251,7 @@
   .menu-heading {
     padding: 4px 8px 2px;
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }

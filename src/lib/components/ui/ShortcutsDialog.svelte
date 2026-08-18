@@ -72,7 +72,7 @@
     border: 0.5px solid var(--border);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.5;
   }

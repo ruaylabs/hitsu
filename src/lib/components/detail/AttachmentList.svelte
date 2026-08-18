@@ -130,7 +130,7 @@
   }
 
   .attachments-label {
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
@@ -139,7 +139,7 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     background: none;
     border: none;
@@ -184,12 +184,12 @@
   }
 
   .attachment-size {
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
   .attachments-empty {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     font-style: italic;
   }

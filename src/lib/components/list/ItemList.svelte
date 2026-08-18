@@ -489,7 +489,7 @@
     color: var(--text-muted);
     background: var(--surface-1);
     border-bottom: 0.5px solid var(--border);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .sort-bar select {
@@ -554,7 +554,7 @@
     padding: 5px 10px;
     color: var(--accent);
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
   }
 

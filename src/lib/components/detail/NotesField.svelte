@@ -14,7 +14,7 @@
 
   .notes-label {
     display: block;
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     margin-bottom: 6px;
   }

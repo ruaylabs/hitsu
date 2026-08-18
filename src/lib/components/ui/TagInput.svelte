@@ -141,7 +141,7 @@
           title="Remove"
           onclick={() => removeTag(tag)}
         >
-          <i class="ti ti-x" style="font-size: 11px"></i>
+          <i class="ti ti-x" style="font-size: var(--text-sm)"></i>
         </button>
       </span>
     {/each}
@@ -211,7 +211,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
     border-radius: 10px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-primary);
   }
 

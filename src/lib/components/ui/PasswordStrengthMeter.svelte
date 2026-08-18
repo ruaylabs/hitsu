@@ -59,7 +59,7 @@
   }
 
   .strength-label {
-    font-size: 11px;
+    font-size: var(--text-sm);
     font-weight: 500;
     white-space: nowrap;
     min-width: 92px;

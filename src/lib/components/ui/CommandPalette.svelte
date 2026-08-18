@@ -172,7 +172,7 @@
 
   .palette-item-description {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     line-height: 1.35;
   }
 

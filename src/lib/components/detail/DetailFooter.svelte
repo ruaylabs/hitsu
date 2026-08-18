@@ -27,7 +27,7 @@
     border-top: 0.5px solid var(--border);
     display: flex;
     justify-content: space-between;
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
@@ -35,7 +35,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 

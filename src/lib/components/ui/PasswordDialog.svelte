@@ -266,7 +266,7 @@
     background: var(--surface-1);
     border: 0.5px solid var(--warning);
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: var(--text-sm);
     line-height: 1.45;
   }
 
@@ -285,7 +285,7 @@
   .strength-help {
     margin: 0;
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     line-height: 1.4;
   }
 
@@ -333,12 +333,12 @@
     align-items: center;
     gap: 4px;
     color: var(--warning);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
   }
 
   .vault-path {
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     /* Long paths truncate from the start so the filename stays visible. */
     direction: rtl;
