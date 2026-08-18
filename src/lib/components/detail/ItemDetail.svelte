@@ -330,19 +330,24 @@
 
   function validateCardFields(): boolean {
     let valid = true;
+    // Judge by digits only: pasted or programmatically set values can carry
+    // spaces/separators (and letters) that the oninput sanitizers miss.
+    const digits = (value: string) => value.replace(/\D/g, "");
     // Card number: digits only, 13-19 chars (standard card lengths)
-    if (form.cardNumber && form.cardNumber.length > 0 && form.cardNumber.length < 13) {
-      cardNumberError = "Card number too short";
+    const cardNumber = digits(form.cardNumber);
+    if (cardNumber.length > 0 && (cardNumber.length < 13 || cardNumber.length > 19)) {
+      cardNumberError = cardNumber.length < 13 ? "Card number too short" : "Card number too long";
       valid = false;
     } else {
       cardNumberError = "";
     }
     // Exp month: 2 digits, 01-12
-    if (form.cardExpMonth && form.cardExpMonth.length !== 2) {
+    const expMonth = digits(form.cardExpMonth);
+    if (expMonth && expMonth.length !== 2) {
       cardExpMonthError = "Must be 2 digits (01-12)";
       valid = false;
-    } else if (form.cardExpMonth) {
-      const m = Number.parseInt(form.cardExpMonth, 10);
+    } else if (expMonth) {
+      const m = Number.parseInt(expMonth, 10);
       if (m < 1 || m > 12) {
         cardExpMonthError = "Must be 01-12";
         valid = false;
@@ -353,21 +358,23 @@
       cardExpMonthError = "";
     }
     // Exp year: 4 digits
-    if (form.cardExpYear && form.cardExpYear.length !== 4) {
+    if (form.cardExpYear && digits(form.cardExpYear).length !== 4) {
       cardExpYearError = "Year must be 4 digits";
       valid = false;
     } else {
       cardExpYearError = "";
     }
     // CVV: 3 or 4 digits
-    if (form.cardCvv && form.cardCvv.length !== 3 && form.cardCvv.length !== 4) {
+    const cvv = digits(form.cardCvv);
+    if (cvv && cvv.length !== 3 && cvv.length !== 4) {
       cardCvvError = "CVV must be 3 or 4 digits";
       valid = false;
     } else {
       cardCvvError = "";
     }
     // PIN: 4-12 digits (ISO 9564 range)
-    if (form.cardPin && (form.cardPin.length < 4 || form.cardPin.length > 12)) {
+    const pin = digits(form.cardPin);
+    if (pin && (pin.length < 4 || pin.length > 12)) {
       cardPinError = "PIN must be 4-12 digits";
       valid = false;
     } else {
