@@ -9,6 +9,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
+  import { runCopyFeedback } from "$lib/utils/copyFeedback.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import Icon from "../ui/Icon.svelte";
@@ -185,21 +186,11 @@
 
   async function copyUsername(entry: EntrySummary) {
     if (!entry.username) return;
-    try {
-      await clipboard.copyPlain(entry.username);
-      toast.success("Username copied");
-    } catch (error) {
-      reportActionError(error);
-    }
+    await runCopyFeedback(() => clipboard.copyPlain(entry.username!), "Username copied");
   }
 
   async function copySecret(entry: EntrySummary, field: "password" | "totp", label: string) {
-    try {
-      await clipboard.copySecretField(entry.id, field);
-      toast.success(`${label} copied`);
-    } catch (error) {
-      reportActionError(error);
-    }
+    await runCopyFeedback(() => clipboard.copySecretField(entry.id, field), `${label} copied`);
   }
 
   async function toggleFavorite(entry: EntrySummary) {
