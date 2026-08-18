@@ -374,6 +374,10 @@
     <div class="settings-content">
       <nav class="settings-nav" aria-label="Settings sections">
         <a href="#settings-vault">Vault</a>
+        {#if vault.meta}
+          <a href="#settings-maintenance">Maintenance</a>
+        {/if}
+        <a href="#settings-recent">Recent vaults</a>
         <a href="#settings-appearance">Appearance</a>
         <a href="#settings-features">Features</a>
         <a href="#settings-security">Security</a>
@@ -491,7 +495,7 @@
         </section>
 
         {#if vault.meta}
-          <section class="settings-section">
+          <section class="settings-section" id="settings-maintenance">
             <h2 class="section-heading">Vault maintenance</h2>
             <div class="maintenance-card danger-card">
               <div>
@@ -515,7 +519,7 @@
           </section>
         {/if}
 
-        <section class="settings-section">
+        <section class="settings-section" id="settings-recent">
           <h2 class="section-heading">Recent vaults</h2>
           {#if recentVaults.length === 0}
             <p class="empty-text">No recent vaults.</p>
