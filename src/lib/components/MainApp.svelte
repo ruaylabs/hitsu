@@ -22,6 +22,7 @@
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { features } from "$lib/stores/features.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
+  import { createKdfPrompt } from "$lib/stores/kdfPrompt.svelte";
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { security } from "$lib/stores/security.svelte";
   import { selection } from "$lib/stores/selection.svelte";
@@ -226,8 +227,8 @@
     }
   });
 
-  let showKdfUpgrade = $state(false);
   let kdfUpgradeDismissedVaults = $state<string[]>([]);
+  const kdfPrompt = createKdfPrompt();
 
   onMount(() => {
     try {
@@ -254,15 +255,11 @@
   });
 
   $effect(() => {
-    const path = vault.meta?.path;
-    const dismissed = path ? kdfUpgradeDismissedVaults.includes(path) : false;
-    if (vault.meta?.kdfNeedsUpgrade && !vault.locked && !dismissed) {
-      showKdfUpgrade = true;
-    }
+    kdfPrompt.update(vault.meta, vault.locked, kdfUpgradeDismissedVaults);
   });
 
   async function deferKdfUpgrade() {
-    showKdfUpgrade = false;
+    kdfPrompt.dismiss();
     const path = vault.meta?.path;
     if (!path) return;
 
@@ -277,7 +274,7 @@
   async function upgradeKdf() {
     try {
       await vaultBridge.vaultUpgradeKdf();
-      showKdfUpgrade = false;
+      kdfPrompt.dismiss();
       toast.success("Vault security upgraded");
     } catch (error) {
       console.error("KDF upgrade failed", error);
@@ -398,10 +395,10 @@
   />
 {/if}
 
-{#if showKdfUpgrade}
+{#if kdfPrompt.visible}
   <Dialog
     title="Upgrade vault security?"
-    onclose={() => (showKdfUpgrade = false)}
+    onclose={() => kdfPrompt.dismiss()}
     onconfirm={upgradeKdf}
     size="md"
   >
