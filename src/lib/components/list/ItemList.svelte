@@ -35,6 +35,11 @@
     y: number;
   }
 
+  // Used when the menu hasn't been rendered yet (first open) — the clamp
+  // re-runs against the real size on subsequent opens.
+  const MENU_FALLBACK_WIDTH = 208;
+  const MENU_FALLBACK_HEIGHT = 292;
+
   let contextMenu = $state<RowContextMenu | null>(null);
   let contextMenuEl = $state<HTMLDivElement | undefined>();
   const entrySearch = createEntrySearch(() => selection.search, {
@@ -210,10 +215,20 @@
     }
   }
 
+  const CONTEXT_MENU_MARGIN = 8;
+
   function openContextMenu(event: MouseEvent, entry: EntrySummary) {
     event.preventDefault();
-    const x = Math.max(8, Math.min(event.clientX, window.innerWidth - 208));
-    const y = Math.max(8, Math.min(event.clientY, window.innerHeight - 292));
+    const menuWidth = contextMenuEl?.offsetWidth ?? MENU_FALLBACK_WIDTH;
+    const menuHeight = contextMenuEl?.offsetHeight ?? MENU_FALLBACK_HEIGHT;
+    const x = Math.max(
+      CONTEXT_MENU_MARGIN,
+      Math.min(event.clientX, window.innerWidth - menuWidth - CONTEXT_MENU_MARGIN),
+    );
+    const y = Math.max(
+      CONTEXT_MENU_MARGIN,
+      Math.min(event.clientY, window.innerHeight - menuHeight - CONTEXT_MENU_MARGIN),
+    );
     selection.requestNavigation(() => {
       selection.selectedId = entry.id;
       contextMenu = { entry, x, y };
