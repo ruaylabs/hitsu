@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { open } from "@tauri-apps/plugin-dialog";
+  import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import * as prefsBridge from "$lib/bridge/prefs";
   import { nativeDialog } from "$lib/stores/nativeDialog.svelte";
@@ -8,12 +8,15 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import Icon from "../ui/Icon.svelte";
+  import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   const MAX_RECENT = 4;
 
   let root: HTMLElement | undefined = $state();
   let menuOpen = $state(false);
   let recentVaults = $state<string[]>([]);
+  let createDialog = $state(false);
+  let createPath = $state("");
 
   let currentPath = $derived(vault.meta?.path ?? "");
   let currentName = $derived(vault.meta?.name || vaultName(currentPath));
@@ -61,6 +64,33 @@
     } catch (e) {
       toast.error(errorMessage(e));
     }
+  }
+
+  async function createVault() {
+    closeMenu();
+    try {
+      const result = await nativeDialog.during(() =>
+        save({
+          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
+          defaultPath: "vault.kdbx",
+        }),
+      );
+      if (!result) return;
+      createPath = result;
+      createDialog = true;
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
+
+  async function doCreate(password: string) {
+    createDialog = false;
+    // Locking drops the current decrypted vault, so run it through the
+    // navigation guard like switching: in-progress edits get prompted first.
+    await selection.requestNavigation(async () => {
+      await vault.lock();
+      await vault.create(createPath, password);
+    });
   }
 
   function onWindowPointerdown(event: PointerEvent) {
@@ -119,7 +149,25 @@
         <Icon name="folder-open" size={15} />
         <span>Open other vault…</span>
       </button>
+      <button type="button" class="menu-item" role="menuitem" onclick={createVault}>
+        <Icon name="plus" size={15} />
+        <span>Create new vault…</span>
+      </button>
     </div>
+  {/if}
+
+  {#if createDialog}
+    <PasswordDialog
+      title="Create new vault"
+      vaultPath={createPath}
+      confirmLabel="Create"
+      confirm={true}
+      showStrength={true}
+      showRecoveryWarning={true}
+      minStrength={1}
+      onconfirm={doCreate}
+      oncancel={() => (createDialog = false)}
+    />
   {/if}
 </div>
 
