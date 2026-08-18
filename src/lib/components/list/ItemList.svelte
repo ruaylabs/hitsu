@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import * as entriesBridge from "$lib/bridge/entries";
   import type { EntrySummary } from "$lib/bridge/types";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
@@ -196,10 +197,23 @@
     }
   }
 
+  async function toggleFavorite(entry: EntrySummary) {
+    try {
+      const updated = await entriesBridge.entryUpdate(entry.id, { favorite: !entry.favorite });
+      vault.setEntries(
+        vault.entries.map((summary) =>
+          summary.id === updated.id ? entriesBridge.toSummary(updated) : summary,
+        ),
+      );
+    } catch (error) {
+      reportActionError(error);
+    }
+  }
+
   function openContextMenu(event: MouseEvent, entry: EntrySummary) {
     event.preventDefault();
     const x = Math.max(8, Math.min(event.clientX, window.innerWidth - 208));
-    const y = Math.max(8, Math.min(event.clientY, window.innerHeight - 258));
+    const y = Math.max(8, Math.min(event.clientY, window.innerHeight - 292));
     selection.requestNavigation(() => {
       selection.selectedId = entry.id;
       contextMenu = { entry, x, y };
@@ -436,6 +450,15 @@
       onclick={() => runContextAction(() => vault.setEditingId(menuEntry.id))}
     >
       <Icon name="pencil" size={14} />Edit
+    </button>
+    <button
+      type="button"
+      role="menuitem"
+      disabled={menuEntry.trashed}
+      onclick={() => runContextAction(() => void toggleFavorite(menuEntry))}
+    >
+      <Icon name={menuEntry.favorite ? "star-off" : "star"} size={14} />
+      {menuEntry.favorite ? "Remove from favorites" : "Add to favorites"}
     </button>
     <button
       type="button"

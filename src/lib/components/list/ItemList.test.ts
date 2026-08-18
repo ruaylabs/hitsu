@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as entriesBridge from "$lib/bridge/entries";
-import type { EntrySummary } from "$lib/bridge/types";
+import type { Entry, EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
 import { recycleBin } from "$lib/stores/recycleBin.svelte";
@@ -15,6 +15,7 @@ vi.mock("$lib/bridge/entries", async (importOriginal) => ({
   entriesSearch: vi.fn(),
   entryDelete: vi.fn(),
   entryRestore: vi.fn(),
+  entryUpdate: vi.fn(),
 }));
 
 vi.mock("$lib/stores/clipboard.svelte", () => ({
@@ -29,6 +30,7 @@ vi.mock("$lib/utils/openHttpUrl", () => ({ openHttpUrl: vi.fn() }));
 const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
 const entryDeleteMock = vi.mocked(entriesBridge.entryDelete);
 const entryRestoreMock = vi.mocked(entriesBridge.entryRestore);
+const entryUpdateMock = vi.mocked(entriesBridge.entryUpdate);
 const copyPlainMock = vi.mocked(clipboard.copyPlain);
 const copySecretFieldMock = vi.mocked(clipboard.copySecretField);
 const openHttpUrlMock = vi.mocked(openHttpUrl);
@@ -53,6 +55,30 @@ function makeEntries(count: number): EntrySummary[] {
   }));
 }
 
+function makeEntry(summary: EntrySummary): Entry {
+  return {
+    id: summary.id,
+    type: summary.type,
+    title: summary.title,
+    subtitle: summary.subtitle,
+    url: summary.url,
+    username: summary.username,
+    hasPassword: summary.hasPassword ?? false,
+    hasTotp: summary.hasTotp ?? false,
+    tags: summary.tags,
+    favorite: summary.favorite,
+    trashed: summary.trashed,
+    folderId: summary.folderId,
+    iconHint: summary.iconHint,
+    attachments: [],
+    customFields: [],
+    modifiedAt: summary.modifiedAt ?? "",
+    createdAt: "",
+    historyCount: 0,
+    hasCustomIcon: summary.hasCustomIcon ?? false,
+  };
+}
+
 beforeEach(() => {
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
@@ -60,6 +86,8 @@ beforeEach(() => {
   entryDeleteMock.mockResolvedValue(undefined);
   entryRestoreMock.mockReset();
   entryRestoreMock.mockResolvedValue(undefined);
+  entryUpdateMock.mockReset();
+  entryUpdateMock.mockResolvedValue(undefined as never);
   copyPlainMock.mockReset();
   copySecretFieldMock.mockReset();
   openHttpUrlMock.mockReset();
@@ -274,6 +302,20 @@ describe("ItemList", () => {
     await fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
     await waitFor(() => expect(entryDeleteMock).toHaveBeenCalledWith("id-0"));
     expect(entryDeletion.pending).toBeNull();
+  });
+
+  it("toggles favorites from the context menu", async () => {
+    const entries = makeEntries(2);
+    vault.setEntries(entries);
+    entryUpdateMock.mockResolvedValue(makeEntry({ ...entries[0], favorite: true }));
+    render(ItemList);
+    const row = await screen.findByRole("option", { name: /Entry 0/ });
+
+    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Add to favorites" }));
+
+    await waitFor(() => expect(entryUpdateMock).toHaveBeenCalledWith("id-0", { favorite: true }));
+    expect(vault.entries[0].favorite).toBe(true);
   });
 
   it("moves selection with arrow keys", async () => {
