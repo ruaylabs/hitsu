@@ -24,7 +24,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::IpAddr;
-use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -313,13 +313,28 @@ fn remove_stale_socket(path: &std::path::Path) -> std::io::Result<()> {
     }
 }
 
+/// Bind a Unix socket that is owner-only (0600) from the moment it appears
+/// on disk: `bind` applies the process umask (0777 & ~umask), so tighten the
+/// umask around it instead of chmodding afterwards. The original umask is
+/// restored right after the bind.
+fn bind_owner_only(path: &Path) -> std::io::Result<UnixListener> {
+    // SAFETY: umask is always valid; the previous value is restored right
+    // after the bind, mapped through Result so an error cannot skip it.
+    unsafe {
+        // 0o777 & ~0o177 = 0o600
+        let previous_umask = libc::umask(0o177);
+        let result = UnixListener::bind(path);
+        libc::umask(previous_umask);
+        result
+    }
+}
+
 pub fn start(app: AppHandle) -> std::io::Result<BrowserIpcSocket> {
     let path = socket_path();
     let token_path = token_path();
 
     remove_stale_socket(&path)?;
-    let listener = UnixListener::bind(&path)?;
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+    let listener = bind_owner_only(&path)?;
 
     // Write the token only after the socket is bound, so a failed start never
     // clobbers a running instance's token (remove_stale_socket already refuses
@@ -635,11 +650,12 @@ fn entry_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        credential_fill_allowed, entry_host, generate_token, host_match, origin_host, read_request,
-        remove_stale_socket, runtime_dir_from, token_matches, valid_entry_id,
-        write_native_host_manifests, BrowserRequest, HostMatch, NATIVE_HOST_NAME,
+        bind_owner_only, credential_fill_allowed, entry_host, generate_token, host_match,
+        origin_host, read_request, remove_stale_socket, runtime_dir_from, token_matches,
+        valid_entry_id, write_native_host_manifests, BrowserRequest, HostMatch, NATIVE_HOST_NAME,
     };
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
     use std::os::unix::net::{UnixListener, UnixStream};
     use std::time::{Duration, Instant};
 
@@ -739,6 +755,27 @@ mod tests {
             "firefox-extension-id"
         );
         assert!(firefox_manifest.get("allowed_origins").is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bound_socket_is_owner_only_even_with_a_permissive_umask() {
+        let root = std::env::temp_dir().join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("browser.sock");
+
+        // A permissive umask must not leak into the socket file's mode.
+        // SAFETY: umask value is always valid and restored below.
+        unsafe {
+            let previous_umask = libc::umask(0o000);
+            let listener = bind_owner_only(&path).unwrap();
+            libc::umask(previous_umask);
+
+            let mode = fs::metadata(&path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+            drop(listener);
+        }
+
         fs::remove_dir_all(root).unwrap();
     }
 
