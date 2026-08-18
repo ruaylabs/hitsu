@@ -1,9 +1,24 @@
 <script lang="ts">
   import * as generatorBridge from "$lib/bridge/generator";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { createCopyFeedback } from "$lib/utils/copyFeedback.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import IconButton from "../ui/IconButton.svelte";
+  import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
+
+  const LENGTH_BOUNDS = { min: 8, max: 100 } as const;
+  const OPTIONS_KEY = "hitsu:generator-options";
+
+  interface GeneratorOptions {
+    length: number;
+    uppercase: boolean;
+    lowercase: boolean;
+    digits: boolean;
+    symbols: boolean;
+    excludeLookalikes: boolean;
+  }
 
   let {
     onUse,
@@ -13,16 +28,50 @@
     oncancel?: () => void;
   } = $props();
 
-  let length = $state(20);
-  let uppercase = $state(true);
-  let lowercase = $state(true);
-  let digits = $state(true);
-  let symbols = $state(false);
-  let excludeLookalikes = $state(true);
+  function loadOptions(): GeneratorOptions | null {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPTIONS_KEY) ?? "null");
+      if (saved === null) return null;
+      return {
+        length: Number.isFinite(saved.length) ? saved.length : 20,
+        uppercase: Boolean(saved.uppercase),
+        lowercase: Boolean(saved.lowercase),
+        digits: Boolean(saved.digits),
+        symbols: Boolean(saved.symbols),
+        excludeLookalikes: Boolean(saved.excludeLookalikes),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  let { length, uppercase, lowercase, digits, symbols, excludeLookalikes } = $state(
+    loadOptions() ?? {
+      length: 20,
+      uppercase: true,
+      lowercase: true,
+      digits: true,
+      symbols: false,
+      excludeLookalikes: true,
+    },
+  );
 
   let password = $state("");
   let error = $state("");
   let hasCharacterSet = $derived(uppercase || lowercase || digits || symbols);
+
+  function persistOptions() {
+    try {
+      localStorage.setItem(
+        OPTIONS_KEY,
+        JSON.stringify({ length, uppercase, lowercase, digits, symbols, excludeLookalikes }),
+      );
+    } catch {
+      // Option persistence is optional.
+    }
+  }
+
+  const copied = createCopyFeedback();
 
   async function generate() {
     error = "";
@@ -49,6 +98,10 @@
   $effect(() => {
     generate();
   });
+
+  $effect(() => {
+    persistOptions();
+  });
 </script>
 
 <Dialog title="Password generator" onclose={oncancel} size="md">
@@ -61,6 +114,14 @@
           <code class="generated-pw">{password}</code>
         {/if}
         <IconButton
+          icon="copy"
+          iconSize={16}
+          disabled={!password}
+          onclick={() => copied.run(() => clipboard.copyPlain(password), "Password copied")}
+          aria-label="Copy password"
+          title="Copy password"
+        />
+        <IconButton
           icon="refresh"
           iconSize={16}
           onclick={generate}
@@ -68,11 +129,20 @@
           title="Regenerate"
         />
       </div>
+      {#if password}
+        <PasswordStrengthMeter {password} />
+      {/if}
 
       <div class="options">
         <div class="option-row">
           <span class="option-label">Length</span>
-          <input type="range" min="8" max="100" bind:value={length} class="range-input" />
+          <input
+            type="range"
+            min={LENGTH_BOUNDS.min}
+            max={LENGTH_BOUNDS.max}
+            bind:value={length}
+            class="range-input"
+          />
           <span class="option-value">{length}</span>
         </div>
 
