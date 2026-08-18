@@ -708,6 +708,10 @@ describe("password entry workflow", () => {
     });
     await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
+    // Cancel with unsaved changes prompts instead of discarding silently.
+    expect(await screen.findByRole("dialog", { name: "Save changes?" })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(screen.queryByPlaceholderText("Password")).not.toBeInTheDocument());
     expect(mocks.entryUpdate).not.toHaveBeenCalled();
   });
 });

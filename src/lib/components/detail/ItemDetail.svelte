@@ -614,7 +614,12 @@
           <span>Delete permanently</span>
         </button>
       {:else if editing}
-        <button class="toolbar-btn" onclick={cancelEdit} aria-label="Cancel" title="Cancel (Esc)">
+        <button
+          class="toolbar-btn"
+          onclick={requestCancelEdit}
+          aria-label="Cancel"
+          title="Cancel (Esc)"
+        >
           <Icon name="x" size={14} />
           <span>Cancel</span>
         </button>
