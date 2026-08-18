@@ -183,7 +183,10 @@ mod tests {
             .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(actual, expected);
-        assert!(!path.with_extension("hitsu-tmp").exists());
+        assert!(std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .all(|entry| !entry.file_name().to_string_lossy().contains("hitsu-tmp")));
 
         let _ = std::fs::remove_dir_all(dir);
     }

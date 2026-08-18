@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -23,16 +23,31 @@ fn set_owner_only(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Temp path for an atomic write of `path`: a sibling file named
+/// `<filename>.hitsu-tmp.<random>`.
+///
+/// The random suffix keeps concurrent writers writing different targets from
+/// clobbering each other's temp file (with_extension("hitsu-tmp") mapped e.g.
+/// `vault.kdbx` and `vault.json` in one directory to the same name).
+fn temp_path(path: &Path) -> PathBuf {
+    let suffix = &uuid::Uuid::new_v4().simple().to_string()[..8];
+    let file_name = format!(
+        "{}.hitsu-tmp.{suffix}",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    );
+    path.with_file_name(file_name)
+}
+
 /// Atomically write `data` to `path`.
 ///
-/// 1. Write to `<path>.hitsu-tmp` on the same filesystem.
+/// 1. Write to a unique `<path>.hitsu-tmp.<random>` on the same filesystem.
 /// 2. `fsync` the temp file (data + metadata).
 /// 3. `rename` over the target (atomic on POSIX, near-atomic on NTFS).
 /// 4. `fsync` the parent directory so the rename survives a hard reboot.
 ///
 /// On failure the temporary file is cleaned up and the original is untouched.
 pub fn atomic_write(path: &Path, data: &[u8]) -> io::Result<()> {
-    let tmp_path = path.with_extension("hitsu-tmp");
+    let tmp_path = temp_path(path);
 
     let result = try_write(path, data, &tmp_path);
 
@@ -203,20 +218,30 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 
-        let path = dir.join("vault.kdbx");
-        let tmp_path = path.with_extension("hitsu-tmp");
+        let tmp_glob = "vault.kdbx.hitsu-tmp.";
 
         // Try writing to a path where the target directory doesn't exist
         let bad_path = dir.join("missing").join("vault.kdbx");
         let result = atomic_write(&bad_path, b"data");
         assert!(result.is_err());
 
-        // Temp file should NOT remain
-        assert!(!tmp_path.exists(), "temp file must be cleaned up");
-        // But we used bad_path, the tmp_path would be different...
-        // Let me use the actual path instead
-        let bad_tmp = bad_path.with_extension("hitsu-tmp");
-        assert!(!bad_tmp.exists(), "temp file must be cleaned up");
+        // Temp files should NOT remain in either directory
+        let leftovers = |dir: &Path| {
+            fs::read_dir(dir)
+                .map(|entries| {
+                    entries
+                        .filter_map(Result::ok)
+                        .filter(|entry| entry.file_name().to_string_lossy().starts_with(tmp_glob))
+                        .count()
+                })
+                .unwrap_or(0)
+        };
+        assert_eq!(leftovers(&dir), 0, "temp file must be cleaned up");
+        assert_eq!(
+            leftovers(&dir.join("missing")),
+            0,
+            "temp file must be cleaned up"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -247,6 +272,23 @@ mod tests {
             backup_contents.as_deref(),
             Some(b"original vault".as_slice())
         );
+    }
+
+    #[test]
+    fn temp_paths_do_not_collide_across_targets_or_writers() {
+        let dir = std::env::temp_dir().join("hitsu-atomic-tempnames");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        // `with_extension` mapped both of these to `vault.hitsu-tmp`.
+        let kdbx = temp_path(&dir.join("vault.kdbx"));
+        let json = temp_path(&dir.join("vault.json"));
+        assert_ne!(kdbx, json);
+
+        // Same target written twice also gets distinct temp files.
+        assert_ne!(temp_path(&dir.join("vault.kdbx")), kdbx);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
