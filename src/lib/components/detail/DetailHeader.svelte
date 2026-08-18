@@ -42,7 +42,7 @@
       entryId={entry.id}
     />
     <div class="detail-header-text">
-      <h1 class="detail-title">{entry.title}</h1>
+      <h1 class="detail-title" title={entry.title}>{entry.title}</h1>
     </div>
   </div>
   {#if !readOnly}
