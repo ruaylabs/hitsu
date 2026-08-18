@@ -18,6 +18,7 @@
   import Button from "../ui/Button.svelte";
 
   const appVersion = import.meta.env.VITE_APP_VERSION;
+
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
@@ -197,14 +198,12 @@
 
   async function exportSkippedReport() {
     try {
-      const path = await nativeDialog.during(() =>
-        save({
-          filters: [{ name: "CSV report", extensions: ["csv"] }],
-          defaultPath: "hitsu-1password-import-report.csv",
-        }),
+      // The backend owns the save dialog; wrap the call so the privacy
+      // screen stays away while it is open.
+      const written = await nativeDialog.during(() =>
+        vaultBridge.importReportExport(skippedReportCsv()),
       );
-      if (!path) return;
-      await vaultBridge.importReportExport(path, skippedReportCsv());
+      if (!written) return;
       statusError = false;
       statusMsg = "Import report exported.";
     } catch (error) {

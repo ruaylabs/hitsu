@@ -58,8 +58,8 @@ describe("SettingsView", () => {
     vault.setEntries([]);
     document.documentElement.removeAttribute("data-theme");
     mocks.setTheme.mockResolvedValue(undefined);
-    mocks.saveDialog.mockResolvedValue("/tmp/hitsu-import-report.csv");
-    mocks.exportImportReport.mockResolvedValue(undefined);
+    mocks.saveDialog.mockResolvedValue(undefined);
+    mocks.exportImportReport.mockResolvedValue(true);
     mocks.emptyRecycleBin.mockResolvedValue({ deletedEntries: 2 });
     mocks.import1pif.mockResolvedValue({
       importedItems: 1,
@@ -212,7 +212,6 @@ describe("SettingsView", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Export CSV…" }));
 
     expect(mocks.exportImportReport).toHaveBeenCalledWith(
-      "/tmp/hitsu-import-report.csv",
       expect.stringContaining('"Failed","Unsupported document","The item couldn\'t be converted"'),
     );
   });

@@ -57,6 +57,8 @@ export async function vaultImport1pif(): Promise<ImportReport | null> {
   return invoke<ImportReport | null>("vault_import_1pif");
 }
 
-export async function importReportExport(path: string, contents: string): Promise<void> {
-  return invoke<void>("import_report_export", { path, contents });
+/** Save the import report via a Rust-owned save dialog.
+ *  Returns false when the user cancels the dialog. */
+export async function importReportExport(contents: string): Promise<boolean> {
+  return invoke<boolean>("import_report_export", { contents });
 }

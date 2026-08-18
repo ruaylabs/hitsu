@@ -1436,17 +1436,46 @@ pub async fn vault_import_1pif(
     }))
 }
 
+/// Write the import report, refusing an existing symlink rather than
+/// following it to an unrelated user file (mirrors the attachment save).
+fn write_report_file(path: &Path, contents: &str) -> HitsuResult<()> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink()) {
+        return Err(HitsuError::Custom(
+            "Refusing to save the import report through a symbolic link".into(),
+        ));
+    }
+    std::fs::write(path, contents)
+        .map_err(|e| HitsuError::Custom(format!("Failed to write file: {e}")))
+}
+
+/// Save the import report using a native save dialog owned by the Rust
+/// backend. The destination path never crosses IPC and cannot be supplied
+/// by webview code; only the report text does. `false` means the user
+/// cancelled the dialog.
 #[tauri::command]
-pub async fn import_report_export(path: String, contents: String) -> HitsuResult<()> {
+pub async fn import_report_export(app: AppHandle, contents: String) -> HitsuResult<bool> {
     if contents.len() > MAX_IMPORT_REPORT_BYTES {
         return Err(HitsuError::Custom(
             "The import report is too large to export".into(),
         ));
     }
-    tauri::async_runtime::spawn_blocking(move || std::fs::write(path, contents))
+    let Some(destination) = app
+        .dialog()
+        .file()
+        .set_file_name("hitsu-1password-import-report.csv")
+        .add_filter("CSV report", &["csv"])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = destination
+        .into_path()
+        .map_err(|_| HitsuError::Custom("The selected destination is not a local file".into()))?;
+
+    tauri::async_runtime::spawn_blocking(move || write_report_file(&path, &contents))
         .await
         .map_err(HitsuError::from_join)??;
-    Ok(())
+    Ok(true)
 }
 
 fn string_at(value: &JsonValue, path: &[&str]) -> Option<String> {
