@@ -441,7 +441,7 @@
     message={entryDeletion.pending.permanent
       ? `Permanently delete "${entryDeletion.pending.title}"? This cannot be undone.`
       : `Move "${entryDeletion.pending.title}" to the Recycle Bin?`}
-    confirmLabel={entryDeletion.pending.permanent ? "Delete permanently" : "Move to Bin"}
+    confirmLabel={entryDeletion.pending.permanent ? "Delete permanently" : "Move to Recycle Bin"}
     danger={true}
     onconfirm={() => entryDeletion.confirm()}
     oncancel={() => entryDeletion.cancel()}
