@@ -21,6 +21,12 @@
   import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import AttachmentList from "./AttachmentList.svelte";
   import CardDetailView from "./CardDetailView.svelte";
+  import {
+    type CardErrors,
+    hasCardErrors,
+    NO_CARD_ERRORS,
+    validateCardFields,
+  } from "./cardValidation";
   import DetailFooter from "./DetailFooter.svelte";
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
@@ -130,13 +136,7 @@
   let showTotpSetup = $state(false);
   let downloadingFavicon = $state(false);
   let form = $state(createEditForm());
-
-  // Validation errors for card fields
-  let cardNumberError = $state("");
-  let cardExpMonthError = $state("");
-  let cardExpYearError = $state("");
-  let cardCvvError = $state("");
-  let cardPinError = $state("");
+  let cardErrors = $state<CardErrors>(NO_CARD_ERRORS);
   let pendingNavigation = $state<(() => void) | null>(null);
 
   let initialEditForm: EditFormState | null = null;
@@ -181,15 +181,11 @@
   }
 
   function clearCardErrors() {
-    cardNumberError = "";
-    cardExpMonthError = "";
-    cardExpYearError = "";
-    cardCvvError = "";
-    cardPinError = "";
+    cardErrors = NO_CARD_ERRORS;
   }
 
   /** Reset everything the edit session accumulated: secret buffers and
-        card validation errors. */
+          card validation errors. */
   function resetEditState() {
     clearEditSecrets();
     clearCardErrors();
@@ -313,8 +309,8 @@
   }
 
   /** Drop a never-saved entry stub from the backend's in-memory database and
-        the entry list. Returns false when the backend call fails — the stub
-        then remains in memory and could persist on a later vault save. */
+          the entry list. Returns false when the backend call fails — the stub
+          then remains in memory and could persist on a later vault save. */
   async function discardNewEntry(id: string): Promise<boolean> {
     try {
       await entriesBridge.entryDiscard(id);
@@ -343,66 +339,12 @@
     saveStatus.markSaved();
   }
 
-  function validateCardFields(): boolean {
-    let valid = true;
-    // Judge by digits only: pasted or programmatically set values can carry
-    // spaces/separators (and letters) that the oninput sanitizers miss.
-    const digits = (value: string) => value.replace(/\D/g, "");
-    // Card number: digits only, 13-19 chars (standard card lengths)
-    const cardNumber = digits(form.cardNumber);
-    if (cardNumber.length > 0 && (cardNumber.length < 13 || cardNumber.length > 19)) {
-      cardNumberError = cardNumber.length < 13 ? "Card number too short" : "Card number too long";
-      valid = false;
-    } else {
-      cardNumberError = "";
-    }
-    // Exp month: 2 digits, 01-12
-    const expMonth = digits(form.cardExpMonth);
-    if (expMonth && expMonth.length !== 2) {
-      cardExpMonthError = "Must be 2 digits (01-12)";
-      valid = false;
-    } else if (expMonth) {
-      const m = Number.parseInt(expMonth, 10);
-      if (m < 1 || m > 12) {
-        cardExpMonthError = "Must be 01-12";
-        valid = false;
-      } else {
-        cardExpMonthError = "";
-      }
-    } else {
-      cardExpMonthError = "";
-    }
-    // Exp year: 4 digits
-    if (form.cardExpYear && digits(form.cardExpYear).length !== 4) {
-      cardExpYearError = "Year must be 4 digits";
-      valid = false;
-    } else {
-      cardExpYearError = "";
-    }
-    // CVV: 3 or 4 digits
-    const cvv = digits(form.cardCvv);
-    if (cvv && cvv.length !== 3 && cvv.length !== 4) {
-      cardCvvError = "CVV must be 3 or 4 digits";
-      valid = false;
-    } else {
-      cardCvvError = "";
-    }
-    // PIN: 4-12 digits (ISO 9564 range)
-    const pin = digits(form.cardPin);
-    if (pin && (pin.length < 4 || pin.length > 12)) {
-      cardPinError = "PIN must be 4-12 digits";
-      valid = false;
-    } else {
-      cardPinError = "";
-    }
-    return valid;
-  }
-
   let saveError = $state("");
 
   async function saveEdit(): Promise<boolean> {
     if (!_entry) return false;
-    if (!validateCardFields()) {
+    cardErrors = validateCardFields(form);
+    if (hasCardErrors(cardErrors)) {
       saveStatus.markError("Fix validation errors before saving");
       return false;
     }
@@ -680,11 +622,7 @@
       <EntryEditForm
         entryType={entry.type}
         {form}
-        {cardNumberError}
-        {cardExpMonthError}
-        {cardExpYearError}
-        {cardCvvError}
-        {cardPinError}
+        {cardErrors}
         onShowGenerator={() => (showGenerator = true)}
         onShowTotpSetup={() => (showTotpSetup = true)}
       />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import CardEditForm from "./CardEditForm.svelte";
   import CommonEditFields from "./CommonEditFields.svelte";
+  import type { CardErrors } from "./cardValidation";
   import type { EditFormState } from "./editForm";
   import FieldGroup from "./FieldGroup.svelte";
   import IdentityEditForm from "./IdentityEditForm.svelte";
@@ -13,21 +14,13 @@
   let {
     entryType,
     form,
-    cardNumberError = "",
-    cardExpMonthError = "",
-    cardExpYearError = "",
-    cardCvvError = "",
-    cardPinError = "",
+    cardErrors,
     onShowGenerator,
     onShowTotpSetup,
   }: {
     entryType: string;
     form: EditFormState;
-    cardNumberError?: string;
-    cardExpMonthError?: string;
-    cardExpYearError?: string;
-    cardCvvError?: string;
-    cardPinError?: string;
+    cardErrors: CardErrors;
     onShowGenerator: () => void;
     onShowTotpSetup: () => void;
   } = $props();
@@ -44,14 +37,7 @@
   {:else if entryType === "identity"}
     <IdentityEditForm {form} />
   {:else if entryType === "card"}
-    <CardEditForm
-      {form}
-      {cardNumberError}
-      {cardExpMonthError}
-      {cardExpYearError}
-      {cardCvvError}
-      {cardPinError}
-    />
+    <CardEditForm {form} {cardErrors} />
   {:else if entryType === "software_license"}
     <SoftwareLicenseEditForm {form} />
   {:else if entryType === "passport"}

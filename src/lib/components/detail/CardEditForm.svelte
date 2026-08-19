@@ -1,24 +1,11 @@
 <script lang="ts">
   import { CARD_BRANDS } from "$lib/utils/format";
+  import type { CardErrors } from "./cardValidation";
   import DetailFieldRow from "./DetailFieldRow.svelte";
   import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
-  let {
-    form,
-    cardNumberError = "",
-    cardExpMonthError = "",
-    cardExpYearError = "",
-    cardCvvError = "",
-    cardPinError = "",
-  }: {
-    form: EditFormState;
-    cardNumberError?: string;
-    cardExpMonthError?: string;
-    cardExpYearError?: string;
-    cardCvvError?: string;
-    cardPinError?: string;
-  } = $props();
+  let { form, cardErrors }: { form: EditFormState; cardErrors: CardErrors } = $props();
 </script>
 
 <DetailFieldRow label="Holder">
@@ -41,11 +28,11 @@
       placeholder="Card number"
       inputmode="numeric"
       pattern="[0-9]*"
-      invalid={Boolean(cardNumberError)}
+      invalid={Boolean(cardErrors.cardNumber)}
       sanitize={(value: string) => value.replace(/\D/g, "")}
     />
-    {#if cardNumberError}
-      <span class="control-error">{cardNumberError}</span>
+    {#if cardErrors.cardNumber}
+      <span class="control-error">{cardErrors.cardNumber}</span>
     {/if}
   </div>
 </DetailFieldRow>
@@ -64,15 +51,15 @@
       type="text"
       inputmode="numeric"
       pattern="[0-9]*"
-      aria-invalid={Boolean(cardExpMonthError)}
+      aria-invalid={Boolean(cardErrors.cardExpMonth)}
       placeholder="MM"
       maxlength="2"
       autocomplete="off"
       bind:value={form.cardExpMonth}
       oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); form.cardExpMonth = el.value; }}
     />
-    {#if cardExpMonthError}
-      <span class="control-error">{cardExpMonthError}</span>
+    {#if cardErrors.cardExpMonth}
+      <span class="control-error">{cardErrors.cardExpMonth}</span>
     {/if}
   </div>
 </DetailFieldRow>
@@ -83,15 +70,15 @@
       type="text"
       inputmode="numeric"
       pattern="[0-9]*"
-      aria-invalid={Boolean(cardExpYearError)}
+      aria-invalid={Boolean(cardErrors.cardExpYear)}
       placeholder="YYYY"
       maxlength="4"
       autocomplete="off"
       bind:value={form.cardExpYear}
       oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); form.cardExpYear = el.value; }}
     />
-    {#if cardExpYearError}
-      <span class="control-error">{cardExpYearError}</span>
+    {#if cardErrors.cardExpYear}
+      <span class="control-error">{cardErrors.cardExpYear}</span>
     {/if}
   </div>
 </DetailFieldRow>
@@ -104,11 +91,11 @@
       inputmode="numeric"
       pattern="[0-9]*"
       maxlength={4}
-      invalid={Boolean(cardCvvError)}
+      invalid={Boolean(cardErrors.cardCvv)}
       sanitize={(value: string) => value.replace(/\D/g, "").slice(0, 4)}
     />
-    {#if cardCvvError}
-      <span class="control-error">{cardCvvError}</span>
+    {#if cardErrors.cardCvv}
+      <span class="control-error">{cardErrors.cardCvv}</span>
     {/if}
   </div>
 </DetailFieldRow>
@@ -121,11 +108,11 @@
       inputmode="numeric"
       pattern="[0-9]*"
       maxlength={12}
-      invalid={Boolean(cardPinError)}
+      invalid={Boolean(cardErrors.cardPin)}
       sanitize={(value: string) => value.replace(/\D/g, "").slice(0, 12)}
     />
-    {#if cardPinError}
-      <span class="control-error">{cardPinError}</span>
+    {#if cardErrors.cardPin}
+      <span class="control-error">{cardErrors.cardPin}</span>
     {/if}
   </div>
 </DetailFieldRow>
