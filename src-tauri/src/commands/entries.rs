@@ -67,7 +67,6 @@ fn is_protected_key(key: &str) -> bool {
 }
 
 fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) -> EntrySummary {
-    let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
     let item_type = read_item_type(entry_ref);
     let icon_hint = read_icon_hint(entry_ref);
@@ -83,35 +82,13 @@ fn map_entry_to_summary(entry_ref: &keepass::db::EntryRef<'_>, trashed: bool) ->
 
     let url = entry_ref.get_url().map(str::to_string);
 
-    let subtitle = match item_type {
-        ItemType::Card => entry_ref
-            .get("card.number")
-            .and_then(mask_card_number)
-            .unwrap_or(username.clone()),
-        ItemType::SoftwareLicense => entry_ref
-            .get("license.version")
-            .unwrap_or(&username)
-            .to_string(),
-        ItemType::Passport => entry_ref
-            .get("passport.fullName")
-            .or_else(|| entry_ref.get("passport.issuingCountry"))
-            .unwrap_or(&username)
-            .to_string(),
-        ItemType::PgpKey => entry_ref
-            .get("pgp.fingerprint")
-            .or_else(|| entry_ref.get("pgp.keyId"))
-            .unwrap_or(&username)
-            .to_string(),
-        _ => username.clone(),
-    };
-
     EntrySummary {
         id: entry_ref.id().uuid().to_string(),
-        item_type,
-        title,
-        subtitle,
+        subtitle: entry_subtitle(entry_ref, &item_type, &username),
         url,
         username: Some(username),
+        item_type,
+        title: entry_ref.get_title().unwrap_or("").to_string(),
         has_password,
         has_totp,
         has_attachments,
@@ -183,6 +160,30 @@ fn entry_folder_id(entry: &keepass::db::EntryRef<'_>, trashed: bool) -> Option<S
         .then(|| parent.id().uuid().to_string())
 }
 
+/// Second-line subtitle shown in entry lists: a masked card number, the
+/// license version, the passport holder, the PGP fingerprint — falling back
+/// to the username.
+fn entry_subtitle(entry: &keepass::db::Entry, item_type: &ItemType, username: &str) -> String {
+    match item_type {
+        ItemType::Card => entry
+            .get("card.number")
+            .and_then(mask_card_number)
+            .unwrap_or_else(|| username.to_string()),
+        ItemType::SoftwareLicense => entry.get("license.version").unwrap_or(username).to_string(),
+        ItemType::Passport => entry
+            .get("passport.fullName")
+            .or_else(|| entry.get("passport.issuingCountry"))
+            .unwrap_or(username)
+            .to_string(),
+        ItemType::PgpKey => entry
+            .get("pgp.fingerprint")
+            .or_else(|| entry.get("pgp.keyId"))
+            .unwrap_or(username)
+            .to_string(),
+        _ => username.to_string(),
+    }
+}
+
 fn entry_matches_search(entry: &keepass::db::Entry, query: &str) -> bool {
     let query = query.trim().to_lowercase();
     if query.is_empty() {
@@ -244,38 +245,10 @@ fn map_entry_to_full(
     trashed: bool,
     folder_id: Option<String>,
 ) -> Entry {
-    let id = entry_ref.id().uuid().to_string();
-    let title = entry_ref.get_title().unwrap_or("").to_string();
     let username = entry_ref.get_username().unwrap_or("").to_string();
-    let has_password = entry_ref.get_password().is_some_and(|p| !p.is_empty());
-    let url = entry_ref.get_url().map(str::to_string);
-    let notes = entry_ref.get(fields::NOTES).map(str::to_string);
-    let tags = entry_ref.tags.clone();
     let item_type = read_item_type(entry_ref);
-    let icon_hint = read_icon_hint(entry_ref);
-    let favorite = read_favorite(entry_ref);
     let has_totp = read_totp_seed(entry_ref).is_some();
-    let subtitle = match item_type {
-        ItemType::Card => entry_ref
-            .get("card.number")
-            .and_then(mask_card_number)
-            .unwrap_or(username.clone()),
-        ItemType::SoftwareLicense => entry_ref
-            .get("license.version")
-            .unwrap_or(&username)
-            .to_string(),
-        ItemType::Passport => entry_ref
-            .get("passport.fullName")
-            .or_else(|| entry_ref.get("passport.issuingCountry"))
-            .unwrap_or(&username)
-            .to_string(),
-        ItemType::PgpKey => entry_ref
-            .get("pgp.fingerprint")
-            .or_else(|| entry_ref.get("pgp.keyId"))
-            .unwrap_or(&username)
-            .to_string(),
-        _ => username.clone(),
-    };
+    let subtitle = entry_subtitle(entry_ref, &item_type, &username);
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -293,12 +266,12 @@ fn map_entry_to_full(
 
     let identity = if item_type == ItemType::Identity {
         Some(IdentityFields {
-            first_name: entry_ref.get("identity.firstName").map(str::to_string),
-            last_name: entry_ref.get("identity.lastName").map(str::to_string),
-            email: entry_ref.get("identity.email").map(str::to_string),
-            phone: entry_ref.get("identity.phone").map(str::to_string),
-            address: entry_ref.get("identity.address").map(str::to_string),
-            dob: entry_ref.get("identity.dob").map(str::to_string),
+            first_name: get_str(entry_ref, "identity.firstName"),
+            last_name: get_str(entry_ref, "identity.lastName"),
+            email: get_str(entry_ref, "identity.email"),
+            phone: get_str(entry_ref, "identity.phone"),
+            address: get_str(entry_ref, "identity.address"),
+            dob: get_str(entry_ref, "identity.dob"),
         })
     } else {
         None
@@ -307,9 +280,9 @@ fn map_entry_to_full(
     let card = if item_type == ItemType::Card {
         let number = entry_ref.get("card.number");
         Some(CardFields {
-            holder: entry_ref.get("card.holder").map(str::to_string),
+            holder: get_str(entry_ref, "card.holder"),
             number_masked: number.and_then(mask_card_number),
-            card_type: entry_ref.get("card.type").map(str::to_string),
+            card_type: get_str(entry_ref, "card.type"),
             exp_month: entry_ref
                 .get("card.expMonth")
                 .and_then(|v: &str| v.parse().ok()),
@@ -326,21 +299,21 @@ fn map_entry_to_full(
 
     let software_license = if item_type == ItemType::SoftwareLicense {
         Some(SoftwareLicenseFields {
-            version: entry_ref.get("license.version").map(str::to_string),
+            version: get_str(entry_ref, "license.version"),
             has_license_key: entry_ref
                 .get("license.key")
                 .is_some_and(|value| !value.is_empty()),
-            licensed_to: entry_ref.get("license.licensedTo").map(str::to_string),
-            registered_email: entry_ref.get("license.registeredEmail").map(str::to_string),
-            company: entry_ref.get("license.company").map(str::to_string),
-            download_page: entry_ref.get("license.downloadPage").map(str::to_string),
-            publisher: entry_ref.get("license.publisher").map(str::to_string),
-            website: entry_ref.get("license.website").map(str::to_string),
-            retail_price: entry_ref.get("license.retailPrice").map(str::to_string),
-            support_email: entry_ref.get("license.supportEmail").map(str::to_string),
-            purchase_date: entry_ref.get("license.purchaseDate").map(str::to_string),
-            order_number: entry_ref.get("license.orderNumber").map(str::to_string),
-            order_total: entry_ref.get("license.orderTotal").map(str::to_string),
+            licensed_to: get_str(entry_ref, "license.licensedTo"),
+            registered_email: get_str(entry_ref, "license.registeredEmail"),
+            company: get_str(entry_ref, "license.company"),
+            download_page: get_str(entry_ref, "license.downloadPage"),
+            publisher: get_str(entry_ref, "license.publisher"),
+            website: get_str(entry_ref, "license.website"),
+            retail_price: get_str(entry_ref, "license.retailPrice"),
+            support_email: get_str(entry_ref, "license.supportEmail"),
+            purchase_date: get_str(entry_ref, "license.purchaseDate"),
+            order_number: get_str(entry_ref, "license.orderNumber"),
+            order_total: get_str(entry_ref, "license.orderTotal"),
         })
     } else {
         None
@@ -348,21 +321,19 @@ fn map_entry_to_full(
 
     let passport = if item_type == ItemType::Passport {
         Some(PassportFields {
-            passport_type: entry_ref.get("passport.type").map(str::to_string),
-            issuing_country: entry_ref.get("passport.issuingCountry").map(str::to_string),
+            passport_type: get_str(entry_ref, "passport.type"),
+            issuing_country: get_str(entry_ref, "passport.issuingCountry"),
             has_number: entry_ref
                 .get("passport.number")
                 .is_some_and(|value| !value.is_empty()),
-            full_name: entry_ref.get("passport.fullName").map(str::to_string),
-            sex: entry_ref.get("passport.sex").map(str::to_string),
-            nationality: entry_ref.get("passport.nationality").map(str::to_string),
-            issuing_authority: entry_ref
-                .get("passport.issuingAuthority")
-                .map(str::to_string),
-            birth_date: entry_ref.get("passport.birthDate").map(str::to_string),
-            birth_place: entry_ref.get("passport.birthPlace").map(str::to_string),
-            issue_date: entry_ref.get("passport.issueDate").map(str::to_string),
-            expiry_date: entry_ref.get("passport.expiryDate").map(str::to_string),
+            full_name: get_str(entry_ref, "passport.fullName"),
+            sex: get_str(entry_ref, "passport.sex"),
+            nationality: get_str(entry_ref, "passport.nationality"),
+            issuing_authority: get_str(entry_ref, "passport.issuingAuthority"),
+            birth_date: get_str(entry_ref, "passport.birthDate"),
+            birth_place: get_str(entry_ref, "passport.birthPlace"),
+            issue_date: get_str(entry_ref, "passport.issueDate"),
+            expiry_date: get_str(entry_ref, "passport.expiryDate"),
         })
     } else {
         None
@@ -373,34 +344,32 @@ fn map_entry_to_full(
             has_private_key: entry_ref
                 .get("pgp.privateKey")
                 .is_some_and(|v| !v.is_empty()),
-            public_key: entry_ref.get("pgp.publicKey").map(str::to_string),
-            fingerprint: entry_ref.get("pgp.fingerprint").map(str::to_string),
-            key_id: entry_ref.get("pgp.keyId").map(str::to_string),
-            user_ids: entry_ref.get("pgp.userIds").map(str::to_string),
-            algorithm: entry_ref.get("pgp.algorithm").map(str::to_string),
-            expires_at: entry_ref.get("pgp.expiresAt").map(str::to_string),
+            public_key: get_str(entry_ref, "pgp.publicKey"),
+            fingerprint: get_str(entry_ref, "pgp.fingerprint"),
+            key_id: get_str(entry_ref, "pgp.keyId"),
+            user_ids: get_str(entry_ref, "pgp.userIds"),
+            algorithm: get_str(entry_ref, "pgp.algorithm"),
+            expires_at: get_str(entry_ref, "pgp.expiresAt"),
         })
     } else {
         None
     };
 
-    let (has_custom_icon, custom_icon_data) = (false, None);
-
     Entry {
-        id,
+        id: entry_ref.id().uuid().to_string(),
         item_type,
-        title,
+        title: entry_ref.get_title().unwrap_or("").to_string(),
         subtitle,
-        url,
+        url: entry_ref.get_url().map(str::to_string),
         username: Some(username),
-        has_password,
+        has_password: entry_ref.get_password().is_some_and(|p| !p.is_empty()),
         has_totp,
-        notes,
-        tags,
-        favorite,
+        notes: entry_ref.get(fields::NOTES).map(str::to_string),
+        tags: entry_ref.tags.clone(),
+        favorite: read_favorite(entry_ref),
         trashed,
         folder_id,
-        icon_hint,
+        icon_hint: read_icon_hint(entry_ref),
         identity,
         card,
         software_license,
@@ -415,9 +384,14 @@ fn map_entry_to_full(
             .history
             .as_ref()
             .map_or(0, |h: &keepass::db::History| h.get_entries().len() as u32),
-        has_custom_icon,
-        custom_icon_data,
+        has_custom_icon: false,
+        custom_icon_data: None,
     }
+}
+
+/// Read an optional plain string field.
+fn get_str(entry: &keepass::db::Entry, key: &str) -> Option<String> {
+    entry.get(key).map(str::to_string)
 }
 
 fn read_custom_data_string(entry: &keepass::db::Entry, key: &str) -> Option<String> {
@@ -487,6 +461,19 @@ fn apply_custom_icon(db: &keepass::Database, entry: &keepass::db::Entry, mapped:
     let (has, data) = read_custom_icon(db, entry);
     mapped.has_custom_icon = has;
     mapped.custom_icon_data = data;
+}
+
+/// Project an entry (by UUID string) to the full webview model, including
+/// attachments and custom icon data.
+fn project_entry(db: &keepass::Database, id: &str) -> HitsuResult<Entry> {
+    let entry_ref =
+        find_entry_ref(db, id).ok_or_else(|| HitsuError::EntryNotFound(id.to_string()))?;
+    let trashed = entry_is_trashed(db, &entry_ref);
+    let folder_id = entry_folder_id(&entry_ref, trashed);
+    let mut entry = map_entry_to_full(&entry_ref, trashed, folder_id);
+    entry.attachments = read_attachments(&entry_ref);
+    apply_custom_icon(db, &entry_ref, &mut entry);
+    Ok(entry)
 }
 
 fn read_favorite(entry: &keepass::db::Entry) -> bool {
@@ -1156,15 +1143,7 @@ pub async fn entry_move(
         entry.times.location_changed = Some(now);
         entry.times.last_modification = Some(now);
 
-        let entry_ref = vault
-            .db
-            .entry(entry_id)
-            .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
-        let folder_id = entry_folder_id(&entry_ref, false);
-        let mut updated = map_entry_to_full(&entry_ref, false, folder_id);
-        updated.attachments = read_attachments(&entry_ref);
-        apply_custom_icon(&vault.db, &entry_ref, &mut updated);
-        Ok(updated)
+        project_entry(&vault.db, &id)
     })
     .await
 }
