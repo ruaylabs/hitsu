@@ -435,6 +435,46 @@ fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStre
     let _ = stream.write_all(b"\n");
 }
 
+/// Shared validation for the id-carrying requests: parse the page origin,
+/// enforce the HTTPS-only fill policy, and check the entry exists, isn't
+/// trashed, and matches the page's host. Returns either the validated entry
+/// or the error JSON for the response.
+fn validated_entry<'a>(
+    vault: &'a keepass::Database,
+    id: &str,
+    origin: &str,
+    https_error: &str,
+) -> Result<keepass::db::EntryRef<'a>, Value> {
+    let Ok(host) = origin_host(origin) else {
+        return Err(
+            json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" }),
+        );
+    };
+    if !credential_fill_allowed(origin) {
+        return Err(json!({ "ok": false, "code": "insecure_page", "error": https_error }));
+    }
+    if !valid_entry_id(id) {
+        return Err(json!({ "ok": false, "code": "invalid_request", "error": "Invalid entry ID" }));
+    }
+    let Some(entry) = crate::commands::entries::find_entry_ref(vault, id) else {
+        return Err(json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" }));
+    };
+    if crate::commands::entries::entry_is_trashed(vault, &entry) {
+        return Err(json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" }));
+    }
+    let matches_origin = entry
+        .get_url()
+        .and_then(entry_host)
+        .and_then(|entry_host| host_match(&entry_host, &host))
+        .is_some();
+    if !matches_origin {
+        return Err(
+            json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" }),
+        );
+    }
+    Ok(entry)
+}
+
 fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     let state = app.state::<AppState>();
     // Native-messaging requests are backend IPC too; an actively used browser
@@ -486,29 +526,15 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             })
         }
         BrowserRequest::GetCredentials { id, origin, .. } => {
-            let Ok(host) = origin_host(&origin) else {
-                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
+            let entry = match validated_entry(
+                &vault.db,
+                &id,
+                &origin,
+                "Hitsu will not fill passwords on HTTP pages",
+            ) {
+                Ok(entry) => entry,
+                Err(err) => return err,
             };
-            if !credential_fill_allowed(&origin) {
-                return json!({ "ok": false, "code": "insecure_page", "error": "Hitsu will not fill passwords on HTTP pages" });
-            }
-            if !valid_entry_id(&id) {
-                return json!({ "ok": false, "code": "invalid_request", "error": "Invalid entry ID" });
-            }
-            let Some(entry) = crate::commands::entries::find_entry_ref(&vault.db, &id) else {
-                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
-            };
-            if crate::commands::entries::entry_is_trashed(&vault.db, &entry) {
-                return json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" });
-            }
-            let matches_origin = entry
-                .get_url()
-                .and_then(entry_host)
-                .and_then(|entry_host| host_match(&entry_host, &host))
-                .is_some();
-            if !matches_origin {
-                return json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" });
-            }
             let Some(password) = entry.get_password().filter(|password| !password.is_empty())
             else {
                 return json!({ "ok": false, "code": "entry_not_found", "error": "Entry has no password" });
@@ -520,53 +546,15 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
             })
         }
         BrowserRequest::GetTotp { id, origin, .. } => {
-            let Ok(host) = origin_host(&origin) else {
-                return json!({
-                    "ok": false,
-                    "code": "invalid_request",
-                    "error": "Invalid page origin",
-                });
+            let entry = match validated_entry(
+                &vault.db,
+                &id,
+                &origin,
+                "Hitsu will not provide one-time codes on HTTP pages",
+            ) {
+                Ok(entry) => entry,
+                Err(err) => return err,
             };
-            if !credential_fill_allowed(&origin) {
-                return json!({
-                    "ok": false,
-                    "code": "insecure_page",
-                    "error": "Hitsu will not provide one-time codes on HTTP pages",
-                });
-            }
-            if !valid_entry_id(&id) {
-                return json!({
-                    "ok": false,
-                    "code": "invalid_request",
-                    "error": "Invalid entry ID",
-                });
-            }
-            let Some(entry) = crate::commands::entries::find_entry_ref(&vault.db, &id) else {
-                return json!({
-                    "ok": false,
-                    "code": "entry_not_found",
-                    "error": "Entry not found",
-                });
-            };
-            if crate::commands::entries::entry_is_trashed(&vault.db, &entry) {
-                return json!({
-                    "ok": false,
-                    "code": "entry_not_found",
-                    "error": "Entry not found",
-                });
-            }
-            let matches_origin = entry
-                .get_url()
-                .and_then(entry_host)
-                .and_then(|entry_host| host_match(&entry_host, &host))
-                .is_some();
-            if !matches_origin {
-                return json!({
-                    "ok": false,
-                    "code": "no_match",
-                    "error": "Entry does not match this site",
-                });
-            }
             let Some(uri) = crate::commands::entries::read_totp_seed(&entry) else {
                 return json!({
                     "ok": false,
