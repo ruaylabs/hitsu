@@ -80,6 +80,7 @@ function makeEntry(summary: EntrySummary): Entry {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
   entryDeleteMock.mockReset();
@@ -316,6 +317,38 @@ describe("ItemList", () => {
 
     await waitFor(() => expect(entryUpdateMock).toHaveBeenCalledWith("id-0", { favorite: true }));
     expect(vault.entries[0].favorite).toBe(true);
+  });
+
+  it("persists the chosen sort mode", async () => {
+    const entries = makeEntries(3);
+    entries[0] = { ...entries[0], title: "Zulu" };
+    entries[1] = { ...entries[1], title: "Alpha" };
+    vault.setEntries(entries);
+    render(ItemList);
+    const sort = screen.getByLabelText("Sort entries");
+
+    await fireEvent.change(sort, { target: { value: "title" } });
+    expect(localStorage.getItem("hitsu:list-sort")).toBe("title");
+    expect(listRows()[0]).toHaveTextContent("Alpha");
+  });
+
+  it("restores the persisted sort mode on mount", () => {
+    localStorage.setItem("hitsu:list-sort", "title");
+    const entries = makeEntries(3);
+    entries[0] = { ...entries[0], title: "Zulu" };
+    entries[1] = { ...entries[1], title: "Alpha" };
+    vault.setEntries(entries);
+    render(ItemList);
+
+    expect(listRows()[0]).toHaveTextContent("Alpha");
+  });
+
+  it("falls back to vault order for unknown persisted values", () => {
+    localStorage.setItem("hitsu:list-sort", "bogus");
+    vault.setEntries(makeEntries(3));
+    render(ItemList);
+
+    expect(listRows()[0]).toHaveTextContent("Entry 0");
   });
 
   it("moves selection with arrow keys", async () => {

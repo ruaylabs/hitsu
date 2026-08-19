@@ -19,7 +19,27 @@
   let { onCreate = () => {} }: { onCreate?: () => void } = $props();
 
   type SortMode = "vault" | "title" | "modified";
-  let sortMode = $state<SortMode>("vault");
+  const SORT_MODES: SortMode[] = ["vault", "title", "modified"];
+  const SORT_MODE_KEY = "hitsu:list-sort";
+
+  function loadSortMode(): SortMode {
+    try {
+      const saved = localStorage.getItem(SORT_MODE_KEY) as SortMode | null;
+      return saved && SORT_MODES.includes(saved) ? saved : "vault";
+    } catch {
+      return "vault";
+    }
+  }
+
+  let sortMode = $state<SortMode>(loadSortMode());
+
+  $effect(() => {
+    try {
+      localStorage.setItem(SORT_MODE_KEY, sortMode);
+    } catch {
+      // Sort persistence is optional.
+    }
+  });
 
   function modifiedTime(entry: EntrySummary): number {
     const timestamp = Date.parse(entry.modifiedAt ?? "");
