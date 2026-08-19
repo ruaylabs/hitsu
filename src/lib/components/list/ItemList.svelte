@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import type { EntrySummary } from "$lib/bridge/types";
+  import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
@@ -415,6 +416,14 @@
           <p>No entries yet</p>
           <button type="button" class="empty-action" onclick={onCreate}>
             Create your first entry
+          </button>
+        {:else if selection.filter.kind === "type"}
+          <Icon name="filter-off" size={18} />
+          <p>
+            No {ENTRY_TYPE_BY_TYPE[selection.filter.type].pluralLabel.toLowerCase()} in this view
+          </p>
+          <button type="button" class="empty-action" onclick={onCreate}>
+            Create a {ENTRY_TYPE_BY_TYPE[selection.filter.type].label.toLowerCase()} entry
           </button>
         {:else}
           <Icon name="filter-off" size={18} />

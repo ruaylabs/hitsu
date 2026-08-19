@@ -351,6 +351,17 @@ describe("ItemList", () => {
     expect(listRows()[0]).toHaveTextContent("Entry 0");
   });
 
+  it("offers to create the filtered type when a type view is empty", async () => {
+    const onCreate = vi.fn();
+    vault.setEntries(makeEntries(1));
+    selection.filter = { kind: "type", type: "card" };
+    render(ItemList, { onCreate });
+
+    expect(await screen.findByText("No cards in this view")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Create a card entry" }));
+    expect(onCreate).toHaveBeenCalledOnce();
+  });
+
   it("moves selection with arrow keys", async () => {
     vault.setEntries(makeEntries(5));
     render(ItemList);
