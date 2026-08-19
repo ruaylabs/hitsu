@@ -611,8 +611,9 @@
         <section class="settings-section" id="settings-security">
           <h2 class="section-heading">Security</h2>
           <div class="setting-row">
-            <span class="setting-label">Lock on idle</span>
+            <label class="setting-label" for="setting-idle-lock">Lock on idle</label>
             <select
+              id="setting-idle-lock"
               class="control control--compact control--select setting-select"
               onchange={onIdleChange}
             >
@@ -632,8 +633,9 @@
             </select>
           </div>
           <div class="setting-row">
-            <span class="setting-label">Clipboard clear</span>
+            <label class="setting-label" for="setting-clipboard-clear">Clipboard clear</label>
             <select
+              id="setting-clipboard-clear"
               class="control control--compact control--select setting-select"
               onchange={onClipboardChange}
             >
