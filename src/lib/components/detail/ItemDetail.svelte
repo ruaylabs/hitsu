@@ -188,6 +188,13 @@
     cardPinError = "";
   }
 
+  /** Reset everything the edit session accumulated: secret buffers and
+      card validation errors. */
+  function resetEditState() {
+    clearEditSecrets();
+    clearCardErrors();
+  }
+
   // Auto-enter edit mode when a new entry is created
   $effect(() => {
     if (_entry && vault.editingId === _entry.id) {
@@ -216,17 +223,13 @@
       // Exit edit mode immediately so the unsaved entry's edit form
       // disappears while the new selection loads (or the pane goes empty).
       editing = false;
-      clearEditSecrets();
+      resetEditState();
       if (selectedId !== _entry?.id) {
         // Clear the discarded stub from the pane until the next entry loads.
         _entry = undefined;
       }
-      clearCardErrors();
       saveStatus.markSaved();
-      entriesBridge.entryDiscard(id).catch((e) => console.error("Failed to discard new entry", e));
-      untrack(() => {
-        vault.setEntries(vault.entries.filter((s) => s.id !== id));
-      });
+      void discardNewEntry(id);
     }
   });
 
@@ -309,26 +312,34 @@
     editing = true;
   }
 
+  /** Drop a never-saved entry stub from the backend's in-memory database and
+      the entry list. Returns false when the backend call fails — the stub
+      then remains in memory and could persist on a later vault save. */
+  async function discardNewEntry(id: string): Promise<boolean> {
+    try {
+      await entriesBridge.entryDiscard(id);
+    } catch (e) {
+      console.error("Failed to discard new entry", e);
+      toast.error(errorMessage(e));
+      return false;
+    }
+    vault.setEntries(vault.entries.filter((entry) => entry.id !== id));
+    return true;
+  }
+
   async function cancelEdit() {
     // Only discard when the entry on screen is the brand-new one we just
     // created. Tracking the id (not a boolean) prevents accidentally
     // discarding a real entry after the user navigated away mid-creation.
     if (newEntryId && _entry && _entry.id === newEntryId) {
-      const id = _entry.id;
-      try {
-        await entriesBridge.entryDiscard(id);
-      } catch (e) {
-        console.error("Failed to discard new entry", e);
-      }
-      vault.setEntries(vault.entries.filter((s) => s.id !== id));
+      await discardNewEntry(newEntryId);
       _entry = undefined;
       selection.selectedId = null;
       newEntryId = null;
     }
     editing = false;
     saveError = "";
-    clearEditSecrets();
-    clearCardErrors();
+    resetEditState();
     saveStatus.markSaved();
   }
 
@@ -399,8 +410,7 @@
     const patch = buildEditPatch();
     if (newEntryId === null && Object.keys(patch).length === 0) {
       editing = false;
-      clearEditSecrets();
-      clearCardErrors();
+      resetEditState();
       saveStatus.markSaved();
       return true;
     }
@@ -412,8 +422,7 @@
       const isNewEntry = newEntryId !== null;
       editing = false;
       newEntryId = null;
-      clearEditSecrets();
-      clearCardErrors();
+      resetEditState();
       saveStatus.markSaved();
       // Auto-download favicon on new entry creation when URL is present
       if (isNewEntry && updated.url && !updated.hasCustomIcon) {
@@ -450,21 +459,13 @@
     if (!navigate) return;
 
     if (newEntryId && _entry?.id === newEntryId) {
-      const id = newEntryId;
-      try {
-        await entriesBridge.entryDiscard(id);
-      } catch (e) {
-        toast.error(errorMessage(e));
-        return;
-      }
-      vault.setEntries(vault.entries.filter((entry) => entry.id !== id));
+      if (!(await discardNewEntry(newEntryId))) return;
       newEntryId = null;
     }
 
     editing = false;
     saveError = "";
-    clearEditSecrets();
-    clearCardErrors();
+    resetEditState();
     saveStatus.markSaved();
     pendingNavigation = null;
     navigate();
