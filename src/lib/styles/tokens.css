@@ -28,7 +28,6 @@
 
   /* Effects and interaction */
   --backdrop: rgba(0, 0, 0, 0.3);
-  --backdrop-strong: rgba(0, 0, 0, 0.5);
   --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.15);
   --transition-fast: 0.1s;
   --z-view-overlay: 100;
@@ -65,7 +64,6 @@
   --sidebar-width: 168px;
   --list-width: 224px;
   --resizer-width: 1px;
-  --titlebar-height: 38px;
   --statusbar-height: 34px;
 }
 
@@ -84,7 +82,6 @@
     --bg-accent: #0c447c;
     --danger-bg: rgba(226, 75, 74, 0.16);
     --backdrop: rgba(0, 0, 0, 0.45);
-    --backdrop-strong: rgba(0, 0, 0, 0.65);
     --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 }
@@ -103,6 +100,5 @@
   --bg-accent: #0c447c;
   --danger-bg: rgba(226, 75, 74, 0.16);
   --backdrop: rgba(0, 0, 0, 0.45);
-  --backdrop-strong: rgba(0, 0, 0, 0.65);
   --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
