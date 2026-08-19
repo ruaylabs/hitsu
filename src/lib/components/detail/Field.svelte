@@ -6,28 +6,19 @@
   let {
     label,
     value,
-    reveal = false,
     mono = false,
     onOpenUrl,
     onCopy,
-    onReveal,
     children,
   }: {
     label: string;
     value: string;
-    reveal?: boolean;
     mono?: boolean;
     /** When set, clicking the value opens this URL (http/https only). */
     onOpenUrl?: () => void;
     onCopy?: () => void;
-    onReveal?: () => void;
     children?: import("svelte").Snippet;
   } = $props();
-
-  let visibleValue = $derived(reveal ? value : value);
-  let displayValue = $derived(
-    label.toLowerCase().includes("password") && !reveal ? "•".repeat(14) : visibleValue,
-  );
 
   const copied = createCopyFeedback();
 
@@ -40,10 +31,10 @@
 <DetailFieldRow {label}>
   {#if onOpenUrl}
     <button class="field-value field-link" class:mono onclick={onOpenUrl} title={value}>
-      {displayValue}
+      {value}
     </button>
   {:else}
-    <span class="field-value" class:mono>{displayValue}</span>
+    <span class="field-value" class:mono>{value}</span>
   {/if}
   {#if children}
     <div class="field-actions">
@@ -57,14 +48,6 @@
         aria-label="Copy {label}"
         title="Copy {label}"
       />
-      {#if label.toLowerCase().includes("password") && onReveal}
-        <IconButton
-          icon={reveal ? "eye-off" : "eye"}
-          onclick={onReveal}
-          aria-label="Reveal {label}"
-          title="Reveal {label}"
-        />
-      {/if}
     </div>
   {/if}
 </DetailFieldRow>
