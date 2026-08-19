@@ -179,7 +179,7 @@
   .move-destination-heading label {
     font-weight: 600;
     font-size: 13px;
-    color: var(--text);
+    color: var(--text-primary);
   }
 
   .new-folder-button {
@@ -187,7 +187,7 @@
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: var(--link);
+    color: var(--text-accent);
     background: none;
     border: none;
     cursor: pointer;
@@ -196,7 +196,7 @@
   }
 
   .new-folder-button:hover {
-    background: var(--hover-bg);
+    background: var(--border);
   }
 
   .new-folder-form {
@@ -226,12 +226,12 @@
   .control-error {
     margin: 0;
     font-size: 12px;
-    color: var(--error);
+    color: var(--danger);
   }
 
   .save-error {
     margin: 0;
     font-size: 12px;
-    color: var(--error);
+    color: var(--danger);
   }
 </style>

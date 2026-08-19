@@ -72,6 +72,6 @@
     flex-shrink: 0;
   }
   .generate-btn:hover {
-    background: var(--hover-bg);
+    background: var(--border);
   }
 </style>

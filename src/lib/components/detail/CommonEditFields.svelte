@@ -117,7 +117,7 @@
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: var(--link);
+    color: var(--text-accent);
     background: none;
     border: none;
     cursor: pointer;
@@ -125,7 +125,7 @@
     border-radius: 4px;
   }
   .add-custom-field:hover {
-    background: var(--hover-bg);
+    background: var(--border);
   }
   .custom-field-edit-row {
     display: flex;
@@ -151,7 +151,7 @@
     display: none;
   }
   .protect-custom-field:has(input:checked) {
-    color: var(--link);
+    color: var(--text-accent);
   }
   .remove-custom-field {
     display: inline-flex;
@@ -165,8 +165,8 @@
     border-radius: 4px;
   }
   .remove-custom-field:hover {
-    color: var(--error);
-    background: var(--hover-bg);
+    color: var(--danger);
+    background: var(--border);
   }
   .edit-tags {
     display: flex;
