@@ -11,9 +11,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
-  import { cardBrandName, formatCardNumber } from "$lib/utils/format";
   import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
-  import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import { tagColor } from "$lib/utils/tagColor";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import Button from "../ui/Button.svelte";
@@ -22,18 +20,24 @@
   import Icon from "../ui/Icon.svelte";
   import TotpSetupDialog from "../ui/TotpSetupDialog.svelte";
   import AttachmentList from "./AttachmentList.svelte";
+  import CardDetailView from "./CardDetailView.svelte";
   import DetailFooter from "./DetailFooter.svelte";
   import DetailHeader from "./DetailHeader.svelte";
   import EmptyDetail from "./EmptyDetail.svelte";
   import EntryEditForm from "./EntryEditForm.svelte";
+  import ExpirationIndicator from "./ExpirationIndicator.svelte";
+  import IdentityDetailView from "./IdentityDetailView.svelte";
   import { cloneEditForm, createEditForm, type EditFormState } from "./editForm";
   import Field from "./Field.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import HistoryDialog from "./HistoryDialog.svelte";
+  import LoginDetailView from "./LoginDetailView.svelte";
   import MoveToFolderDialog from "./MoveToFolderDialog.svelte";
   import NotesField from "./NotesField.svelte";
+  import PassportDetailView from "./PassportDetailView.svelte";
   import PasswordField from "./PasswordField.svelte";
-  import TOTPField from "./TOTPField.svelte";
+  import PgpKeyDetailView from "./PgpKeyDetailView.svelte";
+  import SoftwareLicenseDetailView from "./SoftwareLicenseDetailView.svelte";
 
   let _entry = $state<Entry | undefined>(undefined);
   let entryLoading = $state(false);
@@ -497,21 +501,6 @@
     showMoveDialog = true;
   }
 
-  function localDateString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  function expirationLabel(expiresAt: string) {
-    const formatted = new Date(`${expiresAt}T00:00:00`).toLocaleDateString();
-    if (expiresAt < localDateString()) return `Expired on ${formatted}`;
-    if (expiresAt === localDateString()) return "Expires today";
-    return `Expires on ${formatted}`;
-  }
-
   function confirmDelete() {
     if (!_entry) return;
     // The shared flow moves active entries to the bin and permanently removes
@@ -698,309 +687,32 @@
         onShowGenerator={() => (showGenerator = true)}
         onShowTotpSetup={() => (showTotpSetup = true)}
       />
-    {:else if entry.type === "password"}
-      {#if entry.hasPassword || entry.url}
-        <FieldGroup>
-          {#if entry.hasPassword}
-            <PasswordField
-              label="Password"
-              reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
-              copy={() => clipboard.copySecretField(entry.id, "password")}
-              showStrength
-            />
-          {/if}
-          {#if entry.url}
-            <Field
-              label="URL"
-              value={entry.url}
-              onOpenUrl={() => openHttpUrl(entry.url!)}
-              onCopy={() => clipboard.copyPlain(entry.url!)}
-            />
-          {/if}
-        </FieldGroup>
-      {/if}
-    {:else if entry.type === "login" || entry.type === "note"}
-      {#if entry.type === "login" && entry.hasTotp}
-        <TOTPField entryId={entry.id} />
-      {/if}
-      <FieldGroup>
-        {#if entry.username}
-          <Field
-            label="Username"
-            value={entry.username}
-            onCopy={() => clipboard.copyPlain(entry.username!)}
-          />
-        {/if}
-        {#if entry.hasPassword}
-          <PasswordField
-            label="Password"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "password")}
-            copy={() => clipboard.copySecretField(entry.id, "password")}
-            showStrength
-          />
-        {/if}
-        {#if entry.url}
-          <Field
-            label="URL"
-            value={entry.url}
-            mono={false}
-            onOpenUrl={() => openHttpUrl(entry.url!)}
-            onCopy={() => clipboard.copyPlain(entry.url!)}
-          />
-        {/if}
-      </FieldGroup>
+    {:else if entry.type === "password" || entry.type === "login" || entry.type === "note"}
+      <LoginDetailView {entry} />
     {/if}
 
-    {#if !editing && entry.type === "identity" && entry.identity}
-      <FieldGroup>
-        {#if entry.identity.firstName}
-          <Field label="First name" value={entry.identity.firstName} />
-        {/if}
-        {#if entry.identity.lastName}
-          <Field label="Last name" value={entry.identity.lastName} />
-        {/if}
-        {#if entry.identity.email}
-          <Field
-            label="Email"
-            value={entry.identity.email}
-            onCopy={() => clipboard.copyPlain(entry.identity!.email!)}
-          />
-        {/if}
-        {#if entry.identity.phone}
-          <Field
-            label="Phone"
-            value={entry.identity.phone}
-            onCopy={() => clipboard.copyPlain(entry.identity!.phone!)}
-          />
-        {/if}
-        {#if entry.identity.address}
-          <Field label="Address" value={entry.identity.address} />
-        {/if}
-        {#if entry.identity.dob}
-          <Field label="Date of birth" value={entry.identity.dob} />
-        {/if}
-      </FieldGroup>
+    {#if !editing && entry.type === "identity"}
+      <IdentityDetailView {entry} />
     {/if}
 
-    {#if !editing && entry.type === "card" && entry.card}
-      <FieldGroup>
-        {#if entry.card.type}
-          <Field label="Type" value={cardBrandName(entry.card.type)} />
-        {/if}
-        {#if entry.card.holder}
-          <Field label="Holder" value={entry.card.holder} />
-        {/if}
-        {#if entry.card.hasNumber}
-          <!-- Masked by default like the other secrets: the full PAN only
-               crosses IPC on an explicit reveal, never on selection. -->
-          <PasswordField
-            label="Number"
-            masked={entry.card.numberMasked || undefined}
-            reveal={async () =>
-              formatCardNumber(
-                await entriesBridge.entryRevealField(entry.id, "cardNumber"),
-                entry.card?.type,
-              )}
-            copy={() => clipboard.copySecretField(entry.id, "cardNumber")}
-          />
-        {/if}
-        {#if entry.card.expMonth && entry.card.expYear}
-          <Field
-            label="Expires"
-            value={`${String(entry.card.expMonth).padStart(2, "0")}/${entry.card.expYear}`}
-          />
-        {/if}
-        {#if entry.card.hasCvv}
-          <PasswordField
-            label="CVV"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "cardCvv")}
-            copy={() => clipboard.copySecretField(entry.id, "cardCvv")}
-          />
-        {/if}
-        {#if entry.card.hasPin}
-          <PasswordField
-            label="PIN"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "cardPin")}
-            copy={() => clipboard.copySecretField(entry.id, "cardPin")}
-          />
-        {/if}
-      </FieldGroup>
+    {#if !editing && entry.type === "card"}
+      <CardDetailView {entry} />
     {/if}
 
-    {#if !editing && entry.type === "software_license" && entry.softwareLicense}
-      {@const license = entry.softwareLicense}
-      <FieldGroup>
-        {#if license.version}
-          <Field label="Version" value={license.version} />
-        {/if}
-        {#if license.hasLicenseKey}
-          <PasswordField
-            label="License key"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "licenseKey")}
-            copy={() => clipboard.copySecretField(entry.id, "licenseKey")}
-          />
-        {/if}
-      </FieldGroup>
-      <FieldGroup>
-        {#if license.licensedTo}
-          <Field label="Licensed to" value={license.licensedTo} />
-        {/if}
-        {#if license.registeredEmail}
-          <Field
-            label="Registered email"
-            value={license.registeredEmail}
-            onCopy={() => clipboard.copyPlain(license.registeredEmail!)}
-          />
-        {/if}
-        {#if license.company}
-          <Field label="Company" value={license.company} />
-        {/if}
-      </FieldGroup>
-      <FieldGroup>
-        {#if license.downloadPage}
-          <Field
-            label="Download page"
-            value={license.downloadPage}
-            onOpenUrl={() => openHttpUrl(license.downloadPage!)}
-            onCopy={() => clipboard.copyPlain(license.downloadPage!)}
-          />
-        {/if}
-        {#if license.publisher}
-          <Field label="Publisher" value={license.publisher} />
-        {/if}
-        {#if license.website}
-          <Field
-            label="Website"
-            value={license.website}
-            onOpenUrl={() => openHttpUrl(license.website!)}
-            onCopy={() => clipboard.copyPlain(license.website!)}
-          />
-        {/if}
-        {#if license.retailPrice}
-          <Field label="Retail price" value={license.retailPrice} />
-        {/if}
-        {#if license.supportEmail}
-          <Field
-            label="Support email"
-            value={license.supportEmail}
-            onCopy={() => clipboard.copyPlain(license.supportEmail!)}
-          />
-        {/if}
-      </FieldGroup>
-      <FieldGroup>
-        {#if license.purchaseDate}
-          <Field label="Purchase date" value={license.purchaseDate} />
-        {/if}
-        {#if license.orderNumber}
-          <Field label="Order number" value={license.orderNumber} />
-        {/if}
-        {#if license.orderTotal}
-          <Field label="Order total" value={license.orderTotal} />
-        {/if}
-      </FieldGroup>
+    {#if !editing && entry.type === "software_license"}
+      <SoftwareLicenseDetailView {entry} />
     {/if}
 
-    {#if !editing && entry.type === "passport" && entry.passport}
-      {@const passport = entry.passport}
-      <FieldGroup>
-        {#if passport.type}
-          <Field label="Type" value={passport.type} />
-        {/if}
-        {#if passport.issuingCountry}
-          <Field label="Issuing country" value={passport.issuingCountry} />
-        {/if}
-        {#if passport.hasNumber}
-          <PasswordField
-            label="Number"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "passportNumber")}
-            copy={() => clipboard.copySecretField(entry.id, "passportNumber")}
-          />
-        {/if}
-        {#if passport.fullName}
-          <Field label="Full name" value={passport.fullName} />
-        {/if}
-        {#if passport.sex}
-          <Field label="Sex" value={passport.sex} />
-        {/if}
-        {#if passport.nationality}
-          <Field label="Nationality" value={passport.nationality} />
-        {/if}
-        {#if passport.issuingAuthority}
-          <Field label="Issuing authority" value={passport.issuingAuthority} />
-        {/if}
-      </FieldGroup>
-      <FieldGroup>
-        {#if passport.birthDate}
-          <Field label="Date of birth" value={passport.birthDate} />
-        {/if}
-        {#if passport.birthPlace}
-          <Field label="Place of birth" value={passport.birthPlace} />
-        {/if}
-        {#if passport.issueDate}
-          <Field label="Issued on" value={passport.issueDate} />
-        {/if}
-        {#if passport.expiryDate}
-          <Field label="Expiry date" value={passport.expiryDate} />
-        {/if}
-      </FieldGroup>
+    {#if !editing && entry.type === "passport"}
+      <PassportDetailView {entry} />
     {/if}
 
-    {#if !editing && entry.type === "pgp_key" && entry.pgpKey}
-      {@const pgp = entry.pgpKey}
-      <FieldGroup>
-        {#if pgp.fingerprint}
-          <Field
-            label="Fingerprint"
-            value={pgp.fingerprint}
-            mono={true}
-            onCopy={() => clipboard.copyPlain(pgp.fingerprint!)}
-          />
-        {/if}
-        {#if pgp.keyId}
-          <Field
-            label="Key ID"
-            value={pgp.keyId}
-            mono={true}
-            onCopy={() => clipboard.copyPlain(pgp.keyId!)}
-          />
-        {/if}
-        {#if pgp.userIds}
-          <Field label="User IDs" value={pgp.userIds} />
-        {/if}
-        {#if pgp.algorithm}
-          <Field label="Algorithm" value={pgp.algorithm} />
-        {/if}
-        {#if pgp.expiresAt}
-          <Field label="Expires" value={pgp.expiresAt} />
-        {/if}
-      </FieldGroup>
-      {#if pgp.publicKey}
-        <FieldGroup>
-          <Field
-            label="Public key"
-            value={pgp.publicKey}
-            mono={true}
-            onCopy={() => clipboard.copyPlain(pgp.publicKey!)}
-          />
-        </FieldGroup>
-      {/if}
-      {#if pgp.hasPrivateKey}
-        <FieldGroup>
-          <PasswordField
-            label="Private key"
-            reveal={() => entriesBridge.entryRevealField(entry.id, "pgpPrivateKey")}
-            copy={() => clipboard.copySecretField(entry.id, "pgpPrivateKey")}
-          />
-        </FieldGroup>
-      {/if}
+    {#if !editing && entry.type === "pgp_key"}
+      <PgpKeyDetailView {entry} />
     {/if}
 
     {#if !editing && entry.expiresAt}
-      {@const expirationDue = entry.expiresAt <= localDateString()}
-      <div class="expiration-indicator" class:due={expirationDue} role="status">
-        <Icon name={expirationDue ? "alert-triangle" : "calendar-time"} size={14} />
-        <span>{expirationLabel(entry.expiresAt)}</span>
-      </div>
+      <ExpirationIndicator expiresAt={entry.expiresAt} />
     {/if}
 
     {#if !editing}
@@ -1168,24 +880,6 @@
   .edit-title-input:focus {
     border-bottom-color: var(--accent);
     outline: none;
-  }
-
-  .expiration-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: fit-content;
-    margin-bottom: 16px;
-    padding: 5px 9px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    background: var(--surface-1);
-    font-size: var(--text-sm);
-  }
-
-  .expiration-indicator.due {
-    color: var(--danger);
-    background: var(--danger-bg);
   }
 
   .tags-display {
