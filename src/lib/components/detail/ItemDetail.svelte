@@ -189,7 +189,7 @@
   }
 
   /** Reset everything the edit session accumulated: secret buffers and
-      card validation errors. */
+        card validation errors. */
   function resetEditState() {
     clearEditSecrets();
     clearCardErrors();
@@ -313,8 +313,8 @@
   }
 
   /** Drop a never-saved entry stub from the backend's in-memory database and
-      the entry list. Returns false when the backend call fails — the stub
-      then remains in memory and could persist on a later vault save. */
+        the entry list. Returns false when the backend call fails — the stub
+        then remains in memory and could persist on a later vault save. */
   async function discardNewEntry(id: string): Promise<boolean> {
     try {
       await entriesBridge.entryDiscard(id);

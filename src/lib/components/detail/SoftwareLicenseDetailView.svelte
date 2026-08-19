@@ -1,84 +1,39 @@
 <script lang="ts">
-  import * as entriesBridge from "$lib/bridge/entries";
   import type { Entry } from "$lib/bridge/types";
-  import { clipboard } from "$lib/stores/clipboard.svelte";
-  import { openHttpUrl } from "$lib/utils/openHttpUrl";
-  import Field from "./Field.svelte";
-  import FieldGroup from "./FieldGroup.svelte";
-  import PasswordField from "./PasswordField.svelte";
+  import DetailFields from "./DetailFields.svelte";
 
   let { entry }: { entry: Entry } = $props();
-  const license = $derived(entry.softwareLicense);
+
+  const groups = $derived.by(() => {
+    const l = entry.softwareLicense;
+    if (!l) return [];
+    return [
+      [
+        { label: "Version", value: l.version },
+        {
+          label: "License key",
+          secret: l.hasLicenseKey ? { field: "licenseKey" as const } : undefined,
+        },
+      ],
+      [
+        { label: "Licensed to", value: l.licensedTo },
+        { label: "Registered email", value: l.registeredEmail, copy: true },
+        { label: "Company", value: l.company },
+      ],
+      [
+        { label: "Download page", value: l.downloadPage, copy: true, link: true },
+        { label: "Publisher", value: l.publisher },
+        { label: "Website", value: l.website, copy: true, link: true },
+        { label: "Retail price", value: l.retailPrice },
+        { label: "Support email", value: l.supportEmail, copy: true },
+      ],
+      [
+        { label: "Purchase date", value: l.purchaseDate },
+        { label: "Order number", value: l.orderNumber },
+        { label: "Order total", value: l.orderTotal },
+      ],
+    ];
+  });
 </script>
 
-{#if license}
-  <FieldGroup>
-    {#if license.version}
-      <Field label="Version" value={license.version} />
-    {/if}
-    {#if license.hasLicenseKey}
-      <PasswordField
-        label="License key"
-        reveal={() => entriesBridge.entryRevealField(entry.id, "licenseKey")}
-        copy={() => clipboard.copySecretField(entry.id, "licenseKey")}
-      />
-    {/if}
-  </FieldGroup>
-  <FieldGroup>
-    {#if license.licensedTo}
-      <Field label="Licensed to" value={license.licensedTo} />
-    {/if}
-    {#if license.registeredEmail}
-      <Field
-        label="Registered email"
-        value={license.registeredEmail}
-        onCopy={() => clipboard.copyPlain(license.registeredEmail!)}
-      />
-    {/if}
-    {#if license.company}
-      <Field label="Company" value={license.company} />
-    {/if}
-  </FieldGroup>
-  <FieldGroup>
-    {#if license.downloadPage}
-      <Field
-        label="Download page"
-        value={license.downloadPage}
-        onOpenUrl={() => openHttpUrl(license.downloadPage!)}
-        onCopy={() => clipboard.copyPlain(license.downloadPage!)}
-      />
-    {/if}
-    {#if license.publisher}
-      <Field label="Publisher" value={license.publisher} />
-    {/if}
-    {#if license.website}
-      <Field
-        label="Website"
-        value={license.website}
-        onOpenUrl={() => openHttpUrl(license.website!)}
-        onCopy={() => clipboard.copyPlain(license.website!)}
-      />
-    {/if}
-    {#if license.retailPrice}
-      <Field label="Retail price" value={license.retailPrice} />
-    {/if}
-    {#if license.supportEmail}
-      <Field
-        label="Support email"
-        value={license.supportEmail}
-        onCopy={() => clipboard.copyPlain(license.supportEmail!)}
-      />
-    {/if}
-  </FieldGroup>
-  <FieldGroup>
-    {#if license.purchaseDate}
-      <Field label="Purchase date" value={license.purchaseDate} />
-    {/if}
-    {#if license.orderNumber}
-      <Field label="Order number" value={license.orderNumber} />
-    {/if}
-    {#if license.orderTotal}
-      <Field label="Order total" value={license.orderTotal} />
-    {/if}
-  </FieldGroup>
-{/if}
+<DetailFields entryId={entry.id} {groups} />
