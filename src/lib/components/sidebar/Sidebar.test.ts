@@ -36,32 +36,32 @@ beforeEach(() => {
 
 describe("Sidebar", () => {
   it("shows type counts and selects the password filter", async () => {
-    const passwords = render(Sidebar).getByRole("tab", { name: "Passwords 2" });
+    const passwords = render(Sidebar).getByRole("button", { name: "Passwords 2" });
 
-    expect(passwords).toHaveAttribute("aria-selected", "false");
+    expect(passwords).not.toHaveAttribute("aria-current");
     await fireEvent.click(passwords);
 
     expect(selection.filter).toEqual({ kind: "type", type: "password" });
-    expect(screen.getByRole("tab", { name: "Passwords 2" })).toHaveAttribute(
-      "aria-selected",
+    expect(screen.getByRole("button", { name: "Passwords 2" })).toHaveAttribute(
+      "aria-current",
       "true",
     );
   });
 
   it("opens the recent entries view", async () => {
-    const recent = render(Sidebar).getByRole("tab", { name: "Recent 3" });
+    const recent = render(Sidebar).getByRole("button", { name: "Recent 3" });
 
     await fireEvent.click(recent);
 
     expect(selection.filter).toEqual({ kind: "recent" });
-    expect(recent).toHaveAttribute("aria-selected", "true");
+    expect(recent).toHaveAttribute("aria-current", "true");
   });
 
   it("counts trashed entries separately and opens the recycle bin", async () => {
     vault.setEntries([...entries, { ...entries[0], id: "deleted", trashed: true }]);
-    const recycleBin = render(Sidebar).getByRole("tab", { name: "Recycle Bin 1" });
+    const recycleBin = render(Sidebar).getByRole("button", { name: "Recycle Bin 1" });
 
-    expect(screen.getByRole("tab", { name: "All items 3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All items 3" })).toBeInTheDocument();
     await fireEvent.click(recycleBin);
 
     expect(selection.filter).toEqual({ kind: "trash" });
@@ -78,7 +78,7 @@ describe("Sidebar", () => {
     ]);
 
     const disabled = render(Sidebar);
-    expect(screen.queryByRole("tab", { name: "Work 2" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Work 2" })).not.toBeInTheDocument();
     disabled.unmount();
 
     features.hydrate({
@@ -92,8 +92,8 @@ describe("Sidebar", () => {
     });
     render(Sidebar);
 
-    const work = screen.getByRole("tab", { name: "Work 2" });
-    expect(screen.getByRole("tab", { name: "Clients 1" })).toBeInTheDocument();
+    const work = screen.getByRole("button", { name: "Work 2" });
+    expect(screen.getByRole("button", { name: "Clients 1" })).toBeInTheDocument();
     await fireEvent.click(work);
     expect(selection.filter).toEqual({ kind: "folder", folderId: "work" });
   });
@@ -131,7 +131,7 @@ describe("Sidebar", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Rename" }));
 
     expect(foldersBridge.folderRename).toHaveBeenCalledWith("clients", "Customers");
-    expect(await screen.findByRole("tab", { name: "Customers 0" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Customers 0" })).toBeInTheDocument();
   });
 
   it("uses the shared danger confirmation when deleting a tag", async () => {
@@ -156,7 +156,7 @@ describe("Sidebar", () => {
     vault.setEntries([{ ...entries[0], tags: ["finance"] }]);
     render(Sidebar);
 
-    const dot = screen.getByRole("tab", { name: "finance" }).querySelector(".tag-dot");
+    const dot = screen.getByRole("button", { name: "finance" }).querySelector(".tag-dot");
     expect(dot).toHaveStyle(`background: ${tagColor("finance")}`);
   });
 
@@ -165,12 +165,12 @@ describe("Sidebar", () => {
     const sidebar = render(Sidebar);
 
     const collapseButton = screen.getByRole("button", { name: "Collapse Tags" });
-    expect(screen.getByRole("tab", { name: "work" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "work" })).toBeInTheDocument();
     expect(collapseButton).toHaveAttribute("aria-expanded", "true");
 
     await fireEvent.click(collapseButton);
 
-    expect(screen.queryByRole("tab", { name: "work" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "work" })).not.toBeInTheDocument();
     expect(localStorage.getItem("hitsu:sidebar-tags-collapsed")).toBe("true");
     sidebar.unmount();
 
@@ -178,11 +178,11 @@ describe("Sidebar", () => {
 
     const expandButton = await screen.findByRole("button", { name: "Expand Tags" });
     expect(expandButton).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("tab", { name: "work" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "work" })).not.toBeInTheDocument();
 
     await fireEvent.click(expandButton);
 
-    expect(screen.getByRole("tab", { name: "work" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "work" })).toBeInTheDocument();
     expect(localStorage.getItem("hitsu:sidebar-tags-collapsed")).toBe("false");
   });
 });

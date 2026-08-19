@@ -32,8 +32,7 @@
     class:selected
     style:padding-left={`${10 + indent * 16}px`}
     {onclick}
-    role="tab"
-    aria-selected={selected}
+    aria-current={selected ? "true" : undefined}
   >
     {#if tagColor}
       <span class="tag-dot" style="background: {tagColor}"></span>
