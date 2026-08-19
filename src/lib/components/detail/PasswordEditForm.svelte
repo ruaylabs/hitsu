@@ -2,15 +2,14 @@
   import Icon from "../ui/Icon.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
   let {
-    editPassword = $bindable(""),
-    editUrl = $bindable(""),
+    form,
     onShowGenerator,
   }: {
-    editPassword?: string;
-    editUrl?: string;
+    form: EditFormState;
     onShowGenerator: () => void;
   } = $props();
 </script>
@@ -18,7 +17,7 @@
 <DetailFieldRow label="Password">
   <div class="password-edit-col">
     <div class="password-edit-row">
-      <SecretEditInput bind:value={editPassword} label="password" placeholder="Password" />
+      <SecretEditInput bind:value={form.password} label="password" placeholder="Password" />
       <button
         class="generate-btn"
         onclick={onShowGenerator}
@@ -28,7 +27,7 @@
         <Icon name="bolt" size={14} />
       </button>
     </div>
-    <PasswordStrengthMeter password={editPassword} showWhenEmpty />
+    <PasswordStrengthMeter password={form.password} showWhenEmpty />
   </div>
 </DetailFieldRow>
 <DetailFieldRow label="URL">
@@ -40,7 +39,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editUrl}
+    bind:value={form.url}
   />
 </DetailFieldRow>
 

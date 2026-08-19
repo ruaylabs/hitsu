@@ -1,36 +1,9 @@
 <script lang="ts">
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
-  let {
-    editLicenseVersion = $bindable(""),
-    editLicenseKey = $bindable(""),
-    editLicenseLicensedTo = $bindable(""),
-    editLicenseRegisteredEmail = $bindable(""),
-    editLicenseCompany = $bindable(""),
-    editLicenseDownloadPage = $bindable(""),
-    editLicensePublisher = $bindable(""),
-    editLicenseWebsite = $bindable(""),
-    editLicenseRetailPrice = $bindable(""),
-    editLicenseSupportEmail = $bindable(""),
-    editLicensePurchaseDate = $bindable(""),
-    editLicenseOrderNumber = $bindable(""),
-    editLicenseOrderTotal = $bindable(""),
-  }: {
-    editLicenseVersion?: string;
-    editLicenseKey?: string;
-    editLicenseLicensedTo?: string;
-    editLicenseRegisteredEmail?: string;
-    editLicenseCompany?: string;
-    editLicenseDownloadPage?: string;
-    editLicensePublisher?: string;
-    editLicenseWebsite?: string;
-    editLicenseRetailPrice?: string;
-    editLicenseSupportEmail?: string;
-    editLicensePurchaseDate?: string;
-    editLicenseOrderNumber?: string;
-    editLicenseOrderTotal?: string;
-  } = $props();
+  let { form }: { form: EditFormState } = $props();
 </script>
 
 <DetailFieldRow label="Version">
@@ -39,11 +12,11 @@
     type="text"
     placeholder="Version"
     autocomplete="off"
-    bind:value={editLicenseVersion}
+    bind:value={form.licenseVersion}
   />
 </DetailFieldRow>
 <DetailFieldRow label="License key">
-  <SecretEditInput bind:value={editLicenseKey} label="license key" placeholder="License key" />
+  <SecretEditInput bind:value={form.licenseKey} label="license key" placeholder="License key" />
 </DetailFieldRow>
 <DetailFieldRow label="Licensed to">
   <input
@@ -51,7 +24,7 @@
     type="text"
     placeholder="Licensed to"
     autocomplete="off"
-    bind:value={editLicenseLicensedTo}
+    bind:value={form.licenseLicensedTo}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Registered email">
@@ -60,7 +33,7 @@
     type="email"
     placeholder="Registered email"
     autocomplete="off"
-    bind:value={editLicenseRegisteredEmail}
+    bind:value={form.licenseRegisteredEmail}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Company">
@@ -69,7 +42,7 @@
     type="text"
     placeholder="Company"
     autocomplete="off"
-    bind:value={editLicenseCompany}
+    bind:value={form.licenseCompany}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Download page">
@@ -78,7 +51,7 @@
     type="url"
     placeholder="Download page"
     autocomplete="off"
-    bind:value={editLicenseDownloadPage}
+    bind:value={form.licenseDownloadPage}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Publisher">
@@ -87,7 +60,7 @@
     type="text"
     placeholder="Publisher"
     autocomplete="off"
-    bind:value={editLicensePublisher}
+    bind:value={form.licensePublisher}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Website">
@@ -96,7 +69,7 @@
     type="url"
     placeholder="Website"
     autocomplete="off"
-    bind:value={editLicenseWebsite}
+    bind:value={form.licenseWebsite}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Retail price">
@@ -105,7 +78,7 @@
     type="text"
     placeholder="Retail price"
     autocomplete="off"
-    bind:value={editLicenseRetailPrice}
+    bind:value={form.licenseRetailPrice}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Support email">
@@ -114,7 +87,7 @@
     type="email"
     placeholder="Support email"
     autocomplete="off"
-    bind:value={editLicenseSupportEmail}
+    bind:value={form.licenseSupportEmail}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Purchase date">
@@ -123,7 +96,7 @@
     type="date"
     aria-label="Purchase date"
     autocomplete="off"
-    bind:value={editLicensePurchaseDate}
+    bind:value={form.licensePurchaseDate}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Order number">
@@ -132,7 +105,7 @@
     type="text"
     placeholder="Order number"
     autocomplete="off"
-    bind:value={editLicenseOrderNumber}
+    bind:value={form.licenseOrderNumber}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Order total">
@@ -141,6 +114,6 @@
     type="text"
     placeholder="Order total"
     autocomplete="off"
-    bind:value={editLicenseOrderTotal}
+    bind:value={form.licenseOrderTotal}
   />
 </DetailFieldRow>

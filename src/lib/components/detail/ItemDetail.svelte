@@ -26,11 +26,11 @@
   import EmptyDetail from "./EmptyDetail.svelte";
   import EntryEditForm from "./EntryEditForm.svelte";
   import ExpirationIndicator from "./ExpirationIndicator.svelte";
-  import IdentityDetailView from "./IdentityDetailView.svelte";
   import { cloneEditForm, createEditForm, type EditFormState } from "./editForm";
   import Field from "./Field.svelte";
   import FieldGroup from "./FieldGroup.svelte";
   import HistoryDialog from "./HistoryDialog.svelte";
+  import IdentityDetailView from "./IdentityDetailView.svelte";
   import LoginDetailView from "./LoginDetailView.svelte";
   import MoveToFolderDialog from "./MoveToFolderDialog.svelte";
   import NotesField from "./NotesField.svelte";
@@ -678,7 +678,7 @@
     {#if editing}
       <EntryEditForm
         entryType={entry.type}
-        bind:form
+        {form}
         {cardNumberError}
         {cardExpMonthError}
         {cardExpYearError}

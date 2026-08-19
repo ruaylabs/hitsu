@@ -1,20 +1,10 @@
 <script lang="ts">
-  import type { CustomField } from "$lib/bridge/types";
-  import TagInput from "../ui/TagInput.svelte";
   import Icon from "../ui/Icon.svelte";
+  import TagInput from "../ui/TagInput.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
-  let {
-    editExpiresAt = $bindable(""),
-    editCustomFields = $bindable([] as CustomField[]),
-    editTags = $bindable([] as string[]),
-    editNotes = $bindable(""),
-  }: {
-    editExpiresAt?: string;
-    editCustomFields?: CustomField[];
-    editTags?: string[];
-    editNotes?: string;
-  } = $props();
+  let { form }: { form: EditFormState } = $props();
 </script>
 
 <div class="edit-expiration">
@@ -24,7 +14,7 @@
     type="date"
     aria-label="Entry expiration date"
     autocomplete="off"
-    bind:value={editExpiresAt}
+    bind:value={form.expiresAt}
   />
 </div>
 <div class="custom-fields-editor">
@@ -33,13 +23,13 @@
     <button
       type="button"
       class="add-custom-field"
-      onclick={() => { editCustomFields = [...editCustomFields, { name: "", value: "", protected: false }]; }}
+      onclick={() => { form.customFields = [...form.customFields, { name: "", value: "", protected: false }]; }}
     >
       <Icon name="plus" size={13} />
       Add field
     </button>
   </div>
-  {#each editCustomFields as field, index}
+  {#each form.customFields as field, index}
     <div class="custom-field-edit-row">
       <input
         class="control control--compact custom-field-name"
@@ -74,7 +64,7 @@
         class="remove-custom-field"
         aria-label="Remove custom field"
         title="Remove custom field"
-        onclick={() => { editCustomFields = editCustomFields.filter((_, i) => i !== index); }}
+        onclick={() => { form.customFields = form.customFields.filter((_, i) => i !== index); }}
       >
         <Icon name="x" size={14} />
       </button>
@@ -83,7 +73,7 @@
 </div>
 <div class="edit-tags">
   <span class="notes-label">Tags</span>
-  <TagInput initialTags={editTags} onupdate={(t) => (editTags = t)} />
+  <TagInput initialTags={form.tags} onupdate={(t) => (form.tags = t)} />
 </div>
 <div class="edit-notes">
   <span class="notes-label">Notes</span>
@@ -92,7 +82,7 @@
     placeholder="Notes"
     autocomplete="off"
     spellcheck="false"
-    bind:value={editNotes}
+    bind:value={form.notes}
   ></textarea>
 </div>
 

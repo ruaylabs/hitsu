@@ -1,21 +1,8 @@
 <script lang="ts">
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
 
-  let {
-    editFirstName = $bindable(""),
-    editLastName = $bindable(""),
-    editEmail = $bindable(""),
-    editPhone = $bindable(""),
-    editAddress = $bindable(""),
-    editDob = $bindable(""),
-  }: {
-    editFirstName?: string;
-    editLastName?: string;
-    editEmail?: string;
-    editPhone?: string;
-    editAddress?: string;
-    editDob?: string;
-  } = $props();
+  let { form }: { form: EditFormState } = $props();
 </script>
 
 <DetailFieldRow label="First name">
@@ -27,7 +14,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editFirstName}
+    bind:value={form.firstName}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Last name">
@@ -39,7 +26,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editLastName}
+    bind:value={form.lastName}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Email">
@@ -51,7 +38,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editEmail}
+    bind:value={form.email}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Phone">
@@ -63,7 +50,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editPhone}
+    bind:value={form.phone}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Address">
@@ -75,7 +62,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editAddress}
+    bind:value={form.address}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Date of birth">
@@ -84,6 +71,6 @@
     type="date"
     aria-label="Date of birth"
     autocomplete="bday"
-    bind:value={editDob}
+    bind:value={form.dob}
   />
 </DetailFieldRow>

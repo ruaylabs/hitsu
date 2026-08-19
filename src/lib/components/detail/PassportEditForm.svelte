@@ -1,32 +1,9 @@
 <script lang="ts">
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
-  let {
-    editPassportType = $bindable(""),
-    editPassportIssuingCountry = $bindable(""),
-    editPassportNumber = $bindable(""),
-    editPassportFullName = $bindable(""),
-    editPassportSex = $bindable(""),
-    editPassportNationality = $bindable(""),
-    editPassportIssuingAuthority = $bindable(""),
-    editPassportBirthDate = $bindable(""),
-    editPassportBirthPlace = $bindable(""),
-    editPassportIssueDate = $bindable(""),
-    editPassportExpiryDate = $bindable(""),
-  }: {
-    editPassportType?: string;
-    editPassportIssuingCountry?: string;
-    editPassportNumber?: string;
-    editPassportFullName?: string;
-    editPassportSex?: string;
-    editPassportNationality?: string;
-    editPassportIssuingAuthority?: string;
-    editPassportBirthDate?: string;
-    editPassportBirthPlace?: string;
-    editPassportIssueDate?: string;
-    editPassportExpiryDate?: string;
-  } = $props();
+  let { form }: { form: EditFormState } = $props();
 </script>
 
 <DetailFieldRow label="Type">
@@ -35,7 +12,7 @@
     type="text"
     placeholder="Passport type"
     autocomplete="off"
-    bind:value={editPassportType}
+    bind:value={form.passportType}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Issuing country">
@@ -44,12 +21,12 @@
     type="text"
     placeholder="Issuing country"
     autocomplete="off"
-    bind:value={editPassportIssuingCountry}
+    bind:value={form.passportIssuingCountry}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Number">
   <SecretEditInput
-    bind:value={editPassportNumber}
+    bind:value={form.passportNumber}
     label="passport number"
     placeholder="Passport number"
   />
@@ -60,7 +37,7 @@
     type="text"
     placeholder="Full name"
     autocomplete="off"
-    bind:value={editPassportFullName}
+    bind:value={form.passportFullName}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Sex">
@@ -69,7 +46,7 @@
     type="text"
     placeholder="Sex"
     autocomplete="off"
-    bind:value={editPassportSex}
+    bind:value={form.passportSex}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Nationality">
@@ -78,7 +55,7 @@
     type="text"
     placeholder="Nationality"
     autocomplete="off"
-    bind:value={editPassportNationality}
+    bind:value={form.passportNationality}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Issuing authority">
@@ -87,7 +64,7 @@
     type="text"
     placeholder="Issuing authority"
     autocomplete="off"
-    bind:value={editPassportIssuingAuthority}
+    bind:value={form.passportIssuingAuthority}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Date of birth">
@@ -96,7 +73,7 @@
     type="date"
     aria-label="Passport date of birth"
     autocomplete="bday"
-    bind:value={editPassportBirthDate}
+    bind:value={form.passportBirthDate}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Place of birth">
@@ -105,7 +82,7 @@
     type="text"
     placeholder="Place of birth"
     autocomplete="off"
-    bind:value={editPassportBirthPlace}
+    bind:value={form.passportBirthPlace}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Issued on">
@@ -114,7 +91,7 @@
     type="date"
     aria-label="Passport issue date"
     autocomplete="off"
-    bind:value={editPassportIssueDate}
+    bind:value={form.passportIssueDate}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Expiry date">
@@ -123,6 +100,6 @@
     type="date"
     aria-label="Passport expiry date"
     autocomplete="off"
-    bind:value={editPassportExpiryDate}
+    bind:value={form.passportExpiryDate}
   />
 </DetailFieldRow>

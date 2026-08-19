@@ -1,24 +1,9 @@
 <script lang="ts">
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
-  let {
-    editPgpPublicKey = $bindable(""),
-    editPgpPrivateKey = $bindable(""),
-    editPgpFingerprint = $bindable(""),
-    editPgpKeyId = $bindable(""),
-    editPgpUserIds = $bindable(""),
-    editPgpAlgorithm = $bindable(""),
-    editPgpExpiresAt = $bindable(""),
-  }: {
-    editPgpPublicKey?: string;
-    editPgpPrivateKey?: string;
-    editPgpFingerprint?: string;
-    editPgpKeyId?: string;
-    editPgpUserIds?: string;
-    editPgpAlgorithm?: string;
-    editPgpExpiresAt?: string;
-  } = $props();
+  let { form }: { form: EditFormState } = $props();
 </script>
 
 <DetailFieldRow label="Fingerprint">
@@ -30,7 +15,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editPgpFingerprint}
+    bind:value={form.pgpFingerprint}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Key ID">
@@ -42,7 +27,7 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editPgpKeyId}
+    bind:value={form.pgpKeyId}
   />
 </DetailFieldRow>
 <DetailFieldRow label="User IDs">
@@ -51,7 +36,7 @@
     type="text"
     placeholder="Name <email>, …"
     autocomplete="off"
-    bind:value={editPgpUserIds}
+    bind:value={form.pgpUserIds}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Algorithm">
@@ -60,7 +45,7 @@
     type="text"
     placeholder="Ed25519, RSA 4096, …"
     autocomplete="off"
-    bind:value={editPgpAlgorithm}
+    bind:value={form.pgpAlgorithm}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Expires">
@@ -69,7 +54,7 @@
     type="date"
     aria-label="Key expiration date"
     autocomplete="off"
-    bind:value={editPgpExpiresAt}
+    bind:value={form.pgpExpiresAt}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Public key">
@@ -79,13 +64,13 @@
     autocomplete="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editPgpPublicKey}
+    bind:value={form.pgpPublicKey}
     rows="6"
   ></textarea>
 </DetailFieldRow>
 <DetailFieldRow label="Private key">
   <SecretEditInput
-    bind:value={editPgpPrivateKey}
+    bind:value={form.pgpPrivateKey}
     label="private key"
     placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----&#10;…&#10;-----END PGP PRIVATE KEY BLOCK-----"
   />

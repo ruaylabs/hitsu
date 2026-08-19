@@ -1,29 +1,18 @@
 <script lang="ts">
   import { CARD_BRANDS } from "$lib/utils/format";
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
   let {
-    editCardHolder = $bindable(""),
-    editCardNumber = $bindable(""),
-    editCardType = $bindable(""),
-    editCardExpMonth = $bindable(""),
-    editCardExpYear = $bindable(""),
-    editCardCvv = $bindable(""),
-    editCardPin = $bindable(""),
+    form,
     cardNumberError = "",
     cardExpMonthError = "",
     cardExpYearError = "",
     cardCvvError = "",
     cardPinError = "",
   }: {
-    editCardHolder?: string;
-    editCardNumber?: string;
-    editCardType?: string;
-    editCardExpMonth?: string;
-    editCardExpYear?: string;
-    editCardCvv?: string;
-    editCardPin?: string;
+    form: EditFormState;
     cardNumberError?: string;
     cardExpMonthError?: string;
     cardExpYearError?: string;
@@ -41,13 +30,13 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editCardHolder}
+    bind:value={form.cardHolder}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Number" alignStart>
   <div class="card-input-wrap">
     <SecretEditInput
-      bind:value={editCardNumber}
+      bind:value={form.cardNumber}
       label="card number"
       placeholder="Card number"
       inputmode="numeric"
@@ -61,7 +50,7 @@
   </div>
 </DetailFieldRow>
 <DetailFieldRow label="Type">
-  <select class="control control--compact control--select" bind:value={editCardType}>
+  <select class="control control--compact control--select" bind:value={form.cardType}>
     <option value="">Select brand</option>
     {#each Object.entries(CARD_BRANDS) as [ key, name ]}
       <option value={key}>{name}</option>
@@ -79,8 +68,8 @@
       placeholder="MM"
       maxlength="2"
       autocomplete="off"
-      bind:value={editCardExpMonth}
-      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); editCardExpMonth = el.value; }}
+      bind:value={form.cardExpMonth}
+      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); form.cardExpMonth = el.value; }}
     />
     {#if cardExpMonthError}
       <span class="control-error">{cardExpMonthError}</span>
@@ -98,8 +87,8 @@
       placeholder="YYYY"
       maxlength="4"
       autocomplete="off"
-      bind:value={editCardExpYear}
-      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); editCardExpYear = el.value; }}
+      bind:value={form.cardExpYear}
+      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); form.cardExpYear = el.value; }}
     />
     {#if cardExpYearError}
       <span class="control-error">{cardExpYearError}</span>
@@ -109,7 +98,7 @@
 <DetailFieldRow label="CVV" alignStart>
   <div class="card-input-wrap">
     <SecretEditInput
-      bind:value={editCardCvv}
+      bind:value={form.cardCvv}
       label="CVV"
       placeholder="CVV"
       inputmode="numeric"
@@ -126,7 +115,7 @@
 <DetailFieldRow label="PIN" alignStart>
   <div class="card-input-wrap">
     <SecretEditInput
-      bind:value={editCardPin}
+      bind:value={form.cardPin}
       label="PIN"
       placeholder="PIN"
       inputmode="numeric"

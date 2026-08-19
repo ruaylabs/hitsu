@@ -2,20 +2,15 @@
   import Icon from "../ui/Icon.svelte";
   import PasswordStrengthMeter from "../ui/PasswordStrengthMeter.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
+  import type { EditFormState } from "./editForm";
   import SecretEditInput from "./SecretEditInput.svelte";
 
   let {
-    editUsername = $bindable(""),
-    editPassword = $bindable(""),
-    editUrl = $bindable(""),
-    editTotp = $bindable(""),
+    form,
     onShowGenerator,
     onShowTotpSetup,
   }: {
-    editUsername?: string;
-    editPassword?: string;
-    editUrl?: string;
-    editTotp?: string;
+    form: EditFormState;
     onShowGenerator: () => void;
     onShowTotpSetup: () => void;
   } = $props();
@@ -30,13 +25,13 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editUsername}
+    bind:value={form.username}
   />
 </DetailFieldRow>
 <DetailFieldRow label="Password">
   <div class="password-edit-col">
     <div class="password-edit-row">
-      <SecretEditInput bind:value={editPassword} label="password" placeholder="Password" />
+      <SecretEditInput bind:value={form.password} label="password" placeholder="Password" />
       <button
         class="generate-btn"
         onclick={onShowGenerator}
@@ -46,7 +41,7 @@
         <Icon name="bolt" size={14} />
       </button>
     </div>
-    <PasswordStrengthMeter password={editPassword} showWhenEmpty />
+    <PasswordStrengthMeter password={form.password} showWhenEmpty />
   </div>
 </DetailFieldRow>
 <DetailFieldRow label="URL">
@@ -58,12 +53,12 @@
     autocorrect="off"
     autocapitalize="off"
     spellcheck="false"
-    bind:value={editUrl}
+    bind:value={form.url}
   />
 </DetailFieldRow>
 <DetailFieldRow label="TOTP">
   <div class="totp-edit-wrap">
-    <SecretEditInput bind:value={editTotp} label="TOTP URI" placeholder="otpauth:// URI" />
+    <SecretEditInput bind:value={form.totp} label="TOTP URI" placeholder="otpauth:// URI" />
     <button
       class="totp-setup-btn-small"
       onclick={onShowTotpSetup}
