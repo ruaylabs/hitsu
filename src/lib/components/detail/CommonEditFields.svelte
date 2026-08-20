@@ -87,7 +87,9 @@
 </div>
 
 <style>
-  .edit-expiration {
+  .edit-expiration,
+  .edit-tags,
+  .edit-notes {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -167,18 +169,6 @@
   .remove-custom-field:hover {
     color: var(--danger);
     background: var(--border);
-  }
-  .edit-tags {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 12px;
-  }
-  .edit-notes {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 12px;
   }
   .edit-textarea {
     min-height: 100px;

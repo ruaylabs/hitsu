@@ -847,6 +847,7 @@
 
   .danger-card {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -857,10 +858,6 @@
     color: var(--text-primary);
     font-size: 13px;
     font-weight: 500;
-  }
-
-  .danger-card {
-    flex-direction: row;
   }
 
   .danger-btn {

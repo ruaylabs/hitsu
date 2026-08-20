@@ -85,31 +85,7 @@
   .password-edit-row :global(input) {
     flex: 1;
   }
-  .generate-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-1);
-    color: var(--text-secondary);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .generate-btn:hover {
-    background: var(--border);
-  }
-  .totp-edit-wrap {
-    display: flex;
-    gap: 4px;
-    align-items: flex-start;
-    width: 100%;
-  }
-  .totp-edit-wrap :global(input) {
-    flex: 1;
-  }
+  .generate-btn,
   .totp-setup-btn-small {
     display: inline-flex;
     align-items: center;
@@ -123,7 +99,17 @@
     cursor: pointer;
     flex-shrink: 0;
   }
+  .generate-btn:hover,
   .totp-setup-btn-small:hover {
     background: var(--border);
+  }
+  .totp-edit-wrap {
+    display: flex;
+    gap: 4px;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .totp-edit-wrap :global(input) {
+    flex: 1;
   }
 </style>

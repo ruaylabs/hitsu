@@ -223,12 +223,7 @@
     white-space: nowrap;
   }
 
-  .control-error {
-    margin: 0;
-    font-size: 12px;
-    color: var(--danger);
-  }
-
+  .control-error,
   .save-error {
     margin: 0;
     font-size: 12px;
