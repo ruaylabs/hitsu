@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { open, save } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import type { ThemePreference } from "$lib/bridge/prefs";
@@ -15,6 +14,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
+  import { pickVaultToCreate, pickVaultToOpen } from "$lib/utils/vaultFilePicker";
   import Button from "../ui/Button.svelte";
 
   const appVersion = import.meta.env.VITE_APP_VERSION;
@@ -56,12 +56,7 @@
 
   async function handleOpen() {
     try {
-      const result = await nativeDialog.during(() =>
-        open({
-          multiple: false,
-          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-        }),
-      );
+      const result = await pickVaultToOpen();
       if (!result) return;
       selectedPath = result;
       dialog = { kind: "open" };
@@ -146,12 +141,7 @@
    *  before choosing where the vault will live. */
   async function handleCreate() {
     try {
-      const result = await nativeDialog.during(() =>
-        save({
-          filters: [{ name: "KeePass Database", extensions: ["kdbx"] }],
-          defaultPath: "vault.kdbx",
-        }),
-      );
+      const result = await pickVaultToCreate();
       if (!result) return;
       selectedPath = result;
       dialog = { kind: "create" };
