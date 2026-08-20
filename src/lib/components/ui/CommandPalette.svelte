@@ -120,14 +120,8 @@
 
   .search-input {
     flex: 1;
-    background: transparent;
-    border: none;
     font-size: 14px;
     color: var(--text-primary);
-  }
-
-  .search-input:focus {
-    outline: none;
   }
 
   .search-input::placeholder {

@@ -48,6 +48,5 @@
     font-size: 13.5px;
     color: var(--text-secondary);
     line-height: 1.5;
-    margin: 0;
   }
 </style>

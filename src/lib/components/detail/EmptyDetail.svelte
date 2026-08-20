@@ -26,10 +26,6 @@
     text-align: center;
   }
 
-  .empty-detail p {
-    margin: 0;
-  }
-
   .shortcut-hints {
     display: flex;
     flex-wrap: wrap;

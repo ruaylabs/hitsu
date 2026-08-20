@@ -70,11 +70,6 @@
   .field-link {
     color: var(--text-accent);
     text-decoration: none;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    font: inherit;
     text-align: left;
     width: 100%;
   }

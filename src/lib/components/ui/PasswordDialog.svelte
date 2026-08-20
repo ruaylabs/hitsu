@@ -283,7 +283,6 @@
   }
 
   .strength-help {
-    margin: 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
     line-height: 1.4;

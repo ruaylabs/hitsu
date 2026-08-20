@@ -739,7 +739,6 @@
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: 12.5px;
-    text-decoration: none;
   }
 
   .settings-nav a:hover,
@@ -882,10 +881,6 @@
     line-height: 1.5;
   }
 
-  .import-confirm p {
-    margin: 0;
-  }
-
   .import-confirm strong {
     color: var(--text-primary);
   }
@@ -978,7 +973,6 @@
   .import-counts {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin: 0;
   }
 
   .import-counts div {
@@ -1015,7 +1009,6 @@
   }
 
   .skipped-list {
-    margin: 0;
     padding-left: 20px;
     color: var(--text-primary);
     font-size: 13px;
@@ -1064,17 +1057,9 @@
   }
 
   .recent-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
-  }
-
-  .recent-item {
-    margin: 0;
-    padding: 0;
   }
 
   .recent-btn {

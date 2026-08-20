@@ -222,7 +222,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0;
     color: var(--text-primary);
     font-size: 15px;
     font-weight: 500;

@@ -188,9 +188,6 @@
     gap: 4px;
     font-size: 12px;
     color: var(--text-accent);
-    background: none;
-    border: none;
-    cursor: pointer;
     padding: 2px 4px;
     border-radius: 4px;
   }
@@ -225,7 +222,6 @@
 
   .control-error,
   .save-error {
-    margin: 0;
     font-size: 12px;
     color: var(--danger);
   }

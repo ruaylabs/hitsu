@@ -581,10 +581,6 @@
     text-align: center;
   }
 
-  .empty-list p {
-    margin: 0;
-  }
-
   .empty-action {
     padding: 5px 10px;
     color: var(--accent);

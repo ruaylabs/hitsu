@@ -809,8 +809,6 @@
     font-size: 18px;
     font-weight: 500;
     padding: 6px 0;
-    background: transparent;
-    border: none;
     border-bottom: 1px solid var(--border);
     width: 100%;
     color: var(--text-primary);
@@ -818,7 +816,6 @@
 
   .edit-title-input:focus {
     border-bottom-color: var(--accent);
-    outline: none;
   }
 
   .tags-display {

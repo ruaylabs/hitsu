@@ -162,13 +162,7 @@
     min-width: 0;
     flex: 1;
     color: var(--text-primary);
-    background: transparent;
-    border: none;
     font-size: 14px;
-  }
-
-  .entry-palette-input:focus {
-    outline: none;
   }
 
   .entry-palette-input::placeholder {

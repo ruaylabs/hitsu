@@ -293,7 +293,6 @@
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.5;
-    margin: 0;
   }
 
   .mode-switch {

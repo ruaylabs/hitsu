@@ -141,9 +141,6 @@
     gap: 4px;
     font-size: var(--text-sm);
     color: var(--text-secondary);
-    background: none;
-    border: none;
-    cursor: pointer;
     padding: 4px 10px;
     border-radius: var(--radius-sm);
     transition: background 0.1s;

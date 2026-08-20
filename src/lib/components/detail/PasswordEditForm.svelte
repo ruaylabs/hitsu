@@ -68,7 +68,6 @@
     border-radius: var(--radius-sm);
     background: var(--surface-1);
     color: var(--text-secondary);
-    cursor: pointer;
     flex-shrink: 0;
   }
   .generate-btn:hover {

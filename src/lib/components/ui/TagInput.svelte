@@ -233,15 +233,9 @@
   .tag-input {
     flex: 1;
     min-width: 60px;
-    background: transparent;
-    border: none;
     font-size: 13.5px;
     color: var(--text-primary);
     padding: 2px 4px;
-  }
-
-  .tag-input:focus {
-    outline: none;
   }
 
   .tag-input::placeholder {
@@ -258,7 +252,6 @@
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    list-style: none;
     padding: 4px;
     z-index: 10;
   }

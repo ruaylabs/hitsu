@@ -120,9 +120,6 @@
     gap: 4px;
     font-size: 12px;
     color: var(--text-accent);
-    background: none;
-    border: none;
-    cursor: pointer;
     padding: 2px 4px;
     border-radius: 4px;
   }
@@ -159,10 +156,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: none;
-    border: none;
     color: var(--text-secondary);
-    cursor: pointer;
     padding: 2px;
     border-radius: 4px;
   }

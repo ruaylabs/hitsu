@@ -495,7 +495,6 @@
   }
 
   .kdf-message {
-    margin: 0;
     color: var(--text-secondary);
     font-size: 13.5px;
     line-height: 1.5;
