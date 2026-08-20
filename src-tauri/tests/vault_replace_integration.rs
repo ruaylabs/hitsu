@@ -111,7 +111,7 @@ async fn opening_a_second_vault_replaces_the_first() {
     )
     .await
     .expect("open A should succeed");
-    assert_eq!(meta_a.item_count, 1);
+    assert_eq!(meta_a.entries.len(), 1);
     assert_eq!(entries_list(state.clone()).len(), 1);
 
     // Now open B in the same app state — without the fix, the stale vault A
@@ -123,7 +123,7 @@ async fn opening_a_second_vault_replaces_the_first() {
     )
     .await
     .expect("open B should succeed");
-    assert_eq!(meta_b.item_count, 22);
+    assert_eq!(meta_b.entries.len(), 22);
 
     // The list must reflect B, not A.
     let summaries = entries_list(state.clone());
@@ -248,7 +248,7 @@ async fn creating_a_vault_replaces_an_open_one() {
     )
     .await
     .expect("create should succeed");
-    assert_eq!(meta.item_count, 0);
+    assert!(meta.entries.is_empty());
 
     // New vault is empty; A's entry must not leak through.
     let summaries = entries_list(state.clone());

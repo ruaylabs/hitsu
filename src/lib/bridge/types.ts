@@ -156,7 +156,6 @@ export interface EntrySummary {
 export interface VaultMeta {
   path: string;
   name: string;
-  itemCount: number;
   syncProvider: "icloud" | "dropbox" | "local" | "unknown";
   /** When true, the vault's KDF memory is below 64 MiB and should be upgraded. */
   kdfNeedsUpgrade?: boolean;

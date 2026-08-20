@@ -49,7 +49,6 @@ describe("vault store", () => {
     const meta: VaultMeta = {
       path: "/tmp/test.kdbx",
       name: "Test vault",
-      itemCount: 1,
       syncProvider: "local",
       entries: [firstEntry],
       folders: [],
@@ -74,7 +73,6 @@ describe("vault store", () => {
     const meta: VaultMeta = {
       path: "/tmp/new.kdbx",
       name: "New vault",
-      itemCount: 0,
       syncProvider: "local",
       entries: [],
       folders: [],
@@ -139,7 +137,6 @@ describe("vault store", () => {
     const refreshedMeta: VaultMeta = {
       path: "/tmp/test.kdbx",
       name: "Test vault",
-      itemCount: 1,
       syncProvider: "local",
       entries: [refreshedEntry],
       folders: [],
@@ -207,7 +204,6 @@ describe("vault store", () => {
     const meta: VaultMeta = {
       path: "/tmp/test.kdbx",
       name: "Test vault",
-      itemCount: 1,
       syncProvider: "local",
       entries: [firstEntry],
       folders: [],

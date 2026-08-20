@@ -50,7 +50,6 @@ describe("SettingsView", () => {
     vault.setMeta({
       path: "/tmp/test.kdbx",
       name: "Test",
-      itemCount: 0,
       syncProvider: "local",
       entries: [],
       folders: [],
@@ -89,6 +88,23 @@ describe("SettingsView", () => {
         },
       ],
     });
+  });
+
+  it("derives the current vault item count from entries", () => {
+    vault.setEntries([
+      {
+        id: "entry-1",
+        type: "login",
+        title: "Login",
+        subtitle: "",
+        tags: [],
+        favorite: false,
+      },
+    ]);
+
+    render(SettingsView);
+
+    expect(screen.getByText("Test — 1 items")).toBeInTheDocument();
   });
 
   it("provides navigation for each settings category", async () => {

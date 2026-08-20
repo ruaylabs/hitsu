@@ -466,7 +466,6 @@ pub enum SecretField {
 pub struct VaultMeta {
     pub path: String,
     pub name: String,
-    pub item_count: usize,
     pub sync_provider: String,
     #[serde(default)]
     pub kdf_needs_upgrade: bool,

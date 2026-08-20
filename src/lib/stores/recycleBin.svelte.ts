@@ -36,7 +36,7 @@ export const recycleBin = {
       const entries = vault.entries.filter((entry) => !entry.trashed);
       vault.setEntries(entries);
       if (vault.meta) {
-        vault.setMeta({ ...vault.meta, entries, itemCount: entries.length });
+        vault.setMeta({ ...vault.meta, entries });
       }
       if (selectedWasTrashed) selection.selectedId = null;
       toast.success(

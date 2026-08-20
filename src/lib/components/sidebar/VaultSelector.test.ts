@@ -16,7 +16,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: mocks.saveDia
 const meta: VaultMeta = {
   path: "/vaults/main.kdbx",
   name: "Main",
-  itemCount: 0,
   syncProvider: "local",
   entries: [],
   folders: [],

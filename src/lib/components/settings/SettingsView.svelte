@@ -41,6 +41,7 @@
   let importError = $state("");
   let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
+  let vaultItemCount = $derived(vault.entries.length);
   let lastStatusToast = "";
 
   $effect(() => {
@@ -234,7 +235,7 @@
       if (!report) return;
       vault.setEntries(report.entries);
       if (vault.meta) {
-        vault.setMeta({ ...vault.meta, itemCount: report.entries.length, entries: report.entries });
+        vault.setMeta({ ...vault.meta, entries: report.entries });
       }
       statusError = false;
       importReport = report;
@@ -381,7 +382,7 @@
           <div class="vault-info">
             <span class="vault-label">Current vault</span>
             {#if vault.meta}
-              <span class="vault-path">{vault.meta.name} — {vault.meta.itemCount} items</span>
+              <span class="vault-path">{vault.meta.name} — {vaultItemCount} items</span>
               <span class="vault-path-sub">{vault.meta.path}</span>
             {:else}
               <span class="vault-none">No vault open</span>

@@ -631,7 +631,6 @@ pub async fn vault_open(
         .await
         .map_err(HitsuError::from_join)??;
 
-    let entry_count = db.num_entries();
     let id = uuid::Uuid::new_v4();
 
     // Build entry summaries while we have a reference to the db,
@@ -663,7 +662,6 @@ pub async fn vault_open(
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
         name,
-        item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries,
@@ -744,7 +742,6 @@ pub async fn vault_refresh_if_changed(
     let meta = VaultMeta {
         path: path.to_string_lossy().to_string(),
         name,
-        item_count: db.num_entries(),
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade: needs_kdf_upgrade(&db.config.kdf_config),
         entries: build_entry_summaries(&db),
@@ -931,7 +928,6 @@ pub async fn vault_create(
         .await
         .map_err(HitsuError::from_join)??;
 
-    let entry_count = 0;
     let id = uuid::Uuid::new_v4();
     let kdf_needs_upgrade = needs_kdf_upgrade(&db.config.kdf_config);
 
@@ -954,7 +950,6 @@ pub async fn vault_create(
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
         name: vault_name,
-        item_count: entry_count,
         sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries: Vec::new(),
