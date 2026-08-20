@@ -73,10 +73,14 @@
     text-align: left;
   }
 
-  .toast-danger,
-  .toast-warning {
+  .toast-danger {
     border-color: var(--danger);
     color: var(--danger);
+  }
+
+  .toast-warning {
+    border-color: var(--warning);
+    color: var(--warning);
   }
 
   .toast-success {
