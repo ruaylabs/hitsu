@@ -60,8 +60,15 @@
     }
   }
 
-  async function createVault() {
+  function createVault() {
     closeMenu();
+    // Resolve in-progress edits before choosing a path and asking for a new
+    // master password. This leaves doCreate free to await the complete
+    // operation while PasswordDialog displays its pending and error states.
+    selection.requestNavigation(() => void chooseCreatePath());
+  }
+
+  async function chooseCreatePath() {
     try {
       const result = await pickVaultToCreate();
       if (!result) return;
@@ -73,13 +80,11 @@
   }
 
   async function doCreate(password: string) {
+    // vault_create replaces the open backend vault atomically. Locking first
+    // would briefly render the old vault's unlock dialog while the new vault
+    // is being created.
+    await vault.create(createPath, password);
     createDialog = false;
-    // Locking drops the current decrypted vault, so run it through the
-    // navigation guard like switching: in-progress edits get prompted first.
-    await selection.requestNavigation(async () => {
-      await vault.lock();
-      await vault.create(createPath, password);
-    });
   }
 
   function onWindowPointerdown(event: PointerEvent) {

@@ -5,10 +5,13 @@ import * as vaultBridge from "$lib/bridge/vault";
 import { vault } from "$lib/stores/vault.svelte";
 import VaultSelector from "./VaultSelector.svelte";
 
-const mocks = vi.hoisted(() => ({ prefsGet: vi.fn() }));
+const mocks = vi.hoisted(() => ({ prefsGet: vi.fn(), saveDialog: vi.fn() }));
 
-vi.mock("$lib/bridge/prefs", () => ({ prefsGet: mocks.prefsGet }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
+vi.mock("$lib/bridge/prefs", () => ({
+  prefsGet: mocks.prefsGet,
+  prefsSetLastVault: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: mocks.saveDialog }));
 
 const meta: VaultMeta = {
   path: "/vaults/main.kdbx",
@@ -31,6 +34,7 @@ beforeEach(() => {
     kdfUpgradeDismissedVaults: [],
   });
   vi.spyOn(vaultBridge, "vaultLock").mockResolvedValue(undefined);
+  mocks.saveDialog.mockResolvedValue(null);
   vault.unlock();
   vault.setMeta(meta);
 });
@@ -77,5 +81,36 @@ describe("VaultSelector", () => {
     await fireEvent.click(button);
     await fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("keeps the password dialog open while creating the vault", async () => {
+    let finishCreate: (meta: VaultMeta) => void = () => {};
+    mocks.saveDialog.mockResolvedValue("/vaults/new.kdbx");
+    vi.spyOn(vaultBridge, "vaultCreate").mockImplementation(
+      () => new Promise((resolve) => (finishCreate = resolve)),
+    );
+    render(VaultSelector);
+
+    await fireEvent.click(await screen.findByRole("button", { name: /Main/ }));
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Create new vault…" }));
+
+    expect(await screen.findByRole("dialog", { name: "Create new vault" })).toBeInTheDocument();
+    await fireEvent.input(screen.getByLabelText("Master password"), {
+      target: { value: "correct horse battery staple" },
+    });
+    await fireEvent.input(screen.getByLabelText("Confirm password"), {
+      target: { value: "correct horse battery staple" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(vaultBridge.vaultCreate).toHaveBeenCalledOnce());
+    expect(vaultBridge.vaultLock).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Create new vault" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Creating…" })).toBeDisabled();
+
+    finishCreate({ ...meta, path: "/vaults/new.kdbx", name: "New" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Create new vault" })).not.toBeInTheDocument(),
+    );
   });
 });
