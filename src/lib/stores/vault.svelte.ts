@@ -219,7 +219,6 @@ export const vault = {
     vaultMeta = {
       path,
       name: path.split(/[\\/]/).pop() || path,
-      syncProvider: "unknown",
       entries: [],
       folders: [],
     };

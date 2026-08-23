@@ -69,20 +69,6 @@ pub fn validate_header(path: &Path) -> HitsuResult<()> {
     Ok(())
 }
 
-fn detect_sync_provider(path: &Path) -> String {
-    let path_str = path.to_string_lossy();
-    if path_str.contains("Mobile Documents") || path_str.contains("CloudDocs") {
-        "icloud".to_string()
-    } else if path
-        .components()
-        .any(|component| component.as_os_str() == "Dropbox")
-    {
-        "dropbox".to_string()
-    } else {
-        "local".to_string()
-    }
-}
-
 /// Minimum master-password length enforced by the backend.
 /// Frontend also gates on the strength meter, but this is the hard floor.
 const MIN_MASTER_PASSWORD_LEN: usize = 8;
@@ -232,18 +218,6 @@ async fn save_and_commit_database(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn sync_provider_requires_a_complete_dropbox_path_component() {
-        assert_eq!(
-            detect_sync_provider(Path::new("/home/user/Dropbox/vault.kdbx")),
-            "dropbox"
-        );
-        assert_eq!(
-            detect_sync_provider(Path::new("/home/user/Dropbox-backup/vault.kdbx")),
-            "local"
-        );
-    }
 
     // ── validate_header tests ────────────────────────────────────────────
 
@@ -662,7 +636,6 @@ pub async fn vault_open(
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
         name,
-        sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries,
         folders,
@@ -742,7 +715,6 @@ pub async fn vault_refresh_if_changed(
     let meta = VaultMeta {
         path: path.to_string_lossy().to_string(),
         name,
-        sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade: needs_kdf_upgrade(&db.config.kdf_config),
         entries: build_entry_summaries(&db),
         folders: build_folder_summaries(&db),
@@ -950,7 +922,6 @@ pub async fn vault_create(
     Ok(VaultMeta {
         path: path.to_string_lossy().to_string(),
         name: vault_name,
-        sync_provider: detect_sync_provider(&path),
         kdf_needs_upgrade,
         entries: Vec::new(),
         folders: Vec::new(),

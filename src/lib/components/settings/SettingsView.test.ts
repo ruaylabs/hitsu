@@ -50,7 +50,6 @@ describe("SettingsView", () => {
     vault.setMeta({
       path: "/tmp/test.kdbx",
       name: "Test",
-      syncProvider: "local",
       entries: [],
       folders: [],
     });

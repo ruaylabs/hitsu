@@ -466,7 +466,6 @@ pub enum SecretField {
 pub struct VaultMeta {
     pub path: String,
     pub name: String,
-    pub sync_provider: String,
     #[serde(default)]
     pub kdf_needs_upgrade: bool,
     /// Entry summaries returned inline from vault_open so the frontend
