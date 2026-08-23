@@ -224,17 +224,9 @@ export async function entryDownloadFavicon(id: string): Promise<Entry> {
   return invoke<Entry>("entry_download_favicon", { id });
 }
 
-interface FaviconBatchFailure {
-  title: string;
-  reason: string;
-}
-
 interface FaviconBatchReport {
-  total: number;
   downloaded: number;
-  skipped: number;
   failed: number;
-  failures: FaviconBatchFailure[];
   entries: EntrySummary[];
 }
 

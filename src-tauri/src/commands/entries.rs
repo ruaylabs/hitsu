@@ -20,7 +20,6 @@ use crate::state::{AppState, OpenVault};
 /// or force the frontend to allocate and filter an unbounded list of IDs.
 const SEARCH_RESULT_LIMIT: usize = 500;
 const FAVICON_FETCH_CONCURRENCY: usize = 8;
-const FAVICON_FAILURE_LIMIT: usize = 200;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,25 +30,15 @@ pub struct EntrySearchResult {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FaviconBatchFailure {
-    pub title: String,
-    pub reason: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct FaviconBatchReport {
-    pub total: usize,
     pub downloaded: usize,
-    pub skipped: usize,
     pub failed: usize,
-    pub failures: Vec<FaviconBatchFailure>,
     pub entries: Vec<EntrySummary>,
 }
 
 struct FaviconFetchGroup {
     url: String,
-    entries: Vec<(String, String)>,
+    entries: Vec<String>,
 }
 
 /// Which KDBX standard field names should be stored as Protected values.
@@ -1472,29 +1461,22 @@ pub async fn entries_download_favicons(
     state: State<'_, AppState>,
     overwrite: bool,
 ) -> HitsuResult<FaviconBatchReport> {
-    let (total, mut skipped, mut failures, groups) = {
+    let (mut failed, groups) = {
         let vault = state.open_vault()?;
-        let total = vault.db.iter_all_entries().count();
-        let mut skipped = 0;
-        let mut failures = Vec::new();
+        let mut failed = 0;
         let mut groups: HashMap<String, FaviconFetchGroup> = HashMap::new();
 
         for entry in vault.db.iter_all_entries() {
             if entry_is_trashed(&vault.db, &entry)
                 || (!overwrite && matches!(entry.icon(), Some(keepass::db::Icon::Custom(_))))
             {
-                skipped += 1;
                 continue;
             }
             let Some(url) = entry.get_url().filter(|url| !url.trim().is_empty()) else {
-                skipped += 1;
                 continue;
             };
             let Some(origin) = super::favicon::extract_base_url(url) else {
-                failures.push(FaviconBatchFailure {
-                    title: entry.get_title().unwrap_or("Untitled").to_string(),
-                    reason: "URL is invalid or points to a local address".into(),
-                });
+                failed += 1;
                 continue;
             };
             groups
@@ -1504,12 +1486,9 @@ pub async fn entries_download_favicons(
                     entries: Vec::new(),
                 })
                 .entries
-                .push((
-                    entry.id().uuid().to_string(),
-                    entry.get_title().unwrap_or("Untitled").to_string(),
-                ));
+                .push(entry.id().uuid().to_string());
         }
-        (total, skipped, failures, groups)
+        (failed, groups)
     };
 
     let client = super::favicon::http_client()?;
@@ -1529,27 +1508,12 @@ pub async fn entries_download_favicons(
     }
 
     let mut fetched = Vec::new();
-    let mut failed = failures.len();
-    failures.truncate(FAVICON_FAILURE_LIMIT);
     for task in tasks {
         let (entries, result) = task.await.map_err(HitsuError::from_join)??;
         match result {
             Ok(data) => fetched.push((entries, data)),
-            Err(error) => {
+            Err(_) => {
                 failed += entries.len();
-                if failures.len() < FAVICON_FAILURE_LIMIT {
-                    let reason = error.to_string();
-                    let remaining = FAVICON_FAILURE_LIMIT - failures.len();
-                    failures.extend(
-                        entries
-                            .into_iter()
-                            .map(|(_, title)| FaviconBatchFailure {
-                                title,
-                                reason: reason.clone(),
-                            })
-                            .take(remaining),
-                    );
-                }
             }
         }
     }
@@ -1562,7 +1526,7 @@ pub async fn entries_download_favicons(
             let mut downloaded = 0;
             for (entry_ids, data) in fetched {
                 let mut shared_icon_id = None;
-                for (id, _) in entry_ids {
+                for id in entry_ids {
                     let Ok(entry_id) = parse_entry_id(&id) else {
                         continue;
                     };
@@ -1588,14 +1552,9 @@ pub async fn entries_download_favicons(
         .await?
     };
 
-    // Entries removed while downloads were running are reported as skipped.
-    skipped += total.saturating_sub(downloaded + failed + skipped);
     Ok(FaviconBatchReport {
-        total,
         downloaded,
-        skipped,
         failed,
-        failures,
         entries,
     })
 }
