@@ -8,7 +8,7 @@
   import PasswordField from "./PasswordField.svelte";
 
   /** A secret field rendered as a masked PasswordField (reveal/copy on demand). */
-  export interface SecretFieldSpec {
+  interface SecretFieldSpec {
     field: SecretField;
     /** Backend-masked hint to show while hidden (e.g. "•••• 1234"). */
     masked?: string;
@@ -20,7 +20,7 @@
   /** A plain field rendered as a Field row; omitted from display when `value`
    *  is empty. `copy` adds a copy button, `link` renders the value as an
    *  http(s) link. */
-  export interface DetailFieldSpec {
+  interface DetailFieldSpec {
     label: string;
     value?: string;
     mono?: boolean;
@@ -29,7 +29,7 @@
     secret?: SecretFieldSpec;
   }
 
-  export type DetailGroupSpec = DetailFieldSpec[];
+  type DetailGroupSpec = DetailFieldSpec[];
 
   let {
     entryId,

@@ -56,7 +56,7 @@ export interface AttachmentMeta {
   sizeBytes: number;
 }
 
-export interface IdentityFields {
+interface IdentityFields {
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -65,7 +65,7 @@ export interface IdentityFields {
   dob?: string;
 }
 
-export interface PassportFields {
+interface PassportFields {
   type?: string;
   issuingCountry?: string;
   hasNumber: boolean;
@@ -79,7 +79,7 @@ export interface PassportFields {
   expiryDate?: string;
 }
 
-export interface PgpKeyFields {
+interface PgpKeyFields {
   hasPrivateKey: boolean;
   publicKey?: string;
   fingerprint?: string;
@@ -89,7 +89,7 @@ export interface PgpKeyFields {
   expiresAt?: string;
 }
 
-export interface SoftwareLicenseFields {
+interface SoftwareLicenseFields {
   version?: string;
   hasLicenseKey: boolean;
   licensedTo?: string;
@@ -105,7 +105,7 @@ export interface SoftwareLicenseFields {
   orderTotal?: string;
 }
 
-export interface CardFields {
+interface CardFields {
   holder?: string;
   /** Pre-masked by the backend, e.g. "4111 •••• 1111". */
   numberMasked?: string;

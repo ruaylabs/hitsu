@@ -3,7 +3,7 @@ import type { EntrySearchResult } from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import { entryHaystack } from "$lib/utils/search";
 
-export interface EntrySearch {
+interface EntrySearch {
   /** True when `entry` matches the current query (always true for an empty query). */
   matches(entry: EntrySummary): boolean;
   /** True when the backend found more full-field matches than it returned. */

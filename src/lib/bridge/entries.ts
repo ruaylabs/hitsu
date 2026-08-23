@@ -81,7 +81,7 @@ export async function entryCopyField(
   return invoke<void>("entry_copy_field", { id, field, timeoutSecs, version: version ?? null });
 }
 
-export interface EntryDraft {
+interface EntryDraft {
   title: string;
   username?: string | null;
   password?: string | null;
@@ -224,12 +224,12 @@ export async function entryDownloadFavicon(id: string): Promise<Entry> {
   return invoke<Entry>("entry_download_favicon", { id });
 }
 
-export interface FaviconBatchFailure {
+interface FaviconBatchFailure {
   title: string;
   reason: string;
 }
 
-export interface FaviconBatchReport {
+interface FaviconBatchReport {
   total: number;
   downloaded: number;
   skipped: number;

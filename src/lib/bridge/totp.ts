@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export interface TotpCode {
+interface TotpCode {
   code: string;
   remaining: number;
   period: number;

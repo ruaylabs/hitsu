@@ -16,7 +16,7 @@ export interface ImportReport {
   entries: EntrySummary[];
 }
 
-export interface EmptyRecycleBinResult {
+interface EmptyRecycleBinResult {
   deletedEntries: number;
 }
 

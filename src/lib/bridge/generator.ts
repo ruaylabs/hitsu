@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export interface PasswordOptions {
+interface PasswordOptions {
   length: number;
   uppercase: boolean;
   lowercase: boolean;
