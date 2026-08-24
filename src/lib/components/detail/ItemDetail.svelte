@@ -590,6 +590,7 @@
 
     {#if editing}
       <div class="edit-title">
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           class="edit-title-input"
           type="text"

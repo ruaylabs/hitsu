@@ -129,8 +129,7 @@
 </script>
 
 <div class="tag-input-wrapper">
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-  <div class="chip-area" onclick={() => inputEl?.focus()} role="group" aria-label="Tags">
+  <div class="chip-area" role="group" aria-label="Tags">
     {#each currentTags as tag (tag)}
       <span class="chip">
         {tag}
