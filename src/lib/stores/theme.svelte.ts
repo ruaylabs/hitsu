@@ -1,5 +1,5 @@
-import * as prefsBridge from "$lib/bridge/prefs";
 import type { ThemePreference } from "$lib/bridge/prefs";
+import * as prefsBridge from "$lib/bridge/prefs";
 
 let preference = $state<ThemePreference>("system");
 

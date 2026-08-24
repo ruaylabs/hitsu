@@ -1,5 +1,5 @@
-import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySearchResult } from "$lib/bridge/entries";
+import * as entriesBridge from "$lib/bridge/entries";
 import type { EntrySummary } from "$lib/bridge/types";
 import { entryHaystack } from "$lib/utils/search";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { ItemType } from "$lib/bridge/types";
   import { entryGetCustomIcon } from "$lib/bridge/entries";
+  import type { ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import Icon from "../ui/Icon.svelte";
 

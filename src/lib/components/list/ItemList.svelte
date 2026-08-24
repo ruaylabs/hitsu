@@ -9,8 +9,8 @@
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
-  import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
   import { runCopyFeedback } from "$lib/utils/copyFeedback.svelte";
+  import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
   import Icon from "../ui/Icon.svelte";
