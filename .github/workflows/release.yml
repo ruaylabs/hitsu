@@ -116,7 +116,6 @@ jobs:
           path: linux/
 
       - name: Generate release body
-        id: changelog
         run: |
           PREVIOUS_TAG=$(git tag --sort=-creatordate | grep '^v' | sed -n '2p')
           if [ -z "$PREVIOUS_TAG" ]; then
@@ -125,16 +124,12 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)
           fi
           {
-            echo "body<<EOF"
-            echo "## What's Changed"
-            echo ""
-            echo "$COMMITS"
-            echo ""
+            printf '%s\n' "## What's Changed"
+            printf '\n%s\n' "$COMMITS"
             if [ -n "$PREVIOUS_TAG" ]; then
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...${{ github.ref_name }}"
+              printf '%s\n' "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...${{ github.ref_name }}"
             fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          } > release-notes.md
 
       - name: Publish release
         env:
@@ -159,6 +154,6 @@ jobs:
 
           gh release create "${{ github.ref_name }}" \
             --target="${{ github.sha }}" \
-            --notes "${{ steps.changelog.outputs.body }}" \
+            --notes-file release-notes.md \
             $PRERELEASE_FLAG \
             "${ASSETS[@]}"
