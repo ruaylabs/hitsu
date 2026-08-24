@@ -1,3 +1,4 @@
+import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, FolderSummary, VaultMeta } from "$lib/bridge/types";
@@ -159,8 +160,7 @@ export const vault = {
     return updated;
   },
   async renameTag(oldName: string, newName: string) {
-    const { tagRename } = await import("$lib/bridge/entries");
-    await tagRename(oldName, newName);
+    await entriesBridge.tagRename(oldName, newName);
     entries = entries.map((e) => ({
       ...e,
       tags: e.tags.map((t) => (t === oldName ? newName : t)),
@@ -170,8 +170,7 @@ export const vault = {
     revision += 1;
   },
   async deleteTag(name: string) {
-    const { tagDelete } = await import("$lib/bridge/entries");
-    await tagDelete(name);
+    await entriesBridge.tagDelete(name);
     entries = entries.map((e) => ({
       ...e,
       tags: e.tags.filter((t) => t !== name),
