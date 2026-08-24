@@ -4,20 +4,31 @@
 
   let {
     modifiedAt,
+    createdAt,
     historyCount,
     onclick,
   }: {
     modifiedAt: string;
+    createdAt: string;
     historyCount: number;
     onclick?: () => void;
   } = $props();
+
+  function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
 </script>
 
 <div class="detail-footer">
   <span>Modified {timeAgo(modifiedAt)}</span>
+  <span>Created on {formatDate(createdAt)}</span>
   <button class="history-btn" aria-label="View history" title="View history" {onclick}>
     <Icon name="history" size={12} />
-    <span>{historyCount} revisions</span>
+    <span>History · {historyCount} revisions</span>
   </button>
 </div>
 
@@ -25,13 +36,17 @@
   .detail-footer {
     padding-top: 12px;
     border-top: 0.5px solid var(--border);
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
     font-size: var(--text-sm);
     color: var(--text-muted);
   }
 
   .history-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
     display: flex;
     align-items: center;
     gap: 4px;

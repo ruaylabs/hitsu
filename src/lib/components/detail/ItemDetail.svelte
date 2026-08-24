@@ -694,6 +694,7 @@
       />
       <DetailFooter
         modifiedAt={entry.modifiedAt}
+        createdAt={entry.createdAt}
         historyCount={entry.historyCount}
         onclick={() => (showHistory = true)}
       />
