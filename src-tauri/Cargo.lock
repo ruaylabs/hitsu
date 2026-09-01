@@ -288,6 +288,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2244,13 +2250,13 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.13.11"
+version = "0.13.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d03091736099c43d99ad24c1ef25ef5ff9cc03b6c67444f6e06ed497d7bdfab"
+checksum = "f8161ba5159f649a4899e46aa084130263a7af722116ead3faec24e5ee92a7b9"
 dependencies = [
  "aes",
  "base32",
- "base64 0.22.1",
+ "base64 0.23.1",
  "block-modes",
  "byteorder",
  "cbc",
@@ -2263,6 +2269,7 @@ dependencies = [
  "hex-literal",
  "hmac 0.13.0",
  "hybrid-array",
+ "indexmap 2.14.0",
  "js-sys",
  "quick-xml",
  "rust-argon2",
