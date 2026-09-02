@@ -375,7 +375,12 @@ func makeTypedFields(
   entry: KDBX.Entry,
   protectedNames: Set<String>
 ) -> [VaultTypedField] {
-  func field(_ label: String, _ key: String, secret: Bool = false) -> VaultTypedField? {
+  func field(
+    _ label: String,
+    _ key: String,
+    secret: Bool = false,
+    isCardNumber: Bool = false
+  ) -> VaultTypedField? {
     guard let stored = entry.strings.first(where: { $0.key == key }) else { return nil }
     // Trust the value itself in addition to the caller-supplied protection
     // set, so a protected field is never materialized as a plain row.
@@ -390,11 +395,18 @@ func makeTypedFields(
       label: label,
       field: key,
       isProtected: secret || valueProtected || protectedNames.contains(key),
-      displayValue: nil
+      displayValue: nil,
+      isCardNumber: isCardNumber
     )
   }
   func display(_ label: String, _ value: String) -> VaultTypedField {
-    VaultTypedField(label: label, field: nil, isProtected: false, displayValue: value)
+    VaultTypedField(
+      label: label,
+      field: nil,
+      isProtected: false,
+      displayValue: value,
+      isCardNumber: false
+    )
   }
 
   switch category {
@@ -402,7 +414,7 @@ func makeTypedFields(
     var fields = [
       field("Type", "card.type"),
       field("Holder", "card.holder"),
-      field("Number", "card.number", secret: true),
+      field("Number", "card.number", secret: true, isCardNumber: true),
     ].compactMap { $0 }
     let month =
       unprotectedValue(in: entry, named: "card.expMonth", protectedNames: protectedNames) ?? ""

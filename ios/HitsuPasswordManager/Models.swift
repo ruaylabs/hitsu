@@ -74,6 +74,9 @@ struct VaultTypedField: Identifiable, Hashable, Sendable {
   let isProtected: Bool
   /// Pre-rendered value for composite rows (e.g. card expiry "03/2027").
   let displayValue: String?
+  /// Card-number rows show a masked preview before reveal and group the
+  /// revealed digits for display.
+  let isCardNumber: Bool
 
   var id: String { field ?? label }
 }
@@ -94,6 +97,66 @@ func formatAttachmentSize(_ bytes: Int) -> String {
   if bytes < 1024 { return "\(bytes) B" }
   if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024) }
   return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
+}
+
+private let cardBrandNames = [
+  "visa": "Visa",
+  "mastercard": "Mastercard",
+  "amex": "American Express",
+  "discover": "Discover",
+  "diners": "Diners Club",
+  "jcb": "JCB",
+  "unionpay": "UnionPay",
+  "maestro": "Maestro",
+]
+
+/// Display name for a stored card type. Accepts either a canonical key
+/// ("amex") or a legacy full name ("American Express"); unknown values are
+/// returned unchanged so nothing is silently lost.
+func cardBrandName(for type: String) -> String {
+  cardBrandNames[type.lowercased()] ?? type
+}
+
+/// Groups a card number for display: American Express (by type or 34/37
+/// prefix) as 4-6-5, everything else in groups of 4. Mirrors the desktop
+/// formatter.
+func formatCardNumber(_ raw: String, cardType: String?) -> String {
+  let digits = String(raw.unicodeScalars.filter { (48...57).contains($0.value) })
+  guard !digits.isEmpty else { return raw }
+
+  let type = cardType?.lowercased() ?? ""
+  let prefix = String(digits.prefix(2))
+  let isAmex =
+    type == "amex" || type == "american express"
+    || (type.isEmpty && digits.count >= 2 && (prefix == "34" || prefix == "37"))
+
+  let chars = Array(digits)
+  if isAmex {
+    var parts: [String] = []
+    if chars.count > 0 { parts.append(String(chars[0..<min(4, chars.count)])) }
+    if chars.count > 4 { parts.append(String(chars[4..<min(10, chars.count)])) }
+    if chars.count > 10 { parts.append(String(chars[10..<min(15, chars.count)])) }
+    return parts.joined(separator: " ")
+  }
+
+  var groups: [String] = []
+  var start = digits.startIndex
+  while start < digits.endIndex {
+    let end = digits.index(start, offsetBy: 4, limitedBy: digits.endIndex) ?? digits.endIndex
+    groups.append(String(digits[start..<end]))
+    start = end
+  }
+  return groups.joined(separator: " ")
+}
+
+/// Masked preview for an unrevealed card number: first and last 4 digits for
+/// typical lengths, otherwise a fixed bullet mask. Mirrors the desktop mask.
+func maskCardNumber(_ value: String) -> String? {
+  guard !value.isEmpty else { return nil }
+  if value.count >= 12 && value.allSatisfy(\.isASCII) {
+    return "\(value.prefix(4)) •••• \(value.suffix(4))"
+  }
+  return "••••"
 }
 
 /// One prior version of an entry. Field values stay in the vault store and

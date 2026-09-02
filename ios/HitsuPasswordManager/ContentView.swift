@@ -655,6 +655,7 @@ private struct EntryDetailView: View {
   @State private var copiedPassword = false
   @State private var previewRequest: AttachmentPreviewRequest?
   @State private var previewTempDirectory: URL?
+  @State private var maskedCardNumber: String?
 
   private static let clipboardLifetime: TimeInterval = 30
 
@@ -851,6 +852,16 @@ private struct EntryDetailView: View {
     .sheet(item: $previewRequest, onDismiss: { cleanupPreview() }) { request in
       AttachmentPreview(url: request.url)
     }
+    .task(id: entry.id) {
+      guard entry.typedFields.contains(where: \.isCardNumber) else { return }
+      // The full number is materialized only to derive the mask; just the
+      // masked form is retained.
+      maskedCardNumber = maskCardNumber(store.value(for: entry.id, field: "card.number") ?? "")
+    }
+  }
+
+  private var cardType: String? {
+    store.value(for: entry.id, field: "card.type")
   }
 
   private func openAttachment(_ attachment: VaultAttachment) {
@@ -898,11 +909,41 @@ private struct EntryDetailView: View {
     if let displayValue = typed.displayValue {
       DetailRow(label: typed.label, value: displayValue)
     } else if let field = typed.field {
-      if typed.isProtected {
+      if typed.isCardNumber {
+        cardNumberRow(field: field)
+      } else if typed.isProtected {
         protectedRow(label: typed.label, field: field)
       } else {
-        DetailRow(label: typed.label, value: store.value(for: entry.id, field: field) ?? "")
+        DetailRow(label: typed.label, value: plainTypedValue(for: field))
       }
+    }
+  }
+
+  /// Unprotected typed values resolve on demand; card type is shown as the
+  /// human-readable brand name.
+  private func plainTypedValue(for field: String) -> String {
+    let raw = store.value(for: entry.id, field: field) ?? ""
+    return field == "card.type" ? cardBrandName(for: raw) : raw
+  }
+
+  /// Card number: masked preview until revealed, brand-aware grouping after.
+  @ViewBuilder
+  private func cardNumberRow(field: String) -> some View {
+    if let revealed = revealedFields[field] {
+      DetailRow(
+        label: "Number",
+        value: formatCardNumber(revealed, cardType: cardType),
+        allowsSelection: false
+      )
+    } else if let mask = maskedCardNumber {
+      DetailRow(label: "Number", value: mask)
+      Button {
+        reveal(field)
+      } label: {
+        Label("Reveal Number", systemImage: "eye")
+      }
+    } else {
+      protectedRow(label: "Number", field: field)
     }
   }
 
