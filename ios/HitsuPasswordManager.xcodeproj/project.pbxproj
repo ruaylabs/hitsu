@@ -16,6 +16,7 @@
 		B10000010000000000000001 /* MetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000001 /* MetadataTests.swift */; };
 		B10000010000000000000002 /* TOTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000003 /* TOTPTests.swift */; };
 		B10000010000000000000003 /* TypedFieldsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000004 /* TypedFieldsTests.swift */; };
+		B10000010000000000000004 /* AttachmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000005 /* AttachmentTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		B20000010000000000000002 /* HitsuPasswordManagerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HitsuPasswordManagerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000010000000000000003 /* TOTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTPTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000004 /* TypedFieldsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedFieldsTests.swift; sourceTree = "<group>"; };
+		B20000010000000000000005 /* AttachmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentTests.swift; sourceTree = "<group>"; };
 		C20000010000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -83,6 +85,7 @@
 				B20000010000000000000001 /* MetadataTests.swift */,
 				B20000010000000000000003 /* TOTPTests.swift */,
 				B20000010000000000000004 /* TypedFieldsTests.swift */,
+				B20000010000000000000005 /* AttachmentTests.swift */,
 			);
 			path = HitsuPasswordManagerTests;
 			sourceTree = "<group>";
@@ -226,6 +229,7 @@
 				B10000010000000000000001 /* MetadataTests.swift in Sources */,
 				B10000010000000000000002 /* TOTPTests.swift in Sources */,
 				B10000010000000000000003 /* TypedFieldsTests.swift in Sources */,
+				B10000010000000000000004 /* AttachmentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -38,6 +38,9 @@ final class VaultStore {
 
   private var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
 
+  /// Resolved attachment payloads, index-aligned with `VaultAttachment.index`.
+  private var attachmentDataByID: [UUID: [Data]] = [:]
+
   func clearError() {
     errorMessage = nil
   }
@@ -89,14 +92,19 @@ final class VaultStore {
 
       switch result {
       case .success(let content):
-        let projection = makeVaultProjection(from: content.database)
+        let projection = makeVaultProjection(
+          from: content.database,
+          binaryPool: content.innerHeader.binaryContent
+        )
         entries = projection.entries
         entryStringsByID = projection.entryStringsByID
+        attachmentDataByID = projection.attachmentDataByID
         isUnlocked = true
         errorMessage = nil
       case .failure(.message(let message)):
         entries = []
         entryStringsByID = [:]
+        attachmentDataByID = [:]
         isUnlocked = false
         errorMessage = message
       }
@@ -107,8 +115,18 @@ final class VaultStore {
     lockGeneration += 1
     entries = []
     entryStringsByID = [:]
+    attachmentDataByID = [:]
     isUnlocked = false
     errorMessage = nil
+  }
+
+  /// Returns one attachment payload by position; the pool is already resident
+  /// after the eager parse, so this never re-reads the file.
+  func attachmentData(for entryID: UUID, index: Int) -> Data? {
+    guard let payloads = attachmentDataByID[entryID],
+      payloads.indices.contains(index)
+    else { return nil }
+    return payloads[index]
   }
 
   /// Returns one field only when the detail view asks for it. The store never
@@ -151,11 +169,16 @@ final class VaultStore {
 private struct VaultProjection {
   let entries: [VaultEntry]
   let entryStringsByID: [UUID: [KDBX.ProtectedString]]
+  let attachmentDataByID: [UUID: [Data]]
 }
 
-private func makeVaultProjection(from database: KDBX) -> VaultProjection {
+private func makeVaultProjection(
+  from database: KDBX,
+  binaryPool: [InnerHeader.BinaryContent]
+) -> VaultProjection {
   var result: [VaultEntry] = []
   var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
+  var attachmentDataByID: [UUID: [Data]] = [:]
   var customIconsByID: [UUID: Data] = [:]
   for customIcon in database.meta.customIcons {
     customIconsByID[customIcon.uuid] = customIcon.data
@@ -209,6 +232,30 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
         .filter { key in !typedKeyPrefixes.contains { key.lowercased().hasPrefix($0) } }
         .map { VaultField(name: $0, isProtected: protectedNames.contains($0)) }
 
+      var attachments: [VaultAttachment] = []
+      var attachmentData: [Data] = []
+      for binary in entry.binaries {
+        let data: Data
+        switch binary.value {
+        case .inline(let inlineData, _):
+          data = inlineData
+        case .ref(let poolIndex):
+          guard Int(poolIndex) < binaryPool.count else { continue }
+          data = binaryPool[Int(poolIndex)].data
+        }
+        attachments.append(
+          VaultAttachment(
+            index: attachmentData.count,
+            name: binary.key,
+            byteCount: data.count
+          )
+        )
+        attachmentData.append(data)
+      }
+      if !attachmentData.isEmpty {
+        attachmentDataByID[entry.uuid] = attachmentData
+      }
+
       result.append(
         VaultEntry(
           id: entry.uuid,
@@ -231,6 +278,7 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
           hasNotes: hasNotes,
           fields: fieldNames,
           typedFields: typedFields,
+          attachments: attachments,
           tags: entry.tags
         )
       )
@@ -250,7 +298,11 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
   let entries = result.sorted {
     $0.displayTitle.localizedCaseInsensitiveCompare($1.displayTitle) == .orderedAscending
   }
-  return VaultProjection(entries: entries, entryStringsByID: entryStringsByID)
+  return VaultProjection(
+    entries: entries,
+    entryStringsByID: entryStringsByID,
+    attachmentDataByID: attachmentDataByID
+  )
 }
 
 private func unprotectedValue(

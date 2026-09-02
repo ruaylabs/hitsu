@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -571,6 +572,11 @@ private struct EntryRow: View {
               .font(.caption)
               .foregroundStyle(.secondary)
           }
+          if !entry.attachments.isEmpty {
+            Image(systemName: "paperclip")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
         Text(entry.secondaryText)
           .font(.subheadline)
@@ -647,6 +653,8 @@ private struct EntryDetailView: View {
 
   @State private var revealedFields: [String: String] = [:]
   @State private var copiedPassword = false
+  @State private var previewRequest: AttachmentPreviewRequest?
+  @State private var previewTempDirectory: URL?
 
   private static let clipboardLifetime: TimeInterval = 30
 
@@ -742,6 +750,31 @@ private struct EntryDetailView: View {
           }
         }
 
+        if !entry.attachments.isEmpty {
+          DetailSection(title: "Attachments", systemImage: "paperclip", tint: .gray) {
+            VStack(alignment: .leading, spacing: 12) {
+              ForEach(entry.attachments) { attachment in
+                Button {
+                  openAttachment(attachment)
+                } label: {
+                  HStack {
+                    Text(attachment.name)
+                      .lineLimit(1)
+                    Spacer()
+                    Text(formatAttachmentSize(attachment.byteCount))
+                      .font(.footnote)
+                      .foregroundStyle(.secondary)
+                    Image(systemName: "eye")
+                      .font(.footnote)
+                      .foregroundStyle(.secondary)
+                  }
+                }
+                .buttonStyle(.plain)
+              }
+            }
+          }
+        }
+
         if !entry.fields.isEmpty {
           DetailSection(title: "Fields", systemImage: "square.grid.2x2", tint: .indigo) {
             VStack(alignment: .leading, spacing: 12) {
@@ -789,7 +822,40 @@ private struct EntryDetailView: View {
     .onDisappear {
       revealedFields.removeAll()
       copiedPassword = false
+      cleanupPreview()
     }
+    .sheet(item: $previewRequest, onDismiss: { cleanupPreview() }) { request in
+      AttachmentPreview(url: request.url)
+    }
+  }
+
+  private func openAttachment(_ attachment: VaultAttachment) {
+    guard previewRequest == nil,
+      let data = store.attachmentData(for: entry.id, index: attachment.index)
+    else { return }
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let safeName =
+      attachment.name.isEmpty
+      ? "attachment"
+      : attachment.name.replacingOccurrences(of: "/", with: "_")
+    let url = directory.appendingPathComponent(safeName)
+    do {
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try data.write(to: url)
+    } catch {
+      try? FileManager.default.removeItem(at: directory)
+      return
+    }
+    previewTempDirectory = directory
+    previewRequest = AttachmentPreviewRequest(url: url)
+  }
+
+  private func cleanupPreview() {
+    guard let directory = previewTempDirectory else { return }
+    previewTempDirectory = nil
+    try? FileManager.default.removeItem(at: directory)
   }
 
   private var typedSectionTitle: String {
@@ -925,6 +991,50 @@ private struct TOTPView: View {
     Task { @MainActor in
       try? await Task.sleep(for: .seconds(2))
       copiedCode = false
+    }
+  }
+}
+
+private struct AttachmentPreviewRequest: Identifiable {
+  let id = UUID()
+  let url: URL
+}
+
+/// Single-item QuickLook preview over a temp-file copy of the attachment.
+private struct AttachmentPreview: UIViewControllerRepresentable {
+  let url: URL
+
+  func makeUIViewController(context: Context) -> QLPreviewController {
+    let controller = QLPreviewController()
+    controller.dataSource = context.coordinator
+    return controller
+  }
+
+  func updateUIViewController(_ controller: QLPreviewController, context: Context) {
+    context.coordinator.url = url
+    controller.reloadData()
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(url: url)
+  }
+
+  final class Coordinator: NSObject, QLPreviewControllerDataSource {
+    var url: URL
+
+    init(url: URL) {
+      self.url = url
+    }
+
+    func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+      1
+    }
+
+    func previewController(
+      _ controller: QLPreviewController,
+      previewItemAt index: Int
+    ) -> QLPreviewItem {
+      url as NSURL
     }
   }
 }
