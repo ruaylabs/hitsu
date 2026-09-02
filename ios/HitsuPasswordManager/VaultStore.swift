@@ -188,6 +188,8 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
         currentKey: "hitsu.favorite",
         legacyKey: "kagi.favorite"
       )
+      let category = VaultEntryCategory(databaseValue: categoryValue)
+      let typedFields = makeTypedFields(for: category, entry: entry, protectedNames: protectedNames)
       let hasPassword =
         entry.strings.first(where: { $0.key == "Password" })?.value
         .withRevealedString { !$0.isEmpty } ?? false
@@ -200,9 +202,11 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
       let hiddenFieldNames = Set([
         "title", "username", "url", "password", "notes", "otp", "totp seed", "totp settings",
       ])
+      let typedKeyPrefixes = ["card.", "identity.", "license.", "passport.", "pgp."]
       let fieldNames = entry.strings
         .map(\.key)
         .filter { !hiddenFieldNames.contains($0.lowercased()) }
+        .filter { key in !typedKeyPrefixes.contains { key.lowercased().hasPrefix($0) } }
         .map { VaultField(name: $0, isProtected: protectedNames.contains($0)) }
 
       result.append(
@@ -220,12 +224,13 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
           isURLProtected: protectedNames.contains("URL"),
           isNotesProtected: protectedNames.contains("Notes"),
           groupPath: path,
-          category: VaultEntryCategory(databaseValue: categoryValue),
+          category: category,
           isFavorite: favoriteValue == "true",
           hasPassword: hasPassword,
           hasTOTP: hasTOTP,
           hasNotes: hasNotes,
           fields: fieldNames,
+          typedFields: typedFields,
           tags: entry.tags
         )
       )
@@ -255,6 +260,102 @@ private func unprotectedValue(
 ) -> String? {
   guard !protectedNames.contains(name) else { return nil }
   return entry.strings.first(where: { $0.key == name })?.value.revealedString
+}
+
+/// Category-specific detail rows mirroring the desktop app's typed layouts.
+/// Secret rows are always reveal-gated; unprotected rows resolve their value
+/// on demand from `entryStringsByID`.
+func makeTypedFields(
+  for category: VaultEntryCategory,
+  entry: KDBX.Entry,
+  protectedNames: Set<String>
+) -> [VaultTypedField] {
+  func field(_ label: String, _ key: String, secret: Bool = false) -> VaultTypedField? {
+    guard entry.strings.contains(where: { $0.key == key }) else { return nil }
+    return VaultTypedField(
+      label: label,
+      field: key,
+      isProtected: secret || protectedNames.contains(key),
+      displayValue: nil
+    )
+  }
+  func display(_ label: String, _ value: String) -> VaultTypedField {
+    VaultTypedField(label: label, field: nil, isProtected: false, displayValue: value)
+  }
+
+  switch category {
+  case .card:
+    var fields = [
+      field("Type", "card.type"),
+      field("Holder", "card.holder"),
+      field("Number", "card.number", secret: true),
+    ].compactMap { $0 }
+    let month =
+      unprotectedValue(in: entry, named: "card.expMonth", protectedNames: protectedNames) ?? ""
+    let year =
+      unprotectedValue(in: entry, named: "card.expYear", protectedNames: protectedNames) ?? ""
+    if !month.isEmpty || !year.isEmpty {
+      let monthPart = month.count == 1 ? "0" + month : month
+      let value = [monthPart, year].filter { !$0.isEmpty }.joined(separator: "/")
+      fields.append(display("Expires", value))
+    }
+    fields += [
+      field("CVV", "card.cvv", secret: true),
+      field("PIN", "card.pin", secret: true),
+    ].compactMap { $0 }
+    return fields
+  case .identity:
+    return [
+      field("First name", "identity.firstName"),
+      field("Last name", "identity.lastName"),
+      field("Email", "identity.email"),
+      field("Phone", "identity.phone"),
+      field("Address", "identity.address"),
+      field("Date of birth", "identity.dob"),
+    ].compactMap { $0 }
+  case .softwareLicense:
+    return [
+      field("Version", "license.version"),
+      field("License key", "license.key", secret: true),
+      field("Licensed to", "license.licensedTo"),
+      field("Registered email", "license.registeredEmail"),
+      field("Company", "license.company"),
+      field("Download page", "license.downloadPage"),
+      field("Publisher", "license.publisher"),
+      field("Website", "license.website"),
+      field("Retail price", "license.retailPrice"),
+      field("Support email", "license.supportEmail"),
+      field("Purchase date", "license.purchaseDate"),
+      field("Order number", "license.orderNumber"),
+      field("Order total", "license.orderTotal"),
+    ].compactMap { $0 }
+  case .passport:
+    return [
+      field("Type", "passport.type"),
+      field("Issuing country", "passport.issuingCountry"),
+      field("Number", "passport.number", secret: true),
+      field("Full name", "passport.fullName"),
+      field("Sex", "passport.sex"),
+      field("Nationality", "passport.nationality"),
+      field("Issuing authority", "passport.issuingAuthority"),
+      field("Date of birth", "passport.birthDate"),
+      field("Place of birth", "passport.birthPlace"),
+      field("Issued on", "passport.issueDate"),
+      field("Expiry date", "passport.expiryDate"),
+    ].compactMap { $0 }
+  case .pgpKey:
+    return [
+      field("Fingerprint", "pgp.fingerprint"),
+      field("Key ID", "pgp.keyId"),
+      field("User IDs", "pgp.userIds"),
+      field("Algorithm", "pgp.algorithm"),
+      field("Expires", "pgp.expiresAt"),
+      field("Public key", "pgp.publicKey"),
+      field("Private key", "pgp.privateKey", secret: true),
+    ].compactMap { $0 }
+  case .login, .password, .note:
+    return []
+  }
 }
 
 private func customDataValue(

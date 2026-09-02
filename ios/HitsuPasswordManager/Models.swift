@@ -62,6 +62,22 @@ struct VaultField: Identifiable, Hashable, Sendable {
   var id: String { name }
 }
 
+/// One row in a category-specific detail section (card, identity, passport,
+/// license, PGP key). Mirrors the desktop app's typed detail layouts: values
+/// are looked up on demand from the vault store, and secret rows (card number,
+/// CVV, PIN, license key, passport number, PGP private key) always require an
+/// explicit reveal, matching the desktop's masked-by-default behavior.
+struct VaultTypedField: Identifiable, Hashable, Sendable {
+  let label: String
+  /// KDBX key backing the row; nil when `displayValue` carries the value.
+  let field: String?
+  let isProtected: Bool
+  /// Pre-rendered value for composite rows (e.g. card expiry "03/2027").
+  let displayValue: String?
+
+  var id: String { field ?? label }
+}
+
 struct VaultEntryIcon: Hashable, Sendable {
   let standardID: UInt32
   let customData: Data?
@@ -84,6 +100,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let hasTOTP: Bool
   let hasNotes: Bool
   let fields: [VaultField]
+  let typedFields: [VaultTypedField]
   let tags: [String]
 
   var displayTitle: String {

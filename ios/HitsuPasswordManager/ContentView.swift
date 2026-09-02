@@ -676,6 +676,20 @@ private struct EntryDetailView: View {
         }
         .padding(.top, 4)
 
+        if !entry.typedFields.isEmpty {
+          DetailSection(
+            title: typedSectionTitle,
+            systemImage: entry.category.symbolName,
+            tint: entry.category.tint
+          ) {
+            VStack(alignment: .leading, spacing: 12) {
+              ForEach(entry.typedFields) { typed in
+                typedRow(typed)
+              }
+            }
+          }
+        }
+
         if hasAccountInfo {
           DetailSection(
             title: "Account",
@@ -775,6 +789,30 @@ private struct EntryDetailView: View {
     .onDisappear {
       revealedFields.removeAll()
       copiedPassword = false
+    }
+  }
+
+  private var typedSectionTitle: String {
+    switch entry.category {
+    case .card: "Card"
+    case .identity: "Identity"
+    case .softwareLicense: "License"
+    case .passport: "Passport"
+    case .pgpKey: "PGP Key"
+    case .login, .password, .note: "Details"
+    }
+  }
+
+  @ViewBuilder
+  private func typedRow(_ typed: VaultTypedField) -> some View {
+    if let displayValue = typed.displayValue {
+      DetailRow(label: typed.label, value: displayValue)
+    } else if let field = typed.field {
+      if typed.isProtected {
+        protectedRow(label: typed.label, field: field)
+      } else {
+        DetailRow(label: typed.label, value: store.value(for: entry.id, field: field) ?? "")
+      }
     }
   }
 
