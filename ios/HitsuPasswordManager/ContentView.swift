@@ -548,6 +548,9 @@ private struct EntryDetailView: View {
   let store: VaultStore
 
   @State private var revealedFields: [String: String] = [:]
+  @State private var copiedPassword = false
+
+  private static let clipboardLifetime: TimeInterval = 30
 
   var body: some View {
     ScrollView {
@@ -577,7 +580,16 @@ private struct EntryDetailView: View {
         }
 
         if entry.hasPassword {
-          protectedRow(label: "Password", field: "Password")
+          VStack(alignment: .leading, spacing: 10) {
+            protectedRow(label: "Password", field: "Password")
+            Button(action: copyPassword) {
+              Label(
+                copiedPassword ? "Copied — clears in 30 seconds" : "Copy password",
+                systemImage: copiedPassword ? "checkmark" : "doc.on.doc"
+              )
+            }
+            .buttonStyle(.bordered)
+          }
         }
 
         ForEach(entry.fields) { field in
@@ -612,7 +624,10 @@ private struct EntryDetailView: View {
     .navigationTitle("Details")
     .navigationBarTitleDisplayMode(.inline)
     .textSelection(.enabled)
-    .onDisappear { revealedFields.removeAll() }
+    .onDisappear {
+      revealedFields.removeAll()
+      copiedPassword = false
+    }
   }
 
   @ViewBuilder
@@ -631,6 +646,23 @@ private struct EntryDetailView: View {
   private func reveal(_ field: String) {
     guard let value = store.value(for: entry.id, field: field) else { return }
     revealedFields[field] = value
+  }
+
+  private func copyPassword() {
+    guard let password = store.value(for: entry.id, field: "Password") else { return }
+    UIPasteboard.general.setItems(
+      [[UTType.utf8PlainText.identifier: password]],
+      options: [
+        .localOnly: true,
+        .expirationDate: Date().addingTimeInterval(Self.clipboardLifetime),
+      ]
+    )
+    copiedPassword = true
+
+    Task { @MainActor in
+      try? await Task.sleep(for: .seconds(2))
+      copiedPassword = false
+    }
   }
 }
 

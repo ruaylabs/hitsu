@@ -26,6 +26,7 @@ user-selected document flow.
   notes and fields on demand.
 - Passwords and protected custom fields are revealed only after tapping a
   reveal button.
+- Copied passwords stay on the local clipboard and expire after 30 seconds.
 - There are intentionally no save, edit, delete, import, or write-back paths.
 
 KDBXKit is BSD-2-Clause licensed. Review its license and dependency licenses
