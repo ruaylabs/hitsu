@@ -300,6 +300,7 @@ struct ContentView: View {
               CategoryEntriesView(
                 category: section.category,
                 store: store,
+                clipboard: clipboard,
                 initialSearchText: categoriesSearchText,
                 onLock: lockVault
               )
@@ -348,6 +349,7 @@ private struct CategorySection: Identifiable {
 private struct CategoryEntriesView: View {
   let category: VaultEntryCategory
   let store: VaultStore
+  let clipboard: ClipboardManager
   let onLock: () -> Void
 
   @State private var searchText: String
@@ -355,11 +357,13 @@ private struct CategoryEntriesView: View {
   init(
     category: VaultEntryCategory,
     store: VaultStore,
+    clipboard: ClipboardManager,
     initialSearchText: String,
     onLock: @escaping () -> Void
   ) {
     self.category = category
     self.store = store
+    self.clipboard = clipboard
     self.onLock = onLock
     _searchText = State(initialValue: initialSearchText)
   }
@@ -647,7 +651,8 @@ private struct EntryDetailView: View {
   private static let clipboardLifetime: TimeInterval = 30
 
   private var hasAccountInfo: Bool {
-    !entry.username.isEmpty || !entry.url.isEmpty || entry.hasNotes
+    !entry.username.isEmpty || entry.isUsernameProtected || !entry.url.isEmpty
+      || entry.isURLProtected || entry.hasNotes
   }
 
   var body: some View {
@@ -656,8 +661,12 @@ private struct EntryDetailView: View {
         HStack(alignment: .top, spacing: 14) {
           EntryIconView(icon: entry.icon, tint: entry.category.tint, size: 56)
           VStack(alignment: .leading, spacing: 6) {
-            Text(entry.displayTitle)
-              .font(.title2.bold())
+            if entry.isTitleProtected {
+              protectedRow(label: "Title", field: "Title")
+            } else {
+              Text(entry.displayTitle)
+                .font(.title2.bold())
+            }
             if !entry.groupPath.isEmpty {
               Label(entry.groupPath, systemImage: "folder")
                 .font(.subheadline)
@@ -674,13 +683,25 @@ private struct EntryDetailView: View {
             tint: entry.category.tint
           ) {
             VStack(alignment: .leading, spacing: 12) {
-              DetailRow(label: "Username", value: entry.username)
-              DetailRow(label: "URL", value: entry.url, isLink: true)
+              if entry.isUsernameProtected {
+                protectedRow(label: "Username", field: "UserName")
+              } else {
+                DetailRow(label: "Username", value: entry.username)
+              }
+              if entry.isURLProtected {
+                protectedRow(label: "URL", field: "URL")
+              } else {
+                DetailRow(label: "URL", value: entry.url, isLink: true)
+              }
               if entry.hasNotes {
-                DetailRow(
-                  label: "Notes",
-                  value: store.value(for: entry.id, field: "Notes") ?? ""
-                )
+                if entry.isNotesProtected {
+                  protectedRow(label: "Notes", field: "Notes")
+                } else {
+                  DetailRow(
+                    label: "Notes",
+                    value: store.value(for: entry.id, field: "Notes") ?? ""
+                  )
+                }
               }
             }
           }

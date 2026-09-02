@@ -140,9 +140,20 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
   func appendEntries(in group: KDBX.Group, path: String) {
     for entry in group.entries {
       entryStringsByID[entry.uuid] = entry.strings
-      let title = value(in: entry, named: "Title") ?? ""
-      let username = value(in: entry, named: "UserName") ?? ""
-      let url = value(in: entry, named: "URL") ?? ""
+      let protectedNames = Set(
+        entry.strings.compactMap { field in
+          switch field.value {
+          case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
+            return field.key
+          case .regular(_), .unprotected(_):
+            return nil
+          }
+        }
+      )
+      let title = unprotectedValue(in: entry, named: "Title", protectedNames: protectedNames) ?? ""
+      let username =
+        unprotectedValue(in: entry, named: "UserName", protectedNames: protectedNames) ?? ""
+      let url = unprotectedValue(in: entry, named: "URL", protectedNames: protectedNames) ?? ""
       let categoryValue = customDataValue(
         in: entry,
         currentKey: "hitsu.itemType",
@@ -162,16 +173,6 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
       let hasNotes =
         entry.strings.first(where: { $0.key == "Notes" })?.value
         .withRevealedString { !$0.isEmpty } ?? false
-      let protectedNames = Set(
-        entry.strings.compactMap { field in
-          switch field.value {
-          case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
-            return field.key
-          case .regular(_), .unprotected(_):
-            return nil
-          }
-        }
-      )
       let hiddenFieldNames = Set([
         "title", "username", "url", "password", "notes", "otp", "totp seed", "totp settings",
       ])
@@ -190,6 +191,10 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
           title: title,
           username: username,
           url: url,
+          isTitleProtected: protectedNames.contains("Title"),
+          isUsernameProtected: protectedNames.contains("UserName"),
+          isURLProtected: protectedNames.contains("URL"),
+          isNotesProtected: protectedNames.contains("Notes"),
           groupPath: path,
           category: VaultEntryCategory(databaseValue: categoryValue),
           isFavorite: favoriteValue == "true",
@@ -219,8 +224,13 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
   return VaultProjection(entries: entries, entryStringsByID: entryStringsByID)
 }
 
-private func value(in entry: KDBX.Entry, named name: String) -> String? {
-  entry.strings.first(where: { $0.key == name })?.value.revealedString
+private func unprotectedValue(
+  in entry: KDBX.Entry,
+  named name: String,
+  protectedNames: Set<String>
+) -> String? {
+  guard !protectedNames.contains(name) else { return nil }
+  return entry.strings.first(where: { $0.key == name })?.value.revealedString
 }
 
 private func customDataValue(

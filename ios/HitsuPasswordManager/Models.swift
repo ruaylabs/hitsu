@@ -73,6 +73,10 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let title: String
   let username: String
   let url: String
+  let isTitleProtected: Bool
+  let isUsernameProtected: Bool
+  let isURLProtected: Bool
+  let isNotesProtected: Bool
   let groupPath: String
   let category: VaultEntryCategory
   let isFavorite: Bool
@@ -83,11 +87,13 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let tags: [String]
 
   var displayTitle: String {
-    title.isEmpty ? "Untitled entry" : title
+    if isTitleProtected { return "Protected entry" }
+    return title.isEmpty ? "Untitled entry" : title
   }
 
   var secondaryText: String {
     if !username.isEmpty { return username }
+    if isUsernameProtected { return "Protected username" }
     if !groupPath.isEmpty { return groupPath }
     return "No username"
   }
@@ -96,7 +102,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
     let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !query.isEmpty else { return true }
     return displayTitle.localizedCaseInsensitiveContains(query)
-      || username.localizedCaseInsensitiveContains(query)
+      || (!isUsernameProtected && username.localizedCaseInsensitiveContains(query))
       || groupPath.localizedCaseInsensitiveContains(query)
       || category.title.localizedCaseInsensitiveContains(query)
       || tags.contains { $0.localizedCaseInsensitiveContains(query) }
