@@ -85,6 +85,52 @@ browser-extension-test-site:
 dev:
     pnpm dev
 
+# Format Swift sources (requires macOS and Xcode)
+format-swift:
+    xcrun swift-format format \
+        --configuration ios/.swift-format \
+        --in-place \
+        --recursive \
+        ios/HitsuPasswordManager \
+        ios/HitsuPasswordManagerTests
+
+# Check Swift formatting without changing files (requires macOS and Xcode)
+format-swift-check:
+    xcrun swift-format lint \
+        --configuration ios/.swift-format \
+        --strict \
+        --recursive \
+        ios/HitsuPasswordManager \
+        ios/HitsuPasswordManagerTests
+
+# List iOS project schemes and targets (requires macOS and Xcode)
+ios-list:
+    xcodebuild -project ios/HitsuPasswordManager.xcodeproj -list
+
+# Resolve the iOS Swift Package dependencies (requires macOS and Xcode)
+ios-resolve:
+    xcodebuild -project ios/HitsuPasswordManager.xcodeproj \
+        -scheme HitsuPasswordManager \
+        -resolvePackageDependencies
+
+# Build the iOS app for the simulator without code signing (requires macOS and Xcode)
+ios-build:
+    xcodebuild -project ios/HitsuPasswordManager.xcodeproj \
+        -scheme HitsuPasswordManager \
+        -sdk iphonesimulator \
+        -destination 'generic/platform=iOS Simulator' \
+        CODE_SIGNING_ALLOWED=NO \
+        build
+
+# Run the iOS unit tests in the simulator (requires macOS and Xcode)
+ios-test simulator="iPhone 17":
+    xcodebuild -project ios/HitsuPasswordManager.xcodeproj \
+        -scheme HitsuPasswordManager \
+        -sdk iphonesimulator \
+        -destination 'platform=iOS Simulator,name={{ simulator }},OS=latest' \
+        CODE_SIGNING_ALLOWED=NO \
+        test
+
 # Run Tauri dev
 tauri-dev:
     pnpm tauri dev

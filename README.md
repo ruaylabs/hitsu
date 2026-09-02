@@ -4,8 +4,11 @@ Native desktop password manager built with Svelte 5 + Tauri 2 + Rust.
 
 ## Supported platforms
 
-Hitsu officially supports macOS and Linux desktop systems only. Windows and mobile platforms are not
-currently supported. Release builds and CI target macOS and Linux.
+Hitsu officially supports macOS and Linux desktop systems. Release builds and CI target macOS and
+Linux.
+
+A minimal, read-only SwiftUI iOS reader for KeePass databases is available in [`ios/`](ios/). It
+opens `.kdbx` files selected from Files or iCloud Drive without writing them back.
 
 ## Installation
 

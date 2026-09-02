@@ -1,0 +1,240 @@
+import Foundation
+import KDBXKit
+import Observation
+
+private enum VaultOpenFailure: Error, Sendable {
+  case message(String)
+}
+
+@MainActor
+@Observable
+final class VaultStore {
+  private(set) var entries: [VaultEntry] = []
+  private(set) var isLoading = false
+  private(set) var isUnlocked = false
+  var errorMessage: String?
+
+  private var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
+
+  func clearError() {
+    errorMessage = nil
+  }
+
+  func showError(_ message: String) {
+    errorMessage = message
+  }
+
+  func open(url: URL, password: String) {
+    guard !password.isEmpty, !isLoading else { return }
+
+    isLoading = true
+    errorMessage = nil
+    let hasSecurityScope = url.startAccessingSecurityScopedResource()
+
+    Task { [weak self] in
+      let result = await Task.detached(priority: .userInitiated) {
+        do {
+          let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+          let unlockData = UnlockData(masterPassword: password)
+          return Result<KDBXContent, VaultOpenFailure>.success(
+            try KDBXReader.parse(data, unlockData: unlockData)
+          )
+        } catch let error as KDBXReader.Error {
+          return Result<KDBXContent, VaultOpenFailure>.failure(
+            .message(userMessage(for: error))
+          )
+        } catch {
+          return Result<KDBXContent, VaultOpenFailure>.failure(
+            .message("The selected file could not be read.")
+          )
+        }
+      }.value
+
+      if hasSecurityScope {
+        url.stopAccessingSecurityScopedResource()
+      }
+
+      guard let self else { return }
+      isLoading = false
+
+      switch result {
+      case .success(let content):
+        let projection = makeVaultProjection(from: content.database)
+        entries = projection.entries
+        entryStringsByID = projection.entryStringsByID
+        isUnlocked = true
+        errorMessage = nil
+      case .failure(.message(let message)):
+        entries = []
+        entryStringsByID = [:]
+        isUnlocked = false
+        errorMessage = message
+      }
+    }
+  }
+
+  func lock() {
+    entries = []
+    entryStringsByID = [:]
+    isUnlocked = false
+    errorMessage = nil
+  }
+
+  /// Returns one field only when the detail view asks for it. The store never
+  /// keeps a second copy of the revealed value.
+  func value(for entryID: UUID, field name: String) -> String? {
+    entryStringsByID[entryID]?
+      .first(where: { $0.key == name })?
+      .value.revealedString
+  }
+}
+
+private struct VaultProjection {
+  let entries: [VaultEntry]
+  let entryStringsByID: [UUID: [KDBX.ProtectedString]]
+}
+
+private func makeVaultProjection(from database: KDBX) -> VaultProjection {
+  var result: [VaultEntry] = []
+  var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
+
+  func appendEntries(in group: KDBX.Group, path: String) {
+    for entry in group.entries {
+      entryStringsByID[entry.uuid] = entry.strings
+      let title = value(in: entry, named: "Title") ?? ""
+      let username = value(in: entry, named: "UserName") ?? ""
+      let url = value(in: entry, named: "URL") ?? ""
+      let categoryValue = customDataValue(
+        in: entry,
+        currentKey: "hitsu.itemType",
+        legacyKey: "kagi.itemType"
+      )
+      let favoriteValue = customDataValue(
+        in: entry,
+        currentKey: "hitsu.favorite",
+        legacyKey: "kagi.favorite"
+      )
+      let hasPassword =
+        entry.strings.first(where: { $0.key == "Password" })?.value
+        .withRevealedString { !$0.isEmpty } ?? false
+      let hasNotes =
+        entry.strings.first(where: { $0.key == "Notes" })?.value
+        .withRevealedString { !$0.isEmpty } ?? false
+      let protectedNames = Set(
+        entry.strings.compactMap { field in
+          switch field.value {
+          case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
+            return field.key
+          case .regular(_), .unprotected(_):
+            return nil
+          }
+        }
+      )
+      let fieldNames = entry.strings
+        .map(\.key)
+        .filter { !["Title", "UserName", "URL", "Password", "Notes"].contains($0) }
+        .map { VaultField(name: $0, isProtected: protectedNames.contains($0)) }
+
+      result.append(
+        VaultEntry(
+          id: entry.uuid,
+          title: title,
+          username: username,
+          url: url,
+          groupPath: path,
+          category: VaultEntryCategory(databaseValue: categoryValue),
+          isFavorite: favoriteValue == "true",
+          hasPassword: hasPassword,
+          hasNotes: hasNotes,
+          fields: fieldNames,
+          tags: entry.tags
+        )
+      )
+    }
+
+    for child in group.groups {
+      let childName = child.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let nextPath = [path, childName].compactMap { value in
+        guard let value, !value.isEmpty else { return nil }
+        return value
+      }.joined(separator: " / ")
+      appendEntries(in: child, path: nextPath)
+    }
+  }
+
+  appendEntries(in: database.root.group, path: "")
+  let entries = result.sorted {
+    $0.displayTitle.localizedCaseInsensitiveCompare($1.displayTitle) == .orderedAscending
+  }
+  return VaultProjection(entries: entries, entryStringsByID: entryStringsByID)
+}
+
+private func value(in entry: KDBX.Entry, named name: String) -> String? {
+  entry.strings.first(where: { $0.key == name })?.value.revealedString
+}
+
+private func customDataValue(
+  in entry: KDBX.Entry,
+  currentKey: String,
+  legacyKey: String
+) -> String? {
+  let currentValue = entry.customData.first(where: { $0.key == currentKey })?.value
+  let legacyValue = entry.customData.first(where: { $0.key == legacyKey })?.value
+  return resolvedHitsuMetadataValue(currentValue: currentValue, legacyValue: legacyValue)
+}
+
+func resolvedHitsuMetadataValue(currentValue: String?, legacyValue: String?) -> String? {
+  guard let storedValue = currentValue ?? legacyValue else { return nil }
+  guard let data = Data(base64Encoded: storedValue),
+    let decodedValue = String(data: data, encoding: .utf8)
+  else {
+    return storedValue
+  }
+  return decodedValue
+}
+
+private func userMessage(for error: KDBXReader.Error) -> String {
+  if case .wrongCredentials = error {
+    return "That password did not unlock this database."
+  }
+  if case .invalidFileSignature = error {
+    return "This is not a KeePass .kdbx database."
+  }
+  if case .unsupportedFormatVersion = error {
+    return "This KeePass database format is not supported."
+  }
+  if case .unsupportedEncryption(let cipher) = error {
+    return "This database uses an unsupported encryption method (\(cipher.uuidString))."
+  }
+  if case .unsupportedCompression(let compression) = error {
+    return "This database uses an unsupported compression method (\(compression))."
+  }
+  if case .unsupportedKDF(let kdf) = error {
+    return "This database uses an unsupported key derivation method (\(kdf.uuidString))."
+  }
+  if case .kdfParametersOutOfRange = error {
+    return "This database uses settings that are too expensive for this device."
+  }
+  if case .corruptedHeaderDigest = error {
+    return "The database header is corrupted."
+  }
+  if case .corruptedHeader(let reason) = error {
+    return "The database header is invalid: \(reason)"
+  }
+  if case .corruptedHMAC(let reason) = error {
+    return "The database integrity check failed: \(reason)"
+  }
+  if case .corruptedInnerHeader(let reason) = error {
+    return "The encrypted database header is invalid: \(reason)"
+  }
+  if case .corruptedXML(let reason) = error {
+    return "The database contents are invalid: \(reason)"
+  }
+  if case .decompressedPayloadTooLarge(let limit) = error {
+    return "The database is too large to open (limit: \(limit) bytes)."
+  }
+  if case .unexpectedEOF = error {
+    return "The database file is incomplete."
+  }
+  return "The database is damaged or could not be opened."
+}

@@ -1,0 +1,550 @@
+import SwiftUI
+import UniformTypeIdentifiers
+
+struct ContentView: View {
+  @State private var store = VaultStore()
+  @State private var showingImporter = false
+  @State private var pendingURL: URL?
+  @State private var favoritesSearchText = ""
+  @State private var categoriesSearchText = ""
+  @State private var favoriteSelectedID: UUID?
+  @State private var restoredLastVault = false
+  @State private var hasSavedVault = false
+
+  private let lastVaultBookmarkKey = "lastVaultBookmark"
+
+  private var favoriteEntries: [VaultEntry] {
+    store.entries.filter { $0.isFavorite && $0.matchesSearch(favoritesSearchText) }
+  }
+
+  private var categorySections: [CategorySection] {
+    let entries = store.entries.filter { $0.matchesSearch(categoriesSearchText) }
+    return VaultEntryCategory.allCases.compactMap { category in
+      let categoryEntries = entries.filter { $0.category == category }
+      guard !categoryEntries.isEmpty else { return nil }
+      return CategorySection(category: category, entries: categoryEntries)
+    }
+  }
+
+  var body: some View {
+    ZStack {
+      Color(.systemBackground)
+        .ignoresSafeArea()
+
+      Group {
+        if store.isUnlocked {
+          vaultView
+        } else {
+          welcomeView
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .onOpenURL { url in
+      guard url.pathExtension.lowercased() == "kdbx" else {
+        store.showError("Please choose a KeePass .kdbx database.")
+        return
+      }
+      rememberLastVault(url)
+      pendingURL = url
+      store.clearError()
+    }
+    .fileImporter(
+      isPresented: $showingImporter,
+      allowedContentTypes: [UTType(filenameExtension: "kdbx") ?? .data],
+      allowsMultipleSelection: false
+    ) { result in
+      switch result {
+      case .success(let urls):
+        if let url = urls.first {
+          rememberLastVault(url)
+        }
+        pendingURL = urls.first
+        store.clearError()
+      case .failure(let error):
+        store.showError(error.localizedDescription)
+      }
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { pendingURL != nil },
+        set: { presented in
+          if !presented { pendingURL = nil }
+        }
+      )
+    ) {
+      if let url = pendingURL {
+        PasswordSheet(fileName: url.lastPathComponent) { password in
+          pendingURL = nil
+          store.open(url: url, password: password)
+        } onCancel: {
+          pendingURL = nil
+        }
+      }
+    }
+    .task {
+      restoreLastVault()
+    }
+  }
+
+  private func rememberLastVault(_ url: URL) {
+    do {
+      let bookmark = try url.bookmarkData(
+        options: [.minimalBookmark],
+        includingResourceValuesForKeys: nil,
+        relativeTo: nil
+      )
+      UserDefaults.standard.set(bookmark, forKey: lastVaultBookmarkKey)
+      hasSavedVault = true
+    } catch {
+      // The current open still works; remembering the URL is only a convenience.
+    }
+  }
+
+  private func restoreLastVault() {
+    guard !restoredLastVault else { return }
+    restoredLastVault = true
+    openLastVault()
+  }
+
+  private func openLastVault() {
+    guard pendingURL == nil, !store.isUnlocked,
+      let bookmark = UserDefaults.standard.data(forKey: lastVaultBookmarkKey)
+    else {
+      hasSavedVault = UserDefaults.standard.data(forKey: lastVaultBookmarkKey) != nil
+      return
+    }
+
+    do {
+      var isStale = false
+      let url = try URL(
+        resolvingBookmarkData: bookmark,
+        options: [],
+        relativeTo: nil,
+        bookmarkDataIsStale: &isStale
+      )
+      if isStale {
+        rememberLastVault(url)
+      }
+      hasSavedVault = true
+      pendingURL = url
+    } catch {
+      UserDefaults.standard.removeObject(forKey: lastVaultBookmarkKey)
+      hasSavedVault = false
+      store.showError("The last database is no longer available. Choose it again from Files.")
+    }
+  }
+
+  private var welcomeView: some View {
+    VStack(spacing: 20) {
+      Image(systemName: "lock.shield.fill")
+        .font(.system(size: 52))
+        .foregroundStyle(.tint)
+
+      VStack(spacing: 8) {
+        Text("Hitsu\nPassword\nManager")
+          .font(.largeTitle.bold())
+          .multilineTextAlignment(.center)
+        Text("Read a KeePass database without changing it.")
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
+      }
+
+      if hasSavedVault {
+        Button {
+          store.clearError()
+          openLastVault()
+        } label: {
+          Label("Unlock Last Vault", systemImage: "lock.open")
+            .frame(maxWidth: 280)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(store.isLoading)
+      }
+
+      Button {
+        showingImporter = true
+      } label: {
+        Label("Open from Files or iCloud Drive", systemImage: "folder")
+          .frame(maxWidth: 280)
+      }
+      .buttonStyle(.bordered)
+      .disabled(store.isLoading)
+
+      if store.isLoading {
+        ProgressView("Unlocking…")
+      }
+      if let errorMessage = store.errorMessage {
+        Text(errorMessage)
+          .font(.footnote)
+          .foregroundStyle(.red)
+          .multilineTextAlignment(.center)
+          .padding(.horizontal)
+      }
+    }
+    .padding(28)
+  }
+
+  private var vaultView: some View {
+    TabView {
+      favoritesView
+        .tabItem {
+          Label("Favorites", systemImage: "star.fill")
+        }
+
+      categoriesView
+        .tabItem {
+          Label("Categories", systemImage: "square.grid.2x2.fill")
+        }
+    }
+  }
+
+  private var favoritesView: some View {
+    NavigationSplitView {
+      List(selection: $favoriteSelectedID) {
+        if favoriteEntries.isEmpty {
+          ContentUnavailableView(
+            favoritesSearchText.isEmpty ? "No favorites" : "No results",
+            systemImage: favoritesSearchText.isEmpty ? "star" : "magnifyingglass"
+          )
+        } else {
+          ForEach(favoriteEntries) { entry in
+            EntryRow(entry: entry)
+              .tag(entry.id)
+          }
+        }
+      }
+      .navigationTitle("Favorites")
+      .searchable(text: $favoritesSearchText, prompt: "Search favorites")
+      .toolbar {
+        LockToolbar(action: lockVault)
+      }
+    } detail: {
+      if let favoriteSelectedID,
+        let selected = store.entries.first(where: { $0.id == favoriteSelectedID })
+      {
+        EntryDetailView(entry: selected, store: store)
+          .id(selected.id)
+      } else {
+        ContentUnavailableView(
+          "Select a favorite",
+          systemImage: "star",
+          description: Text("Choose a favorite to view its details.")
+        )
+      }
+    }
+  }
+
+  private var categoriesView: some View {
+    NavigationStack {
+      List {
+        if categorySections.isEmpty {
+          ContentUnavailableView(
+            categoriesSearchText.isEmpty ? "No categories" : "No results",
+            systemImage: categoriesSearchText.isEmpty
+              ? "square.grid.2x2"
+              : "magnifyingglass"
+          )
+        } else {
+          ForEach(categorySections) { section in
+            NavigationLink {
+              CategoryEntriesView(
+                category: section.category,
+                store: store,
+                initialSearchText: categoriesSearchText,
+                onLock: lockVault
+              )
+            } label: {
+              HStack {
+                Text(section.category.title)
+                Spacer()
+                Text(section.entries.count, format: .number)
+                  .foregroundStyle(.secondary)
+              }
+            }
+          }
+        }
+      }
+      .navigationTitle("Categories")
+      .searchable(text: $categoriesSearchText, prompt: "Search categories")
+      .toolbar {
+        LockToolbar(action: lockVault)
+      }
+    }
+  }
+
+  private func lockVault() {
+    favoriteSelectedID = nil
+    favoritesSearchText = ""
+    categoriesSearchText = ""
+    store.lock()
+  }
+}
+
+private struct CategorySection: Identifiable {
+  let category: VaultEntryCategory
+  let entries: [VaultEntry]
+
+  var id: VaultEntryCategory { category }
+}
+
+private struct CategoryEntriesView: View {
+  let category: VaultEntryCategory
+  let store: VaultStore
+  let onLock: () -> Void
+
+  @State private var searchText: String
+
+  init(
+    category: VaultEntryCategory,
+    store: VaultStore,
+    initialSearchText: String,
+    onLock: @escaping () -> Void
+  ) {
+    self.category = category
+    self.store = store
+    self.onLock = onLock
+    _searchText = State(initialValue: initialSearchText)
+  }
+
+  private var entries: [VaultEntry] {
+    store.entries.filter { entry in
+      entry.category == category && entry.matchesSearch(searchText)
+    }
+  }
+
+  var body: some View {
+    List {
+      if entries.isEmpty {
+        ContentUnavailableView(
+          searchText.isEmpty ? "No entries" : "No results",
+          systemImage: searchText.isEmpty ? "list.bullet.rectangle" : "magnifyingglass"
+        )
+      } else {
+        ForEach(entries) { entry in
+          NavigationLink {
+            EntryDetailView(entry: entry, store: store)
+              .id(entry.id)
+          } label: {
+            EntryRow(entry: entry)
+          }
+        }
+      }
+    }
+    .navigationTitle(category.title)
+    .searchable(text: $searchText, prompt: "Search \(category.title.lowercased())")
+    .toolbar {
+      LockToolbar(action: onLock)
+    }
+  }
+}
+
+private struct LockToolbar: ToolbarContent {
+  let action: () -> Void
+
+  var body: some ToolbarContent {
+    ToolbarItem(placement: .topBarTrailing) {
+      Button("Lock", systemImage: "lock", action: action)
+    }
+  }
+}
+
+private struct EntryRow: View {
+  let entry: VaultEntry
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack {
+        Text(entry.displayTitle)
+          .font(.body.weight(.medium))
+        Spacer()
+        if entry.isFavorite {
+          Image(systemName: "star.fill")
+            .font(.caption)
+            .foregroundStyle(.yellow)
+        }
+        if entry.hasPassword {
+          Image(systemName: "key.fill")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+      Text(entry.secondaryText)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+      if !entry.groupPath.isEmpty {
+        Text(entry.groupPath)
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+      }
+    }
+    .padding(.vertical, 3)
+  }
+}
+
+private struct PasswordSheet: View {
+  let fileName: String
+  let onUnlock: (String) -> Void
+  let onCancel: () -> Void
+
+  @Environment(\.dismiss) private var dismiss
+  @FocusState private var passwordIsFocused: Bool
+  @State private var password = ""
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          SecureField("Master password", text: $password)
+            .focused($passwordIsFocused)
+            .submitLabel(.continue)
+            .onSubmit(unlock)
+        } header: {
+          Text(fileName)
+            .textCase(nil)
+        } footer: {
+          Text("The file is opened read-only. It is never written back.")
+        }
+      }
+      .navigationTitle("Unlock database")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") {
+            onCancel()
+            dismiss()
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Unlock", action: unlock)
+            .disabled(password.isEmpty)
+        }
+      }
+    }
+    .presentationDetents([.medium])
+    .onAppear { passwordIsFocused = true }
+  }
+
+  private func unlock() {
+    guard !password.isEmpty else { return }
+    let value = password
+    password = ""
+    onUnlock(value)
+    dismiss()
+  }
+}
+
+private struct EntryDetailView: View {
+  let entry: VaultEntry
+  let store: VaultStore
+
+  @State private var revealedFields: [String: String] = [:]
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 6) {
+          Text(entry.displayTitle)
+            .font(.largeTitle.bold())
+          if !entry.groupPath.isEmpty {
+            Label(entry.groupPath, systemImage: "folder")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+        }
+
+        Group {
+          DetailRow(label: "Username", value: entry.username)
+          DetailRow(label: "URL", value: entry.url, isLink: true)
+          if entry.hasNotes {
+            DetailRow(
+              label: "Notes",
+              value: store.value(for: entry.id, field: "Notes") ?? ""
+            )
+          }
+        }
+
+        if entry.hasPassword {
+          protectedRow(label: "Password", field: "Password")
+        }
+
+        ForEach(entry.fields) { field in
+          if let value = revealedFields[field.name] {
+            DetailRow(label: field.name, value: value)
+          } else if field.isProtected {
+            Button {
+              reveal(field.name)
+            } label: {
+              Label("Reveal \(field.name)", systemImage: "eye")
+            }
+          } else {
+            DetailRow(
+              label: field.name,
+              value: store.value(for: entry.id, field: field.name) ?? ""
+            )
+          }
+        }
+
+        if !entry.tags.isEmpty {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Tags")
+              .font(.headline)
+            Text(entry.tags.joined(separator: ", "))
+              .foregroundStyle(.secondary)
+          }
+        }
+      }
+      .frame(maxWidth: 680, alignment: .leading)
+      .padding()
+    }
+    .navigationTitle("Details")
+    .navigationBarTitleDisplayMode(.inline)
+    .textSelection(.enabled)
+    .onDisappear { revealedFields.removeAll() }
+  }
+
+  @ViewBuilder
+  private func protectedRow(label: String, field: String) -> some View {
+    if let value = revealedFields[field] {
+      DetailRow(label: label, value: value)
+    } else {
+      Button {
+        reveal(field)
+      } label: {
+        Label("Reveal \(label)", systemImage: "eye")
+      }
+    }
+  }
+
+  private func reveal(_ field: String) {
+    guard let value = store.value(for: entry.id, field: field) else { return }
+    revealedFields[field] = value
+  }
+}
+
+private struct DetailRow: View {
+  let label: String
+  let value: String
+  var isLink = false
+
+  var body: some View {
+    if !value.isEmpty {
+      VStack(alignment: .leading, spacing: 5) {
+        Text(label)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+        if isLink, let url = URL(string: value) {
+          Link(value, destination: url)
+        } else {
+          Text(value)
+        }
+      }
+    }
+  }
+}
+
+#Preview {
+  ContentView()
+}

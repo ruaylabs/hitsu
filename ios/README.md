@@ -1,0 +1,32 @@
+# HitsuPasswordManager for iOS
+
+A minimal, read-only SwiftUI client for Hitsu/KeePass `.kdbx` databases.
+
+## Open it
+
+1. Open `HitsuPasswordManager.xcodeproj` in Xcode 16 or later.
+2. Select an iOS 18 simulator or device.
+3. For device builds, copy `Config/Signing.local.xcconfig.example` to
+   `Config/Signing.local.xcconfig` and replace `YOUR_TEAM_ID` with your Apple Developer team ID.
+4. Build and run.
+5. Tap **Open from Files or iCloud Drive**, choose a `.kdbx` file, and enter its
+   master password.
+
+The system Files picker provides access to iCloud Drive. The app requests a
+security-scoped read URL, reads the database, and never writes to that URL. No
+CloudKit container or app-specific iCloud entitlement is required for this
+user-selected document flow.
+
+## Scope
+
+- KDBX 4.0, 4.1, and 3.1 read support comes from
+  [KDBXKit](https://github.com/shadone/KDBXKit) `1.3.0` via Swift Package Manager.
+  The desktop Hitsu writer must emit standard KDBX output for stock KDBXKit compatibility.
+- The app lists entries, searches title/username/folder/tags, and displays
+  notes and fields on demand.
+- Passwords and protected custom fields are revealed only after tapping a
+  reveal button.
+- There are intentionally no save, edit, delete, import, or write-back paths.
+
+KDBXKit is BSD-2-Clause licensed. Review its license and dependency licenses
+before distributing the app.

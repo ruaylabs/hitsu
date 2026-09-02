@@ -1,0 +1,43 @@
+---
+name: iOS CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/ios.yml"
+      - "ios/**"
+      - "justfile"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project ios/HitsuPasswordManager.xcodeproj \
+            -scheme HitsuPasswordManager \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Run iOS unit tests
+        run: |
+          xcodebuild \
+            -project ios/HitsuPasswordManager.xcodeproj \
+            -scheme HitsuPasswordManager \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            test

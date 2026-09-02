@@ -10,3 +10,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /browser-extension/native-host/target
 /src-tauri/binaries
+**/xcuserdata/
+*.xcuserstate
+/ios/Config/Signing.local.xcconfig
