@@ -775,6 +775,30 @@ private struct EntryDetailView: View {
           }
         }
 
+        if !entry.history.isEmpty {
+          DetailSection(title: "History", systemImage: "clock.arrow.circlepath", tint: .blue) {
+            VStack(alignment: .leading, spacing: 8) {
+              ForEach(entry.history.reversed()) { item in
+                NavigationLink {
+                  HistoryVersionView(entry: entry, item: item, store: store)
+                } label: {
+                  HStack {
+                    Text("Version \(item.index + 1)")
+                      .font(.body.weight(.medium))
+                    Spacer()
+                    if let date = item.lastModified {
+                      Text(date, format: Date.FormatStyle(date: .abbreviated, time: .shortened))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
+                  }
+                }
+                .buttonStyle(.plain)
+              }
+            }
+          }
+        }
+
         if !entry.fields.isEmpty {
           DetailSection(title: "Fields", systemImage: "square.grid.2x2", tint: .indigo) {
             VStack(alignment: .leading, spacing: 12) {
@@ -1036,6 +1060,90 @@ private struct AttachmentPreview: UIViewControllerRepresentable {
     ) -> QLPreviewItem {
       url as NSURL
     }
+  }
+}
+
+/// Read-only snapshot of one prior entry version. Secrets follow the same
+/// reveal-on-demand flow as the live detail view.
+private struct HistoryVersionView: View {
+  let entry: VaultEntry
+  let item: VaultHistoryItem
+  let store: VaultStore
+
+  @State private var revealedFields: [String: String] = [:]
+
+  private struct StandardRow {
+    let label: String
+    let field: String
+    let alwaysProtected: Bool
+  }
+
+  private static let standardRows: [StandardRow] = [
+    StandardRow(label: "Title", field: "Title", alwaysProtected: false),
+    StandardRow(label: "Username", field: "UserName", alwaysProtected: false),
+    StandardRow(label: "URL", field: "URL", alwaysProtected: false),
+    StandardRow(label: "Password", field: "Password", alwaysProtected: true),
+    StandardRow(label: "Notes", field: "Notes", alwaysProtected: false),
+  ]
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        if let date = item.lastModified {
+          let formatted = date.formatted(date: .abbreviated, time: .shortened)
+          Text("Last modified \(formatted)")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+
+        DetailSection(title: "Fields", systemImage: "clock.arrow.circlepath", tint: .gray) {
+          VStack(alignment: .leading, spacing: 12) {
+            ForEach(Self.standardRows, id: \.field) { row in
+              versionRow(label: row.label, field: row.field, alwaysProtected: row.alwaysProtected)
+            }
+            ForEach(store.historyFieldNames(for: entry.id, index: item.index), id: \.self) {
+              name in
+              versionRow(label: name, field: name, alwaysProtected: false)
+            }
+          }
+        }
+      }
+      .frame(maxWidth: 680, alignment: .leading)
+      .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+    .navigationTitle("Version \(item.index + 1)")
+    .navigationBarTitleDisplayMode(.inline)
+    .onDisappear {
+      revealedFields.removeAll()
+    }
+  }
+
+  @ViewBuilder
+  private func versionRow(label: String, field: String, alwaysProtected: Bool) -> some View {
+    if let isProtected = store.historyFieldIsProtected(
+      for: entry.id, index: item.index, field: field
+    ) {
+      if let value = revealedFields[field] {
+        DetailRow(label: label, value: value, allowsSelection: false)
+      } else if alwaysProtected || isProtected {
+        Button {
+          reveal(field)
+        } label: {
+          Label("Reveal \(label)", systemImage: "eye")
+        }
+      } else {
+        DetailRow(
+          label: label,
+          value: store.historyValue(for: entry.id, index: item.index, field: field) ?? ""
+        )
+      }
+    }
+  }
+
+  private func reveal(_ field: String) {
+    revealedFields[field] =
+      store.historyValue(for: entry.id, index: item.index, field: field) ?? ""
   }
 }
 

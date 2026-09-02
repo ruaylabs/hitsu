@@ -96,6 +96,17 @@ func formatAttachmentSize(_ bytes: Int) -> String {
   return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
 }
 
+/// One prior version of an entry. Field values stay in the vault store and
+/// are only revealed on demand.
+struct VaultHistoryItem: Identifiable, Hashable, Sendable {
+  /// Position within the entry's history (oldest first); the store keys
+  /// version lookups by it.
+  let index: Int
+  let lastModified: Date?
+
+  var id: Int { index }
+}
+
 struct VaultEntryIcon: Hashable, Sendable {
   let standardID: UInt32
   let customData: Data?
@@ -120,6 +131,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let fields: [VaultField]
   let typedFields: [VaultTypedField]
   let attachments: [VaultAttachment]
+  let history: [VaultHistoryItem]
   let tags: [String]
 
   var displayTitle: String {

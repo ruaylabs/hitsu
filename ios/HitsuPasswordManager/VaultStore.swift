@@ -41,6 +41,10 @@ final class VaultStore {
   /// Resolved attachment payloads, index-aligned with `VaultAttachment.index`.
   private var attachmentDataByID: [UUID: [Data]] = [:]
 
+  /// Prior entry versions (oldest first), retained so history fields can be
+  /// revealed on demand without keeping the whole parsed database alive.
+  private var historyByID: [UUID: [KDBX.Entry]] = [:]
+
   func clearError() {
     errorMessage = nil
   }
@@ -99,12 +103,14 @@ final class VaultStore {
         entries = projection.entries
         entryStringsByID = projection.entryStringsByID
         attachmentDataByID = projection.attachmentDataByID
+        historyByID = projection.historyByID
         isUnlocked = true
         errorMessage = nil
       case .failure(.message(let message)):
         entries = []
         entryStringsByID = [:]
         attachmentDataByID = [:]
+        historyByID = [:]
         isUnlocked = false
         errorMessage = message
       }
@@ -116,6 +122,7 @@ final class VaultStore {
     entries = []
     entryStringsByID = [:]
     attachmentDataByID = [:]
+    historyByID = [:]
     isUnlocked = false
     errorMessage = nil
   }
@@ -127,6 +134,41 @@ final class VaultStore {
       payloads.indices.contains(index)
     else { return nil }
     return payloads[index]
+  }
+
+  /// Reveals one field of a stored history version.
+  func historyValue(for entryID: UUID, index: Int, field name: String) -> String? {
+    guard let versions = historyByID[entryID], versions.indices.contains(index) else {
+      return nil
+    }
+    return versions[index].strings.first(where: { $0.key == name })?.value.revealedString
+  }
+
+  /// Protection state of a history field; nil when the field is absent from
+  /// that version.
+  func historyFieldIsProtected(for entryID: UUID, index: Int, field name: String) -> Bool? {
+    guard let versions = historyByID[entryID], versions.indices.contains(index),
+      let field = versions[index].strings.first(where: { $0.key == name })
+    else { return nil }
+    switch field.value {
+    case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
+      return true
+    case .regular(_), .unprotected(_):
+      return false
+    }
+  }
+
+  /// Custom field names carried by a history version (standard names excluded).
+  func historyFieldNames(for entryID: UUID, index: Int) -> [String] {
+    guard let versions = historyByID[entryID], versions.indices.contains(index) else {
+      return []
+    }
+    let hidden = Set([
+      "title", "username", "url", "password", "notes", "otp", "totp seed", "totp settings",
+    ])
+    return versions[index].strings
+      .map(\.key)
+      .filter { !hidden.contains($0.lowercased()) }
   }
 
   /// Returns one field only when the detail view asks for it. The store never
@@ -170,6 +212,7 @@ private struct VaultProjection {
   let entries: [VaultEntry]
   let entryStringsByID: [UUID: [KDBX.ProtectedString]]
   let attachmentDataByID: [UUID: [Data]]
+  let historyByID: [UUID: [KDBX.Entry]]
 }
 
 private func makeVaultProjection(
@@ -179,6 +222,7 @@ private func makeVaultProjection(
   var result: [VaultEntry] = []
   var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
   var attachmentDataByID: [UUID: [Data]] = [:]
+  var historyByID: [UUID: [KDBX.Entry]] = [:]
   var customIconsByID: [UUID: Data] = [:]
   for customIcon in database.meta.customIcons {
     customIconsByID[customIcon.uuid] = customIcon.data
@@ -256,6 +300,13 @@ private func makeVaultProjection(
         attachmentDataByID[entry.uuid] = attachmentData
       }
 
+      let historyItems = entry.history.enumerated().map { index, version in
+        VaultHistoryItem(index: index, lastModified: version.times?.lastModificationTime)
+      }
+      if !entry.history.isEmpty {
+        historyByID[entry.uuid] = entry.history
+      }
+
       result.append(
         VaultEntry(
           id: entry.uuid,
@@ -279,6 +330,7 @@ private func makeVaultProjection(
           fields: fieldNames,
           typedFields: typedFields,
           attachments: attachments,
+          history: historyItems,
           tags: entry.tags
         )
       )
@@ -301,7 +353,8 @@ private func makeVaultProjection(
   return VaultProjection(
     entries: entries,
     entryStringsByID: entryStringsByID,
-    attachmentDataByID: attachmentDataByID
+    attachmentDataByID: attachmentDataByID,
+    historyByID: historyByID
   )
 }
 
@@ -323,11 +376,20 @@ func makeTypedFields(
   protectedNames: Set<String>
 ) -> [VaultTypedField] {
   func field(_ label: String, _ key: String, secret: Bool = false) -> VaultTypedField? {
-    guard entry.strings.contains(where: { $0.key == key }) else { return nil }
+    guard let stored = entry.strings.first(where: { $0.key == key }) else { return nil }
+    // Trust the value itself in addition to the caller-supplied protection
+    // set, so a protected field is never materialized as a plain row.
+    let valueProtected: Bool
+    switch stored.value {
+    case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
+      valueProtected = true
+    case .regular(_), .unprotected(_):
+      valueProtected = false
+    }
     return VaultTypedField(
       label: label,
       field: key,
-      isProtected: secret || protectedNames.contains(key),
+      isProtected: secret || valueProtected || protectedNames.contains(key),
       displayValue: nil
     )
   }
