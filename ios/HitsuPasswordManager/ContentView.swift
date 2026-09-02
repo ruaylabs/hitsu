@@ -2,6 +2,30 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+@MainActor
+private final class ClipboardManager {
+  private var ownedChangeCount: Int?
+
+  func copy(_ value: String, expirationDate: Date) {
+    let pasteboard = UIPasteboard.general
+    pasteboard.setItems(
+      [[UTType.utf8PlainText.identifier: value]],
+      options: [
+        .localOnly: true,
+        .expirationDate: expirationDate,
+      ]
+    )
+    ownedChangeCount = pasteboard.changeCount
+  }
+
+  func clearIfOwned() {
+    let pasteboard = UIPasteboard.general
+    guard let ownedChangeCount, pasteboard.changeCount == ownedChangeCount else { return }
+    pasteboard.items = []
+    self.ownedChangeCount = nil
+  }
+}
+
 struct ContentView: View {
   @State private var store = VaultStore()
   @Environment(\.scenePhase) private var scenePhase
@@ -12,6 +36,7 @@ struct ContentView: View {
   @State private var favoriteSelectedID: UUID?
   @State private var restoredLastVault = false
   @State private var hasSavedVault = false
+  @State private var clipboard = ClipboardManager()
 
   private let lastVaultBookmarkKey = "lastVaultBookmark"
 
@@ -247,7 +272,7 @@ struct ContentView: View {
       if let favoriteSelectedID,
         let selected = store.entries.first(where: { $0.id == favoriteSelectedID })
       {
-        EntryDetailView(entry: selected, store: store)
+        EntryDetailView(entry: selected, store: store, clipboard: clipboard)
           .id(selected.id)
       } else {
         ContentUnavailableView(
@@ -305,6 +330,7 @@ struct ContentView: View {
   }
 
   private func lockVault() {
+    clipboard.clearIfOwned()
     favoriteSelectedID = nil
     favoritesSearchText = ""
     categoriesSearchText = ""
@@ -354,7 +380,7 @@ private struct CategoryEntriesView: View {
       } else {
         ForEach(entries) { entry in
           NavigationLink {
-            EntryDetailView(entry: entry, store: store)
+            EntryDetailView(entry: entry, store: store, clipboard: clipboard)
               .id(entry.id)
           } label: {
             EntryRow(entry: entry)
@@ -613,6 +639,7 @@ private struct PasswordSheet: View {
 private struct EntryDetailView: View {
   let entry: VaultEntry
   let store: VaultStore
+  let clipboard: ClipboardManager
 
   @State private var revealedFields: [String: String] = [:]
   @State private var copiedPassword = false
@@ -676,7 +703,7 @@ private struct EntryDetailView: View {
 
         if entry.hasTOTP {
           DetailSection(title: "One-Time Password", systemImage: "timer", tint: .green) {
-            TOTPView(entryID: entry.id, store: store)
+            TOTPView(entryID: entry.id, store: store, clipboard: clipboard)
           }
         }
 
@@ -750,12 +777,9 @@ private struct EntryDetailView: View {
 
   private func copyPassword() {
     guard let password = store.value(for: entry.id, field: "Password") else { return }
-    UIPasteboard.general.setItems(
-      [[UTType.utf8PlainText.identifier: password]],
-      options: [
-        .localOnly: true,
-        .expirationDate: Date().addingTimeInterval(Self.clipboardLifetime),
-      ]
+    clipboard.copy(
+      password,
+      expirationDate: Date().addingTimeInterval(Self.clipboardLifetime)
     )
     copiedPassword = true
 
@@ -769,6 +793,7 @@ private struct EntryDetailView: View {
 private struct TOTPView: View {
   let entryID: UUID
   let store: VaultStore
+  let clipboard: ClipboardManager
 
   @State private var currentCode: TOTPCode?
   @State private var copiedCode = false
@@ -832,12 +857,9 @@ private struct TOTPView: View {
   }
 
   private func copy(_ code: TOTPCode) {
-    UIPasteboard.general.setItems(
-      [[UTType.utf8PlainText.identifier: code.code]],
-      options: [
-        .localOnly: true,
-        .expirationDate: Date().addingTimeInterval(TimeInterval(max(code.remaining, 1))),
-      ]
+    clipboard.copy(
+      code.code,
+      expirationDate: Date().addingTimeInterval(TimeInterval(max(code.remaining, 1)))
     )
     copiedCode = true
 
