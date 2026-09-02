@@ -50,6 +50,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let category: VaultEntryCategory
   let isFavorite: Bool
   let hasPassword: Bool
+  let hasTOTP: Bool
   let hasNotes: Bool
   let fields: [VaultField]
   let tags: [String]

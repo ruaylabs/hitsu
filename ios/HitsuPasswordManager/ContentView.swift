@@ -474,6 +474,11 @@ private struct EntryRow: View {
               .font(.caption)
               .foregroundStyle(.secondary)
           }
+          if entry.hasTOTP {
+            Image(systemName: "timer")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
         Text(entry.secondaryText)
           .font(.subheadline)
@@ -592,9 +597,13 @@ private struct EntryDetailView: View {
           }
         }
 
+        if entry.hasTOTP {
+          TOTPView(entryID: entry.id, store: store)
+        }
+
         ForEach(entry.fields) { field in
           if let value = revealedFields[field.name] {
-            DetailRow(label: field.name, value: value)
+            DetailRow(label: field.name, value: value, allowsSelection: false)
           } else if field.isProtected {
             Button {
               reveal(field.name)
@@ -633,7 +642,7 @@ private struct EntryDetailView: View {
   @ViewBuilder
   private func protectedRow(label: String, field: String) -> some View {
     if let value = revealedFields[field] {
-      DetailRow(label: label, value: value)
+      DetailRow(label: label, value: value, allowsSelection: false)
     } else {
       Button {
         reveal(field)
@@ -666,10 +675,83 @@ private struct EntryDetailView: View {
   }
 }
 
+private struct TOTPView: View {
+  let entryID: UUID
+  let store: VaultStore
+
+  @State private var currentCode: TOTPCode?
+  @State private var copiedCode = false
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text("One-Time Password")
+        .font(.headline)
+
+      if let currentCode {
+        HStack(spacing: 18) {
+          Text(currentCode.code)
+            .font(.title.monospacedDigit().weight(.semibold))
+            .textSelection(.disabled)
+
+          VStack(spacing: 3) {
+            Text("\(currentCode.remaining)s")
+              .font(.caption.monospacedDigit())
+            ProgressView(
+              value: Double(currentCode.remaining),
+              total: Double(currentCode.period)
+            )
+            .frame(width: 64)
+          }
+          .foregroundStyle(.secondary)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("\(currentCode.remaining) seconds remaining")
+        }
+
+        Button {
+          copy(currentCode)
+        } label: {
+          Label(
+            copiedCode ? "Copied until this code expires" : "Copy code",
+            systemImage: copiedCode ? "checkmark" : "doc.on.doc"
+          )
+        }
+        .buttonStyle(.bordered)
+      } else {
+        Text("This entry contains an invalid one-time password configuration.")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .task(id: entryID) {
+      while !Task.isCancelled {
+        currentCode = store.totpCode(for: entryID)
+        try? await Task.sleep(for: .seconds(1))
+      }
+    }
+  }
+
+  private func copy(_ code: TOTPCode) {
+    UIPasteboard.general.setItems(
+      [[UTType.utf8PlainText.identifier: code.code]],
+      options: [
+        .localOnly: true,
+        .expirationDate: Date().addingTimeInterval(TimeInterval(max(code.remaining, 1))),
+      ]
+    )
+    copiedCode = true
+
+    Task { @MainActor in
+      try? await Task.sleep(for: .seconds(2))
+      copiedCode = false
+    }
+  }
+}
+
 private struct DetailRow: View {
   let label: String
   let value: String
   var isLink = false
+  var allowsSelection = true
 
   var body: some View {
     if !value.isEmpty {
@@ -679,8 +761,12 @@ private struct DetailRow: View {
           .foregroundStyle(.secondary)
         if isLink, let url = URL(string: value) {
           Link(value, destination: url)
+        } else if allowsSelection {
+          Text(value)
+            .textSelection(.enabled)
         } else {
           Text(value)
+            .textSelection(.disabled)
         }
       }
     }

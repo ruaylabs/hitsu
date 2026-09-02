@@ -87,6 +87,34 @@ final class VaultStore {
       .first(where: { $0.key == name })?
       .value.revealedString
   }
+
+  func totpCode(for entryID: UUID, at date: Date = Date()) -> TOTPCode? {
+    guard let fields = entryStringsByID[entryID] else { return nil }
+
+    if let otp = fields.first(where: { $0.key.caseInsensitiveCompare("otp") == .orderedSame }) {
+      return otp.value.withRevealedString { TOTPGenerator.code(from: $0, at: date) }
+    }
+
+    guard
+      let seed = fields.first(where: {
+        $0.key.caseInsensitiveCompare("TOTP Seed") == .orderedSame
+      })
+    else { return nil }
+
+    if let settings = fields.first(where: {
+      $0.key.caseInsensitiveCompare("TOTP Settings") == .orderedSame
+    }) {
+      return settings.value.withRevealedString { settingsValue in
+        seed.value.withRevealedString {
+          TOTPGenerator.code(fromLegacySecret: $0, settings: settingsValue, at: date)
+        }
+      }
+    }
+
+    return seed.value.withRevealedString {
+      TOTPGenerator.code(fromLegacySecret: $0, settings: nil, at: date)
+    }
+  }
 }
 
 private struct VaultProjection {
@@ -121,6 +149,9 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
       let hasPassword =
         entry.strings.first(where: { $0.key == "Password" })?.value
         .withRevealedString { !$0.isEmpty } ?? false
+      let hasTOTP = entry.strings.contains {
+        ["otp", "totp seed"].contains($0.key.lowercased())
+      }
       let hasNotes =
         entry.strings.first(where: { $0.key == "Notes" })?.value
         .withRevealedString { !$0.isEmpty } ?? false
@@ -134,9 +165,12 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
           }
         }
       )
+      let hiddenFieldNames = Set([
+        "title", "username", "url", "password", "notes", "otp", "totp seed", "totp settings",
+      ])
       let fieldNames = entry.strings
         .map(\.key)
-        .filter { !["Title", "UserName", "URL", "Password", "Notes"].contains($0) }
+        .filter { !hiddenFieldNames.contains($0.lowercased()) }
         .map { VaultField(name: $0, isProtected: protectedNames.contains($0)) }
 
       result.append(
@@ -153,6 +187,7 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
           category: VaultEntryCategory(databaseValue: categoryValue),
           isFavorite: favoriteValue == "true",
           hasPassword: hasPassword,
+          hasTOTP: hasTOTP,
           hasNotes: hasNotes,
           fields: fieldNames,
           tags: entry.tags

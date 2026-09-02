@@ -12,7 +12,9 @@
 		A10000010000000000000003 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000003 /* Models.swift */; };
 		A10000010000000000000004 /* VaultStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000004 /* VaultStore.swift */; };
 		A10000010000000000000005 /* KDBXKit in Frameworks */ = {isa = PBXBuildFile; productRef = A60000010000000000000001 /* KDBXKit */; };
+		A10000010000000000000006 /* TOTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000008 /* TOTP.swift */; };
 		B10000010000000000000001 /* MetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000001 /* MetadataTests.swift */; };
+		B10000010000000000000002 /* TOTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000003 /* TOTPTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,8 +25,10 @@
 		A20000010000000000000005 /* HitsuPasswordManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HitsuPasswordManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000010000000000000006 /* HitsuPasswordManager/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = HitsuPasswordManager/Info.plist; sourceTree = "<group>"; };
 		A20000010000000000000007 /* HitsuPasswordManager/HitsuPasswordManager.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HitsuPasswordManager/HitsuPasswordManager.entitlements; sourceTree = "<group>"; };
+		A20000010000000000000008 /* TOTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTP.swift; sourceTree = "<group>"; };
 		B20000010000000000000001 /* MetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000002 /* HitsuPasswordManagerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HitsuPasswordManagerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000010000000000000003 /* TOTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTPTests.swift; sourceTree = "<group>"; };
 		C20000010000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -64,6 +68,7 @@
 				A20000010000000000000002 /* ContentView.swift */,
 				A20000010000000000000003 /* Models.swift */,
 				A20000010000000000000004 /* VaultStore.swift */,
+				A20000010000000000000008 /* TOTP.swift */,
 				A20000010000000000000006 /* HitsuPasswordManager/Info.plist */,
 				A20000010000000000000007 /* HitsuPasswordManager/HitsuPasswordManager.entitlements */,
 			);
@@ -74,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				B20000010000000000000001 /* MetadataTests.swift */,
+				B20000010000000000000003 /* TOTPTests.swift */,
 			);
 			path = HitsuPasswordManagerTests;
 			sourceTree = "<group>";
@@ -206,6 +212,7 @@
 				A10000010000000000000002 /* ContentView.swift in Sources */,
 				A10000010000000000000003 /* Models.swift in Sources */,
 				A10000010000000000000004 /* VaultStore.swift in Sources */,
+				A10000010000000000000006 /* TOTP.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +221,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B10000010000000000000001 /* MetadataTests.swift in Sources */,
+				B10000010000000000000002 /* TOTPTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
