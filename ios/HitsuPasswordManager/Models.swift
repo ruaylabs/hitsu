@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum VaultEntryCategory: String, CaseIterable, Hashable, Sendable {
   case login
@@ -24,6 +25,32 @@ enum VaultEntryCategory: String, CaseIterable, Hashable, Sendable {
     case .softwareLicense: "Software Licenses"
     case .passport: "Passports"
     case .pgpKey: "PGP Keys"
+    }
+  }
+
+  var symbolName: String {
+    switch self {
+    case .login: "globe"
+    case .password: "key.fill"
+    case .note: "note.text"
+    case .identity: "person.crop.circle.fill"
+    case .card: "creditcard.fill"
+    case .softwareLicense: "opticaldisc.fill"
+    case .passport: "airplane"
+    case .pgpKey: "lock.doc.fill"
+    }
+  }
+
+  var tint: Color {
+    switch self {
+    case .login: .blue
+    case .password: .orange
+    case .note: .teal
+    case .identity: .indigo
+    case .card: .green
+    case .softwareLicense: .purple
+    case .passport: .cyan
+    case .pgpKey: .pink
     }
   }
 }

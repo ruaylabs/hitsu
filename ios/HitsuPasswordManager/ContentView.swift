@@ -137,40 +137,51 @@ struct ContentView: View {
   }
 
   private var welcomeView: some View {
-    VStack(spacing: 20) {
+    VStack(spacing: 28) {
       Image(systemName: "lock.shield.fill")
-        .font(.system(size: 52))
-        .foregroundStyle(.tint)
+        .font(.system(size: 38, weight: .medium))
+        .foregroundStyle(.white)
+        .frame(width: 88, height: 88)
+        .background(
+          LinearGradient(colors: [.blue, .teal], startPoint: .top, endPoint: .bottom),
+          in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+        )
+        .shadow(color: .blue.opacity(0.25), radius: 18, y: 8)
 
       VStack(spacing: 8) {
         Text("Hitsu\nPassword\nManager")
           .font(.largeTitle.bold())
           .multilineTextAlignment(.center)
         Text("Read a KeePass database without changing it.")
+          .font(.subheadline)
           .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
       }
 
-      if hasSavedVault {
-        Button {
-          store.clearError()
-          openLastVault()
-        } label: {
-          Label("Unlock Last Vault", systemImage: "lock.open")
-            .frame(maxWidth: 280)
+      VStack(spacing: 12) {
+        if hasSavedVault {
+          Button {
+            store.clearError()
+            openLastVault()
+          } label: {
+            Label("Unlock Last Vault", systemImage: "lock.open")
+              .frame(maxWidth: 300)
+          }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.large)
+          .disabled(store.isLoading)
         }
-        .buttonStyle(.borderedProminent)
+
+        Button {
+          showingImporter = true
+        } label: {
+          Label("Open from Files or iCloud Drive", systemImage: "folder")
+            .frame(maxWidth: 300)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
         .disabled(store.isLoading)
       }
-
-      Button {
-        showingImporter = true
-      } label: {
-        Label("Open from Files or iCloud Drive", systemImage: "folder")
-          .frame(maxWidth: 280)
-      }
-      .buttonStyle(.bordered)
-      .disabled(store.isLoading)
 
       if store.isLoading {
         ProgressView("Unlocking…")
@@ -180,7 +191,9 @@ struct ContentView: View {
           .font(.footnote)
           .foregroundStyle(.red)
           .multilineTextAlignment(.center)
-          .padding(.horizontal)
+          .padding(12)
+          .frame(maxWidth: 360)
+          .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
       }
     }
     .padding(28)
@@ -256,12 +269,19 @@ struct ContentView: View {
                 onLock: lockVault
               )
             } label: {
-              HStack {
+              HStack(spacing: 12) {
+                CategoryIconBadge(category: section.category)
                 Text(section.category.title)
+                  .font(.body.weight(.medium))
                 Spacer()
                 Text(section.entries.count, format: .number)
+                  .font(.subheadline.weight(.semibold))
                   .foregroundStyle(.secondary)
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 4)
+                  .background(.fill.tertiary, in: Capsule())
               }
+              .padding(.vertical, 2)
             }
           }
         }
@@ -350,8 +370,22 @@ private struct LockToolbar: ToolbarContent {
   }
 }
 
+private struct CategoryIconBadge: View {
+  let category: VaultEntryCategory
+
+  var body: some View {
+    Image(systemName: category.symbolName)
+      .font(.system(size: 15, weight: .semibold))
+      .foregroundStyle(category.tint)
+      .frame(width: 34, height: 34)
+      .background(category.tint.opacity(0.14))
+      .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+  }
+}
+
 private struct EntryIconView: View {
   let icon: VaultEntryIcon
+  var tint: Color = .accentColor
   var size: CGFloat = 36
 
   var body: some View {
@@ -365,11 +399,11 @@ private struct EntryIconView: View {
           .resizable()
           .scaledToFit()
           .padding(size * 0.22)
-          .foregroundStyle(.tint)
+          .foregroundStyle(tint)
       }
     }
     .frame(width: size, height: size)
-    .background(Color.accentColor.opacity(0.12))
+    .background(tint.opacity(0.14))
     .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
   }
 
@@ -457,7 +491,7 @@ private struct EntryRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      EntryIconView(icon: entry.icon)
+      EntryIconView(icon: entry.icon, tint: entry.category.tint)
 
       VStack(alignment: .leading, spacing: 3) {
         HStack {
@@ -557,14 +591,18 @@ private struct EntryDetailView: View {
 
   private static let clipboardLifetime: TimeInterval = 30
 
+  private var hasAccountInfo: Bool {
+    !entry.username.isEmpty || !entry.url.isEmpty || entry.hasNotes
+  }
+
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 22) {
+      VStack(alignment: .leading, spacing: 16) {
         HStack(alignment: .top, spacing: 14) {
-          EntryIconView(icon: entry.icon, size: 52)
+          EntryIconView(icon: entry.icon, tint: entry.category.tint, size: 56)
           VStack(alignment: .leading, spacing: 6) {
             Text(entry.displayTitle)
-              .font(.largeTitle.bold())
+              .font(.title2.bold())
             if !entry.groupPath.isEmpty {
               Label(entry.groupPath, systemImage: "folder")
                 .font(.subheadline)
@@ -572,64 +610,89 @@ private struct EntryDetailView: View {
             }
           }
         }
+        .padding(.top, 4)
 
-        Group {
-          DetailRow(label: "Username", value: entry.username)
-          DetailRow(label: "URL", value: entry.url, isLink: true)
-          if entry.hasNotes {
-            DetailRow(
-              label: "Notes",
-              value: store.value(for: entry.id, field: "Notes") ?? ""
-            )
+        if hasAccountInfo {
+          DetailSection(
+            title: "Account",
+            systemImage: "person.crop.circle",
+            tint: entry.category.tint
+          ) {
+            VStack(alignment: .leading, spacing: 12) {
+              DetailRow(label: "Username", value: entry.username)
+              DetailRow(label: "URL", value: entry.url, isLink: true)
+              if entry.hasNotes {
+                DetailRow(
+                  label: "Notes",
+                  value: store.value(for: entry.id, field: "Notes") ?? ""
+                )
+              }
+            }
           }
         }
 
         if entry.hasPassword {
-          VStack(alignment: .leading, spacing: 10) {
-            protectedRow(label: "Password", field: "Password")
-            Button(action: copyPassword) {
-              Label(
-                copiedPassword ? "Copied — clears in 30 seconds" : "Copy password",
-                systemImage: copiedPassword ? "checkmark" : "doc.on.doc"
-              )
+          DetailSection(title: "Password", systemImage: "key.fill", tint: .orange) {
+            VStack(alignment: .leading, spacing: 12) {
+              protectedRow(label: "Password", field: "Password")
+              Button(action: copyPassword) {
+                Label(
+                  copiedPassword ? "Copied — clears in 30 seconds" : "Copy password",
+                  systemImage: copiedPassword ? "checkmark" : "doc.on.doc"
+                )
+              }
+              .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
           }
         }
 
         if entry.hasTOTP {
-          TOTPView(entryID: entry.id, store: store)
+          DetailSection(title: "One-Time Password", systemImage: "timer", tint: .green) {
+            TOTPView(entryID: entry.id, store: store)
+          }
         }
 
-        ForEach(entry.fields) { field in
-          if let value = revealedFields[field.name] {
-            DetailRow(label: field.name, value: value, allowsSelection: false)
-          } else if field.isProtected {
-            Button {
-              reveal(field.name)
-            } label: {
-              Label("Reveal \(field.name)", systemImage: "eye")
+        if !entry.fields.isEmpty {
+          DetailSection(title: "Fields", systemImage: "square.grid.2x2", tint: .indigo) {
+            VStack(alignment: .leading, spacing: 12) {
+              ForEach(entry.fields) { field in
+                if let value = revealedFields[field.name] {
+                  DetailRow(label: field.name, value: value, allowsSelection: false)
+                } else if field.isProtected {
+                  Button {
+                    reveal(field.name)
+                  } label: {
+                    Label("Reveal \(field.name)", systemImage: "eye")
+                  }
+                } else {
+                  DetailRow(
+                    label: field.name,
+                    value: store.value(for: entry.id, field: field.name) ?? ""
+                  )
+                }
+              }
             }
-          } else {
-            DetailRow(
-              label: field.name,
-              value: store.value(for: entry.id, field: field.name) ?? ""
-            )
           }
         }
 
         if !entry.tags.isEmpty {
-          VStack(alignment: .leading, spacing: 8) {
-            Text("Tags")
-              .font(.headline)
-            Text(entry.tags.joined(separator: ", "))
-              .foregroundStyle(.secondary)
+          DetailSection(title: "Tags", systemImage: "tag.fill", tint: .gray) {
+            FlowLayout(spacing: 8) {
+              ForEach(entry.tags, id: \.self) { tag in
+                Text(tag)
+                  .font(.footnote.weight(.medium))
+                  .padding(.horizontal, 11)
+                  .padding(.vertical, 5)
+                  .background(.fill.tertiary, in: Capsule())
+              }
+            }
           }
         }
       }
       .frame(maxWidth: 680, alignment: .leading)
       .padding()
     }
+    .background(Color(.systemGroupedBackground))
     .navigationTitle("Details")
     .navigationBarTitleDisplayMode(.inline)
     .textSelection(.enabled)
@@ -683,39 +746,44 @@ private struct TOTPView: View {
   @State private var copiedCode = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text("One-Time Password")
-        .font(.headline)
-
+    Group {
       if let currentCode {
-        HStack(spacing: 18) {
+        HStack(spacing: 14) {
           Text(currentCode.code)
-            .font(.title.monospacedDigit().weight(.semibold))
+            .font(.title2.monospacedDigit().weight(.bold))
             .textSelection(.disabled)
 
-          VStack(spacing: 3) {
-            Text("\(currentCode.remaining)s")
-              .font(.caption.monospacedDigit())
-            ProgressView(
-              value: Double(currentCode.remaining),
-              total: Double(currentCode.period)
-            )
-            .frame(width: 64)
+          Spacer()
+
+          ZStack {
+            Circle()
+              .stroke(.quaternary, lineWidth: 4)
+            Circle()
+              .trim(from: 0, to: progress(of: currentCode))
+              .stroke(.green, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+              .rotationEffect(.degrees(-90))
+            Text("\(currentCode.remaining)")
+              .font(.caption2.monospacedDigit().weight(.semibold))
+              .foregroundStyle(.secondary)
           }
-          .foregroundStyle(.secondary)
+          .frame(width: 44, height: 44)
           .accessibilityElement(children: .ignore)
           .accessibilityLabel("\(currentCode.remaining) seconds remaining")
-        }
 
-        Button {
-          copy(currentCode)
-        } label: {
-          Label(
-            copiedCode ? "Copied until this code expires" : "Copy code",
-            systemImage: copiedCode ? "checkmark" : "doc.on.doc"
-          )
+          Button {
+            copy(currentCode)
+          } label: {
+            Image(systemName: copiedCode ? "checkmark" : "doc.on.doc")
+              .font(.body.weight(.semibold))
+              .frame(width: 38, height: 38)
+              .background(
+                copiedCode ? Color.green.opacity(0.14) : Color.accentColor.opacity(0.12)
+              )
+              .foregroundStyle(copiedCode ? .green : .accentColor)
+              .clipShape(Circle())
+          }
+          .buttonStyle(.plain)
         }
-        .buttonStyle(.bordered)
       } else {
         Text("This entry contains an invalid one-time password configuration.")
           .font(.subheadline)
@@ -728,6 +796,11 @@ private struct TOTPView: View {
         try? await Task.sleep(for: .seconds(1))
       }
     }
+  }
+
+  private func progress(of code: TOTPCode) -> Double {
+    guard code.period > 0 else { return 0 }
+    return Double(code.remaining) / Double(code.period)
   }
 
   private func copy(_ code: TOTPCode) {
@@ -743,6 +816,82 @@ private struct TOTPView: View {
     Task { @MainActor in
       try? await Task.sleep(for: .seconds(2))
       copiedCode = false
+    }
+  }
+}
+
+private struct DetailSection<Content: View>: View {
+  let title: String
+  let systemImage: String
+  let tint: Color
+  let content: Content
+
+  init(
+    title: String,
+    systemImage: String,
+    tint: Color,
+    @ViewBuilder content: () -> Content
+  ) {
+    self.title = title
+    self.systemImage = systemImage
+    self.tint = tint
+    self.content = content()
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Label(title, systemImage: systemImage)
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(tint)
+      content
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(16)
+    .background(Color(.secondarySystemGroupedBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+  }
+}
+
+private struct FlowLayout: Layout {
+  var spacing: CGFloat = 8
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    let width = proposal.width ?? 0
+    var x: CGFloat = 0
+    var y: CGFloat = 0
+    var rowHeight: CGFloat = 0
+    for subview in subviews {
+      let size = subview.sizeThatFits(.unspecified)
+      if x > 0, x + size.width > width {
+        x = 0
+        y += rowHeight + spacing
+        rowHeight = 0
+      }
+      x += size.width + spacing
+      rowHeight = max(rowHeight, size.height)
+    }
+    return CGSize(width: width, height: y + rowHeight)
+  }
+
+  func placeSubviews(
+    in bounds: CGRect,
+    proposal: ProposedViewSize,
+    subviews: Subviews,
+    cache: inout ()
+  ) {
+    var x = bounds.minX
+    var y = bounds.minY
+    var rowHeight: CGFloat = 0
+    for subview in subviews {
+      let size = subview.sizeThatFits(.unspecified)
+      if x > bounds.minX, x + size.width > bounds.maxX {
+        x = bounds.minX
+        y += rowHeight + spacing
+        rowHeight = 0
+      }
+      subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .unspecified)
+      x += size.width + spacing
+      rowHeight = max(rowHeight, size.height)
     }
   }
 }
