@@ -6,6 +6,24 @@ private enum VaultOpenFailure: Error, Sendable {
   case message(String)
 }
 
+/// iOS unlock policy: bounds the KDF work a crafted or misconfigured vault can
+/// force onto the device. Much tighter than KDBXKit's `.default` (1 GiB memory,
+/// 1000 iterations, 1024 lanes, 100M rounds), which would let a hostile file
+/// wedge the app or trip jetsam mid-unlock. Values sit well above what KeePass
+/// and Hitsu write by default (64 MiB, a handful of iterations, 6M AES rounds)
+/// so legitimate vaults open unchanged; out-of-policy files fail with the
+/// existing "too expensive for this device" message.
+private let vaultKDFLimits = KDFParameterLimits(
+  maxArgon2Memory: 256 * 1024 * 1024,
+  maxArgon2Iterations: 256,
+  maxArgon2Parallelism: 8,
+  maxAESKDFRounds: 10_000_000
+)
+
+/// Rejects oversized files before reading them: the eager parse path copies the
+/// whole payload into memory, so the encrypted file size drives peak footprint.
+private let maxVaultFileSize = 256 * 1024 * 1024
+
 @MainActor
 @Observable
 final class VaultStore {
@@ -39,10 +57,16 @@ final class VaultStore {
     Task { [weak self] in
       let result = await Task.detached(priority: .userInitiated) {
         do {
+          let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+          if let fileSize, fileSize > maxVaultFileSize {
+            return Result<KDBXContent, VaultOpenFailure>.failure(
+              .message("The database is too large to open on this device.")
+            )
+          }
           let data = try Data(contentsOf: url, options: [.mappedIfSafe])
           let unlockData = UnlockData(masterPassword: password)
           return Result<KDBXContent, VaultOpenFailure>.success(
-            try KDBXReader.parse(data, unlockData: unlockData)
+            try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
           )
         } catch let error as KDBXReader.Error {
           return Result<KDBXContent, VaultOpenFailure>.failure(
