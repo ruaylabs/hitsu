@@ -734,6 +734,9 @@ private struct EntryDetailView: View {
           DetailSection(title: "Password", systemImage: "key.fill", tint: .orange) {
             VStack(alignment: .leading, spacing: 12) {
               protectedRow(label: "Password", field: "Password")
+              if let revealedPassword = revealedFields["Password"] {
+                PasswordStrengthMeter(password: revealedPassword)
+              }
               Button(action: copyPassword) {
                 Label(
                   copiedPassword ? "Copied — clears in 30 seconds" : "Copy password",
@@ -1167,6 +1170,9 @@ private struct HistoryVersionView: View {
     ) {
       if let value = revealedFields[field] {
         DetailRow(label: label, value: value, allowsSelection: false)
+        if field == "Password" {
+          PasswordStrengthMeter(password: value)
+        }
       } else if alwaysProtected || isProtected {
         Button {
           reveal(field)
