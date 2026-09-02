@@ -97,6 +97,10 @@ private struct VaultProjection {
 private func makeVaultProjection(from database: KDBX) -> VaultProjection {
   var result: [VaultEntry] = []
   var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
+  var customIconsByID: [UUID: Data] = [:]
+  for customIcon in database.meta.customIcons {
+    customIconsByID[customIcon.uuid] = customIcon.data
+  }
 
   func appendEntries(in group: KDBX.Group, path: String) {
     for entry in group.entries {
@@ -138,6 +142,10 @@ private func makeVaultProjection(from database: KDBX) -> VaultProjection {
       result.append(
         VaultEntry(
           id: entry.uuid,
+          icon: VaultEntryIcon(
+            standardID: entry.iconID,
+            customData: entry.customIconUUID.flatMap { customIconsByID[$0] }
+          ),
           title: title,
           username: username,
           url: url,

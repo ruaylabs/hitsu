@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
@@ -349,35 +350,141 @@ private struct LockToolbar: ToolbarContent {
   }
 }
 
+private struct EntryIconView: View {
+  let icon: VaultEntryIcon
+  var size: CGFloat = 36
+
+  var body: some View {
+    Group {
+      if let customData = icon.customData, let image = UIImage(data: customData) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFit()
+      } else {
+        Image(systemName: standardSystemImage)
+          .resizable()
+          .scaledToFit()
+          .padding(size * 0.22)
+          .foregroundStyle(.tint)
+      }
+    }
+    .frame(width: size, height: size)
+    .background(Color.accentColor.opacity(0.12))
+    .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+  }
+
+  private var standardSystemImage: String {
+    let index = Int(icon.standardID)
+    guard Self.standardSymbols.indices.contains(index) else { return "key.fill" }
+    return Self.standardSymbols[index]
+  }
+
+  private static let standardSymbols = [
+    "key.fill",
+    "globe",
+    "exclamationmark.triangle.fill",
+    "server.rack",
+    "folder.badge.checkmark",
+    "bubble.left.and.bubble.right.fill",
+    "puzzlepiece.fill",
+    "note.text",
+    "network",
+    "person.crop.circle.fill",
+    "doc.fill",
+    "camera.fill",
+    "antenna.radiowaves.left.and.right",
+    "key.horizontal.fill",
+    "bolt.fill",
+    "scanner",
+    "globe.americas.fill",
+    "opticaldisc.fill",
+    "display",
+    "envelope.fill",
+    "gearshape.fill",
+    "clipboard.fill",
+    "doc.badge.plus",
+    "rectangle.on.rectangle",
+    "bolt.badge.clock",
+    "tray.full.fill",
+    "externaldrive.fill",
+    "internaldrive.fill",
+    "doc.text.magnifyingglass",
+    "lock.rectangle",
+    "terminal.fill",
+    "printer.fill",
+    "app.dashed",
+    "play.fill",
+    "slider.horizontal.3",
+    "desktopcomputer",
+    "archivebox.fill",
+    "building.columns.fill",
+    "externaldrive.fill",
+    "clock.fill",
+    "envelope.badge",
+    "flag.fill",
+    "memorychip.fill",
+    "trash.fill",
+    "note.text",
+    "clock.badge.exclamationmark",
+    "info.circle.fill",
+    "shippingbox.fill",
+    "folder.fill",
+    "folder.fill",
+    "folder.fill",
+    "lock.open.fill",
+    "doc.fill",
+    "checkmark.circle.fill",
+    "pencil",
+    "photo.fill",
+    "book.closed.fill",
+    "list.bullet",
+    "person.crop.circle.badge.checkmark",
+    "wrench.and.screwdriver.fill",
+    "house.fill",
+    "star.fill",
+    "desktopcomputer",
+    "feather",
+    "apple.logo",
+    "book.closed.fill",
+    "banknote.fill",
+    "checkmark.seal.fill",
+    "smartphone",
+  ]
+}
+
 private struct EntryRow: View {
   let entry: VaultEntry
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 3) {
-      HStack {
-        Text(entry.displayTitle)
-          .font(.body.weight(.medium))
-        Spacer()
-        if entry.isFavorite {
-          Image(systemName: "star.fill")
-            .font(.caption)
-            .foregroundStyle(.yellow)
+    HStack(spacing: 12) {
+      EntryIconView(icon: entry.icon)
+
+      VStack(alignment: .leading, spacing: 3) {
+        HStack {
+          Text(entry.displayTitle)
+            .font(.body.weight(.medium))
+          Spacer()
+          if entry.isFavorite {
+            Image(systemName: "star.fill")
+              .font(.caption)
+              .foregroundStyle(.yellow)
+          }
+          if entry.hasPassword {
+            Image(systemName: "key.fill")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
-        if entry.hasPassword {
-          Image(systemName: "key.fill")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-      Text(entry.secondaryText)
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-      if !entry.groupPath.isEmpty {
-        Text(entry.groupPath)
-          .font(.caption)
-          .foregroundStyle(.tertiary)
+        Text(entry.secondaryText)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
+        if !entry.groupPath.isEmpty {
+          Text(entry.groupPath)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .lineLimit(1)
+        }
       }
     }
     .padding(.vertical, 3)
@@ -445,13 +552,16 @@ private struct EntryDetailView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
-        VStack(alignment: .leading, spacing: 6) {
-          Text(entry.displayTitle)
-            .font(.largeTitle.bold())
-          if !entry.groupPath.isEmpty {
-            Label(entry.groupPath, systemImage: "folder")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 14) {
+          EntryIconView(icon: entry.icon, size: 52)
+          VStack(alignment: .leading, spacing: 6) {
+            Text(entry.displayTitle)
+              .font(.largeTitle.bold())
+            if !entry.groupPath.isEmpty {
+              Label(entry.groupPath, systemImage: "folder")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
           }
         }
 

@@ -35,8 +35,14 @@ struct VaultField: Identifiable, Hashable, Sendable {
   var id: String { name }
 }
 
+struct VaultEntryIcon: Hashable, Sendable {
+  let standardID: UInt32
+  let customData: Data?
+}
+
 struct VaultEntry: Identifiable, Hashable, Sendable {
   let id: UUID
+  let icon: VaultEntryIcon
   let title: String
   let username: String
   let url: String
