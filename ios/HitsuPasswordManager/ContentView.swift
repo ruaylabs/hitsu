@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
   @State private var store = VaultStore()
+  @Environment(\.scenePhase) private var scenePhase
   @State private var showingImporter = false
   @State private var pendingURL: URL?
   @State private var favoritesSearchText = ""
@@ -40,6 +41,10 @@ struct ContentView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+      if scenePhase != .active {
+        PrivacyShieldView()
+      }
     }
     .onOpenURL { url in
       guard url.pathExtension.lowercased() == "kdbx" else {
@@ -85,6 +90,11 @@ struct ContentView: View {
     }
     .task {
       restoreLastVault()
+    }
+    .onChange(of: scenePhase) { _, phase in
+      if phase != .active {
+        lockVault()
+      }
     }
   }
 
@@ -367,6 +377,24 @@ private struct LockToolbar: ToolbarContent {
     ToolbarItem(placement: .topBarTrailing) {
       Button("Lock", systemImage: "lock", action: action)
     }
+  }
+}
+
+private struct PrivacyShieldView: View {
+  var body: some View {
+    ZStack {
+      Color(.systemBackground)
+        .ignoresSafeArea()
+
+      VStack(spacing: 14) {
+        Image(systemName: "lock.shield.fill")
+          .font(.system(size: 44))
+          .foregroundStyle(.tint)
+        Text("Hitsu is locked")
+          .font(.headline)
+      }
+    }
+    .transition(.opacity)
   }
 }
 

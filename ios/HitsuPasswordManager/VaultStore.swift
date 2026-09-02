@@ -14,6 +14,10 @@ final class VaultStore {
   private(set) var isUnlocked = false
   var errorMessage: String?
 
+  /// Bumped on every lock; in-flight opens discard their results if a lock
+  /// (e.g. the auto-lock on backgrounding) happened while they were parsing.
+  private var lockGeneration = 0
+
   private var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
 
   func clearError() {
@@ -27,6 +31,7 @@ final class VaultStore {
   func open(url: URL, password: String) {
     guard !password.isEmpty, !isLoading else { return }
 
+    let generation = lockGeneration
     isLoading = true
     errorMessage = nil
     let hasSecurityScope = url.startAccessingSecurityScopedResource()
@@ -56,6 +61,7 @@ final class VaultStore {
 
       guard let self else { return }
       isLoading = false
+      guard lockGeneration == generation else { return }
 
       switch result {
       case .success(let content):
@@ -74,6 +80,7 @@ final class VaultStore {
   }
 
   func lock() {
+    lockGeneration += 1
     entries = []
     entryStringsByID = [:]
     isUnlocked = false
