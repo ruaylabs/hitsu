@@ -17,27 +17,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  test:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6.0.3
 
-      - name: Build iOS app
+      - uses: actions/cache@v6
+        with:
+          path: ios/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('ios/**/*.pbxproj') }}
+
+      - name: Boot simulator
         run: |
-          xcodebuild \
-            -project ios/HitsuPasswordManager.xcodeproj \
-            -scheme HitsuPasswordManager \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          xcrun simctl boot "iPhone 16 Pro" || true
+          xcrun simctl bootstatus "iPhone 16 Pro" -b
 
       - name: Run iOS unit tests
         run: |
           xcodebuild \
             -project ios/HitsuPasswordManager.xcodeproj \
             -scheme HitsuPasswordManager \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
+            -derivedDataPath ios/DerivedData \
+            -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
-            test
+            -quiet test
+
+  device-build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: actions/cache@v6
+        with:
+          path: ios/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('ios/**/*.pbxproj') }}
+
+      - name: Build iOS app (device)
+        run: |
+          xcodebuild \
+            -project ios/HitsuPasswordManager.xcodeproj \
+            -scheme HitsuPasswordManager \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/DerivedData \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet build
