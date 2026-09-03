@@ -179,6 +179,16 @@ final class VaultStore {
       .value.revealedString
   }
 
+  /// Searches the entry's non-protected field values without retaining a
+  /// second plaintext copy in the entry list model.
+  func matchesSearch(_ entry: VaultEntry, searchText: String) -> Bool {
+    entryMatchesSearch(
+      entry,
+      searchText: searchText,
+      fields: entryStringsByID[entry.id] ?? []
+    )
+  }
+
   func totpCode(for entryID: UUID, at date: Date = Date()) -> TOTPCode? {
     guard let fields = entryStringsByID[entryID] else { return nil }
 
@@ -204,6 +214,39 @@ final class VaultStore {
 
     return seed.value.withRevealedString {
       TOTPGenerator.code(fromLegacySecret: $0, settings: nil, at: date)
+    }
+  }
+}
+
+/// Matches the summary fields plus custom field names and unprotected field
+/// values. Protected values are never materialized just to satisfy a search.
+func entryMatchesSearch(
+  _ entry: VaultEntry,
+  searchText: String,
+  fields: [KDBX.ProtectedString]
+) -> Bool {
+  let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard !query.isEmpty else { return true }
+  if entry.matchesSearch(query) { return true }
+
+  let standardNames = Set([
+    "title", "username", "url", "password", "notes", "otp", "totp seed", "totp settings",
+  ])
+  return fields.contains { field in
+    let fieldName = field.key.lowercased()
+    if !standardNames.contains(fieldName)
+      && field.key.localizedCaseInsensitiveContains(query)
+    {
+      return true
+    }
+
+    switch field.value {
+    case .regular(_), .unprotected(_):
+      return field.value.withRevealedString {
+        $0.localizedCaseInsensitiveContains(query)
+      }
+    case .lazyInnerCipher(_, _, _), .protectedInMemory(_):
+      return false
     }
   }
 }

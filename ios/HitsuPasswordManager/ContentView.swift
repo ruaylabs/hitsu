@@ -44,15 +44,22 @@ struct ContentView: View {
   private let lastVaultBookmarkKey = "lastVaultBookmark"
 
   private var favoriteEntries: [VaultEntry] {
-    store.entries.filter { $0.isFavorite && !$0.isTrashed && $0.matchesSearch(favoritesSearchText) }
+    store.entries.filter {
+      $0.isFavorite && !$0.isTrashed
+        && store.matchesSearch($0, searchText: favoritesSearchText)
+    }
   }
 
   private var recentEntries: [VaultEntry] {
-    recentVaultEntries(store.entries).filter { $0.matchesSearch(recentSearchText) }
+    recentVaultEntries(store.entries).filter {
+      store.matchesSearch($0, searchText: recentSearchText)
+    }
   }
 
   private var categorySections: [CategorySection] {
-    let entries = store.entries.filter { !$0.isTrashed && $0.matchesSearch(categoriesSearchText) }
+    let entries = store.entries.filter {
+      !$0.isTrashed && store.matchesSearch($0, searchText: categoriesSearchText)
+    }
     return VaultEntryCategory.allCases.compactMap { category in
       let categoryEntries = entries.filter { $0.category == category }
       guard !categoryEntries.isEmpty else { return nil }
@@ -436,7 +443,9 @@ private struct TrashEntriesView: View {
   @State private var searchText = ""
 
   private var entries: [VaultEntry] {
-    store.entries.filter { $0.isTrashed && $0.matchesSearch(searchText) }
+    store.entries.filter {
+      $0.isTrashed && store.matchesSearch($0, searchText: searchText)
+    }
   }
 
   var body: some View {
@@ -489,7 +498,7 @@ private struct CategoryEntriesView: View {
 
   private var entries: [VaultEntry] {
     store.entries.filter { entry in
-      entry.category == category && entry.matchesSearch(searchText)
+      entry.category == category && store.matchesSearch(entry, searchText: searchText)
     }
   }
 

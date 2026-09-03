@@ -1,3 +1,4 @@
+import KDBXKit
 import XCTest
 
 @testable import HitsuPasswordManager
@@ -33,6 +34,30 @@ final class RecentEntriesTests: XCTestCase {
     ]
 
     XCTAssertEqual(recentVaultEntries(entries).map(\.title), ["New", "Old", "Undated"])
+  }
+
+  func testSearchIncludesNotesAndTypedAndCustomFields() {
+    let entry = makeEntry(title: "Account")
+    let fields: [KDBX.ProtectedString] = [
+      .init(key: "Notes", value: .unprotected("Buried recovery instructions")),
+      .init(key: "identity.email", value: .unprotected("ada@example.com")),
+      .init(key: "custom.Recovery contact", value: .unprotected("Grace")),
+    ]
+
+    XCTAssertTrue(entryMatchesSearch(entry, searchText: "recovery instructions", fields: fields))
+    XCTAssertTrue(entryMatchesSearch(entry, searchText: "ada@example.com", fields: fields))
+    XCTAssertTrue(entryMatchesSearch(entry, searchText: "recovery contact", fields: fields))
+  }
+
+  func testSearchExcludesProtectedFieldValues() {
+    let entry = makeEntry(title: "Account")
+    let fields: [KDBX.ProtectedString] = [
+      .init(key: "Notes", value: .protectedInMemory("private note")),
+      .init(key: "card.number", value: .protectedInMemory("4111111111111111")),
+    ]
+
+    XCTAssertFalse(entryMatchesSearch(entry, searchText: "private note", fields: fields))
+    XCTAssertFalse(entryMatchesSearch(entry, searchText: "4111111111111111", fields: fields))
   }
 
   private func makeEntry(

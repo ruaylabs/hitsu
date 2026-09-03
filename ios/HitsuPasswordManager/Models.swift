@@ -220,6 +220,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
     guard !query.isEmpty else { return true }
     return displayTitle.localizedCaseInsensitiveContains(query)
       || (!isUsernameProtected && username.localizedCaseInsensitiveContains(query))
+      || (!isURLProtected && url.localizedCaseInsensitiveContains(query))
       || groupPath.localizedCaseInsensitiveContains(query)
       || category.title.localizedCaseInsensitiveContains(query)
       || tags.contains { $0.localizedCaseInsensitiveContains(query) }

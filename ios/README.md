@@ -22,8 +22,9 @@ user-selected document flow.
 - KDBX 4.0, 4.1, and 3.1 read support comes from
   [KDBXKit](https://github.com/shadone/KDBXKit) `1.3.0` via Swift Package Manager.
   The desktop Hitsu writer must emit standard KDBX output for stock KDBXKit compatibility.
-- The app lists entries, searches title/username/folder/tags, and displays
-  notes and fields on demand. A Recent tab shows the 20 most recently modified
+- The app lists entries, searches titles, usernames, URLs, folders, tags, notes,
+  and unprotected custom or typed fields, and displays details on demand. A Recent
+  tab shows the 20 most recently modified
   active entries. Entries in the recycle bin stay out of the Favorites, Recent,
   and Categories lists and are shown read-only under a Trash item at the end of
   Categories.
