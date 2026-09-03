@@ -1,3 +1,4 @@
+import KDBXKit
 import QuickLook
 import SwiftUI
 import UIKit
@@ -137,9 +138,9 @@ struct ContentView: View {
       )
     ) {
       if let url = pendingURL {
-        PasswordSheet(fileName: url.lastPathComponent) { password in
+        PasswordSheet(fileName: url.lastPathComponent) { unlockData in
           pendingURL = nil
-          store.open(url: url, password: password)
+          store.open(url: url, unlockData: unlockData)
         } onCancel: {
           pendingURL = nil
         }
@@ -762,7 +763,7 @@ private struct EntryRow: View {
 
 private struct PasswordSheet: View {
   let fileName: String
-  let onUnlock: (String) -> Void
+  let onUnlock: (UnlockData) -> Void
   let onCancel: () -> Void
 
   @Environment(\.dismiss) private var dismiss
@@ -805,9 +806,12 @@ private struct PasswordSheet: View {
 
   private func unlock() {
     guard !password.isEmpty else { return }
-    let value = password
+    // Consume the cleartext at the earliest point: UnlockData discards it at
+    // init and keeps only the mlock'd pre-hash, so the password never leaves
+    // this view (or its @State) as a plain String.
+    let unlockData = UnlockData(masterPassword: password)
     password = ""
-    onUnlock(value)
+    onUnlock(unlockData)
     dismiss()
   }
 }

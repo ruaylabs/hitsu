@@ -53,8 +53,11 @@ final class VaultStore {
     errorMessage = message
   }
 
-  func open(url: URL, password: String) {
-    guard !password.isEmpty, !isLoading else { return }
+  /// Accepts `UnlockData` rather than the cleartext password so the master
+  /// password never crosses actor boundaries as a `String`. KDBXKit discards
+  /// the cleartext at `UnlockData` init and keeps only the mlock'd pre-hash.
+  func open(url: URL, unlockData: UnlockData) {
+    guard !isLoading else { return }
 
     let generation = lockGeneration
     isLoading = true
@@ -71,7 +74,6 @@ final class VaultStore {
             )
           }
           let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-          let unlockData = UnlockData(masterPassword: password)
           return Result<KDBXContent, VaultOpenFailure>.success(
             try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
           )
