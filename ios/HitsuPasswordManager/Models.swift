@@ -111,8 +111,8 @@ struct VaultTypedField: Identifiable, Hashable, Sendable {
   var id: String { field ?? label }
 }
 
-/// One file attached to an entry. Payload bytes stay in the vault store and
-/// are materialized to a temp file only when the user opens a preview.
+/// One file attached to an entry. Payload bytes resolve on demand from the
+/// vault store and are materialized to a temp file only when previewed.
 struct VaultAttachment: Identifiable, Hashable, Sendable {
   /// Position within the entry's resolved attachment list; the store keys
   /// payload lookups by it.

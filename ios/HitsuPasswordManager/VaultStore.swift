@@ -20,8 +20,8 @@ private let vaultKDFLimits = KDFParameterLimits(
   maxAESKDFRounds: 10_000_000
 )
 
-/// Rejects oversized files before reading them: the eager parse path copies the
-/// whole payload into memory, so the encrypted file size drives peak footprint.
+/// Belt-and-braces on top of KDBXKit's own decompressed-payload cap; the 3.x
+/// eager fallback reads the whole file.
 private let maxVaultFileSize = 256 * 1024 * 1024
 
 @MainActor
@@ -38,8 +38,16 @@ final class VaultStore {
 
   private var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
 
-  /// Resolved attachment payloads, index-aligned with `VaultAttachment.index`.
-  private var attachmentDataByID: [UUID: [Data]] = [:]
+  /// 4.x streaming open: everything but attachment bytes, so payloads resolve
+  /// on demand. nil in eager (3.x) mode.
+  private var lazyContent: LazyKDBXContent?
+
+  /// How each attachment resolves its bytes; index-aligned with
+  /// `VaultAttachment.index`.
+  private var attachmentSourcesByID: [UUID: [AttachmentSource]] = [:]
+
+  /// Security scope held for the session so previews can re-read the file.
+  private var securityScopedURL: URL?
 
   /// Prior entry versions (oldest first), retained so history fields can be
   /// revealed on demand without keeping the whole parsed database alive.
@@ -62,6 +70,7 @@ final class VaultStore {
     let generation = lockGeneration
     isLoading = true
     errorMessage = nil
+    // Access is held until lock(): previews re-read the file.
     let hasSecurityScope = url.startAccessingSecurityScopedResource()
 
     Task { [weak self] in
@@ -69,49 +78,85 @@ final class VaultStore {
         do {
           let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
           if let fileSize, fileSize > maxVaultFileSize {
-            return Result<KDBXContent, VaultOpenFailure>.failure(
+            return Result<VaultOpenResult, VaultOpenFailure>.failure(
               .message("The database is too large to open on this device.")
             )
           }
-          let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-          return Result<KDBXContent, VaultOpenFailure>.success(
-            try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
-          )
+          do {
+            // 4.x: streaming open keeps only the XML resident.
+            return Result<VaultOpenResult, VaultOpenFailure>.success(
+              VaultOpenResult.lazy(
+                try KDBXReader.openMetadataStreaming(
+                  from: .file(url),
+                  unlockData: unlockData,
+                  kdfLimits: vaultKDFLimits
+                )
+              )
+            )
+          } catch KDBXReader.Error.unsupportedFormatVersion(let major, _) where major == 3 {
+            // 3.x binaries live inline in the XML body — no pool to stream past.
+            let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+            return Result<VaultOpenResult, VaultOpenFailure>.success(
+              VaultOpenResult.eager(
+                try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
+              )
+            )
+          }
         } catch let error as KDBXReader.Error {
-          return Result<KDBXContent, VaultOpenFailure>.failure(
+          return Result<VaultOpenResult, VaultOpenFailure>.failure(
             .message(userMessage(for: error))
           )
         } catch {
-          return Result<KDBXContent, VaultOpenFailure>.failure(
+          return Result<VaultOpenResult, VaultOpenFailure>.failure(
             .message("The selected file could not be read.")
           )
         }
       }.value
 
-      if hasSecurityScope {
-        url.stopAccessingSecurityScopedResource()
+      guard let self else {
+        if hasSecurityScope {
+          url.stopAccessingSecurityScopedResource()
+        }
+        return
+      }
+      isLoading = false
+      guard lockGeneration == generation else {
+        if hasSecurityScope {
+          url.stopAccessingSecurityScopedResource()
+        }
+        return
       }
 
-      guard let self else { return }
-      isLoading = false
-      guard lockGeneration == generation else { return }
-
       switch result {
-      case .success(let content):
-        let projection = makeVaultProjection(
-          from: content.database,
-          binaryPool: content.innerHeader.binaryContent
-        )
+      case .success(let opened):
+        let projection: VaultProjection
+        switch opened {
+        case .lazy(let lazy):
+          projection = makeVaultProjection(
+            from: lazy.database,
+            binaries: .poolMetadata(lazy.binaries)
+          )
+          lazyContent = lazy
+        case .eager(let content):
+          projection = makeVaultProjection(
+            from: content.database,
+            binaries: .residentPool(content.innerHeader.binaryContent)
+          )
+          lazyContent = nil
+        }
         entries = projection.entries
         entryStringsByID = projection.entryStringsByID
-        attachmentDataByID = projection.attachmentDataByID
+        attachmentSourcesByID = projection.attachmentSourcesByID
         historyByID = projection.historyByID
+        stopSecurityScope()
+        securityScopedURL = hasSecurityScope ? url : nil
         isUnlocked = true
         errorMessage = nil
       case .failure(.message(let message)):
+        stopSecurityScope()
         entries = []
         entryStringsByID = [:]
-        attachmentDataByID = [:]
+        attachmentSourcesByID = [:]
         historyByID = [:]
         isUnlocked = false
         errorMessage = message
@@ -119,23 +164,64 @@ final class VaultStore {
     }
   }
 
+  /// Releases the session's security-scope access.
+  private func stopSecurityScope() {
+    guard let url = securityScopedURL else { return }
+    securityScopedURL = nil
+    url.stopAccessingSecurityScopedResource()
+  }
+
   func lock() {
     lockGeneration += 1
     entries = []
     entryStringsByID = [:]
-    attachmentDataByID = [:]
+    attachmentSourcesByID = [:]
     historyByID = [:]
+    lazyContent = nil
+    stopSecurityScope()
     isUnlocked = false
     errorMessage = nil
   }
 
-  /// Returns one attachment payload by position; the pool is already resident
-  /// after the eager parse, so this never re-reads the file.
-  func attachmentData(for entryID: UUID, index: Int) -> Data? {
-    guard let payloads = attachmentDataByID[entryID],
-      payloads.indices.contains(index)
+  /// Returns one attachment payload, re-streamed from the file on demand.
+  /// nil when unknown, the vault was locked mid-read, or the re-stream
+  /// fails (an error message is set).
+  func attachmentData(for entryID: UUID, index: Int) async -> Data? {
+    guard let sources = attachmentSourcesByID[entryID],
+      sources.indices.contains(index)
     else { return nil }
-    return payloads[index]
+
+    switch sources[index] {
+    case .inline(let data):
+      return data
+    case .pool(let poolIndex):
+      guard let lazy = lazyContent else { return nil }
+      let generation = lockGeneration
+      let capacityHint =
+        lazy.binaries.indices.contains(Int(poolIndex))
+        ? lazy.binaries[Int(poolIndex)].sizeBytes : 0
+      let result = await Task.detached(priority: .userInitiated) {
+        do {
+          var sink = DataSink(capacityHint: capacityHint)
+          try KDBXReader.streamBinary(from: lazy, at: Int(poolIndex), into: &sink)
+          return Result<Data, KDBXReader.Error>.success(sink.data)
+        } catch let error as KDBXReader.Error {
+          return Result<Data, KDBXReader.Error>.failure(error)
+        } catch {
+          return Result<Data, KDBXReader.Error>.failure(
+            .corruptedInnerHeader(reason: "Attachment re-stream failed")
+          )
+        }
+      }.value
+      guard lockGeneration == generation else { return nil }
+      switch result {
+      case .success(let data):
+        return data
+      case .failure(let error):
+        errorMessage = userMessage(for: error)
+        return nil
+      }
+    }
   }
 
   /// Reveals one field of a stored history version.
@@ -253,16 +339,38 @@ func entryMatchesSearch(
   }
 }
 
+/// Streaming (4.x) or eager (3.x) open result.
+private enum VaultOpenResult: Sendable {
+  case lazy(LazyKDBXContent)
+  case eager(KDBXContent)
+}
+
+/// How the store resolves one attachment's bytes on demand.
+enum AttachmentSource: Sendable {
+  /// 4.x pool reference; bytes are re-streamed on demand.
+  case pool(UInt32)
+  /// Bytes already resident (3.x or a rare inline 4.x binary).
+  case inline(Data)
+}
+
+/// Where `makeVaultProjection` resolves `.ref` attachment bytes from.
+private enum VaultBinarySource {
+  /// 4.x streaming open: per-binary metadata only.
+  case poolMetadata([BinaryMetadata])
+  /// 3.x eager open: the full pool is resident.
+  case residentPool([InnerHeader.BinaryContent])
+}
+
 private struct VaultProjection {
   let entries: [VaultEntry]
   let entryStringsByID: [UUID: [KDBX.ProtectedString]]
-  let attachmentDataByID: [UUID: [Data]]
+  let attachmentSourcesByID: [UUID: [AttachmentSource]]
   let historyByID: [UUID: [KDBX.Entry]]
 }
 
 private func makeVaultProjection(
   from database: KDBX,
-  binaryPool: [InnerHeader.BinaryContent]
+  binaries: VaultBinarySource
 ) -> VaultProjection {
   let trashedIDs = trashedGroupIDs(
     in: database.root.group,
@@ -270,7 +378,7 @@ private func makeVaultProjection(
   )
   var result: [VaultEntry] = []
   var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
-  var attachmentDataByID: [UUID: [Data]] = [:]
+  var attachmentSourcesByID: [UUID: [AttachmentSource]] = [:]
   var historyByID: [UUID: [KDBX.Entry]] = [:]
   var customIconsByID: [UUID: Data] = [:]
   for customIcon in database.meta.customIcons {
@@ -327,27 +435,46 @@ private func makeVaultProjection(
         .map { VaultField(name: $0, isProtected: protectedNames.contains($0)) }
 
       var attachments: [VaultAttachment] = []
-      var attachmentData: [Data] = []
+      var sources: [AttachmentSource] = []
       for binary in entry.binaries {
-        let data: Data
         switch binary.value {
         case .inline(let inlineData, _):
-          data = inlineData
-        case .ref(let poolIndex):
-          guard Int(poolIndex) < binaryPool.count else { continue }
-          data = binaryPool[Int(poolIndex)].data
-        }
-        attachments.append(
-          VaultAttachment(
-            index: attachmentData.count,
-            name: binary.key,
-            byteCount: data.count
+          attachments.append(
+            VaultAttachment(
+              index: sources.count,
+              name: binary.key,
+              byteCount: inlineData.count
+            )
           )
-        )
-        attachmentData.append(data)
+          sources.append(.inline(inlineData))
+        case .ref(let poolIndex):
+          switch binaries {
+          case .poolMetadata(let metadata):
+            guard Int(poolIndex) < metadata.count else { continue }
+            attachments.append(
+              VaultAttachment(
+                index: sources.count,
+                name: binary.key,
+                byteCount: metadata[Int(poolIndex)].sizeBytes
+              )
+            )
+            sources.append(.pool(poolIndex))
+          case .residentPool(let pool):
+            guard Int(poolIndex) < pool.count else { continue }
+            let data = pool[Int(poolIndex)].data
+            attachments.append(
+              VaultAttachment(
+                index: sources.count,
+                name: binary.key,
+                byteCount: data.count
+              )
+            )
+            sources.append(.inline(data))
+          }
+        }
       }
-      if !attachmentData.isEmpty {
-        attachmentDataByID[entry.uuid] = attachmentData
+      if !sources.isEmpty {
+        attachmentSourcesByID[entry.uuid] = sources
       }
 
       let historyItems = entry.history.enumerated().map { index, version in
@@ -406,7 +533,7 @@ private func makeVaultProjection(
   return VaultProjection(
     entries: entries,
     entryStringsByID: entryStringsByID,
-    attachmentDataByID: attachmentDataByID,
+    attachmentSourcesByID: attachmentSourcesByID,
     historyByID: historyByID
   )
 }

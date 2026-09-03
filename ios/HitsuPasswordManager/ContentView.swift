@@ -907,6 +907,8 @@ private struct EntryDetailView: View {
   @State private var copiedPassword = false
   @State private var previewRequest: AttachmentPreviewRequest?
   @State private var previewTempDirectory: URL?
+  /// Guards against double taps while a preview is being staged.
+  @State private var isStagingAttachment = false
   @State private var maskedCardNumber: String?
 
   private static let clipboardLifetime: TimeInterval = 30
@@ -1143,19 +1145,24 @@ private struct EntryDetailView: View {
   }
 
   private func openAttachment(_ attachment: VaultAttachment) {
-    guard previewRequest == nil,
-      let data = store.attachmentData(for: entry.id, index: attachment.index)
-    else { return }
+    guard previewRequest == nil, !isStagingAttachment else { return }
+    isStagingAttachment = true
+    // Previews re-stream the payload from the vault file, so staging is async.
+    Task {
+      defer { isStagingAttachment = false }
+      guard let data = await store.attachmentData(for: entry.id, index: attachment.index)
+      else { return }
 
-    do {
-      let url = try AttachmentPreviewStaging.shared.stagePreview(
-        data: data,
-        fileName: attachment.name
-      )
-      previewTempDirectory = url.deletingLastPathComponent()
-      previewRequest = AttachmentPreviewRequest(url: url)
-    } catch {
-      // Staging already removed its directory; nothing is left to clean up.
+      do {
+        let url = try AttachmentPreviewStaging.shared.stagePreview(
+          data: data,
+          fileName: attachment.name
+        )
+        previewTempDirectory = url.deletingLastPathComponent()
+        previewRequest = AttachmentPreviewRequest(url: url)
+      } catch {
+        // Staging already removed its directory; nothing is left to clean up.
+      }
     }
   }
 
