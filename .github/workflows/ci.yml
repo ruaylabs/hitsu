@@ -89,17 +89,13 @@ jobs:
         with:
           components: clippy, rustfmt
           cache: true
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            src-tauri/target
-            browser-extension/native-host/target
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          # Stable key shared with the e2e job; runner OS/arch is included
+          # automatically. cache-workspaces is required because the cargo
+          # workspaces live in subdirectories, not at the repo root.
+          cache-shared-key: cargo
+          cache-workspaces: |
+            src-tauri
+            browser-extension/native-host
 
       - name: Prepare native host sidecar
         run: node scripts/prepare-native-host.mjs
@@ -140,17 +136,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: true
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            src-tauri/target
-            browser-extension/native-host/target
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          cache-shared-key: cargo
+          cache-workspaces: |
+            src-tauri
+            browser-extension/native-host
 
       - name: Prepare native host sidecar
         run: node scripts/prepare-native-host.mjs
@@ -179,21 +168,14 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: true
+          cache-shared-key: cargo
+          cache-workspaces: |
+            src-tauri
+            browser-extension/native-host
 
-      # The Rust job runs first and populates this lockfile-keyed cache. E2E
-      # restores it to reuse compiled dependencies without adding per-commit
-      # cache uploads to the regular Rust jobs.
-      - name: Restore Rust build artifacts
-        uses: actions/cache@v6
-        with:
-          path: |
-            src-tauri/target
-            browser-extension/native-host/target
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml', 'src-tauri/Cargo.lock', 'browser-extension/native-host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      # Shares the rust job's cache via the stable shared key. An exact hit
+      # makes rust-cache skip its own save, so e2e adds no per-commit cache
+      # uploads of its own.
 
       - name: Cache tauri-driver
         id: cache-tauri-driver
