@@ -36,6 +36,22 @@ final class RecentEntriesTests: XCTestCase {
     XCTAssertEqual(recentVaultEntries(entries).map(\.title), ["New", "Old", "Undated"])
   }
 
+  func testExpirationIsDueByCalendarDay() {
+    XCTAssertTrue(
+      makeEntry(
+        title: "Expired",
+        expirationDate: Date(timeIntervalSince1970: 0)
+      ).isExpired
+    )
+    XCTAssertFalse(
+      makeEntry(
+        title: "Renewed",
+        expirationDate: Date(timeIntervalSinceNow: 7 * 24 * 60 * 60)
+      ).isExpired
+    )
+    XCTAssertFalse(makeEntry(title: "Never expires").isExpired)
+  }
+
   func testSearchIncludesNotesAndTypedAndCustomFields() {
     let entry = makeEntry(title: "Account")
     let fields: [KDBX.ProtectedString] = [
@@ -63,6 +79,7 @@ final class RecentEntriesTests: XCTestCase {
   private func makeEntry(
     title: String,
     lastModified: Date? = nil,
+    expirationDate: Date? = nil,
     isTrashed: Bool = false
   ) -> VaultEntry {
     VaultEntry(
@@ -80,6 +97,7 @@ final class RecentEntriesTests: XCTestCase {
       isFavorite: false,
       isTrashed: isTrashed,
       lastModified: lastModified,
+      expirationDate: expirationDate,
       hasPassword: false,
       hasTOTP: false,
       hasNotes: false,

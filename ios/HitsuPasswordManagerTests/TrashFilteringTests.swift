@@ -69,6 +69,7 @@ final class TrashFilteringTests: XCTestCase {
       isFavorite: true,
       isTrashed: true,
       lastModified: nil,
+      expirationDate: nil,
       hasPassword: true,
       hasTOTP: false,
       hasNotes: false,

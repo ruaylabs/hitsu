@@ -672,6 +672,32 @@ private struct EntryIconView: View {
   ]
 }
 
+private struct ExpirationIndicator: View {
+  let date: Date
+  let isDue: Bool
+
+  private var label: String {
+    if isDue {
+      return Calendar.current.isDateInToday(date)
+        ? "Expires today"
+        : "Expired on \(date.formatted(date: .abbreviated, time: .omitted))"
+    }
+    return "Expires on \(date.formatted(date: .abbreviated, time: .omitted))"
+  }
+
+  var body: some View {
+    Label(label, systemImage: isDue ? "exclamationmark.triangle.fill" : "calendar")
+      .font(.footnote.weight(.medium))
+      .foregroundStyle(isDue ? .red : .secondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(10)
+      .background(
+        (isDue ? Color.red : Color.secondary).opacity(0.1),
+        in: RoundedRectangle(cornerRadius: 10)
+      )
+  }
+}
+
 private struct EntryRow: View {
   let entry: VaultEntry
 
@@ -688,6 +714,11 @@ private struct EntryRow: View {
             Image(systemName: "star.fill")
               .font(.caption)
               .foregroundStyle(.yellow)
+          }
+          if entry.isExpired {
+            Image(systemName: "exclamationmark.triangle.fill")
+              .font(.caption)
+              .foregroundStyle(.red)
           }
           if entry.hasPassword {
             Image(systemName: "key.fill")
@@ -819,6 +850,10 @@ private struct EntryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+        }
+
+        if let expirationDate = entry.expirationDate {
+          ExpirationIndicator(date: expirationDate, isDue: entry.isExpired)
         }
 
         if !entry.typedFields.isEmpty {

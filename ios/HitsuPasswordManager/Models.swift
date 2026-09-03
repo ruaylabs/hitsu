@@ -194,6 +194,8 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let isTrashed: Bool
   /// The last time the entry was modified, used to populate the Recent view.
   let lastModified: Date?
+  /// The expiration date when KeePass expiration is enabled; nil otherwise.
+  let expirationDate: Date?
   let hasPassword: Bool
   let hasTOTP: Bool
   let hasNotes: Bool
@@ -213,6 +215,12 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
     if isUsernameProtected { return "Protected username" }
     if !groupPath.isEmpty { return groupPath }
     return "No username"
+  }
+
+  var isExpired: Bool {
+    guard let expirationDate else { return false }
+    let calendar = Calendar.current
+    return calendar.startOfDay(for: expirationDate) <= calendar.startOfDay(for: Date())
   }
 
   func matchesSearch(_ searchText: String) -> Bool {

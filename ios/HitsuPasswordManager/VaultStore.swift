@@ -374,6 +374,7 @@ private func makeVaultProjection(
           isFavorite: favoriteValue == "true",
           isTrashed: isTrashed,
           lastModified: entry.times?.lastModificationTime,
+          expirationDate: entry.times?.expires == true ? entry.times?.expiryTime : nil,
           hasPassword: hasPassword,
           hasTOTP: hasTOTP,
           hasNotes: hasNotes,
