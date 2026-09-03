@@ -54,4 +54,15 @@ final class MetadataTests: XCTestCase {
     XCTAssertEqual(VaultEntryCategory(databaseValue: "unknown"), .login)
     XCTAssertEqual(VaultEntryCategory(databaseValue: nil), .login)
   }
+
+  func testCustomFieldDisplayNameRemovesStoragePrefix() {
+    XCTAssertEqual(
+      VaultField(name: "custom.API key", isProtected: true).displayName,
+      "API key"
+    )
+    XCTAssertEqual(
+      VaultField(name: "PluginData", isProtected: false).displayName,
+      "PluginData"
+    )
+  }
 }

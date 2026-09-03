@@ -979,16 +979,16 @@ private struct EntryDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
               ForEach(entry.fields) { field in
                 if let value = revealedFields[field.name] {
-                  DetailRow(label: field.name, value: value, allowsSelection: false)
+                  DetailRow(label: field.displayName, value: value, allowsSelection: false)
                 } else if field.isProtected {
                   Button {
                     reveal(field.name)
                   } label: {
-                    Label("Reveal \(field.name)", systemImage: "eye")
+                    Label("Reveal \(field.displayName)", systemImage: "eye")
                   }
                 } else {
                   DetailRow(
-                    label: field.name,
+                    label: field.displayName,
                     value: store.value(for: entry.id, field: field.name) ?? ""
                   )
                 }

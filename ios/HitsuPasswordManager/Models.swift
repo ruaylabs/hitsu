@@ -56,8 +56,14 @@ enum VaultEntryCategory: String, CaseIterable, Hashable, Sendable {
 }
 
 struct VaultField: Identifiable, Hashable, Sendable {
+  /// Raw KDBX field key, retained for looking up the value in the store.
   let name: String
   let isProtected: Bool
+
+  /// User-facing custom field name without the storage prefix.
+  var displayName: String {
+    name.hasPrefix("custom.") ? String(name.dropFirst("custom.".count)) : name
+  }
 
   var id: String { name }
 }
