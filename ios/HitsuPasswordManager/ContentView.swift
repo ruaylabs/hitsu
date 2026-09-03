@@ -27,6 +27,21 @@ private final class ClipboardManager {
   }
 }
 
+/// Returns a URL only for HTTP(S) destinations. Bare hostnames default to HTTPS;
+/// every other scheme remains visible as plain text but cannot be opened.
+func validatedHTTPURL(_ rawValue: String) -> URL? {
+  let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+  let candidate = value.contains("://") ? value : "https://\(value)"
+  guard let url = URL(string: candidate),
+    let scheme = url.scheme?.lowercased(),
+    scheme == "http" || scheme == "https",
+    url.host != nil
+  else {
+    return nil
+  }
+  return url
+}
+
 struct ContentView: View {
   @State private var store = VaultStore()
   @Environment(\.scenePhase) private var scenePhase
@@ -1442,7 +1457,7 @@ private struct DetailRow: View {
         Text(label)
           .font(.caption.weight(.semibold))
           .foregroundStyle(.secondary)
-        if isLink, let url = URL(string: value) {
+        if isLink, let url = validatedHTTPURL(value) {
           Link(value, destination: url)
             .lineLimit(1)
             .truncationMode(.middle)

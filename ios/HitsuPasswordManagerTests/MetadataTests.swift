@@ -65,4 +65,18 @@ final class MetadataTests: XCTestCase {
       "PluginData"
     )
   }
+
+  func testValidatedURLAllowsOnlyHTTPAndHTTPS() {
+    XCTAssertEqual(
+      validatedHTTPURL("example.com")?.absoluteString,
+      "https://example.com"
+    )
+    XCTAssertEqual(
+      validatedHTTPURL("HTTPS://example.com/login")?.absoluteString,
+      "HTTPS://example.com/login"
+    )
+    XCTAssertNil(validatedHTTPURL("javascript://alert"))
+    XCTAssertNil(validatedHTTPURL("custom-scheme://value"))
+    XCTAssertNil(validatedHTTPURL("not a valid host"))
+  }
 }

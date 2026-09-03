@@ -26,7 +26,8 @@ user-selected document flow.
   and unprotected custom or typed fields, and displays details on demand. A Recent
   tab shows the 20 most recently modified
   active entries. Expiration dates are shown in entry details and due entries
-  are flagged in lists. Entries in the recycle bin stay out of the Favorites, Recent,
+  are flagged in lists. Entry links open only HTTP(S) URLs. Entries in the recycle bin
+  stay out of the Favorites, Recent,
   and Categories lists and are shown read-only under a Trash item at the end of
   Categories.
 - Passwords and protected custom fields are revealed only after tapping a
