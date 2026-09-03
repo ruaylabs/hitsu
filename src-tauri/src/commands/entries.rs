@@ -608,13 +608,11 @@ fn snapshot_for_save(
     )
 }
 
-/// Run KDF + serialize + atomic write on a blocking thread. Returns the
-/// hash of the written bytes; the caller must commit it via
-/// `AppState::commit_disk_hash` so the next save's conflict check passes.
-///
-/// Aborts with `ExternalModification` (writing nothing) if the file on disk
-/// no longer hashes to `expected_disk_hash` — another program (sync client,
-/// other KeePass app) changed it and we must not clobber those changes.
+/// Run KDF + serialize + atomic write on a blocking thread, under the
+/// vault-file advisory lock with a pre-rename hash re-check (see
+/// `vault::save_protected`). Returns the hash of the written bytes; the
+/// caller must commit it via `AppState::commit_disk_hash` so the next
+/// save's conflict check passes.
 ///
 /// The caller must hold `AppState::save_lock` from before the in-memory
 /// mutation until this completes (so a later writer can't hit the disk
@@ -626,16 +624,16 @@ async fn save_snapshot(
     path: std::path::PathBuf,
     expected_disk_hash: [u8; 32],
 ) -> HitsuResult<[u8; 32]> {
-    tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
-        crate::vault::ensure_unmodified(&path, &expected_disk_hash)?;
-        let mut buf = std::io::Cursor::new(Vec::new());
-        db.save(&mut buf, key)?;
-        let bytes = buf.into_inner();
-        crate::vault::atomic_write(&path, &bytes)?;
-        Ok(crate::vault::sha256_bytes(&bytes))
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::vault::save_protected(&path, &expected_disk_hash, || {
+            let mut buf = std::io::Cursor::new(Vec::new());
+            db.save(&mut buf, key)?;
+            Ok(((), buf.into_inner()))
+        })
     })
     .await
     .map_err(HitsuError::from_join)?
+    .map(|(_, hash)| hash)
 }
 
 /// Mutate the open vault and persist the resulting snapshot while preserving

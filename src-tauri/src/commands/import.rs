@@ -1408,13 +1408,12 @@ pub async fn vault_import_1pif(
     let save_db = db.clone();
     let save_key = key.clone();
     let save_path = vault_path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
-        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
-        let mut buffer = std::io::Cursor::new(Vec::new());
-        save_db.save(&mut buffer, save_key)?;
-        let bytes = buffer.into_inner();
-        crate::vault::atomic_write(&save_path, &bytes)?;
-        Ok(crate::vault::sha256_bytes(&bytes))
+    let (_, new_disk_hash) = tauri::async_runtime::spawn_blocking(move || {
+        crate::vault::save_protected(&save_path, &expected_disk_hash, || {
+            let mut buffer = std::io::Cursor::new(Vec::new());
+            save_db.save(&mut buffer, save_key)?;
+            Ok(((), buffer.into_inner()))
+        })
     })
     .await
     .map_err(HitsuError::from_join)??;

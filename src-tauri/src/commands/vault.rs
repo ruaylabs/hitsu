@@ -187,19 +187,22 @@ async fn save_and_commit_database(
     verification_error: &'static str,
 ) -> HitsuResult<()> {
     let save_path = path.clone();
-    let (db, disk_hash) = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<_> {
-        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
-        let mut buffer = std::io::Cursor::new(Vec::new());
-        db.save(&mut buffer, key.clone())?;
-        let bytes = buffer.into_inner();
-        crate::vault::backed_up_atomic_write(&save_path, &bytes, |candidate| {
-            let mut file = File::open(candidate).map_err(|error| error.to_string())?;
-            keepass::Database::open(&mut file, key.clone())
-                .map(|_| ())
-                .map_err(|error| format!("{verification_error}: {error}"))
-        })
-        .map_err(HitsuError::Custom)?;
-        Ok((db, crate::vault::sha256_bytes(&bytes)))
+    let (db, disk_hash) = tauri::async_runtime::spawn_blocking(move || {
+        crate::vault::save_protected_with_backup(
+            &save_path,
+            &expected_disk_hash,
+            || {
+                let mut buffer = std::io::Cursor::new(Vec::new());
+                db.save(&mut buffer, key.clone())?;
+                Ok((db, buffer.into_inner()))
+            },
+            |candidate| {
+                let mut file = File::open(candidate).map_err(|error| error.to_string())?;
+                keepass::Database::open(&mut file, key.clone())
+                    .map(|_| ())
+                    .map_err(|error| format!("{verification_error}: {error}"))
+            },
+        )
     })
     .await
     .map_err(HitsuError::from_join)??;
@@ -799,24 +802,22 @@ pub async fn vault_upgrade_kdf(state: State<'_, AppState>) -> HitsuResult<()> {
 
     // KDF + write + verification re-open (a second KDF) off the runtime.
     let save_path = path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
-        // Abort before touching the file if another program changed it.
-        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
-
-        // Re-save with the stored DatabaseKey (no raw password in memory)
-        let mut buf = std::io::Cursor::new(Vec::new());
-        db.save(&mut buf, key.clone())?;
-        let bytes = buf.into_inner();
-
-        crate::vault::backed_up_atomic_write(&save_path, &bytes, |path| {
-            let mut file = File::open(path).map_err(|e| e.to_string())?;
-            keepass::Database::open(&mut file, key.clone())
-                .map(|_| ())
-                .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
-        })
-        .map_err(HitsuError::Custom)?;
-
-        Ok(crate::vault::sha256_bytes(&bytes))
+    let (_, new_disk_hash) = tauri::async_runtime::spawn_blocking(move || {
+        crate::vault::save_protected_with_backup(
+            &save_path,
+            &expected_disk_hash,
+            || {
+                let mut buf = std::io::Cursor::new(Vec::new());
+                db.save(&mut buf, key.clone())?;
+                Ok(((), buf.into_inner()))
+            },
+            |candidate| {
+                let mut file = File::open(candidate).map_err(|e| e.to_string())?;
+                keepass::Database::open(&mut file, key.clone())
+                    .map(|_| ())
+                    .map_err(|e| format!("Cannot re-open after KDF upgrade: {}", e))
+            },
+        )
     })
     .await
     .map_err(HitsuError::from_join)??;
@@ -967,25 +968,24 @@ pub async fn vault_change_password(
     // Save + verification re-open each run the Argon2 KDF — off the runtime.
     let save_key = new_key.clone();
     let save_path = path.clone();
-    let new_disk_hash = tauri::async_runtime::spawn_blocking(move || -> HitsuResult<[u8; 32]> {
-        // Abort before touching the file if another program changed it.
-        crate::vault::ensure_unmodified(&save_path, &expected_disk_hash)?;
-
+    let (_, new_disk_hash) = tauri::async_runtime::spawn_blocking(move || {
         // new_password (Zeroizing) is scrubbed when this closure drops it.
-        let mut buf = std::io::Cursor::new(Vec::new());
-        db.save(&mut buf, save_key)?;
-        let bytes = buf.into_inner();
-
-        crate::vault::backed_up_atomic_write(&save_path, &bytes, |path| {
-            let mut file = File::open(path).map_err(|e| e.to_string())?;
-            let key = keepass::DatabaseKey::new().with_password(&new_password);
-            keepass::Database::open(&mut file, key)
-                .map(|_| ())
-                .map_err(|e| format!("Cannot re-open with new password: {}", e))
-        })
-        .map_err(HitsuError::Custom)?;
-
-        Ok(crate::vault::sha256_bytes(&bytes))
+        crate::vault::save_protected_with_backup(
+            &save_path,
+            &expected_disk_hash,
+            || {
+                let mut buf = std::io::Cursor::new(Vec::new());
+                db.save(&mut buf, save_key)?;
+                Ok(((), buf.into_inner()))
+            },
+            |candidate| {
+                let mut file = File::open(candidate).map_err(|e| e.to_string())?;
+                let key = keepass::DatabaseKey::new().with_password(&new_password);
+                keepass::Database::open(&mut file, key)
+                    .map(|_| ())
+                    .map_err(|e| format!("Cannot re-open with new password: {}", e))
+            },
+        )
     })
     .await
     .map_err(HitsuError::from_join)??;
