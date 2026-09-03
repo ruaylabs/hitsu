@@ -192,6 +192,8 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   /// it). Trashed entries stay out of the Favorites and Categories lists and
   /// are shown only in the read-only Trash tab.
   let isTrashed: Bool
+  /// The last time the entry was modified, used to populate the Recent view.
+  let lastModified: Date?
   let hasPassword: Bool
   let hasTOTP: Bool
   let hasNotes: Bool
@@ -222,4 +224,31 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
       || category.title.localizedCaseInsensitiveContains(query)
       || tags.contains { $0.localizedCaseInsensitiveContains(query) }
   }
+}
+
+/// Returns active entries newest-first, limited to the 20 most recent entries.
+func recentVaultEntries(_ entries: [VaultEntry], limit: Int = 20) -> [VaultEntry] {
+  guard limit > 0 else { return [] }
+
+  return
+    entries
+    .filter { !$0.isTrashed }
+    .sorted { left, right in
+      switch (left.lastModified, right.lastModified) {
+      case (let leftDate?, let rightDate?) where leftDate != rightDate:
+        return leftDate > rightDate
+      case (_?, nil):
+        return true
+      case (nil, _?):
+        return false
+      default:
+        let titleOrder = left.displayTitle.localizedCaseInsensitiveCompare(right.displayTitle)
+        if titleOrder != .orderedSame {
+          return titleOrder == .orderedAscending
+        }
+        return left.id.uuidString < right.id.uuidString
+      }
+    }
+    .prefix(limit)
+    .map { $0 }
 }

@@ -68,6 +68,7 @@ final class TrashFilteringTests: XCTestCase {
       category: .login,
       isFavorite: true,
       isTrashed: true,
+      lastModified: nil,
       hasPassword: true,
       hasTOTP: false,
       hasNotes: false,

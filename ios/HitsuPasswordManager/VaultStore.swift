@@ -330,6 +330,7 @@ private func makeVaultProjection(
           category: category,
           isFavorite: favoriteValue == "true",
           isTrashed: isTrashed,
+          lastModified: entry.times?.lastModificationTime,
           hasPassword: hasPassword,
           hasTOTP: hasTOTP,
           hasNotes: hasNotes,

@@ -21,6 +21,7 @@
 		B10000010000000000000005 /* CardNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000006 /* CardNumberTests.swift */; };
 		B10000010000000000000006 /* PasswordStrengthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000007 /* PasswordStrengthTests.swift */; };
 		B10000010000000000000007 /* TrashFilteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000008 /* TrashFilteringTests.swift */; };
+		B10000010000000000000008 /* RecentEntriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000009 /* RecentEntriesTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 		B20000010000000000000006 /* CardNumberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardNumberTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000007 /* PasswordStrengthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordStrengthTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000008 /* TrashFilteringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashFilteringTests.swift; sourceTree = "<group>"; };
+		B20000010000000000000009 /* RecentEntriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentEntriesTests.swift; sourceTree = "<group>"; };
 		C20000010000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,6 +100,7 @@
 				B20000010000000000000006 /* CardNumberTests.swift */,
 				B20000010000000000000007 /* PasswordStrengthTests.swift */,
 				B20000010000000000000008 /* TrashFilteringTests.swift */,
+				B20000010000000000000009 /* RecentEntriesTests.swift */,
 			);
 			path = HitsuPasswordManagerTests;
 			sourceTree = "<group>";
@@ -246,6 +249,7 @@
 				B10000010000000000000005 /* CardNumberTests.swift in Sources */,
 				B10000010000000000000006 /* PasswordStrengthTests.swift in Sources */,
 				B10000010000000000000007 /* TrashFilteringTests.swift in Sources */,
+				B10000010000000000000008 /* RecentEntriesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
