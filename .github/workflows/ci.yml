@@ -4,6 +4,25 @@ name: CI
 on:
   push:
     branches: [master]
+    paths:
+      - ".github/workflows/ci.yml"
+      - "biome.json"
+      - "browser-extension/**"
+      - "browser-extension-test-site/**"
+      - "chrome-extension/**"
+      - "e2e/**"
+      - "firefox-extension/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "rust-toolchain.toml"
+      - "scripts/**"
+      - "src/**"
+      - "src-tauri/**"
+      - "svelte.config.js"
+      - "static/**"
+      - "tsconfig.json"
+      - "vite.config.js"
   pull_request:
     branches: [master]
   workflow_dispatch:
