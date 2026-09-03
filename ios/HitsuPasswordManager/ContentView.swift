@@ -1455,6 +1455,9 @@ private struct DetailRow: View {
           .foregroundStyle(.secondary)
         if isLink, let url = URL(string: value) {
           Link(value, destination: url)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else if allowsSelection {
           Text(value)
             .textSelection(.enabled)
