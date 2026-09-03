@@ -38,8 +38,9 @@ user-selected document flow.
 - Copied passwords stay on the local clipboard and expire after 30 seconds.
 - KeePassXC `otp` and legacy KeePass TOTP fields generate codes with a live expiry indicator; copied
   codes expire from the local clipboard when the code does.
-- The vault locks automatically when the app leaves the foreground, and a privacy shield
-  covers the app switcher snapshot.
+- The vault locks automatically when the app leaves the foreground and after a
+  configurable idle timeout while it stays open (set on the lock screen, default
+  1 minute); a privacy shield covers the app switcher snapshot.
 - There are intentionally no save, edit, delete, import, or write-back paths.
 
 KDBXKit is BSD-2-Clause licensed. Review its license and dependency licenses

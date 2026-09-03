@@ -28,6 +28,47 @@ private final class ClipboardManager {
   }
 }
 
+/// Remembers the last user touch, seen anywhere in the app's windows
+/// (presented sheets included) and never claimed, so normal gestures are
+/// unaffected.
+@MainActor
+private final class InteractionClock: NSObject {
+  private(set) var lastInteraction = Date()
+
+  func install() {
+    let recognizer = AnyGestureRecognizer(
+      target: self,
+      action: #selector(touchRecognized)
+    )
+    recognizer.cancelsTouchesInView = false
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+      for window in windowScene.windows {
+        window.addGestureRecognizer(recognizer)
+      }
+    }
+  }
+
+  @objc private func touchRecognized() {
+    lastInteraction = Date()
+  }
+}
+
+/// A recognizer that fires on every touch and never claims one.
+private final class AnyGestureRecognizer: UIGestureRecognizer {
+  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+    state = .ended
+  }
+
+  override func canPrevent(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    false
+  }
+
+  override func canBePrevented(by gestureRecognizer: UIGestureRecognizer) -> Bool {
+    false
+  }
+}
+
 /// Returns a URL only for HTTP(S) destinations. Bare hostnames default to HTTPS;
 /// every other scheme remains visible as plain text but cannot be opened.
 func validatedHTTPURL(_ rawValue: String) -> URL? {
@@ -55,6 +96,9 @@ struct ContentView: View {
   @State private var restoredLastVault = false
   @State private var hasSavedVault = false
   @State private var clipboard = ClipboardManager()
+  @State private var interactionClock = InteractionClock()
+  /// Seconds without a touch before the idle lock fires.
+  @AppStorage("idleLockSeconds") private var idleLockSeconds = 60
 
   private let lastVaultBookmarkKey = "lastVaultBookmark"
 
@@ -147,9 +191,11 @@ struct ContentView: View {
       }
     }
     .task {
+      interactionClock.install()
       // A killed run can leave decrypted previews behind; drop those first.
       AttachmentPreviewStaging.shared.purgeStale()
       restoreLastVault()
+      await autoLockLoop()
     }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active {
@@ -253,6 +299,18 @@ struct ContentView: View {
         .buttonStyle(.bordered)
         .controlSize(.large)
         .disabled(store.isLoading)
+      }
+
+      Menu {
+        Picker("Lock after inactivity", selection: $idleLockSeconds) {
+          Text("After 1 minute").tag(60)
+          Text("After 5 minutes").tag(300)
+          Text("After 15 minutes").tag(900)
+        }
+      } label: {
+        Label(autoLockLabel, systemImage: "timer")
+          .font(.footnote.weight(.medium))
+          .foregroundStyle(.secondary)
       }
 
       if store.isLoading {
@@ -421,6 +479,30 @@ struct ContentView: View {
       .toolbar {
         LockToolbar(action: lockVault)
       }
+    }
+  }
+
+  /// Locks the vault when no touch happened for `idleLockSeconds` while the
+  /// app stayed foregrounded.
+  private func autoLockLoop() async {
+    while !Task.isCancelled {
+      try? await Task.sleep(for: .seconds(15))
+      // A stale 0 from before the Never option was removed falls back to the
+      // 1-minute default.
+      let timeout = max(idleLockSeconds, 60)
+      guard store.isUnlocked,
+        Date().timeIntervalSince(interactionClock.lastInteraction) >= TimeInterval(timeout)
+      else { continue }
+      lockVault()
+    }
+  }
+
+  private var autoLockLabel: String {
+    switch idleLockSeconds {
+    case 60: "Auto-lock: after 1 minute"
+    case 300: "Auto-lock: after 5 minutes"
+    case 900: "Auto-lock: after 15 minutes"
+    default: "Auto-lock"
     }
   }
 
