@@ -42,16 +42,20 @@ struct ContentView: View {
   private let lastVaultBookmarkKey = "lastVaultBookmark"
 
   private var favoriteEntries: [VaultEntry] {
-    store.entries.filter { $0.isFavorite && $0.matchesSearch(favoritesSearchText) }
+    store.entries.filter { $0.isFavorite && !$0.isTrashed && $0.matchesSearch(favoritesSearchText) }
   }
 
   private var categorySections: [CategorySection] {
-    let entries = store.entries.filter { $0.matchesSearch(categoriesSearchText) }
+    let entries = store.entries.filter { !$0.isTrashed && $0.matchesSearch(categoriesSearchText) }
     return VaultEntryCategory.allCases.compactMap { category in
       let categoryEntries = entries.filter { $0.category == category }
       guard !categoryEntries.isEmpty else { return nil }
       return CategorySection(category: category, entries: categoryEntries)
     }
+  }
+
+  private var trashedEntries: [VaultEntry] {
+    store.entries.filter { $0.isTrashed }
   }
 
   var body: some View {
@@ -288,7 +292,7 @@ struct ContentView: View {
   private var categoriesView: some View {
     NavigationStack {
       List {
-        if categorySections.isEmpty {
+        if categorySections.isEmpty && trashedEntries.isEmpty {
           ContentUnavailableView(
             categoriesSearchText.isEmpty ? "No categories" : "No results",
             systemImage: categoriesSearchText.isEmpty
@@ -312,6 +316,31 @@ struct ContentView: View {
                   .font(.body.weight(.medium))
                 Spacer()
                 Text(section.entries.count, format: .number)
+                  .font(.subheadline.weight(.semibold))
+                  .foregroundStyle(.secondary)
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 4)
+                  .background(.fill.tertiary, in: Capsule())
+              }
+              .padding(.vertical, 2)
+            }
+          }
+
+          if !trashedEntries.isEmpty {
+            NavigationLink {
+              TrashEntriesView(store: store, clipboard: clipboard, onLock: lockVault)
+            } label: {
+              HStack(spacing: 12) {
+                Image(systemName: "trash")
+                  .font(.system(size: 15, weight: .semibold))
+                  .foregroundStyle(.gray)
+                  .frame(width: 34, height: 34)
+                  .background(Color.gray.opacity(0.14))
+                  .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                Text("Trash")
+                  .font(.body.weight(.medium))
+                Spacer()
+                Text(trashedEntries.count, format: .number)
                   .font(.subheadline.weight(.semibold))
                   .foregroundStyle(.secondary)
                   .padding(.horizontal, 10)
@@ -345,6 +374,46 @@ private struct CategorySection: Identifiable {
   let entries: [VaultEntry]
 
   var id: VaultEntryCategory { category }
+}
+
+/// Read-only listing of the vault's recycle bin, reached from the Trash row at
+/// the end of Categories. Mirrors the desktop's Recycle Bin view. There are no
+/// restore or empty actions: the app never writes to the database.
+private struct TrashEntriesView: View {
+  let store: VaultStore
+  let clipboard: ClipboardManager
+  let onLock: () -> Void
+
+  @State private var searchText = ""
+
+  private var entries: [VaultEntry] {
+    store.entries.filter { $0.isTrashed && $0.matchesSearch(searchText) }
+  }
+
+  var body: some View {
+    List {
+      if entries.isEmpty {
+        ContentUnavailableView(
+          searchText.isEmpty ? "Trash is empty" : "No results",
+          systemImage: searchText.isEmpty ? "trash" : "magnifyingglass"
+        )
+      } else {
+        ForEach(entries) { entry in
+          NavigationLink {
+            EntryDetailView(entry: entry, store: store, clipboard: clipboard)
+              .id(entry.id)
+          } label: {
+            EntryRow(entry: entry)
+          }
+        }
+      }
+    }
+    .navigationTitle("Trash")
+    .searchable(text: $searchText, prompt: "Search trash")
+    .toolbar {
+      LockToolbar(action: onLock)
+    }
+  }
 }
 
 private struct CategoryEntriesView: View {
@@ -684,6 +753,15 @@ private struct EntryDetailView: View {
           }
         }
         .padding(.top, 4)
+
+        if entry.isTrashed {
+          Label("This entry is in the Trash.", systemImage: "trash")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+        }
 
         if !entry.typedFields.isEmpty {
           DetailSection(

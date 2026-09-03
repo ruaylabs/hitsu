@@ -23,7 +23,9 @@ user-selected document flow.
   [KDBXKit](https://github.com/shadone/KDBXKit) `1.3.0` via Swift Package Manager.
   The desktop Hitsu writer must emit standard KDBX output for stock KDBXKit compatibility.
 - The app lists entries, searches title/username/folder/tags, and displays
-  notes and fields on demand.
+  notes and fields on demand. Entries in the recycle bin stay out of the
+  Favorites and Categories lists and are shown read-only under a Trash item at
+  the end of Categories.
 - Passwords and protected custom fields are revealed only after tapping a
   reveal button.
 - Copied passwords stay on the local clipboard and expire after 30 seconds.

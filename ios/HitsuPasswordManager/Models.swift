@@ -188,6 +188,10 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
   let groupPath: String
   let category: VaultEntryCategory
   let isFavorite: Bool
+  /// True when the entry lives in the recycle bin (or a group nested inside
+  /// it). Trashed entries stay out of the Favorites and Categories lists and
+  /// are shown only in the read-only Trash tab.
+  let isTrashed: Bool
   let hasPassword: Bool
   let hasTOTP: Bool
   let hasNotes: Bool

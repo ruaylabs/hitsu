@@ -219,6 +219,10 @@ private func makeVaultProjection(
   from database: KDBX,
   binaryPool: [InnerHeader.BinaryContent]
 ) -> VaultProjection {
+  let trashedIDs = trashedGroupIDs(
+    in: database.root.group,
+    recycleBinID: database.meta.recycleBinUUID
+  )
   var result: [VaultEntry] = []
   var entryStringsByID: [UUID: [KDBX.ProtectedString]] = [:]
   var attachmentDataByID: [UUID: [Data]] = [:]
@@ -229,6 +233,7 @@ private func makeVaultProjection(
   }
 
   func appendEntries(in group: KDBX.Group, path: String) {
+    let isTrashed = trashedIDs.contains(group.uuid)
     for entry in group.entries {
       entryStringsByID[entry.uuid] = entry.strings
       let protectedNames = Set(
@@ -324,6 +329,7 @@ private func makeVaultProjection(
           groupPath: path,
           category: category,
           isFavorite: favoriteValue == "true",
+          isTrashed: isTrashed,
           hasPassword: hasPassword,
           hasTOTP: hasTOTP,
           hasNotes: hasNotes,
@@ -356,6 +362,31 @@ private func makeVaultProjection(
     attachmentDataByID: attachmentDataByID,
     historyByID: historyByID
   )
+}
+
+/// The all-zero UUID that KDBX uses as the "recycle bin not created yet"
+/// marker (Meta.recycleBinUUID is zero until a bin group exists). Internal so
+/// the test target can assert on it.
+let kdbxZeroUUID = UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+
+/// UUIDs of the recycle-bin group and every group nested inside it. An entry
+/// counts as trashed when its containing group appears here, mirroring the
+/// desktop's `entry_is_trashed` ancestry walk. A nil or zero UUID (KeePass's
+/// "create the bin when needed" marker) matches nothing.
+func trashedGroupIDs(in root: KDBX.Group, recycleBinID: UUID?) -> Set<UUID> {
+  guard let recycleBinID, recycleBinID != kdbxZeroUUID else { return [] }
+  var ids: Set<UUID> = []
+  func walk(_ group: KDBX.Group, isTrashed: Bool) {
+    let trashed = isTrashed || group.uuid == recycleBinID
+    if trashed {
+      ids.insert(group.uuid)
+    }
+    for child in group.groups {
+      walk(child, isTrashed: trashed)
+    }
+  }
+  walk(root, isTrashed: false)
+  return ids
 }
 
 private func unprotectedValue(
