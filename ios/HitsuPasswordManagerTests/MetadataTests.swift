@@ -79,4 +79,8 @@ final class MetadataTests: XCTestCase {
     XCTAssertNil(validatedHTTPURL("custom-scheme://value"))
     XCTAssertNil(validatedHTTPURL("not a valid host"))
   }
+
+  func testTagColorsAreStableForCaseAndWhitespaceDifferences() {
+    XCTAssertEqual(tagColor(for: "Work"), tagColor(for: " work "))
+  }
 }

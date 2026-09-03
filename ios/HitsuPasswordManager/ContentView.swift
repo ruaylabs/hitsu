@@ -1005,11 +1005,21 @@ private struct EntryDetailView: View {
           DetailSection(title: "Tags", systemImage: "tag.fill", tint: .gray) {
             FlowLayout(spacing: 8) {
               ForEach(entry.tags, id: \.self) { tag in
-                Text(tag)
-                  .font(.footnote.weight(.medium))
-                  .padding(.horizontal, 11)
-                  .padding(.vertical, 5)
-                  .background(.fill.tertiary, in: Capsule())
+                HStack(spacing: 5) {
+                  Circle()
+                    .fill(tagColor(for: tag))
+                    .frame(width: 6, height: 6)
+                  Text(tag)
+                    .font(.footnote.weight(.medium))
+                }
+                .foregroundStyle(tagColor(for: tag))
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background(tagColor(for: tag).opacity(0.12), in: Capsule())
+                .overlay(
+                  Capsule()
+                    .stroke(tagColor(for: tag).opacity(0.28), lineWidth: 0.5)
+                )
               }
             }
           }

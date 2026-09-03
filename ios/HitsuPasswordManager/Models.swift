@@ -1,6 +1,30 @@
 import Foundation
 import SwiftUI
 
+private let tagPalette: [Color] = [
+  Color(red: 55.0 / 255.0, green: 138.0 / 255.0, blue: 221.0 / 255.0),
+  Color(red: 29.0 / 255.0, green: 158.0 / 255.0, blue: 117.0 / 255.0),
+  Color(red: 216.0 / 255.0, green: 90.0 / 255.0, blue: 48.0 / 255.0),
+  Color(red: 127.0 / 255.0, green: 119.0 / 255.0, blue: 221.0 / 255.0),
+  Color(red: 212.0 / 255.0, green: 83.0 / 255.0, blue: 126.0 / 255.0),
+  Color(red: 15.0 / 255.0, green: 139.0 / 255.0, blue: 141.0 / 255.0),
+  Color(red: 186.0 / 255.0, green: 117.0 / 255.0, blue: 23.0 / 255.0),
+  Color(red: 226.0 / 255.0, green: 75.0 / 255.0, blue: 74.0 / 255.0),
+]
+
+/// Returns a stable palette color for a tag without storing presentation data.
+func tagColor(for tag: String) -> Color {
+  var hash: UInt32 = 2_166_136_261
+  for scalar in tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().unicodeScalars {
+    hash ^= scalar.value
+    hash = hash &* 16_777_619
+  }
+  hash ^= hash >> 16
+  hash = hash &* 0x85EB_CA6B
+  hash ^= hash >> 13
+  return tagPalette[Int(hash % UInt32(tagPalette.count))]
+}
+
 enum VaultEntryCategory: String, CaseIterable, Hashable, Sendable {
   case login
   case password
