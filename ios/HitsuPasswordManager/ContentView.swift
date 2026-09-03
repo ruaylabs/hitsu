@@ -36,7 +36,6 @@ struct ContentView: View {
   @State private var recentSearchText = ""
   @State private var categoriesSearchText = ""
   @State private var favoriteSelectedID: UUID?
-  @State private var recentSelectedID: UUID?
   @State private var restoredLastVault = false
   @State private var hasSavedVault = false
   @State private var clipboard = ClipboardManager()
@@ -308,8 +307,8 @@ struct ContentView: View {
   }
 
   private var recentView: some View {
-    NavigationSplitView {
-      List(selection: $recentSelectedID) {
+    NavigationStack {
+      List {
         if recentEntries.isEmpty {
           ContentUnavailableView(
             recentSearchText.isEmpty ? "No recent entries" : "No results",
@@ -317,8 +316,12 @@ struct ContentView: View {
           )
         } else {
           ForEach(recentEntries) { entry in
-            EntryRow(entry: entry)
-              .tag(entry.id)
+            NavigationLink {
+              EntryDetailView(entry: entry, store: store, clipboard: clipboard)
+                .id(entry.id)
+            } label: {
+              EntryRow(entry: entry)
+            }
           }
         }
       }
@@ -326,19 +329,6 @@ struct ContentView: View {
       .searchable(text: $recentSearchText, prompt: "Search recent entries")
       .toolbar {
         LockToolbar(action: lockVault)
-      }
-    } detail: {
-      if let recentSelectedID,
-        let selected = store.entries.first(where: { $0.id == recentSelectedID })
-      {
-        EntryDetailView(entry: selected, store: store, clipboard: clipboard)
-          .id(selected.id)
-      } else {
-        ContentUnavailableView(
-          "Select a recent entry",
-          systemImage: "clock",
-          description: Text("Choose an entry to view its details.")
-        )
       }
     }
   }
@@ -417,7 +407,6 @@ struct ContentView: View {
   private func lockVault() {
     clipboard.clearIfOwned()
     favoriteSelectedID = nil
-    recentSelectedID = nil
     favoritesSearchText = ""
     recentSearchText = ""
     categoriesSearchText = ""
