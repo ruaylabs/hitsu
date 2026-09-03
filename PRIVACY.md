@@ -2,8 +2,8 @@
 
 **Effective date:** July 18, 2026
 
-Hitsu is a local-first desktop password manager with an optional browser extension, developed by
-Ruaylabs.
+Hitsu is a local-first password manager with an optional browser extension and an iOS viewer,
+developed by Ruaylabs.
 
 ## Desktop application
 
@@ -33,6 +33,23 @@ Policy, including its Limited Use requirements.
 - **activeTab** — read the active page's origin when you open Hitsu from the toolbar.
 - **scripting** — run the bundled credential-filling script after you select a login.
 - **nativeMessaging** — communicate with the locally installed Hitsu desktop app.
+
+## iOS application
+
+The Hitsu iOS app is a read-only viewer for your KeePass `.kdbx` vault. It runs entirely on
+device: it makes no network connections, sends no telemetry, and never writes to your vault.
+
+- Your master password is used only to unlock the vault in memory and is never stored or
+  transmitted.
+- The vault locks automatically whenever the app leaves the foreground and after a period of
+  inactivity while it stays open. You choose the inactivity period (1, 5, or 15 minutes) on the
+  lock screen, before unlocking; it cannot be disabled.
+- Copied passwords and one-time codes stay on the local clipboard briefly and expire on their
+  own.
+- Decrypted attachment previews are kept in a protected temporary location and are purged when
+  the app locks or restarts.
+- The only data the app keeps between launches is a bookmark to the vault file you last opened,
+  stored on device.
 
 ## Data sharing
 
