@@ -910,6 +910,7 @@ private struct EntryDetailView: View {
   @State private var revealedFields: [String: String] = [:]
   @State private var copiedPassword = false
   @State private var previewRequest: AttachmentPreviewRequest?
+  @State private var shareRequest: AttachmentShareRequest?
   @State private var previewTempDirectory: URL?
   /// Guards against double taps while a preview is being staged.
   @State private var isStagingAttachment = false
@@ -1039,9 +1040,12 @@ private struct EntryDetailView: View {
                     Text(formatAttachmentSize(attachment.byteCount))
                       .font(.footnote)
                       .foregroundStyle(.secondary)
-                    Image(systemName: "eye")
-                      .font(.footnote)
-                      .foregroundStyle(.secondary)
+                    Image(
+                      systemName: isPreviewableAttachment(named: attachment.name)
+                        ? "eye" : "square.and.arrow.up"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                   }
                 }
                 .buttonStyle(.plain)
@@ -1136,6 +1140,9 @@ private struct EntryDetailView: View {
     .sheet(item: $previewRequest, onDismiss: { cleanupPreview() }) { request in
       AttachmentPreview(url: request.url)
     }
+    .sheet(item: $shareRequest, onDismiss: { cleanupPreview() }) { request in
+      ActivityShareSheet(items: [request.url])
+    }
     .task(id: entry.id) {
       guard entry.typedFields.contains(where: \.isCardNumber) else { return }
       // The full number is materialized only to derive the mask; just the
@@ -1149,7 +1156,8 @@ private struct EntryDetailView: View {
   }
 
   private func openAttachment(_ attachment: VaultAttachment) {
-    guard previewRequest == nil, !isStagingAttachment else { return }
+    guard previewRequest == nil, shareRequest == nil, !isStagingAttachment else { return }
+    let previewable = isPreviewableAttachment(named: attachment.name)
     isStagingAttachment = true
     // Previews re-stream the payload from the vault file, so staging is async.
     Task {
@@ -1163,7 +1171,11 @@ private struct EntryDetailView: View {
           fileName: attachment.name
         )
         previewTempDirectory = url.deletingLastPathComponent()
-        previewRequest = AttachmentPreviewRequest(url: url)
+        if previewable {
+          previewRequest = AttachmentPreviewRequest(url: url)
+        } else {
+          shareRequest = AttachmentShareRequest(url: url)
+        }
       } catch {
         // Staging already removed its directory; nothing is left to clean up.
       }
@@ -1346,6 +1358,39 @@ private struct TOTPView: View {
 private struct AttachmentPreviewRequest: Identifiable {
   let id = UUID()
   let url: URL
+}
+
+private struct AttachmentShareRequest: Identifiable {
+  let id = UUID()
+  let url: URL
+}
+
+/// Attachment types QuickLook may render, matched by the resolved UTType.
+/// Deliberately concrete rather than conformance-based: .html and .xml
+/// conform to .text and .svg conforms to .image, so supertype checks would
+/// let script-bearing formats reach a system previewer.
+private let previewableAttachmentTypes: [UTType] = [
+  .png, .jpeg, .gif, .webP, .heic, .heif, .tiff, .bmp, .pdf, .plainText,
+]
+
+/// Whether QuickLook may render the attachment; everything else — including
+/// anything the filename can't resolve — goes to the share sheet instead.
+private func isPreviewableAttachment(named name: String) -> Bool {
+  guard let type = UTType(filenameExtension: (name as NSString).pathExtension) else {
+    return false
+  }
+  return previewableAttachmentTypes.contains(type)
+}
+
+/// Share sheet for attachments QuickLook is not allowed to render.
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+  let items: [Any]
+
+  func makeUIViewController(context: Context) -> UIActivityViewController {
+    UIActivityViewController(activityItems: items, applicationActivities: nil)
+  }
+
+  func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 /// Staging area for decrypted attachment previews. Each preview gets a fresh
