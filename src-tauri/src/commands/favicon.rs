@@ -69,6 +69,9 @@ impl reqwest::dns::Resolve for PublicDnsResolver {
 
 pub(crate) fn http_client() -> HitsuResult<reqwest::Client> {
     reqwest::Client::builder()
+        // Proxies resolve hostnames remotely, bypassing PublicDnsResolver's
+        // rebinding filter — never traverse user/system proxies.
+        .no_proxy()
         .dns_resolver(Arc::new(PublicDnsResolver))
         .user_agent("Mozilla/5.0 (compatible; Hitsu/1.0)")
         .timeout(std::time::Duration::from_secs(10))
