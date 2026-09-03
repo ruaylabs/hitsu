@@ -146,11 +146,15 @@ struct ContentView: View {
       }
     }
     .task {
+      // A killed run can leave decrypted previews behind; drop those first.
+      AttachmentPreviewStaging.shared.purgeStale()
       restoreLastVault()
     }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active {
         lockVault()
+        // Previews still on screen are kept; only residue is purged.
+        AttachmentPreviewStaging.shared.purgeStale()
       }
     }
   }
@@ -1057,28 +1061,22 @@ private struct EntryDetailView: View {
       let data = store.attachmentData(for: entry.id, index: attachment.index)
     else { return }
 
-    let directory = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    let safeName =
-      attachment.name.isEmpty
-      ? "attachment"
-      : attachment.name.replacingOccurrences(of: "/", with: "_")
-    let url = directory.appendingPathComponent(safeName)
     do {
-      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-      try data.write(to: url)
+      let url = try AttachmentPreviewStaging.shared.stagePreview(
+        data: data,
+        fileName: attachment.name
+      )
+      previewTempDirectory = url.deletingLastPathComponent()
+      previewRequest = AttachmentPreviewRequest(url: url)
     } catch {
-      try? FileManager.default.removeItem(at: directory)
-      return
+      // Staging already removed its directory; nothing is left to clean up.
     }
-    previewTempDirectory = directory
-    previewRequest = AttachmentPreviewRequest(url: url)
   }
 
   private func cleanupPreview() {
     guard let directory = previewTempDirectory else { return }
     previewTempDirectory = nil
-    try? FileManager.default.removeItem(at: directory)
+    AttachmentPreviewStaging.shared.removePreview(in: directory)
   }
 
   private var typedSectionTitle: String {
@@ -1251,6 +1249,69 @@ private struct TOTPView: View {
 private struct AttachmentPreviewRequest: Identifiable {
   let id = UUID()
   let url: URL
+}
+
+/// Staging area for decrypted attachment previews. Each preview gets a fresh
+/// UUID directory under one dedicated temporary root, and the payload is
+/// written with complete file protection so the bytes are unreadable at rest
+/// while the device is locked. The root is purged on launch (dropping
+/// whatever a killed run left behind) and whenever the app leaves the
+/// foreground, keeping only the previews that are still on screen.
+@MainActor
+final class AttachmentPreviewStaging {
+  static let shared = AttachmentPreviewStaging()
+
+  /// Directories of previews currently presented; `purgeStale` keeps these.
+  private var activeDirectories: Set<URL> = []
+
+  private static var stagingRoot: URL {
+    FileManager.default.temporaryDirectory
+      .appendingPathComponent("AttachmentPreviews", isDirectory: true)
+  }
+
+  /// Writes one attachment payload to a fresh protected directory and
+  /// returns the file URL to preview. A staging failure removes the fresh
+  /// directory, so nothing partial is left behind.
+  func stagePreview(data: Data, fileName: String) throws -> URL {
+    let safeName =
+      fileName.isEmpty ? "attachment" : fileName.replacingOccurrences(of: "/", with: "_")
+    let directory = Self.stagingRoot
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let url = directory.appendingPathComponent(safeName)
+    do {
+      try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true,
+        attributes: [FileAttributeKey.protectionKey: FileProtectionType.complete]
+      )
+      try data.write(to: url, options: [.atomic, .completeFileProtection])
+    } catch {
+      try? FileManager.default.removeItem(at: directory)
+      throw error
+    }
+    activeDirectories.insert(directory)
+    return url
+  }
+
+  /// Removes one preview's directory once its sheet is gone.
+  func removePreview(in directory: URL) {
+    activeDirectories.remove(directory)
+    try? FileManager.default.removeItem(at: directory)
+  }
+
+  /// Removes every staged preview directory except those still presented.
+  /// On launch the active set is empty, so this drops all residue from a
+  /// previous run.
+  func purgeStale() {
+    let contents =
+      (try? FileManager.default.contentsOfDirectory(
+        at: Self.stagingRoot,
+        includingPropertiesForKeys: nil
+      )) ?? []
+    for directory in contents where !activeDirectories.contains(directory) {
+      try? FileManager.default.removeItem(at: directory)
+    }
+  }
 }
 
 /// Single-item QuickLook preview over a temp-file copy of the attachment.

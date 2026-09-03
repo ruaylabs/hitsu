@@ -33,6 +33,8 @@ user-selected document flow.
   Categories.
 - Passwords and protected custom fields are revealed only after tapping a
   reveal button.
+- Decrypted attachment previews are staged in a temporary directory with complete
+  file protection and purged on launch and whenever the app leaves the foreground.
 - Copied passwords stay on the local clipboard and expire after 30 seconds.
 - KeePassXC `otp` and legacy KeePass TOTP fields generate codes with a live expiry indicator; copied
   codes expire from the local clipboard when the code does.
