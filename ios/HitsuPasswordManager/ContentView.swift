@@ -199,6 +199,9 @@ struct ContentView: View {
     }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active {
+        // Dismiss the unlock sheet: the typed master password is released
+        // with the torn-down sheet view instead of surviving in @State.
+        pendingURL = nil
         lockVault()
         // Previews still on screen are kept; only residue is purged.
         AttachmentPreviewStaging.shared.purgeStale()
@@ -884,6 +887,7 @@ private struct PasswordSheet: View {
     }
     .presentationDetents([.medium])
     .onAppear { passwordIsFocused = true }
+    .onDisappear { password = "" }
   }
 
   private func unlock() {
