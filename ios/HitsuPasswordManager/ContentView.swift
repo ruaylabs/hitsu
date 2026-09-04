@@ -5,8 +5,10 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+/// App-owned pasteboard writes with changeCount-tracked ownership so lock can
+/// clear only the items the app itself set. Internal for unit testing.
 @MainActor
-private final class ClipboardManager {
+final class ClipboardManager {
   private var ownedChangeCount: Int?
 
   func copy(_ value: String, expirationDate: Date) {

@@ -23,3 +23,30 @@ jobs:
           cargo audit
         working-directory: src-tauri
 
+  ios-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - name: Check KDBXKit for a newer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          resolved=ios/HitsuPasswordManager.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          pinned=$(python3 -c "
+            import json
+            pins = json.load(open('$resolved'))['pins']
+            print(next(p['state']['version'] for p in pins if p['identity'] == 'kdbxkit'))
+          ")
+          latest=$(curl -fsSL https://api.github.com/repos/shadone/KDBXKit/releases/latest \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])')
+          echo "pinned=${pinned} latest=${latest}"
+          if [ "${pinned}" != "${latest#v}" ]; then
+            echo "::error::KDBXKit ${latest} is available but the app pins ${pinned}."
+            echo "::error::Review upstream changes (parser hardening) and bump the pin."
+            exit 1
+          fi
+

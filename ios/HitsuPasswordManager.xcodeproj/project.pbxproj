@@ -24,6 +24,8 @@
 		B10000010000000000000007 /* TrashFilteringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000008 /* TrashFilteringTests.swift */; };
 		B10000010000000000000008 /* RecentEntriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000009 /* RecentEntriesTests.swift */; };
 		B10000010000000000000009 /* AttachmentStagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001000000000000000A /* AttachmentStagingTests.swift */; };
+		B1000001000000000000000A /* VaultStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001000000000000000B /* VaultStoreTests.swift */; };
+		B1000001000000000000000B /* ClipboardManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001000000000000000C /* ClipboardManagerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +49,8 @@
 		B20000010000000000000008 /* TrashFilteringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashFilteringTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000009 /* RecentEntriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentEntriesTests.swift; sourceTree = "<group>"; };
 		B2000001000000000000000A /* AttachmentStagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStagingTests.swift; sourceTree = "<group>"; };
+		B2000001000000000000000B /* VaultStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStoreTests.swift; sourceTree = "<group>"; };
+		B2000001000000000000000C /* ClipboardManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardManagerTests.swift; sourceTree = "<group>"; };
 		C20000010000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -107,6 +111,8 @@
 				B20000010000000000000008 /* TrashFilteringTests.swift */,
 				B20000010000000000000009 /* RecentEntriesTests.swift */,
 				B2000001000000000000000A /* AttachmentStagingTests.swift */,
+				B2000001000000000000000B /* VaultStoreTests.swift */,
+				B2000001000000000000000C /* ClipboardManagerTests.swift */,
 			);
 			path = HitsuPasswordManagerTests;
 			sourceTree = "<group>";
@@ -258,6 +264,8 @@
 				B10000010000000000000007 /* TrashFilteringTests.swift in Sources */,
 				B10000010000000000000008 /* RecentEntriesTests.swift in Sources */,
 				B10000010000000000000009 /* AttachmentStagingTests.swift in Sources */,
+				B1000001000000000000000A /* VaultStoreTests.swift in Sources */,
+				B1000001000000000000000B /* ClipboardManagerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
