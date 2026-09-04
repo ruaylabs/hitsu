@@ -1,5 +1,6 @@
 import KDBXKit
 import QuickLook
+import Security
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -25,6 +26,40 @@ private final class ClipboardManager {
     guard let ownedChangeCount, pasteboard.changeCount == ownedChangeCount else { return }
     pasteboard.items = []
     self.ownedChangeCount = nil
+  }
+}
+
+/// Keychain-backed storage for the last-vault bookmark. Unlike a UserDefaults
+/// plist, Keychain items are unreadable from a filesystem image, and the
+/// device-only accessibility keeps the bookmark out of backups.
+enum LastVaultBookmark {
+  private static let service = "com.ruaylabs.hitsu.lastVaultBookmark"
+
+  static func save(_ data: Data) {
+    var query = baseQuery
+    SecItemDelete(query as CFDictionary)
+    query[kSecValueData as String] = data
+    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    SecItemAdd(query as CFDictionary, nil)
+  }
+
+  static func load() -> Data? {
+    var query = baseQuery
+    query[kSecReturnData as String] = true
+    var result: AnyObject?
+    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
+    return result as? Data
+  }
+
+  static func remove() {
+    SecItemDelete(baseQuery as CFDictionary)
+  }
+
+  private static var baseQuery: [String: Any] {
+    [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+    ]
   }
 }
 
@@ -99,8 +134,6 @@ struct ContentView: View {
   @State private var interactionClock = InteractionClock()
   /// Seconds without a touch before the idle lock fires.
   @AppStorage("idleLockSeconds") private var idleLockSeconds = 60
-
-  private let lastVaultBookmarkKey = "lastVaultBookmark"
 
   private var favoriteEntries: [VaultEntry] {
     store.entries.filter {
@@ -216,7 +249,7 @@ struct ContentView: View {
         includingResourceValuesForKeys: nil,
         relativeTo: nil
       )
-      UserDefaults.standard.set(bookmark, forKey: lastVaultBookmarkKey)
+      LastVaultBookmark.save(bookmark)
       hasSavedVault = true
     } catch {
       // The current open still works; remembering the URL is only a convenience.
@@ -231,9 +264,9 @@ struct ContentView: View {
 
   private func openLastVault() {
     guard pendingURL == nil, !store.isUnlocked,
-      let bookmark = UserDefaults.standard.data(forKey: lastVaultBookmarkKey)
+      let bookmark = LastVaultBookmark.load()
     else {
-      hasSavedVault = UserDefaults.standard.data(forKey: lastVaultBookmarkKey) != nil
+      hasSavedVault = LastVaultBookmark.load() != nil
       return
     }
 
@@ -251,7 +284,7 @@ struct ContentView: View {
       hasSavedVault = true
       pendingURL = url
     } catch {
-      UserDefaults.standard.removeObject(forKey: lastVaultBookmarkKey)
+      LastVaultBookmark.remove()
       hasSavedVault = false
       store.showError("The last database is no longer available. Choose it again from Files.")
     }
