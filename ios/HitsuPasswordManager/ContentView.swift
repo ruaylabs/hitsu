@@ -136,6 +136,8 @@ struct ContentView: View {
   @State private var interactionClock = InteractionClock()
   /// Seconds without a touch before the idle lock fires.
   @AppStorage("idleLockSeconds") private var idleLockSeconds = 60
+  /// Clipboard expiry window, user-configurable on the lock screen (F12).
+  @AppStorage("clipboardLifetimeSeconds") private var clipboardLifetimeSeconds = 30
 
   private var favoriteEntries: [VaultEntry] {
     store.entries.filter {
@@ -344,6 +346,11 @@ struct ContentView: View {
           Text("After 1 minute").tag(60)
           Text("After 5 minutes").tag(300)
           Text("After 15 minutes").tag(900)
+        }
+        Picker("Clear clipboard after", selection: $clipboardLifetimeSeconds) {
+          Text("After 15 seconds").tag(15)
+          Text("After 30 seconds").tag(30)
+          Text("After 60 seconds").tag(60)
         }
       } label: {
         Label(autoLockLabel, systemImage: "timer")
@@ -950,8 +957,8 @@ private struct EntryDetailView: View {
   /// Guards against double taps while a preview is being staged.
   @State private var isStagingAttachment = false
   @State private var maskedCardNumber: String?
-
-  private static let clipboardLifetime: TimeInterval = 30
+  /// Clipboard expiry window, user-configurable on the lock screen (F12).
+  @AppStorage("clipboardLifetimeSeconds") private var clipboardLifetimeSeconds = 30
 
   private var hasAccountInfo: Bool {
     !entry.username.isEmpty || entry.isUsernameProtected || !entry.url.isEmpty
@@ -1299,7 +1306,7 @@ private struct EntryDetailView: View {
     guard let password = store.value(for: entry.id, field: "Password") else { return }
     clipboard.copy(
       password,
-      expirationDate: Date().addingTimeInterval(Self.clipboardLifetime)
+      expirationDate: Date().addingTimeInterval(TimeInterval(clipboardLifetimeSeconds))
     )
     copiedPassword = true
 
