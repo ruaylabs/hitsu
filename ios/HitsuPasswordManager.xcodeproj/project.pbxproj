@@ -14,6 +14,7 @@
 		A10000010000000000000005 /* KDBXKit in Frameworks */ = {isa = PBXBuildFile; productRef = A60000010000000000000001 /* KDBXKit */; };
 		A10000010000000000000006 /* TOTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000008 /* TOTP.swift */; };
 		A10000010000000000000007 /* PasswordStrength.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* PasswordStrength.swift */; };
+		A10000010000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000A /* PrivacyInfo.xcprivacy */; };
 		B10000010000000000000001 /* MetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000001 /* MetadataTests.swift */; };
 		B10000010000000000000002 /* TOTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000003 /* TOTPTests.swift */; };
 		B10000010000000000000003 /* TypedFieldsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000004 /* TypedFieldsTests.swift */; };
@@ -35,6 +36,7 @@
 		A20000010000000000000007 /* HitsuPasswordManager/HitsuPasswordManager.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HitsuPasswordManager/HitsuPasswordManager.entitlements; sourceTree = "<group>"; };
 		A20000010000000000000008 /* TOTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTP.swift; sourceTree = "<group>"; };
 		A20000010000000000000009 /* PasswordStrength.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordStrength.swift; sourceTree = "<group>"; };
+		A2000001000000000000000A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B20000010000000000000001 /* MetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000002 /* HitsuPasswordManagerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HitsuPasswordManagerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000010000000000000003 /* TOTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTPTests.swift; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 				A20000010000000000000004 /* VaultStore.swift */,
 				A20000010000000000000008 /* TOTP.swift */,
 				A20000010000000000000009 /* PasswordStrength.swift */,
+				A2000001000000000000000A /* PrivacyInfo.xcprivacy */,
 				A20000010000000000000006 /* HitsuPasswordManager/Info.plist */,
 				A20000010000000000000007 /* HitsuPasswordManager/HitsuPasswordManager.entitlements */,
 			);
@@ -222,6 +225,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000010000000000000008 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
