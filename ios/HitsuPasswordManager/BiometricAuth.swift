@@ -99,7 +99,7 @@ enum BiometricAuthenticator {
       }
     } catch let error as LAError {
       switch error.code {
-      case .userCancel, .systemCancel, .appCancel:
+      case .userCancel, .systemCancel, .appCancel, .userFallback:
         throw BiometricUnlockError.cancelled
       default:
         throw BiometricUnlockError.failed
@@ -109,6 +109,8 @@ enum BiometricAuthenticator {
     let data: Data
     do {
       data = try BiometricCredentialStore.load(for: bookmark, context: context)
+    } catch let error as BiometricUnlockError {
+      throw error
     } catch {
       throw BiometricUnlockError.credentialUnavailable
     }
@@ -130,6 +132,7 @@ enum BiometricCredentialStore {
   private static let markerPrefix = "biometricCredential."
 
   static func save(_ keyData: Data, for bookmark: Data) -> Bool {
+    guard keyData.count == 32 else { return false }
     let account = account(for: bookmark)
     var accessControlError: Unmanaged<CFError>?
     guard

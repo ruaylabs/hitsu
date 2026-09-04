@@ -69,7 +69,7 @@ final class VaultStore {
     unlockData: UnlockData,
     onComplete: ((Bool) -> Void)? = nil
   ) {
-    guard !isLoading else { return }
+    guard !isLoading, !isUnlocked else { return }
 
     let generation = lockGeneration
     isLoading = true
@@ -123,13 +123,13 @@ final class VaultStore {
         }
         return
       }
-      isLoading = false
       guard lockGeneration == generation else {
         if hasSecurityScope {
           url.stopAccessingSecurityScopedResource()
         }
         return
       }
+      isLoading = false
 
       switch result {
       case .success(let opened):
@@ -158,6 +158,9 @@ final class VaultStore {
         errorMessage = nil
         onComplete?(true)
       case .failure(.message(let message)):
+        if hasSecurityScope {
+          url.stopAccessingSecurityScopedResource()
+        }
         stopSecurityScope()
         entries = []
         entryStringsByID = [:]
@@ -179,6 +182,7 @@ final class VaultStore {
 
   func lock() {
     lockGeneration += 1
+    isLoading = false
     entries = []
     entryStringsByID = [:]
     attachmentSourcesByID = [:]
