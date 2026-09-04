@@ -64,7 +64,11 @@ final class VaultStore {
   /// Accepts `UnlockData` rather than the cleartext password so the master
   /// password never crosses actor boundaries as a `String`. KDBXKit discards
   /// the cleartext at `UnlockData` init and keeps only the mlock'd pre-hash.
-  func open(url: URL, unlockData: UnlockData) {
+  func open(
+    url: URL,
+    unlockData: UnlockData,
+    onComplete: ((Bool) -> Void)? = nil
+  ) {
     guard !isLoading else { return }
 
     let generation = lockGeneration
@@ -152,6 +156,7 @@ final class VaultStore {
         securityScopedURL = hasSecurityScope ? url : nil
         isUnlocked = true
         errorMessage = nil
+        onComplete?(true)
       case .failure(.message(let message)):
         stopSecurityScope()
         entries = []
@@ -160,6 +165,7 @@ final class VaultStore {
         historyByID = [:]
         isUnlocked = false
         errorMessage = message
+        onComplete?(false)
       }
     }
   }

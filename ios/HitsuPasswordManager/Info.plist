@@ -21,6 +21,8 @@
 	     protects only the user's own vault data, which qualifies for the
 	     standard mass-market exemption. Note: France requires a parallel
 	     declaration for mass-market crypto if distributing there. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to unlock your Hitsu vault.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

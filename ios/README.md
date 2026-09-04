@@ -41,6 +41,9 @@ user-selected document flow.
 - The vault locks automatically when the app leaves the foreground and after a
   configurable idle timeout while it stays open (set on the lock screen, default
   1 minute); a privacy shield covers the app switcher snapshot.
+- Face ID and Touch ID can unlock the last-used vault. The 32-byte unlock
+  pre-hash (not the master password) is stored in a biometric-protected
+  Keychain item only after the user opts in.
 - There are intentionally no save, edit, delete, import, or write-back paths.
 
 KDBXKit is BSD-2-Clause licensed. Review its license and dependency licenses

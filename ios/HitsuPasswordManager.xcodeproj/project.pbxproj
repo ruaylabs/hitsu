@@ -15,6 +15,7 @@
 		A10000010000000000000006 /* TOTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000008 /* TOTP.swift */; };
 		A10000010000000000000007 /* PasswordStrength.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* PasswordStrength.swift */; };
 		A10000010000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000A /* PrivacyInfo.xcprivacy */; };
+		A10000010000000000000009 /* BiometricAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000B /* BiometricAuth.swift */; };
 		B10000010000000000000001 /* MetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000001 /* MetadataTests.swift */; };
 		B10000010000000000000002 /* TOTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000003 /* TOTPTests.swift */; };
 		B10000010000000000000003 /* TypedFieldsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000000000000004 /* TypedFieldsTests.swift */; };
@@ -39,6 +40,7 @@
 		A20000010000000000000008 /* TOTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTP.swift; sourceTree = "<group>"; };
 		A20000010000000000000009 /* PasswordStrength.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordStrength.swift; sourceTree = "<group>"; };
 		A2000001000000000000000A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A2000001000000000000000B /* BiometricAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuth.swift; sourceTree = "<group>"; };
 		B20000010000000000000001 /* MetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataTests.swift; sourceTree = "<group>"; };
 		B20000010000000000000002 /* HitsuPasswordManagerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HitsuPasswordManagerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000010000000000000003 /* TOTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTPTests.swift; sourceTree = "<group>"; };
@@ -93,6 +95,7 @@
 				A20000010000000000000008 /* TOTP.swift */,
 				A20000010000000000000009 /* PasswordStrength.swift */,
 				A2000001000000000000000A /* PrivacyInfo.xcprivacy */,
+				A2000001000000000000000B /* BiometricAuth.swift */,
 				A20000010000000000000006 /* HitsuPasswordManager/Info.plist */,
 				A20000010000000000000007 /* HitsuPasswordManager/HitsuPasswordManager.entitlements */,
 			);
@@ -248,6 +251,7 @@
 				A10000010000000000000004 /* VaultStore.swift in Sources */,
 				A10000010000000000000006 /* TOTP.swift in Sources */,
 				A10000010000000000000007 /* PasswordStrength.swift in Sources */,
+				A10000010000000000000009 /* BiometricAuth.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

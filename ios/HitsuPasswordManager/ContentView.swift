@@ -126,6 +126,11 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @State private var showingImporter = false
   @State private var pendingURL: URL?
+  @State private var pendingBookmark: Data?
+  @State private var biometricCredentialAvailable = false
+  /// Bumped by the unlock sheet's biometric button; drives the root-level
+  /// biometric task so the flow survives the sheet being torn down.
+  @State private var biometricRequest = 0
   @State private var favoritesSearchText = ""
   @State private var recentSearchText = ""
   @State private var categoriesSearchText = ""
@@ -190,7 +195,11 @@ struct ContentView: View {
         store.showError("Please choose a KeePass .kdbx database.")
         return
       }
-      rememberLastVault(url)
+      pendingBookmark = rememberLastVault(url)
+      biometricCredentialAvailable =
+        pendingBookmark.map {
+          BiometricCredentialStore.hasSavedCredential(for: $0)
+        } ?? false
       pendingURL = url
       store.clearError()
     }
@@ -202,7 +211,11 @@ struct ContentView: View {
       switch result {
       case .success(let urls):
         if let url = urls.first {
-          rememberLastVault(url)
+          pendingBookmark = rememberLastVault(url)
+          biometricCredentialAvailable =
+            pendingBookmark.map {
+              BiometricCredentialStore.hasSavedCredential(for: $0)
+            } ?? false
         }
         pendingURL = urls.first
         store.clearError()
@@ -214,16 +227,41 @@ struct ContentView: View {
       isPresented: Binding(
         get: { pendingURL != nil },
         set: { presented in
-          if !presented { pendingURL = nil }
+          if !presented {
+            pendingURL = nil
+            pendingBookmark = nil
+          }
         }
       )
     ) {
       if let url = pendingURL {
-        PasswordSheet(fileName: url.lastPathComponent) { unlockData in
+        PasswordSheet(
+          fileName: url.lastPathComponent,
+          bookmark: pendingBookmark,
+          biometricKind: BiometricAuthenticator.availableBiometric,
+          hasBiometricCredential: biometricCredentialAvailable
+        ) { unlockData, biometricKeyData, useBiometrics in
+          let bookmark = pendingBookmark
           pendingURL = nil
-          store.open(url: url, unlockData: unlockData)
+          pendingBookmark = nil
+          store.open(url: url, unlockData: unlockData) { success in
+            guard success, let bookmark else { return }
+            if useBiometrics, let biometricKeyData {
+              if BiometricCredentialStore.save(biometricKeyData, for: bookmark) {
+                biometricCredentialAvailable = true
+              } else {
+                store.showError("Biometric unlock could not be enabled on this device.")
+              }
+            } else {
+              BiometricCredentialStore.remove(for: bookmark)
+              biometricCredentialAvailable = false
+            }
+          }
+        } onBiometricUnlock: {
+          biometricRequest += 1
         } onCancel: {
           pendingURL = nil
+          pendingBookmark = nil
         }
       }
     }
@@ -233,6 +271,53 @@ struct ContentView: View {
       AttachmentPreviewStaging.shared.purgeStale()
       restoreLastVault()
       await autoLockLoop()
+    }
+    .task(id: biometricRequest) {
+      // Runs at the root (not in the sheet) so a transient scenePhase change
+      // — the simulator deactivates the scene when the system Face ID sheet
+      // appears — can't tear down the sheet and cancel an in-flight prompt.
+      // The URL and bookmark are captured before any await for the same reason.
+      guard biometricRequest > 0,
+        let url = pendingURL,
+        let bookmark = pendingBookmark,
+        let kind = BiometricAuthenticator.availableBiometric
+      else { return }
+      do {
+        let unlockData = try await BiometricAuthenticator.retrieveUnlockData(
+          for: bookmark, kind: kind
+        )
+        guard !Task.isCancelled else { return }
+        pendingURL = nil
+        pendingBookmark = nil
+        store.open(url: url, unlockData: unlockData) { success in
+          guard !success else { return }
+          // A biometric unlock that no longer opens the vault means the
+          // stored pre-hash is stale; drop it so the next unlock re-enrolls.
+          BiometricCredentialStore.remove(for: bookmark)
+          biometricCredentialAvailable = false
+        }
+      } catch is CancellationError {
+        // The app is going away; nothing to report.
+      } catch let error as BiometricUnlockError {
+        guard !Task.isCancelled else { return }
+        if case .credentialUnavailable = error {
+          BiometricCredentialStore.remove(for: bookmark)
+          biometricCredentialAvailable = false
+        }
+        guard case .cancelled = error else {
+          // Real failures surface on the welcome view behind the sheet.
+          pendingURL = nil
+          pendingBookmark = nil
+          store.showError(error.localizedDescription)
+          return
+        }
+        // A user or system cancel keeps the sheet up for a password attempt.
+      } catch {
+        guard !Task.isCancelled else { return }
+        pendingURL = nil
+        pendingBookmark = nil
+        store.showError("Biometric unlock failed.")
+      }
     }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active {
@@ -246,7 +331,7 @@ struct ContentView: View {
     }
   }
 
-  private func rememberLastVault(_ url: URL) {
+  private func rememberLastVault(_ url: URL) -> Data? {
     do {
       let bookmark = try url.bookmarkData(
         options: [.minimalBookmark],
@@ -255,8 +340,10 @@ struct ContentView: View {
       )
       LastVaultBookmark.save(bookmark)
       hasSavedVault = true
+      return bookmark
     } catch {
       // The current open still works; remembering the URL is only a convenience.
+      return nil
     }
   }
 
@@ -283,9 +370,15 @@ struct ContentView: View {
         bookmarkDataIsStale: &isStale
       )
       if isStale {
-        rememberLastVault(url)
+        pendingBookmark = rememberLastVault(url)
+      } else {
+        pendingBookmark = bookmark
       }
       hasSavedVault = true
+      biometricCredentialAvailable =
+        pendingBookmark.map {
+          BiometricCredentialStore.hasSavedCredential(for: $0)
+        } ?? false
       pendingURL = url
     } catch {
       LastVaultBookmark.remove()
@@ -890,12 +983,36 @@ private struct EntryRow: View {
 
 private struct PasswordSheet: View {
   let fileName: String
-  let onUnlock: (UnlockData) -> Void
+  let bookmark: Data?
+  let biometricKind: BiometricKind?
+  let hasBiometricCredential: Bool
+  let onUnlock: (UnlockData, Data?, Bool) -> Void
+  let onBiometricUnlock: () -> Void
   let onCancel: () -> Void
 
   @Environment(\.dismiss) private var dismiss
   @FocusState private var passwordIsFocused: Bool
   @State private var password = ""
+  @State private var useBiometrics: Bool
+
+  init(
+    fileName: String,
+    bookmark: Data?,
+    biometricKind: BiometricKind?,
+    hasBiometricCredential: Bool,
+    onUnlock: @escaping (UnlockData, Data?, Bool) -> Void,
+    onBiometricUnlock: @escaping () -> Void,
+    onCancel: @escaping () -> Void
+  ) {
+    self.fileName = fileName
+    self.bookmark = bookmark
+    self.biometricKind = biometricKind
+    self.hasBiometricCredential = hasBiometricCredential
+    self.onUnlock = onUnlock
+    self.onBiometricUnlock = onBiometricUnlock
+    self.onCancel = onCancel
+    _useBiometrics = State(initialValue: hasBiometricCredential)
+  }
 
   var body: some View {
     NavigationStack {
@@ -905,6 +1022,26 @@ private struct PasswordSheet: View {
             .focused($passwordIsFocused)
             .submitLabel(.continue)
             .onSubmit(unlock)
+
+          if let biometricKind, bookmark != nil {
+            Toggle(isOn: $useBiometrics) {
+              Label(
+                "Use \(biometricKind.title) next time",
+                systemImage: biometricKind.systemImage
+              )
+            }
+          }
+
+          if let biometricKind, bookmark != nil, hasBiometricCredential {
+            Divider()
+            Button {
+              onBiometricUnlock()
+            } label: {
+              Label("Unlock with \(biometricKind.title)", systemImage: biometricKind.systemImage)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+          }
         } header: {
           Text(fileName)
             .textCase(nil)
@@ -935,11 +1072,14 @@ private struct PasswordSheet: View {
   private func unlock() {
     guard !password.isEmpty else { return }
     // Consume the cleartext at the earliest point: UnlockData discards it at
-    // init and keeps only the mlock'd pre-hash, so the password never leaves
-    // this view (or its @State) as a plain String.
+    // init and keeps only the mlock'd pre-hash. When biometric storage is
+    // enabled, the 32-byte pre-hash (KDBXKit's documented biometric
+    // rehydration input — keyDataBytes / init(rawKeyData:)), not the
+    // password, is retained until the vault confirms a successful unlock.
     let unlockData = UnlockData(masterPassword: password)
+    let biometricKeyData = useBiometrics ? unlockData.keyDataBytes.toData() : nil
     password = ""
-    onUnlock(unlockData)
+    onUnlock(unlockData, biometricKeyData, useBiometrics)
     dismiss()
   }
 }
