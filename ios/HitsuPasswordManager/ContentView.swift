@@ -1004,6 +1004,7 @@ private struct PasswordSheet: View {
   @FocusState private var passwordIsFocused: Bool
   @State private var password = ""
   @State private var useBiometrics: Bool
+  @State private var requestedAutomaticBiometricUnlock = false
 
   init(
     fileName: String,
@@ -1075,7 +1076,14 @@ private struct PasswordSheet: View {
       }
     }
     .presentationDetents([.medium])
-    .onAppear { passwordIsFocused = true }
+    .onAppear {
+      passwordIsFocused = true
+      guard hasBiometricCredential, biometricKind != nil, bookmark != nil,
+        !requestedAutomaticBiometricUnlock
+      else { return }
+      requestedAutomaticBiometricUnlock = true
+      onBiometricUnlock()
+    }
     .onDisappear { password = "" }
   }
 
