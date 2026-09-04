@@ -16,6 +16,13 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<!-- ITSAppUsesNonExemptEncryption=false: the app's crypto (KDBX
+	     AES-256/ChaCha20, CryptoKit HMAC; KDBXKit's pure-Swift ChaCha20)
+	     protects only the user's own vault data, which qualifies for the
+	     standard mass-market exemption. Note: France requires a parallel
+	     declaration for mass-market crypto if distributing there. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchScreen</key>
