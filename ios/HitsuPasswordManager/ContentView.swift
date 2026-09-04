@@ -128,9 +128,12 @@ struct ContentView: View {
   @State private var pendingURL: URL?
   @State private var pendingBookmark: Data?
   @State private var biometricCredentialAvailable = false
-  /// Bumped by the unlock sheet's biometric button; drives the root-level
-  /// biometric task so the flow survives the sheet being torn down.
+  /// Bumped by a biometric unlock request; drives the root-level biometric
+  /// task so the flow survives the sheet being torn down.
   @State private var biometricRequest = 0
+  @State private var biometricUnlockTarget: BiometricUnlockTarget?
+  @State private var biometricUnlockInProgress = false
+  @State private var shouldAttemptBiometricReentry = false
   @State private var favoritesSearchText = ""
   @State private var recentSearchText = ""
   @State private var categoriesSearchText = ""
@@ -230,6 +233,7 @@ struct ContentView: View {
           if !presented {
             pendingURL = nil
             pendingBookmark = nil
+            biometricUnlockTarget = nil
           }
         }
       )
@@ -242,6 +246,7 @@ struct ContentView: View {
           hasBiometricCredential: biometricCredentialAvailable
         ) { unlockData, biometricKeyData, useBiometrics in
           let bookmark = pendingBookmark
+          biometricUnlockTarget = nil
           pendingURL = nil
           pendingBookmark = nil
           store.open(url: url, unlockData: unlockData) { success in
@@ -258,8 +263,15 @@ struct ContentView: View {
             }
           }
         } onBiometricUnlock: {
+          guard let url = pendingURL, let bookmark = pendingBookmark else { return }
+          biometricUnlockTarget = BiometricUnlockTarget(
+            url: url,
+            bookmark: bookmark,
+            keepsUnlockSheetPresented: true
+          )
           biometricRequest += 1
         } onCancel: {
+          biometricUnlockTarget = nil
           pendingURL = nil
           pendingBookmark = nil
         }
@@ -278,22 +290,24 @@ struct ContentView: View {
       // appears — can't tear down the sheet and cancel an in-flight prompt.
       // The URL and bookmark are captured before any await for the same reason.
       guard biometricRequest > 0,
-        let url = pendingURL,
-        let bookmark = pendingBookmark,
+        let target = biometricUnlockTarget,
         let kind = BiometricAuthenticator.availableBiometric
       else { return }
+      biometricUnlockInProgress = true
+      defer { biometricUnlockInProgress = false }
       do {
         let unlockData = try await BiometricAuthenticator.retrieveUnlockData(
-          for: bookmark, kind: kind
+          for: target.bookmark, kind: kind
         )
         guard !Task.isCancelled else { return }
+        biometricUnlockTarget = nil
         pendingURL = nil
         pendingBookmark = nil
-        store.open(url: url, unlockData: unlockData) { success in
+        store.open(url: target.url, unlockData: unlockData) { success in
           guard !success else { return }
           // A biometric unlock that no longer opens the vault means the
           // stored pre-hash is stale; drop it so the next unlock re-enrolls.
-          BiometricCredentialStore.remove(for: bookmark)
+          BiometricCredentialStore.remove(for: target.bookmark)
           biometricCredentialAvailable = false
         }
       } catch is CancellationError {
@@ -301,19 +315,23 @@ struct ContentView: View {
       } catch let error as BiometricUnlockError {
         guard !Task.isCancelled else { return }
         if case .credentialUnavailable = error {
-          BiometricCredentialStore.remove(for: bookmark)
+          BiometricCredentialStore.remove(for: target.bookmark)
           biometricCredentialAvailable = false
         }
         guard case .cancelled = error else {
-          // Real failures surface on the welcome view behind the sheet.
+          biometricUnlockTarget = nil
           pendingURL = nil
           pendingBookmark = nil
           store.showError(error.localizedDescription)
           return
         }
-        // A user or system cancel keeps the sheet up for a password attempt.
+        if !target.keepsUnlockSheetPresented {
+          biometricUnlockTarget = nil
+        }
+        // A user or system cancel keeps the password fallback available.
       } catch {
         guard !Task.isCancelled else { return }
+        biometricUnlockTarget = nil
         pendingURL = nil
         pendingBookmark = nil
         store.showError("Biometric unlock failed.")
@@ -321,12 +339,21 @@ struct ContentView: View {
     }
     .onChange(of: scenePhase) { _, phase in
       if phase != .active {
-        // Dismiss the unlock sheet: the typed master password is released
-        // with the torn-down sheet view instead of surviving in @State.
+        // A biometric prompt briefly makes the scene inactive. Keep its
+        // target and unlock sheet alive; ordinary backgrounding still clears
+        // the sheet and locks the vault.
+        guard !biometricUnlockInProgress else { return }
+        let wasUnlocked = store.isUnlocked
         pendingURL = nil
+        pendingBookmark = nil
+        biometricUnlockTarget = nil
+        shouldAttemptBiometricReentry = wasUnlocked
         lockVault()
         // Previews still on screen are kept; only residue is purged.
         AttachmentPreviewStaging.shared.purgeStale()
+      } else if shouldAttemptBiometricReentry {
+        shouldAttemptBiometricReentry = false
+        requestBiometricReentry()
       }
     }
   }
@@ -365,11 +392,41 @@ struct ContentView: View {
 
   private func openLastVault() {
     guard pendingURL == nil, !store.isUnlocked,
-      let bookmark = LastVaultBookmark.load()
+      let target = lastVaultTarget()
     else {
       hasSavedVault = LastVaultBookmark.load() != nil
       return
     }
+
+    pendingBookmark = target.bookmark
+    hasSavedVault = true
+    biometricCredentialAvailable =
+      target.bookmark.map {
+        BiometricCredentialStore.hasSavedCredential(for: $0)
+      } ?? false
+    pendingURL = target.url
+  }
+
+  /// Starts biometric unlock directly after an automatic lock. Unlike the
+  /// initial vault-open path, this leaves the password sheet dismissed.
+  private func requestBiometricReentry() {
+    guard !store.isUnlocked, pendingURL == nil, biometricUnlockTarget == nil,
+      BiometricAuthenticator.availableBiometric != nil,
+      let target = lastVaultTarget(),
+      let bookmark = target.bookmark,
+      BiometricCredentialStore.hasSavedCredential(for: bookmark)
+    else { return }
+
+    biometricUnlockTarget = BiometricUnlockTarget(
+      url: target.url,
+      bookmark: bookmark,
+      keepsUnlockSheetPresented: false
+    )
+    biometricRequest += 1
+  }
+
+  private func lastVaultTarget() -> (url: URL, bookmark: Data?)? {
+    guard let bookmark = LastVaultBookmark.load() else { return nil }
 
     do {
       var isStale = false
@@ -379,21 +436,12 @@ struct ContentView: View {
         relativeTo: nil,
         bookmarkDataIsStale: &isStale
       )
-      if isStale {
-        pendingBookmark = rememberLastVault(url)
-      } else {
-        pendingBookmark = bookmark
-      }
-      hasSavedVault = true
-      biometricCredentialAvailable =
-        pendingBookmark.map {
-          BiometricCredentialStore.hasSavedCredential(for: $0)
-        } ?? false
-      pendingURL = url
+      return (url, isStale ? rememberLastVault(url) : bookmark)
     } catch {
       LastVaultBookmark.remove()
       hasSavedVault = false
       store.showError("The last database is no longer available. Choose it again from Files.")
+      return nil
     }
   }
 
@@ -642,6 +690,7 @@ struct ContentView: View {
         Date().timeIntervalSince(interactionClock.lastInteraction) >= TimeInterval(timeout)
       else { continue }
       lockVault()
+      requestBiometricReentry()
     }
   }
 
@@ -655,6 +704,7 @@ struct ContentView: View {
   }
 
   private func lockVault() {
+    biometricUnlockTarget = nil
     clipboard.clearIfOwned()
     favoriteSelectedID = nil
     favoritesSearchText = ""
@@ -662,6 +712,12 @@ struct ContentView: View {
     categoriesSearchText = ""
     store.lock()
   }
+}
+
+private struct BiometricUnlockTarget {
+  let url: URL
+  let bookmark: Data
+  let keepsUnlockSheetPresented: Bool
 }
 
 private struct CategorySection: Identifiable {
