@@ -332,6 +332,16 @@ struct ContentView: View {
   }
 
   private func rememberLastVault(_ url: URL) -> Data? {
+    // A URL returned by Files/iCloud is security-scoped. On iOS the scope must
+    // be active while creating its bookmark; `.withSecurityScope` is not an
+    // available iOS bookmark option.
+    let hasSecurityScope = url.startAccessingSecurityScopedResource()
+    defer {
+      if hasSecurityScope {
+        url.stopAccessingSecurityScopedResource()
+      }
+    }
+
     do {
       let bookmark = try url.bookmarkData(
         options: [.minimalBookmark],
