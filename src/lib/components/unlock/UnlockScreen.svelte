@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import * as biometricBridge from "$lib/bridge/biometric";
   import { vault } from "$lib/stores/vault.svelte";
-  import { errorMessage } from "$lib/utils/errorMessage";
+  import { errorKind, errorMessage } from "$lib/utils/errorMessage";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
   let {
@@ -57,9 +57,8 @@
       await vault.unlockWithBiometric(path);
       onunlock?.();
     } catch (cause) {
-      const message = errorMessage(cause);
-      if (message === "Touch ID was canceled.") return;
-      error = message;
+      if (errorKind(cause) === "biometric_canceled") return;
+      error = errorMessage(cause);
 
       // A stale saved password is removed by the backend. Refresh status in
       // the background so the master-password fallback is re-enabled at once.

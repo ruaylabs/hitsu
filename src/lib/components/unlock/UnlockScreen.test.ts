@@ -39,7 +39,9 @@ describe("UnlockScreen", () => {
   });
 
   it("keeps master-password unlock available after Touch ID is canceled", async () => {
-    mocks.unlockWithBiometric.mockRejectedValueOnce(new Error("Touch ID was canceled."));
+    mocks.unlockWithBiometric.mockRejectedValueOnce(
+      Object.assign(new Error("Touch ID was canceled."), { kind: "biometric_canceled" }),
+    );
     render(UnlockScreen, { path: "/vaults/main.kdbx", title: "Unlock vault" });
 
     await fireEvent.click(await screen.findByRole("button", { name: "Unlock with Touch ID" }));

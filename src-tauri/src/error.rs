@@ -34,6 +34,12 @@ pub enum HitsuError {
     Custom(String),
 }
 
+#[derive(serde::Serialize)]
+struct IpcError<'a> {
+    kind: &'static str,
+    message: &'a str,
+}
+
 impl HitsuError {
     /// Map a failed `spawn_blocking` join (task panicked or the runtime is
     /// shutting down) to a user-safe error, logging the detail locally.
@@ -116,7 +122,12 @@ impl serde::Serialize for HitsuError {
             // attachment names, so do not write their values to logs.
             _ => {}
         }
-        serializer.serialize_str(&self.user_message())
+        let message = self.user_message();
+        IpcError {
+            kind: self.kind(),
+            message: &message,
+        }
+        .serialize(serializer)
     }
 }
 
@@ -152,10 +163,15 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_emits_user_message() {
+    fn test_serialize_emits_user_safe_ipc_error() {
         let err = HitsuError::Io(std::io::Error::other("raw os detail"));
-        let json = serde_json::to_string(&err).unwrap();
-        assert_eq!(json, "\"A file operation failed.\"");
+        assert_eq!(
+            serde_json::to_value(&err).unwrap(),
+            serde_json::json!({
+                "kind": "io",
+                "message": "A file operation failed."
+            })
+        );
     }
 
     #[test]

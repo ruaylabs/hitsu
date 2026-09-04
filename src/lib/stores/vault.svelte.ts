@@ -6,6 +6,7 @@ import type { EntrySummary, FolderSummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { selection } from "$lib/stores/selection.svelte";
+import { normalizeError } from "$lib/utils/errorMessage";
 
 let vaultMeta = $state<VaultMeta | null>(null);
 let entries = $state<EntrySummary[]>([]);
@@ -49,10 +50,6 @@ function rememberVault(path: string) {
   void prefsBridge
     .prefsSetLastVault(path)
     .catch((error) => console.error("Failed to remember vault", error));
-}
-
-function normalizeError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
 }
 
 async function loadAndInstallVault(

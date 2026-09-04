@@ -7,10 +7,13 @@
   import { onMount } from "svelte";
   import ToastStack from "$lib/components/ui/ToastStack.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { errorMessage, isIpcErrorPayload } from "$lib/utils/errorMessage";
 
   function rejectionMessage(reason: unknown) {
-    if (reason instanceof Error && reason.message.trim()) return reason.message;
-    if (typeof reason === "string" && reason.trim()) return reason;
+    if (reason instanceof Error || typeof reason === "string" || isIpcErrorPayload(reason)) {
+      const message = errorMessage(reason).trim();
+      if (message) return message;
+    }
     return "An unexpected background error occurred";
   }
 

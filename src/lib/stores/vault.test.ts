@@ -114,9 +114,15 @@ describe("vault store", () => {
   });
 
   it("normalizes Touch ID failures without replacing state", async () => {
-    vi.spyOn(biometricBridge, "biometricUnlock").mockRejectedValue("Touch ID failed");
+    vi.spyOn(biometricBridge, "biometricUnlock").mockRejectedValue({
+      kind: "biometric_failed",
+      message: "Touch ID failed",
+    });
 
-    await expect(vault.unlockWithBiometric("/tmp/test.kdbx")).rejects.toThrow("Touch ID failed");
+    await expect(vault.unlockWithBiometric("/tmp/test.kdbx")).rejects.toMatchObject({
+      kind: "biometric_failed",
+      message: "Touch ID failed",
+    });
 
     expect(vault.meta).toBeNull();
     expect(prefsBridge.prefsSetLastVault).not.toHaveBeenCalled();

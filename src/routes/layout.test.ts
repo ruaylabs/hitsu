@@ -50,6 +50,17 @@ describe("global rejection handling", () => {
     expect(console.error).toHaveBeenCalledWith("Unhandled promise rejection", expect.any(Error));
   });
 
+  it("reports structured IPC errors through the toast stack", async () => {
+    render(Layout);
+
+    window.dispatchEvent(
+      rejectionEvent({ kind: "io", message: "The background file operation failed" }),
+    );
+    await tick();
+
+    expect(screen.getByText("The background file operation failed")).toBeInTheDocument();
+  });
+
   it("uses a safe fallback for non-message rejection values", async () => {
     render(Layout);
 
