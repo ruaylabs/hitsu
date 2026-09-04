@@ -135,6 +135,35 @@ ios-test simulator="iPhone 17":
 tauri-dev:
     pnpm tauri dev
 
+# Build, verify, and launch a signed macOS app with Touch ID support
+macos-touch-id-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        echo "macos-touch-id-build must run on macOS" >&2
+        exit 1
+    fi
+
+    : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID to your 10-character Apple Developer Team ID}"
+    : "${APPLE_SIGNING_IDENTITY:?Set APPLE_SIGNING_IDENTITY to your Developer ID Application identity}"
+    if [[ -z "${APPLE_PROVISIONING_PROFILE:-}" && -z "${APPLE_PROVISIONING_PROFILE_PATH:-}" ]]; then
+        echo "Set APPLE_PROVISIONING_PROFILE (base64) or APPLE_PROVISIONING_PROFILE_PATH" >&2
+        exit 1
+    fi
+
+    signing_dir=".touch-id-signing"
+    config="$signing_dir/tauri.touch-id.conf.json"
+    app="src-tauri/target/release/bundle/macos/Hitsu.app"
+
+    node scripts/prepare-macos-touch-id-signing.mjs "$signing_dir"
+    pnpm tauri build --config "$config"
+
+    codesign --verify --deep --strict --verbose=2 "$app"
+    codesign -d --entitlements :- "$app"
+    security cms -D -i "$app/Contents/embedded.provisionprofile"
+    open "$app"
+
 # Read current desktop app version from tauri.conf.json
 version:
     @grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([0-9.]*\)".*/\1/'

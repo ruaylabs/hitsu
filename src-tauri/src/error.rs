@@ -9,6 +9,18 @@ pub enum HitsuError {
     #[error("Vault file changed on disk")]
     ExternalModification,
 
+    #[error("Touch ID is not available on this Mac.")]
+    BiometricUnavailable,
+
+    #[error("Touch ID is not enabled for this vault. Use your master password.")]
+    BiometricNotEnabled,
+
+    #[error("Touch ID was canceled.")]
+    BiometricCanceled,
+
+    #[error("{0}")]
+    BiometricFailed(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -36,6 +48,10 @@ impl HitsuError {
             HitsuError::EntryNotFound(_) => "entry_not_found",
             HitsuError::NoOpenVault => "no_open_vault",
             HitsuError::ExternalModification => "external_modification",
+            HitsuError::BiometricUnavailable => "biometric_unavailable",
+            HitsuError::BiometricNotEnabled => "biometric_not_enabled",
+            HitsuError::BiometricCanceled => "biometric_canceled",
+            HitsuError::BiometricFailed(_) => "biometric_failed",
             HitsuError::Io(_) => "io",
             HitsuError::KeepassOpen(_) => "keepass_open",
             HitsuError::KeepassSave(_) => "keepass_save",
@@ -51,9 +67,13 @@ impl HitsuError {
     /// their `Display` text is already safe to show.
     fn user_message(&self) -> String {
         match self {
-            HitsuError::EntryNotFound(_) | HitsuError::NoOpenVault | HitsuError::Custom(_) => {
-                self.to_string()
-            }
+            HitsuError::EntryNotFound(_)
+            | HitsuError::NoOpenVault
+            | HitsuError::BiometricUnavailable
+            | HitsuError::BiometricNotEnabled
+            | HitsuError::BiometricCanceled
+            | HitsuError::BiometricFailed(_)
+            | HitsuError::Custom(_) => self.to_string(),
             HitsuError::ExternalModification => {
                 "The vault file was changed on disk by another program (a sync client?). \
                  Nothing was saved. Hitsu reloads the latest version automatically — \
@@ -136,5 +156,18 @@ mod tests {
         let err = HitsuError::Io(std::io::Error::other("raw os detail"));
         let json = serde_json::to_string(&err).unwrap();
         assert_eq!(json, "\"A file operation failed.\"");
+    }
+
+    #[test]
+    fn test_biometric_error_kinds_and_messages() {
+        assert_eq!(HitsuError::BiometricCanceled.kind(), "biometric_canceled");
+        assert_eq!(
+            HitsuError::BiometricCanceled.user_message(),
+            "Touch ID was canceled."
+        );
+        assert_eq!(
+            HitsuError::BiometricUnavailable.kind(),
+            "biometric_unavailable"
+        );
     }
 }

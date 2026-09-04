@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { errorMessage as getErrorMessage } from "$lib/utils/errorMessage";
   import { estimateStrength } from "$lib/utils/passwordStrength";
   import Button from "./Button.svelte";
@@ -11,6 +12,10 @@
     vaultPath = "",
     confirmLabel = "Unlock",
     pendingLabel,
+    alternateLabel,
+    alternatePendingLabel,
+    alternateIcon,
+    onalternate,
     showConfirm = true,
     showCancel = true,
     errorMessage = "",
@@ -30,6 +35,11 @@
     vaultPath?: string;
     confirmLabel?: string;
     pendingLabel?: string;
+    /** Optional action shown above the password field, such as biometric unlock. */
+    alternateLabel?: string;
+    alternatePendingLabel?: string;
+    alternateIcon?: string;
+    onalternate?: () => void | Promise<void>;
     showConfirm?: boolean;
     showCancel?: boolean;
     errorMessage?: string;
@@ -56,6 +66,8 @@
   let capsLockOn = $state(false);
   let focusedField = $state<"password" | "confirm" | null>(null);
   let busy = $state(false);
+  let alternateBusy = $state(false);
+  let passwordInput: HTMLInputElement | undefined;
 
   const DEFAULT_PENDING_LABELS: Record<string, string> = {
     Unlock: "Unlocking…",
@@ -75,8 +87,9 @@
       ? "Use a long, unique passphrase and store it in a separate secure location."
       : `${confirmLabel} is disabled until password strength is ${STRENGTH_LEVEL_LABELS[minStrength]} or better. Try a longer, unique passphrase.`,
   );
+  let working = $derived(busy || alternateBusy);
   let canSubmit = $derived(
-    !busy && password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
+    !working && password.length > 0 && (!confirm || confirmPassword.length > 0) && strengthOk,
   );
 
   function updateCapsLock(event: KeyboardEvent) {
@@ -84,7 +97,7 @@
   }
 
   async function submit() {
-    if (busy) return;
+    if (working) return;
     if (!password) {
       localError = "Password is required";
       return;
@@ -103,6 +116,21 @@
       busy = false;
     }
   }
+
+  async function runAlternate() {
+    if (working || !onalternate) return;
+    localError = "";
+    alternateBusy = true;
+    try {
+      await onalternate();
+    } catch (error) {
+      localError = getErrorMessage(error);
+    } finally {
+      alternateBusy = false;
+      await tick();
+      passwordInput?.focus();
+    }
+  }
 </script>
 
 <Dialog
@@ -113,10 +141,10 @@
   transparent={transparentOverlay}
   showFooter={showConfirm}
   closeLabel="Cancel"
-  closeDisabled={busy}
+  closeDisabled={working}
 >
   {#snippet children()}
-    <div class="password-field" aria-busy={busy}>
+    <div class="password-field" aria-busy={working}>
       {#if vaultPath}
         <!-- The &lrm; keeps the RTL truncation below from visually moving the
              path's leading "/" to the end. -->
@@ -130,6 +158,17 @@
             Store a backup in another secure location.
           </span>
         </div>
+      {/if}
+      {#if alternateLabel && onalternate}
+        <Button type="button" variant="primary" size="md" disabled={working} onclick={runAlternate}>
+          {#if alternateBusy}
+            <span class="busy-spinner" aria-hidden="true"></span>
+          {:else if alternateIcon}
+            <Icon name={alternateIcon} size={18} />
+          {/if}
+          {alternateBusy ? (alternatePendingLabel ?? "Working…") : alternateLabel}
+        </Button>
+        <div class="alternate-divider"><span>or use your master password</span></div>
       {/if}
       <label class="control-label" for="master-pw">Master password</label>
       <div class="password-input-wrap">
@@ -145,7 +184,8 @@
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
-          disabled={busy}
+          disabled={working}
+          bind:this={passwordInput}
           bind:value={password}
           oninput={() => { localError = ""; }}
           onkeydown={updateCapsLock}
@@ -158,7 +198,7 @@
           class="reveal-button"
           aria-label={showPassword ? "Hide master password" : "Show master password"}
           aria-pressed={showPassword}
-          disabled={busy}
+          disabled={working}
           onclick={() => (showPassword = !showPassword)}
         >
           <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
@@ -192,7 +232,7 @@
             autocorrect="off"
             autocapitalize="off"
             spellcheck="false"
-            disabled={busy}
+            disabled={working}
             bind:value={confirmPassword}
             oninput={() => { localError = ""; }}
             onkeydown={updateCapsLock}
@@ -205,7 +245,7 @@
             class="reveal-button"
             aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
             aria-pressed={showConfirmPassword}
-            disabled={busy}
+            disabled={working}
             onclick={() => (showConfirmPassword = !showConfirmPassword)}
           >
             <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={16} />
@@ -223,7 +263,7 @@
 
   {#snippet footer()}
     {#if showCancel}
-      <Button onclick={oncancel} disabled={busy}>Cancel</Button>
+      <Button onclick={oncancel} disabled={working}>Cancel</Button>
     {/if}
     <Button variant="primary" onclick={submit} disabled={!canSubmit}>
       {#if busy}
@@ -254,6 +294,23 @@
     .busy-spinner {
       animation: none;
     }
+  }
+
+  .alternate-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .alternate-divider::before,
+  .alternate-divider::after {
+    height: 0.5px;
+    background: var(--border);
+    content: "";
+    flex: 1;
   }
 
   .recovery-warning {

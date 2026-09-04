@@ -2,6 +2,7 @@ use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
 mod auto_lock;
+mod biometric;
 #[cfg(unix)]
 pub mod browser_ipc;
 pub mod prefs;
@@ -22,6 +23,10 @@ use state::AppState;
 pub fn run() {
     let command_handler: Box<tauri::ipc::InvokeHandler<tauri::Wry>> =
         Box::new(tauri::generate_handler![
+            commands::biometric::biometric_status,
+            commands::biometric::biometric_enable,
+            commands::biometric::biometric_disable,
+            commands::biometric::biometric_unlock,
             commands::vault::vault_open,
             commands::vault::vault_create,
             commands::vault::vault_change_password,

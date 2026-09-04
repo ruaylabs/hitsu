@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import type { BiometricStatus } from "$lib/bridge/biometric";
+  import * as biometricBridge from "$lib/bridge/biometric";
   import * as entriesBridge from "$lib/bridge/entries";
   import type { ThemePreference } from "$lib/bridge/prefs";
   import type { ImportReport, SkippedImportEntry } from "$lib/bridge/vault";
@@ -28,6 +30,7 @@
     | { kind: "create" }
     | { kind: "change-password" }
     | { kind: "new-password" }
+    | { kind: "touch-id-enable" }
     | { kind: "import-confirm" }
     | { kind: "import-details" }
     | { kind: "favicon-confirm" }
@@ -42,6 +45,8 @@
   let skippedEntries = $state<SkippedImportEntry[]>([]);
   let recentVaults = $state<string[]>([]);
   let vaultItemCount = $derived(vault.entries.length);
+  let biometric = $state<BiometricStatus>({ available: false, enabled: false });
+  let biometricBusy = $state(false);
   let lastStatusToast = "";
 
   $effect(() => {
@@ -77,6 +82,14 @@
     } catch (error) {
       statusError = true;
       statusMsg = errorMessage(error);
+    }
+
+    const path = vault.meta?.path;
+    if (!path) return;
+    try {
+      biometric = await biometricBridge.biometricStatus(path);
+    } catch (error) {
+      console.debug("Touch ID status unavailable", error);
     }
   });
 
@@ -125,6 +138,41 @@
     }
   }
 
+  async function onTouchIdChange(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    input.checked = biometric.enabled;
+    const path = vault.meta?.path;
+    if (!path || biometricBusy) return;
+
+    if (!biometric.enabled) {
+      dialog = { kind: "touch-id-enable" };
+      return;
+    }
+
+    biometricBusy = true;
+    try {
+      await biometricBridge.biometricDisable(path);
+      biometric = { ...biometric, enabled: false };
+      statusError = false;
+      statusMsg = "Touch ID disabled";
+    } catch (error) {
+      statusError = true;
+      statusMsg = errorMessage(error);
+    } finally {
+      biometricBusy = false;
+    }
+  }
+
+  async function enableTouchId(password: string) {
+    const path = vault.meta?.path;
+    if (!path) return;
+    await biometricBridge.biometricEnable(path, password);
+    biometric = { available: true, enabled: true };
+    dialog = null;
+    statusError = false;
+    statusMsg = "Touch ID enabled";
+  }
+
   async function doOpen(password: string) {
     await vault.open(selectedPath, password);
     dialog = null;
@@ -162,6 +210,7 @@
   async function handleSetNewPassword(newPassword: string) {
     await vaultBridge.vaultChangePassword(pendingOldPw, newPassword);
     pendingOldPw = "";
+    biometric = { ...biometric, enabled: false };
     dialog = null;
     statusError = false;
     statusMsg = "Password changed successfully";
@@ -326,6 +375,15 @@
         showRecoveryWarning={true}
         minStrength={1}
         onconfirm={doCreate}
+        oncancel={() => (dialog = null)}
+      />
+    {:else if dialog.kind === "touch-id-enable"}
+      <PasswordDialog
+        title="Enable Touch ID"
+        vaultPath={vault.meta?.path}
+        confirmLabel="Enable"
+        pendingLabel="Enabling…"
+        onconfirm={enableTouchId}
         oncancel={() => (dialog = null)}
       />
     {:else if dialog.kind === "change-password"}
@@ -601,6 +659,25 @@
 
         <section class="settings-section" id="settings-security">
           <h2 class="section-heading">Security</h2>
+          {#if vault.meta && (biometric.available || biometric.enabled)}
+            <label class="setting-row">
+              <span class="setting-label-group">
+                <span class="setting-label">Unlock with Touch ID</span>
+                <span class="setting-description">
+                  Store this vault's master password in the device-only macOS Keychain.
+                </span>
+              </span>
+              <input
+                class="setting-switch"
+                type="checkbox"
+                role="switch"
+                aria-label="Unlock with Touch ID"
+                checked={biometric.enabled}
+                disabled={biometricBusy}
+                onchange={onTouchIdChange}
+              />
+            </label>
+          {/if}
           <div class="setting-row">
             <label class="setting-label" for="setting-idle-lock">Lock on idle</label>
             <select

@@ -1,3 +1,4 @@
+import * as biometricBridge from "$lib/bridge/biometric";
 import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
@@ -52,6 +53,20 @@ function rememberVault(path: string) {
 
 function normalizeError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+async function loadAndInstallVault(
+  path: string,
+  load: () => Promise<VaultMeta>,
+): Promise<VaultMeta> {
+  try {
+    const meta = await load();
+    installOpenVault(meta);
+    rememberVault(path);
+    return meta;
+  } catch (error) {
+    throw normalizeError(error);
+  }
 }
 
 function clearUnlockedState() {
@@ -109,26 +124,16 @@ export const vault = {
     if (!m) externalChangePending = false;
   },
   /** Open and install a vault, then remember it for startup and recent-vault UI. */
-  async open(path: string, password: string) {
-    try {
-      const meta = await vaultBridge.vaultOpen(path, password);
-      installOpenVault(meta);
-      rememberVault(path);
-      return meta;
-    } catch (error) {
-      throw normalizeError(error);
-    }
+  open(path: string, password: string) {
+    return loadAndInstallVault(path, () => vaultBridge.vaultOpen(path, password));
+  },
+  /** Unlock and install a vault after the backend retrieves its Touch ID-protected password. */
+  unlockWithBiometric(path: string) {
+    return loadAndInstallVault(path, () => biometricBridge.biometricUnlock(path));
   },
   /** Create and install a vault, then remember it for startup and recent-vault UI. */
-  async create(path: string, password: string, name = "") {
-    try {
-      const meta = await vaultBridge.vaultCreate(path, password, name);
-      installOpenVault(meta);
-      rememberVault(path);
-      return meta;
-    } catch (error) {
-      throw normalizeError(error);
-    }
+  create(path: string, password: string, name = "") {
+    return loadAndInstallVault(path, () => vaultBridge.vaultCreate(path, password, name));
   },
   async refreshIfChanged() {
     try {

@@ -1,6 +1,6 @@
 # Hitsu Privacy Policy
 
-**Effective date:** July 18, 2026
+**Effective date:** September 4, 2026
 
 Hitsu is a local-first password manager with an optional browser extension and an iOS viewer,
 developed by Ruaylabs.
@@ -8,6 +8,13 @@ developed by Ruaylabs.
 ## Desktop application
 
 The Hitsu desktop app stores your vault locally on your device and sends no telemetry.
+
+On Macs with Touch ID, you may opt in per vault to biometric unlock. When enabled, Hitsu stores that
+vault's master password in the device-only macOS Data Protection Keychain. macOS permits Hitsu to
+read it only after Touch ID verifies a currently enrolled fingerprint; changing the enrolled set
+invalidates the item. The password is not synchronized to iCloud or sent to Ruaylabs. You can delete
+the item at any time by turning off **Unlock with Touch ID** in Settings → Security. Changing the
+vault's master password also disables Touch ID for that vault.
 
 ## Browser extension
 

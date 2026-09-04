@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as biometricBridge from "$lib/bridge/biometric";
 import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import * as prefsBridge from "$lib/bridge/prefs";
@@ -68,6 +69,24 @@ describe("vault store", () => {
     expect(vault.entries).toEqual([secondEntry]);
   });
 
+  it("unlocks with Touch ID, installs, and remembers a vault", async () => {
+    const meta: VaultMeta = {
+      path: "/tmp/biometric.kdbx",
+      name: "Biometric vault",
+      entries: [firstEntry],
+      folders: [],
+    };
+    const unlock = vi.spyOn(biometricBridge, "biometricUnlock").mockResolvedValue(meta);
+
+    await vault.unlockWithBiometric(meta.path);
+
+    expect(unlock).toHaveBeenCalledWith(meta.path);
+    expect(prefsBridge.prefsSetLastVault).toHaveBeenCalledWith(meta.path);
+    expect(vault.meta).toEqual(meta);
+    expect(vault.entries).toEqual([firstEntry]);
+    expect(vault.locked).toBe(false);
+  });
+
   it("creates, installs, and remembers a vault", async () => {
     const meta: VaultMeta = {
       path: "/tmp/new.kdbx",
@@ -89,6 +108,15 @@ describe("vault store", () => {
     vi.spyOn(vaultBridge, "vaultOpen").mockRejectedValue("Wrong password");
 
     await expect(vault.open("/tmp/test.kdbx", "wrong")).rejects.toThrow("Wrong password");
+
+    expect(vault.meta).toBeNull();
+    expect(prefsBridge.prefsSetLastVault).not.toHaveBeenCalled();
+  });
+
+  it("normalizes Touch ID failures without replacing state", async () => {
+    vi.spyOn(biometricBridge, "biometricUnlock").mockRejectedValue("Touch ID failed");
+
+    await expect(vault.unlockWithBiometric("/tmp/test.kdbx")).rejects.toThrow("Touch ID failed");
 
     expect(vault.meta).toBeNull();
     expect(prefsBridge.prefsSetLastVault).not.toHaveBeenCalled();

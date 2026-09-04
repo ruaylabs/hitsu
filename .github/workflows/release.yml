@@ -26,6 +26,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Prepare Touch ID signing
+        env:
+          APPLE_PROVISIONING_PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          CONFIG="$RUNNER_TEMP/hitsu-touch-id-signing/tauri.touch-id.conf.json"
+          node scripts/prepare-macos-touch-id-signing.mjs "$(dirname "$CONFIG")"
+          echo "TOUCH_ID_TAURI_CONFIG=$CONFIG" >> "$GITHUB_ENV"
+
       - name: Build
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -34,7 +43,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm tauri build
+        run: pnpm tauri build --config "$TOUCH_ID_TAURI_CONFIG"
 
       - name: Collect artifacts
         run: |

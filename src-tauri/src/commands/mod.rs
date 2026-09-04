@@ -1,3 +1,4 @@
+pub mod biometric;
 pub mod clipboard;
 pub mod entries;
 pub mod favicon;

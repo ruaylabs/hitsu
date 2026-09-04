@@ -559,9 +559,14 @@ pub async fn vault_open(
     path: String,
     password: String,
 ) -> HitsuResult<VaultMeta> {
-    // Wrap immediately so the buffer is zeroized on any early return
-    let password = Zeroizing::new(password);
+    open_vault_with_password(&state, path, Zeroizing::new(password)).await
+}
 
+pub(crate) async fn open_vault_with_password(
+    state: &AppState,
+    path: String,
+    password: Zeroizing<String>,
+) -> HitsuResult<VaultMeta> {
     // Take the writer lock so we never read the file while a queued save is
     // mid-write — the bytes we hash below must be the bytes we parsed.
     let _save_guard = state.save_lock.lock().await;
@@ -579,8 +584,8 @@ pub async fn vault_open(
     type OpenResult = (keepass::Database, keepass::DatabaseKey, [u8; 32], [u8; 32]);
     let (db, db_key, password_hash, disk_hash) =
         tauri::async_runtime::spawn_blocking(move || -> HitsuResult<OpenResult> {
-            // Wrap in Zeroizing again inside the closure so the buffer is
-            // scrubbed when the task finishes, success or not.
+            // Keep the moved Zeroizing wrapper alive inside the closure so
+            // the buffer is scrubbed when the task finishes, success or not.
             let mut password = password;
 
             // Validate header early before passing to keepass
@@ -993,14 +998,38 @@ pub async fn vault_change_password(
     // Commit the new key material. The vault may have been locked (or swapped
     // for another file) while the KDF ran; in that case there is nothing to
     // update in memory — the file on disk already uses the new password.
-    let mut vaults = state.vaults.lock();
-    if let Some((_id, vault)) = vaults.iter_mut().next() {
-        if vault.path == path {
-            vault.db_key = new_key;
-            vault.password_hash = new_hash;
-            vault.disk_hash = new_disk_hash;
+    {
+        let mut vaults = state.vaults.lock();
+        if let Some((_id, vault)) = vaults.iter_mut().next() {
+            if vault.path == path {
+                vault.db_key = new_key;
+                vault.password_hash = new_hash;
+                vault.disk_hash = new_disk_hash;
+            }
         }
     }
+
+    // A cached old password must never survive a successful password change.
+    // Failure here is non-fatal because the file is already committed; the
+    // next Touch ID attempt will reject and remove a stale item as a fallback.
+    #[cfg(target_os = "macos")]
+    {
+        let keychain_path = path.clone();
+        match tauri::async_runtime::spawn_blocking(move || {
+            crate::biometric::delete_password(&keychain_path)
+        })
+        .await
+        {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                tracing::debug!(error = %error, "failed to disable Touch ID after password change")
+            }
+            Err(error) => {
+                tracing::debug!(error = %error, "Touch ID cleanup task failed after password change")
+            }
+        }
+    }
+
     Ok(())
 }
 

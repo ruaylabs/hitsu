@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   setTheme: vi.fn(),
+  biometricStatus: vi.fn(),
+  biometricEnable: vi.fn(),
+  biometricDisable: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -31,6 +34,12 @@ vi.mock("$lib/bridge/prefs", () => ({
   prefsSetSecurity: vi.fn(),
   prefsSetTheme: mocks.setTheme,
   prefsSetFoldersEnabled: mocks.setFoldersEnabled,
+}));
+
+vi.mock("$lib/bridge/biometric", () => ({
+  biometricStatus: mocks.biometricStatus,
+  biometricEnable: mocks.biometricEnable,
+  biometricDisable: mocks.biometricDisable,
 }));
 
 vi.mock("$lib/bridge/vault", () => ({
@@ -59,6 +68,9 @@ describe("SettingsView", () => {
     mocks.saveDialog.mockResolvedValue(undefined);
     mocks.exportImportReport.mockResolvedValue(true);
     mocks.emptyRecycleBin.mockResolvedValue({ deletedEntries: 2 });
+    mocks.biometricStatus.mockResolvedValue({ available: false, enabled: false });
+    mocks.biometricEnable.mockResolvedValue(undefined);
+    mocks.biometricDisable.mockResolvedValue(undefined);
     mocks.import1pif.mockResolvedValue({
       importedItems: 1,
       importedAttachments: 0,
@@ -147,6 +159,40 @@ describe("SettingsView", () => {
     await fireEvent.click(toggle);
 
     expect(mocks.setFoldersEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("can disable a saved Touch ID item while the sensor is unavailable", async () => {
+    mocks.biometricStatus.mockResolvedValueOnce({ available: false, enabled: true });
+    render(SettingsView);
+
+    const toggle = await screen.findByRole("switch", { name: "Unlock with Touch ID" });
+    expect(toggle).toBeChecked();
+    await fireEvent.click(toggle);
+
+    await waitFor(() => expect(mocks.biometricDisable).toHaveBeenCalledWith("/tmp/test.kdbx"));
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Touch ID disabled");
+  });
+
+  it("enables Touch ID after confirming the current master password", async () => {
+    mocks.biometricStatus.mockResolvedValueOnce({ available: true, enabled: false });
+    render(SettingsView);
+
+    const toggle = await screen.findByRole("switch", { name: "Unlock with Touch ID" });
+    await fireEvent.click(toggle);
+    expect(screen.getByRole("dialog", { name: "Enable Touch ID" })).toBeInTheDocument();
+
+    await fireEvent.input(screen.getByLabelText("Master password"), {
+      target: { value: "correct horse battery staple" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: "Enable" }));
+
+    await waitFor(() =>
+      expect(mocks.biometricEnable).toHaveBeenCalledWith(
+        "/tmp/test.kdbx",
+        "correct horse battery staple",
+      ),
+    );
+    expect(toggle).toBeChecked();
   });
 
   it("requests the shared empty-bin confirmation", async () => {

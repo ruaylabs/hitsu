@@ -31,6 +31,8 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
 - **Idle lock** (configurable timeout; default 5 min)
 - **Lock on sleep** (detects page hidden for >30 s)
 - **Lock with the OS session** via systemd-logind on Linux and NSWorkspace on macOS
+- **Touch ID unlock on macOS** — per-vault opt-in with a device-only, biometric-protected Keychain
+  item; the full KDBX key derivation still runs on every unlock
 - Last vault path remembered; re-opened automatically on next launch
 
 ### Entries (login, password, note, identity, card, software license, passport, PGP key)
@@ -140,6 +142,9 @@ Written vaults remain compatible with KeePassXC and KeePass 2.x.
 
 ## Development
 
+Touch ID requires a provisioned, signed macOS app. See
+[`docs/macos-touch-id-signing.md`](docs/macos-touch-id-signing.md) for local and release setup.
+
 ```bash
 # Install dependencies
 pnpm install
@@ -181,6 +186,10 @@ src-tauri/         # Rust backend
 
 ## Security considerations
 
+- Touch ID unlock is opt-in and stores the vault's master password in the macOS Data Protection
+  Keychain. It is restricted to this device and the currently enrolled fingerprint set, but it
+  deliberately trades persistent OS-protected credential storage for convenience. Master-password
+  unlock remains available, and the item can be deleted in Settings → Security.
 - Decrypted vault data lives in process memory while unlocked; `vault_lock` drops the
   `Database` and zeroizes the master key buffer, but heap memory is not explicitly
   scrubbed after drop.
