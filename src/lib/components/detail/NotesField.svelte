@@ -20,7 +20,7 @@
   }
 
   .notes-content {
-    padding: 10px 12px;
+    padding: var(--space-3) var(--space-3);
     background: var(--surface-1);
     border-radius: var(--radius);
     font-size: var(--text-base);

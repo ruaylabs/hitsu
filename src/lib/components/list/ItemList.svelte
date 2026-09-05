@@ -530,9 +530,9 @@
   .sort-bar {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--space-1);
     min-height: 30px;
-    padding: 0 12px;
+    padding: 0 var(--space-3);
     color: var(--text-muted);
     background: var(--surface-1);
     border-bottom: 0.5px solid var(--border);
@@ -551,9 +551,9 @@
   .empty-trash-button {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: var(--space-1);
     flex-shrink: 0;
-    padding: 3px 5px;
+    padding: var(--space-1) var(--space-1);
     color: var(--danger);
     border-radius: 4px;
   }
@@ -585,15 +585,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 32px 16px;
+    gap: var(--space-2);
+    padding: calc(var(--space-6) + var(--space-2)) var(--space-4);
     color: var(--text-muted);
     font-size: var(--text-base);
     text-align: center;
   }
 
   .empty-action {
-    padding: 5px 10px;
+    padding: var(--space-1) var(--space-3);
     color: var(--accent);
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);
@@ -613,7 +613,7 @@
     position: fixed;
     z-index: 1000;
     width: 200px;
-    padding: 5px;
+    padding: var(--space-1);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
@@ -623,9 +623,9 @@
   .row-context-menu button {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 7px 9px;
+    padding: var(--space-2) var(--space-2);
     color: var(--text-primary);
     border-radius: var(--radius-sm);
     font-size: var(--text-base);

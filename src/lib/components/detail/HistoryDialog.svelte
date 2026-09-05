@@ -378,7 +378,7 @@
     height: 100%;
     font-size: var(--text-base);
     color: var(--text-muted);
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .error {
@@ -394,7 +394,7 @@
   .revision-list {
     border-right: 0.5px solid var(--border);
     overflow-y: auto;
-    padding: 8px;
+    padding: var(--space-2);
   }
 
   .list-label {
@@ -402,13 +402,13 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 6px 8px 8px;
+    padding: var(--space-2) var(--space-2) var(--space-2);
   }
 
   .revision-row {
     display: block;
     width: 100%;
-    padding: 8px 10px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     text-align: left;
     margin-bottom: 2px;
@@ -429,7 +429,7 @@
   .rev-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     margin-bottom: 2px;
   }
 
@@ -455,7 +455,7 @@
   .detail-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 18px;
+    padding: var(--space-4) var(--space-5);
   }
 
   .detail-title {
@@ -468,15 +468,15 @@
   .tags-display {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--space-2);
     margin-bottom: 16px;
   }
 
   .tag-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
+    gap: var(--space-1);
+    padding: var(--space-half) var(--space-2);
     color: var(--tag-color);
     background: color-mix(in srgb, var(--tag-color) 12%, transparent);
     border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);

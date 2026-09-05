@@ -106,7 +106,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: var(--space-3);
     color: var(--text-secondary);
     background: var(--surface-0);
     font-size: var(--text-base);

@@ -214,25 +214,25 @@
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
-    padding: 16px 20px;
+    padding: var(--space-4) var(--space-5);
     border-bottom: 0.5px solid var(--border);
   }
 
   .dialog-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     color: var(--text-primary);
     font-size: var(--text-md);
     font-weight: 500;
   }
 
   .dialog-body {
-    padding: 20px;
+    padding: var(--space-5);
   }
 
   .dialog-body.padding-compact {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .dialog-body.padding-none {
@@ -247,9 +247,9 @@
   .dialog-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--space-2);
     flex-shrink: 0;
-    padding: 12px 20px;
+    padding: var(--space-3) var(--space-5);
     border-top: 0.5px solid var(--border);
   }
 </style>

@@ -167,7 +167,7 @@
   .move-entry-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .move-destination-heading {
@@ -185,10 +185,10 @@
   .new-folder-button {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: var(--text-sm);
     color: var(--text-accent);
-    padding: 2px 4px;
+    padding: var(--space-half) var(--space-1);
     border-radius: 4px;
   }
 
@@ -199,7 +199,7 @@
   .new-folder-form {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
   }
 
   .control-label {
@@ -209,7 +209,7 @@
 
   .new-folder-row {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .new-folder-row .control {

@@ -92,7 +92,7 @@
   .edit-notes {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     margin-top: 12px;
   }
   .notes-label {
@@ -106,7 +106,7 @@
   .custom-fields-editor {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
     margin-top: 12px;
   }
   .custom-fields-heading {
@@ -117,10 +117,10 @@
   .add-custom-field {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: var(--text-sm);
     color: var(--text-accent);
-    padding: 2px 4px;
+    padding: var(--space-half) var(--space-1);
     border-radius: 4px;
   }
   .add-custom-field:hover {
@@ -129,7 +129,7 @@
   .custom-field-edit-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
   }
   .custom-field-edit-row :global(.custom-field-name) {
     flex: 1;
@@ -157,7 +157,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-    padding: 2px;
+    padding: var(--space-half);
     border-radius: 4px;
   }
   .remove-custom-field:hover {

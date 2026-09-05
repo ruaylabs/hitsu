@@ -51,7 +51,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     z-index: 1100;
     pointer-events: none;
   }
@@ -60,9 +60,9 @@
     pointer-events: auto;
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--space-2);
     max-width: 440px;
-    padding: 10px 14px;
+    padding: var(--space-3) var(--space-4);
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);

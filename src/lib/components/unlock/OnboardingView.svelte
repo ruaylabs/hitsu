@@ -174,8 +174,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
-    padding: 40px 48px;
+    gap: var(--space-4);
+    padding: calc(var(--space-5) + var(--space-5)) calc(var(--space-6) + var(--space-6));
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-card);
@@ -218,7 +218,7 @@
   .recent-vaults {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     width: 100%;
   }
 
@@ -234,9 +234,9 @@
   .recent-vault-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 7px 9px;
+    padding: var(--space-2) var(--space-2);
     color: var(--text-secondary);
     border-radius: var(--radius-sm);
     font-size: var(--text-base);
@@ -257,16 +257,16 @@
   .onboarding-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
     width: 100%;
   }
 
   .onboarding-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
     width: 100%;
-    padding: 12px 18px;
+    padding: var(--space-3) var(--space-5);
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);
     font-size: var(--text-base);

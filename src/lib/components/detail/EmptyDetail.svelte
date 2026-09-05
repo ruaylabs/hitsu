@@ -20,9 +20,9 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    gap: 12px;
+    gap: var(--space-3);
     min-height: 200px;
-    padding: 40px;
+    padding: calc(var(--space-5) + var(--space-5));
     text-align: center;
   }
 
@@ -30,7 +30,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px 14px;
+    gap: var(--space-2) var(--space-4);
     margin-top: 4px;
     color: var(--text-muted);
     font-size: var(--text-sm);
@@ -39,12 +39,12 @@
   .shortcut-hints span {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: var(--space-1);
   }
 
   kbd {
     min-width: 19px;
-    padding: 2px 4px;
+    padding: var(--space-half) var(--space-1);
     color: var(--text-secondary);
     background: var(--surface-1);
     border: 0.5px solid var(--border);

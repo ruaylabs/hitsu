@@ -187,9 +187,9 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     min-height: 30px;
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
@@ -205,8 +205,8 @@
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 2px 4px 2px 8px;
+    gap: var(--space-1);
+    padding: var(--space-half) var(--space-1) var(--space-half) var(--space-2);
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
     border-radius: 10px;
@@ -234,7 +234,7 @@
     min-width: 60px;
     font-size: var(--text-base);
     color: var(--text-primary);
-    padding: 2px 4px;
+    padding: var(--space-half) var(--space-1);
   }
 
   .tag-input::placeholder {
@@ -251,12 +251,12 @@
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    padding: 4px;
+    padding: var(--space-1);
     z-index: 10;
   }
 
   .suggestion-item {
-    padding: 5px 10px;
+    padding: var(--space-1) var(--space-3);
     border-radius: 4px;
     font-size: var(--text-base);
     color: var(--text-primary);

@@ -152,8 +152,8 @@
   .entry-palette-search {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 13px 14px;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     color: var(--text-muted);
     border-bottom: 0.5px solid var(--border);
   }
@@ -170,7 +170,7 @@
   }
 
   kbd {
-    padding: 1px 5px;
+    padding: var(--space-half) var(--space-1);
     color: var(--text-muted);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
@@ -182,15 +182,15 @@
   .entry-palette-items {
     flex: 1;
     overflow-y: auto;
-    padding: 4px;
+    padding: var(--space-1);
   }
 
   .entry-palette-item {
     display: flex;
     width: 100%;
     align-items: center;
-    gap: 10px;
-    padding: 7px 10px;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
     color: var(--text-primary);
     border-radius: var(--radius-sm);
     text-align: left;
@@ -207,7 +207,7 @@
     min-width: 0;
     flex: 1;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-half);
   }
 
   .entry-palette-title,
@@ -229,7 +229,7 @@
 
   .entry-palette-badge {
     flex-shrink: 0;
-    padding: 2px 6px;
+    padding: var(--space-half) var(--space-2);
     color: var(--text-muted);
     background: var(--surface-1);
     border-radius: 999px;
@@ -240,15 +240,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 28px 20px;
+    gap: var(--space-2);
+    padding: calc(var(--space-6) + var(--space-1)) var(--space-5);
     color: var(--text-muted);
     font-size: var(--text-base);
   }
 
   .entry-palette-footer {
     flex-shrink: 0;
-    padding: 7px 14px;
+    padding: var(--space-2) var(--space-4);
     color: var(--text-muted);
     border-top: 0.5px solid var(--border);
     font-size: var(--text-sm);
@@ -256,7 +256,7 @@
 
   .entry-palette-warning {
     flex-shrink: 0;
-    padding: 7px 14px;
+    padding: var(--space-2) var(--space-4);
     color: var(--warning);
     border-top: 0.5px solid var(--border);
     font-size: var(--text-sm);

@@ -356,13 +356,13 @@
   .sidebar {
     width: 100%;
     background: var(--surface-1);
-    padding: 14px 8px;
+    padding: var(--space-4) var(--space-2);
     overflow-y: auto;
   }
 
   .folder-form {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
   }
 </style>

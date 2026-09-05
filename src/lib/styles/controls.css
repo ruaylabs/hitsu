@@ -5,7 +5,7 @@
 
 .control {
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-3);
   color: var(--text-primary);
   background: var(--surface-1);
   border: 0.5px solid var(--border);
@@ -34,7 +34,7 @@
 }
 
 .control--compact {
-  padding: 6px 8px;
+  padding: var(--space-2) var(--space-2);
   font-size: var(--text-base);
 }
 
@@ -43,7 +43,7 @@
 }
 
 .control--select {
-  padding-right: 28px;
+  padding-right: calc(var(--space-6) + var(--space-1));
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;

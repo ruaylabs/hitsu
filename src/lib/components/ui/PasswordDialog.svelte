@@ -299,7 +299,7 @@
   .alternate-divider {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     margin: 4px 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
@@ -316,9 +316,9 @@
   .recovery-warning {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--space-2);
     margin-bottom: 6px;
-    padding: 10px 12px;
+    padding: var(--space-3) var(--space-3);
     color: var(--text-secondary);
     background: var(--surface-1);
     border: 0.5px solid var(--warning);
@@ -348,7 +348,7 @@
   .password-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
   }
 
   .password-input-wrap {
@@ -356,7 +356,7 @@
   }
 
   .password-input-wrap .control {
-    padding-right: 38px;
+    padding-right: calc(var(--space-6) + var(--space-3) + var(--space-half));
   }
 
   .reveal-button {
@@ -387,7 +387,7 @@
   .caps-lock-warning {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     color: var(--warning);
     font-size: var(--text-sm);
   }

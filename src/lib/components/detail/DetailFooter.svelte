@@ -34,11 +34,11 @@
 
 <style>
   .detail-footer {
-    padding-top: 12px;
+    padding-top: var(--space-3);
     border-top: 0.5px solid var(--border);
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 4px 12px;
+    gap: var(--space-1) var(--space-3);
     font-size: var(--text-sm);
     color: var(--text-muted);
   }
@@ -49,7 +49,7 @@
     align-self: center;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: var(--text-sm);
     color: var(--text-muted);
   }

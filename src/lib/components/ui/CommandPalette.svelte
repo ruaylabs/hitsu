@@ -112,8 +112,8 @@
   .palette-search {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 0.5px solid var(--border);
     color: var(--text-muted);
   }
@@ -131,15 +131,15 @@
   .palette-items {
     flex: 1;
     overflow-y: auto;
-    padding: 4px;
+    padding: var(--space-1);
   }
 
   .palette-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--space-3);
     width: 100%;
-    padding: 9px 12px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     text-align: left;
@@ -156,7 +156,7 @@
     min-width: 0;
     flex: 1;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-half);
   }
 
   .palette-item-label {
@@ -176,7 +176,7 @@
   }
 
   .palette-empty {
-    padding: 20px;
+    padding: var(--space-5);
     text-align: center;
     font-size: var(--text-base);
     color: var(--text-muted);

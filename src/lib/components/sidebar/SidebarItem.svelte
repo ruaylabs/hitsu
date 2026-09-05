@@ -30,7 +30,7 @@
   <button
     class="sidebar-item"
     class:selected
-    style:padding-left={`${10 + indent * 16}px`}
+    style:padding-left={`calc(var(--space-3) + ${indent * 16}px)`}
     {onclick}
     aria-current={selected ? "true" : undefined}
   >
@@ -78,9 +78,9 @@
   .sidebar-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
     min-height: 32px;
-    padding: 6px 10px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     width: 100%;
     text-align: left;
@@ -124,8 +124,8 @@
     top: 50%;
     right: 4px;
     display: flex;
-    gap: 1px;
-    padding-left: 10px;
+    gap: var(--space-half);
+    padding-left: var(--space-3);
     opacity: 0;
     transform: translateY(-50%);
     pointer-events: none;

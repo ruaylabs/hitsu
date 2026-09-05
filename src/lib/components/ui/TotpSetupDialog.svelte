@@ -286,7 +286,7 @@
   .dialog-content {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
   .dialog-message {
@@ -298,7 +298,7 @@
   .mode-switch {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    padding: 2px;
+    padding: var(--space-half);
     border-radius: var(--radius-sm);
     background: var(--surface-1);
   }
@@ -332,8 +332,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 20px;
+    gap: var(--space-2);
+    padding: var(--space-5);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);

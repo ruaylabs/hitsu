@@ -105,13 +105,13 @@
     align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 20px;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .detail-header-left {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: var(--space-4);
     min-width: 0;
   }
 
@@ -131,7 +131,7 @@
 
   .detail-header-actions {
     display: flex;
-    gap: 6px;
+    gap: var(--space-2);
     flex-shrink: 0;
   }
 </style>

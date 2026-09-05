@@ -70,7 +70,7 @@
   }
 
   .control {
-    padding-right: 34px;
+    padding-right: calc(var(--space-6) + var(--space-2) + var(--space-half));
   }
 
   .secret-reveal-button {

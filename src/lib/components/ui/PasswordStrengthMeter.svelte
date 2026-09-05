@@ -37,7 +37,7 @@
   .strength-meter {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 2px;
     min-height: 14px;
   }

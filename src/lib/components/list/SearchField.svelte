@@ -148,16 +148,16 @@
   .search-wrapper {
     position: relative;
     z-index: 1;
-    padding: 10px 12px;
+    padding: var(--space-3) var(--space-3);
     border-bottom: 0.5px solid var(--border);
   }
 
   .search-pill {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     background: var(--surface-1);
-    padding: 7px 10px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     isolation: isolate;
@@ -176,7 +176,7 @@
 
   .search-shortcut {
     flex-shrink: 0;
-    padding: 1px 4px;
+    padding: var(--space-half) var(--space-1);
     border: 0.5px solid var(--border);
     border-radius: 3px;
     color: var(--text-muted);
@@ -237,7 +237,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 8px;
   }
 
@@ -245,8 +245,8 @@
     display: inline-flex;
     min-width: 0;
     align-items: center;
-    gap: 5px;
-    padding-left: 7px;
+    gap: var(--space-1);
+    padding-left: var(--space-2);
     color: var(--text-secondary);
     background: var(--bg-accent);
     border-radius: 999px;
@@ -277,7 +277,7 @@
 
   .search-all {
     flex-shrink: 0;
-    padding: 5px 7px;
+    padding: var(--space-1) var(--space-2);
     color: var(--text-accent);
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);

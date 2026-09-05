@@ -763,7 +763,7 @@
 
 <style>
   .detail-pane {
-    padding: 22px 24px;
+    padding: var(--space-6) var(--space-6);
     min-width: 0;
     min-height: 0;
     overflow-y: auto;
@@ -772,15 +772,15 @@
 
   .detail-toolbar {
     display: flex;
-    gap: 6px;
+    gap: var(--space-2);
     margin-bottom: 16px;
   }
 
   .toolbar-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);
@@ -814,7 +814,7 @@
   .edit-title-input {
     font-size: var(--text-lg);
     font-weight: 500;
-    padding: 6px 0;
+    padding: var(--space-2) 0;
     border-bottom: 1px solid var(--border);
     width: 100%;
     color: var(--text-primary);
@@ -827,15 +827,15 @@
   .tags-display {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--space-2);
     margin-bottom: 16px;
   }
 
   .tag-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
+    gap: var(--space-1);
+    padding: var(--space-half) var(--space-2);
     color: var(--tag-color);
     background: color-mix(in srgb, var(--tag-color) 12%, transparent);
     border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);

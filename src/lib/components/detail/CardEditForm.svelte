@@ -121,7 +121,7 @@
   .card-input-wrap {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     width: 100%;
   }
   .control-error {

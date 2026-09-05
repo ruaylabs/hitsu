@@ -31,9 +31,9 @@
   .detail-field-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     min-height: 38px;
-    padding: 10px 12px;
+    padding: var(--space-3) var(--space-3);
     background: var(--surface-2);
   }
 

@@ -138,10 +138,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: var(--space-1);
     font-size: var(--text-sm);
     color: var(--text-secondary);
-    padding: 4px 10px;
+    padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-sm);
     transition: background 0.1s;
   }
@@ -153,14 +153,14 @@
   .attachments-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .attachment-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
     background: var(--surface-1);
     border-radius: var(--radius);
   }

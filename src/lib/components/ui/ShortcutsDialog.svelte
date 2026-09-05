@@ -50,22 +50,22 @@
   .shortcuts-list {
     display: flex;
     flex-direction: column;
-    padding: 12px 0;
+    padding: var(--space-3) 0;
   }
 
   .shortcut-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 20px;
-    gap: 16px;
+    padding: var(--space-2) var(--space-5);
+    gap: var(--space-4);
   }
 
   .shortcut-keys {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
+    padding: var(--space-half) var(--space-2);
     min-width: 28px;
     justify-content: center;
     background: var(--surface-1);

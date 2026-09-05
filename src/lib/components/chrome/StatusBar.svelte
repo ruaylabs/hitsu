@@ -83,7 +83,7 @@
 <style>
   .statusbar {
     height: var(--statusbar-height);
-    padding: 0 14px;
+    padding: 0 var(--space-4);
     background: var(--surface-1);
     border-top: 0.5px solid var(--border);
     display: flex;
@@ -96,7 +96,7 @@
   .statusbar-left {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
   }
 
   .sync-dot {
@@ -135,7 +135,7 @@
   .statusbar-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .sep {
@@ -169,8 +169,8 @@
   }
 
   .lock-btn {
-    gap: 5px;
-    padding: 0 6px;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
   }
 
   .lock-name {

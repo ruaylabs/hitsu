@@ -174,9 +174,9 @@
   .vault-button {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 7px 8px;
+    padding: var(--space-2) var(--space-2);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: var(--text-base);
@@ -205,7 +205,7 @@
     left: 0;
     z-index: var(--z-view-overlay);
     min-width: 200px;
-    padding: 4px;
+    padding: var(--space-1);
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
@@ -215,9 +215,9 @@
   .menu-item {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 6px 8px;
+    padding: var(--space-2) var(--space-2);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: var(--text-base);
@@ -243,7 +243,7 @@
   }
 
   .menu-heading {
-    padding: 4px 8px 2px;
+    padding: var(--space-1) var(--space-2) var(--space-half);
     color: var(--text-muted);
     font-size: var(--text-sm);
     text-transform: uppercase;

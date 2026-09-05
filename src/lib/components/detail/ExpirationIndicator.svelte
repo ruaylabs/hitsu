@@ -30,10 +30,10 @@
   .expiration-indicator {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     width: fit-content;
     margin-bottom: 16px;
-    padding: 5px 9px;
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     background: var(--surface-1);

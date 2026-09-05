@@ -54,7 +54,7 @@
   .section-header {
     display: flex;
     align-items: center;
-    padding: 2px 6px 4px 10px;
+    padding: var(--space-half) var(--space-2) var(--space-1) var(--space-3);
   }
 
   .section-label {
@@ -83,6 +83,6 @@
   .section-items {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: var(--space-half);
   }
 </style>

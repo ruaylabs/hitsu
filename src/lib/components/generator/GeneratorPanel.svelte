@@ -186,14 +186,14 @@
   .panel-content {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .password-display {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-3);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
@@ -218,13 +218,13 @@
   .options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .option-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
     font-size: var(--text-base);
     color: var(--text-primary);
     cursor: pointer;

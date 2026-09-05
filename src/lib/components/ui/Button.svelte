@@ -30,7 +30,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: var(--space-2);
     border-radius: var(--radius-sm);
     transition:
       background var(--transition-fast),
@@ -39,12 +39,12 @@
 
   .button-sm {
     min-height: 32px;
-    padding: 6px 14px;
+    padding: var(--space-2) var(--space-4);
     font-size: var(--text-base);
   }
 
   .button-md {
-    padding: 10px 16px;
+    padding: var(--space-3) var(--space-4);
     font-size: var(--text-base);
   }
 

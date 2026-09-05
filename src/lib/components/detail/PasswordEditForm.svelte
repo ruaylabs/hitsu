@@ -47,12 +47,12 @@
   .password-edit-col {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     width: 100%;
   }
   .password-edit-row {
     display: flex;
-    gap: 4px;
+    gap: var(--space-1);
     align-items: flex-start;
   }
   .password-edit-row :global(input) {

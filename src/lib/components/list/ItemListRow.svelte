@@ -63,11 +63,11 @@
   .list-row {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: var(--space-3);
     /* Fixed height: the virtualized list (ItemList) positions rows at
        ROW_HEIGHT intervals, so this must stay in sync with that constant. */
     height: 50px;
-    padding: 0 12px;
+    padding: 0 var(--space-3);
     border-bottom: 0.5px solid var(--border);
     width: 100%;
     text-align: left;
@@ -112,7 +112,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: var(--space-1);
     flex-shrink: 0;
     color: var(--text-muted);
   }

@@ -761,7 +761,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: var(--space-4) var(--space-5);
     border-bottom: 0.5px solid var(--border);
   }
 
@@ -795,14 +795,14 @@
     display: flex;
     flex: 0 0 132px;
     flex-direction: column;
-    gap: 3px;
-    padding: 16px 10px;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-3);
     border-right: 0.5px solid var(--border);
     background: var(--surface-1);
   }
 
   .settings-nav a {
-    padding: 7px 10px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: var(--text-base);
@@ -817,19 +817,19 @@
   .settings-body {
     flex: 1;
     min-width: 0;
-    padding: 20px 24px;
+    padding: var(--space-5) var(--space-6);
     overflow-y: auto;
     scroll-behavior: smooth;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .settings-section {
     scroll-margin-top: 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .section-heading {
@@ -843,8 +843,8 @@
   .vault-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 10px 12px;
+    gap: var(--space-half);
+    padding: var(--space-3) var(--space-3);
     background: var(--surface-1);
     border-radius: var(--radius);
   }
@@ -875,15 +875,15 @@
 
   .settings-actions {
     display: flex;
-    gap: 6px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
 
   .settings-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     font-size: var(--text-base);
@@ -899,8 +899,8 @@
   .maintenance-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--space-2);
+    padding: var(--space-3);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-1);
@@ -911,7 +911,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .maintenance-title {
@@ -929,7 +929,7 @@
   .import-confirm {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
     color: var(--text-secondary);
     font-size: var(--text-base);
     line-height: 1.5;
@@ -942,7 +942,7 @@
   .import-progress,
   .import-failure,
   .import-summary {
-    padding: 12px;
+    padding: var(--space-3);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
@@ -952,7 +952,7 @@
   .import-failure {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
   .import-progress strong,
@@ -1013,13 +1013,13 @@
   .import-summary {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
   .import-summary-heading {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--space-2);
     color: var(--success);
     font-size: var(--text-base);
   }
@@ -1030,7 +1030,7 @@
   }
 
   .import-counts div {
-    padding: 7px 8px;
+    padding: var(--space-2) var(--space-2);
     border-right: 0.5px solid var(--border);
     text-align: center;
   }
@@ -1063,7 +1063,7 @@
   }
 
   .skipped-list {
-    padding-left: 20px;
+    padding-left: var(--space-5);
     color: var(--text-primary);
     font-size: var(--text-base);
   }
@@ -1075,7 +1075,7 @@
   .import-result-kind {
     display: inline-block;
     margin-bottom: 3px;
-    padding: 1px 5px;
+    padding: var(--space-half) var(--space-1);
     color: var(--text-secondary);
     background: var(--surface-1);
     border-radius: 3px;
@@ -1113,15 +1113,15 @@
   .recent-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .recent-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 6px 10px;
+    padding: var(--space-2) var(--space-3);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface-1);
@@ -1156,17 +1156,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
+    padding: var(--space-2) 0;
   }
 
   .theme-setting {
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .setting-label-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-half);
   }
 
   .setting-label {
@@ -1181,8 +1181,8 @@
 
   .setting-select {
     min-width: 120px;
-    padding-block: 5px;
-    padding-left: 10px;
+    padding-block: var(--space-1);
+    padding-left: var(--space-3);
   }
 
   .setting-switch {
@@ -1231,7 +1231,7 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    padding: 12px;
+    padding: var(--space-3);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-1);
