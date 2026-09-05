@@ -456,7 +456,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--surface-2);
+    background: var(--surface-0);
   }
 
   .main-grid {

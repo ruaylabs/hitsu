@@ -4,7 +4,7 @@
   /* Surfaces — light mode */
   --surface-0: #efede5;
   --surface-1: #f7f6f3;
-  --surface-2: #ffffff;
+  --surface-2: #fdfcfa;
   --surface-hover: rgba(0, 0, 0, 0.05);
 
   /* Text */
@@ -87,9 +87,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --surface-0: #1e1e1e;
-    --surface-1: #252525;
-    --surface-2: #2c2c2c;
+    --surface-0: #201f1d;
+    --surface-1: #272623;
+    --surface-2: #2e2d2a;
     --surface-hover: rgba(255, 255, 255, 0.06);
     --text-primary: #f0ede5;
     --text-secondary: #b8b6ae;
@@ -106,9 +106,9 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface-0: #1e1e1e;
-  --surface-1: #252525;
-  --surface-2: #2c2c2c;
+  --surface-0: #201f1d;
+  --surface-1: #272623;
+  --surface-2: #2e2d2a;
   --surface-hover: rgba(255, 255, 255, 0.06);
   --text-primary: #f0ede5;
   --text-secondary: #b8b6ae;
