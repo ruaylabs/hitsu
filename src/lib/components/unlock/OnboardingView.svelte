@@ -193,7 +193,7 @@
     height: 56px;
     border-radius: var(--radius-card);
     background: var(--accent);
-    color: #fff;
+    color: var(--text-on-accent);
   }
 
   .onboarding-title {

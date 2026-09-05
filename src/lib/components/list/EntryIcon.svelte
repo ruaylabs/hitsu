@@ -94,7 +94,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #fff;
+    color: var(--text-on-accent);
     background: var(--entry-icon-color);
     border: 0.5px solid color-mix(in srgb, currentColor 20%, transparent);
   }

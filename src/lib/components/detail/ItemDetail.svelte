@@ -796,7 +796,7 @@
   }
 
   .toolbar-save {
-    color: #fff;
+    color: var(--text-on-accent);
     background: var(--accent);
     border-color: var(--accent);
   }

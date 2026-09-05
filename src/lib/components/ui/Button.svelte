@@ -49,12 +49,12 @@
   }
 
   .button-primary {
-    color: #fff;
+    color: var(--text-on-accent);
     background: var(--accent);
   }
 
   .button-danger {
-    color: #fff;
+    color: var(--text-on-accent);
     background: var(--danger);
   }
 

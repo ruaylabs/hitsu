@@ -12,6 +12,7 @@
   --text-secondary: #55544f;
   --text-muted: #6b6a64;
   --text-accent: #185fa5;
+  --text-on-accent: #ffffff;
 
   /* Borders */
   --border: rgba(0, 0, 0, 0.08);

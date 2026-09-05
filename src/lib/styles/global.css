@@ -27,5 +27,5 @@ body {
 /* Selection highlighting */
 ::selection {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
