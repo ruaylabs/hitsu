@@ -212,7 +212,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-dialog);
+    box-shadow: var(--shadow-popover);
   }
 
   .menu-item {

@@ -66,7 +66,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-dialog);
+    box-shadow: var(--shadow-popover);
     font-size: var(--text-base);
     line-height: var(--leading-normal);
     color: var(--text-primary);

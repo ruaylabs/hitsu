@@ -250,7 +250,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-dialog);
+    box-shadow: var(--shadow-popover);
     padding: var(--space-1);
     z-index: 10;
   }
