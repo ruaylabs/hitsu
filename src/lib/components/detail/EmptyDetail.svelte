@@ -49,7 +49,7 @@
     background: var(--surface-1);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-xs);
-    box-shadow: 0 1px 0 var(--border);
+    box-shadow: var(--shadow-raised);
     font: inherit;
     line-height: var(--leading-tight);
   }
