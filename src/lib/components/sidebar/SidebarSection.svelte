@@ -24,7 +24,7 @@
     <span class="section-label">{label}</span>
     {#if onadd}
       <button class="section-action" type="button" aria-label={addLabel} onclick={onadd}>
-        <Icon name="plus" size={13} />
+        <Icon name="plus" size={14} />
       </button>
     {/if}
     {#if ontoggle}
@@ -35,7 +35,7 @@
         aria-expanded={!collapsed}
         onclick={ontoggle}
       >
-        <Icon name={collapsed ? "chevron-right" : "chevron-down"} size={13} />
+        <Icon name={collapsed ? "chevron-right" : "chevron-down"} size={14} />
       </button>
     {/if}
   </div>

@@ -123,7 +123,7 @@
 <div class="onboarding">
   <div class="onboarding-card">
     <div class="onboarding-logo">
-      <Icon name="key" size={32} />
+      <Icon name="key" size={30} />
     </div>
     <h1 class="onboarding-title">Hitsu</h1>
     <p class="onboarding-subtitle">Native desktop password manager</p>
@@ -143,7 +143,7 @@
             disabled={busy}
             title={path}
           >
-            <Icon name="database" size={15} />
+            <Icon name="database" size={14} />
             <span>{vaultName(path)}</span>
           </Button>
         {/each}

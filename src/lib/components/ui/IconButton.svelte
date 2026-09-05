@@ -7,7 +7,7 @@
 
   let {
     icon,
-    iconSize = 15,
+    iconSize = 14,
     variant = "ghost",
     active = false,
     class: className,

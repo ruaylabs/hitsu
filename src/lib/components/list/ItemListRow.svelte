@@ -42,17 +42,17 @@
     <span class="row-indicators">
       {#if entry.hasTotp}
         <span class="row-indicator" aria-label="Has TOTP" title="Has TOTP">
-          <Icon name="clock-code" size={12} />
+          <Icon name="clock-code" size={14} />
         </span>
       {/if}
       {#if entry.hasAttachments}
         <span class="row-indicator" aria-label="Has attachments" title="Has attachments">
-          <Icon name="paperclip" size={12} />
+          <Icon name="paperclip" size={14} />
         </span>
       {/if}
       {#if entry.favorite}
         <span class="row-indicator favorite-indicator" aria-label="Favorite" title="Favorite">
-          <Icon name="star" size={12} />
+          <Icon name="star" size={14} />
         </span>
       {/if}
     </span>

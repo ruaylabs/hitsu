@@ -87,7 +87,7 @@
 
 {#if concealed}
   <div class="privacy-screen" role="status" aria-label="Privacy screen">
-    <Icon name="lock" size={24} />
+    <Icon name="lock" size={30} />
     <span>Hitsu is hidden while unfocused</span>
   </div>
 {/if}

@@ -65,7 +65,7 @@
       aria-label="Setup TOTP from seed"
       title="Setup TOTP from seed"
     >
-      <Icon name="key" size={13} />
+      <Icon name="key" size={14} />
     </button>
   </div>
 </DetailFieldRow>

@@ -2,6 +2,7 @@
   import jsQR from "jsqr";
   import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
+  import Icon from "./Icon.svelte";
 
   let {
     oncancel,
@@ -233,7 +234,7 @@
           autofocus
           onclick={() => fileInput?.click()}
         >
-          <i class={`ti ti-${qrUri ? "circle-check" : "photo-scan"}`} aria-hidden="true"></i>
+          <Icon name={qrUri ? "circle-check" : "photo-scan"} size={30} />
           {#if scanning}
             <strong>Scanning image…</strong>
           {:else if qrUri}
@@ -353,12 +354,12 @@
     border-color: var(--success);
   }
 
-  .image-picker .ti {
+  /* Size comes from Icon's scale; only the tone is local. */
+  .image-picker :global(.ti) {
     color: var(--accent);
-    font-size: 28px;
   }
 
-  .image-picker--success .ti {
+  .image-picker--success :global(.ti) {
     color: var(--success);
   }
 

@@ -365,14 +365,14 @@
     onSearchClear={restoreSearchContext}
   />
   <div class="sort-bar">
-    <Icon name="arrows-sort" size={13} />
+    <Icon name="arrows-sort" size={14} />
     <label for="entry-sort">Sort</label>
     <select id="entry-sort" bind:value={sortMode} aria-label="Sort entries">
       <option value="vault">Vault order</option>
       <option value="title">Title A–Z</option>
       <option value="modified">Recently modified</option>
     </select>
-    <Icon name="chevron-down" size={12} />
+    <Icon name="chevron-down" size={14} />
     {#if selection.filter.kind === "trash"}
       <Button
         type="button"
@@ -382,7 +382,7 @@
         disabled={recycleBin.count === 0 || recycleBin.emptying}
         onclick={() => recycleBin.requestEmpty()}
       >
-        <Icon name="trash-x" size={12} />
+        <Icon name="trash-x" size={14} />
         {recycleBin.emptying ? "Emptying…" : "Empty…"}
       </Button>
     {/if}

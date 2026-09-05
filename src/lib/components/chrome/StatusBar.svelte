@@ -62,12 +62,12 @@
         aria-label="Lock vault"
         title={`Lock vault (${keyboardShortcut("L")})`}
       >
-        <Icon name="lock" size={12} />
+        <Icon name="lock" size={14} />
         <span class="lock-name">{vault.meta.name}</span>
       </button>
     {/if}
     <button class="settings-gear" onclick={onSettingsClick} aria-label="Settings" title="Settings">
-      <Icon name="settings" size={12} />
+      <Icon name="settings" size={14} />
     </button>
     <button
       class="settings-gear"
@@ -75,7 +75,7 @@
       aria-label="Keyboard shortcuts"
       title="Keyboard shortcuts"
     >
-      <Icon name="help-circle" size={12} />
+      <Icon name="help-circle" size={14} />
     </button>
   </div>
 </footer>

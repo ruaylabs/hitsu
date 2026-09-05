@@ -132,7 +132,7 @@
         {#if onclose}
           <IconButton
             icon="x"
-            iconSize={16}
+            iconSize={14}
             onclick={onclose}
             disabled={closeDisabled}
             aria-label={closeLabel}

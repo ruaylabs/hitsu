@@ -48,12 +48,12 @@
     <div class="sidebar-actions">
       {#if onadd}
         <button type="button" aria-label={`Add folder inside ${label}`} onclick={onadd}>
-          <Icon name="plus" size={13} />
+          <Icon name="plus" size={14} />
         </button>
       {/if}
       {#if onedit}
         <button type="button" aria-label={`Rename ${label}`} onclick={onedit}>
-          <Icon name="pencil" size={12} />
+          <Icon name="pencil" size={14} />
         </button>
       {/if}
       {#if ondelete}
@@ -63,7 +63,7 @@
           aria-label={`Delete ${label}`}
           onclick={ondelete}
         >
-          <Icon name="trash" size={12} />
+          <Icon name="trash" size={14} />
         </button>
       {/if}
     </div>

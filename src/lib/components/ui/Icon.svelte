@@ -1,7 +1,7 @@
 <script lang="ts">
   let {
     name,
-    size = 15,
+    size = 14,
     label,
     style,
     ...rest

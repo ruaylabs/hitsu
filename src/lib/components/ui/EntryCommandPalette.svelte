@@ -78,7 +78,7 @@
 >
   <div class="entry-palette-content">
     <div class="entry-palette-search">
-      <Icon name="search" size={16} />
+      <Icon name="search" size={14} />
       <!-- svelte-ignore a11y_autofocus -->
       <input
         class="entry-palette-input"

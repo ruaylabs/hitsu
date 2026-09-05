@@ -27,7 +27,7 @@
   <span>Modified {timeAgo(modifiedAt)}</span>
   <span>Created on {formatDate(createdAt)}</span>
   <button class="history-btn" aria-label="View history" title="View history" {onclick}>
-    <Icon name="history" size={12} />
+    <Icon name="history" size={14} />
     <span>History · {historyCount} revisions</span>
   </button>
 </div>

@@ -14,7 +14,7 @@
   <div class="toast-stack" role="status" aria-live="polite">
     {#each toast.all as t (t.id)}
       <div class="toast toast-{t.kind}">
-        <Icon name={ICONS[t.kind] ?? "info-circle"} size={16} />
+        <Icon name={ICONS[t.kind] ?? "info-circle"} size={14} />
         <span class="toast-message">{t.message}</span>
         {#if t.action}
           <button

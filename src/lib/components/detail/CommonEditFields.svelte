@@ -25,7 +25,7 @@
       class="add-custom-field"
       onclick={() => { form.customFields = [...form.customFields, { name: "", value: "", protected: false }]; }}
     >
-      <Icon name="plus" size={13} />
+      <Icon name="plus" size={14} />
       Add field
     </button>
   </div>
@@ -57,7 +57,7 @@
       {/if}
       <label class="protect-custom-field" title="Protect this value in the vault">
         <input type="checkbox" bind:checked={field.protected} aria-label="Protect custom field" />
-        <Icon name="lock" size={13} />
+        <Icon name="lock" size={14} />
       </label>
       <button
         type="button"

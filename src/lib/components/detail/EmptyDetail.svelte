@@ -4,7 +4,7 @@
 </script>
 
 <div class="empty-detail">
-  <Icon name="list-details" size={26} />
+  <Icon name="list-details" size={18} />
   <p>Select an item to view its details</p>
   <div class="shortcut-hints" aria-label="Keyboard shortcuts">
     <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>

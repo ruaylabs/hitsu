@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vault } from "$lib/stores/vault.svelte";
+  import Icon from "./Icon.svelte";
 
   let {
     initialTags,
@@ -140,7 +141,7 @@
           title="Remove"
           onclick={() => removeTag(tag)}
         >
-          <i class="ti ti-x" style="font-size: var(--text-sm)"></i>
+          <Icon name="x" size={14} />
         </button>
       </span>
     {/each}

@@ -85,7 +85,7 @@
 
 <div class="search-wrapper">
   <div class="search-pill">
-    <Icon name="search" size={13} />
+    <Icon name="search" size={14} />
     <input
       type="text"
       class="entry-search-input"
@@ -108,7 +108,7 @@
         aria-label="Clear search"
         title="Clear search"
       >
-        <Icon name="x" size={12} />
+        <Icon name="x" size={14} />
       </button>
     {/if}
     {#if allowCreate}
@@ -126,7 +126,7 @@
   {#if scoped}
     <div class="scope-row" aria-label="Search scope">
       <span class="scope-chip">
-        <Icon name="filter" size={12} />
+        <Icon name="filter" size={14} />
         <span>{scopeName}</span>
         <button
           type="button"
@@ -134,7 +134,7 @@
           aria-label={`Remove ${scopeName} search scope`}
           title="Search all items"
         >
-          <Icon name="x" size={11} />
+          <Icon name="x" size={14} />
         </button>
       </span>
       {#if search}

@@ -109,15 +109,15 @@
     title={currentPath}
     onclick={() => (menuOpen = !menuOpen)}
   >
-    <Icon name="database" size={15} />
+    <Icon name="database" size={14} />
     <span class="vault-name">{currentName}</span>
-    <Icon name="chevron-down" size={13} />
+    <Icon name="chevron-down" size={14} />
   </button>
 
   {#if menuOpen}
     <div class="vault-menu" role="menu" aria-label="Vault actions">
       <button type="button" class="menu-item" role="menuitem" onclick={lockVault}>
-        <Icon name="lock" size={15} />
+        <Icon name="lock" size={14} />
         <span>Lock vault</span>
       </button>
 
@@ -132,7 +132,7 @@
             title={path}
             onclick={() => switchTo(path)}
           >
-            <Icon name="database" size={15} />
+            <Icon name="database" size={14} />
             <span>{vaultName(path)}</span>
           </button>
         {/each}
@@ -140,11 +140,11 @@
 
       <div class="menu-separator" role="separator"></div>
       <button type="button" class="menu-item" role="menuitem" onclick={openOtherVault}>
-        <Icon name="folder-open" size={15} />
+        <Icon name="folder-open" size={14} />
         <span>Open other vault…</span>
       </button>
       <button type="button" class="menu-item" role="menuitem" onclick={createVault}>
-        <Icon name="plus" size={15} />
+        <Icon name="plus" size={14} />
         <span>Create new vault…</span>
       </button>
     </div>

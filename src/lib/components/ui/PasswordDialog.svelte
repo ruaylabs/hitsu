@@ -152,7 +152,7 @@
       {/if}
       {#if showRecoveryWarning}
         <div class="recovery-warning" role="note">
-          <Icon name="alert-triangle" size={16} />
+          <Icon name="alert-triangle" size={18} />
           <span>
             <strong>Hitsu cannot recover this password if you forget it.</strong>
             Store a backup in another secure location.
@@ -201,12 +201,12 @@
           disabled={working}
           onclick={() => (showPassword = !showPassword)}
         >
-          <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
+          <Icon name={showPassword ? "eye-off" : "eye"} size={14} />
         </button>
       </div>
       {#if capsLockOn && focusedField === "password"}
         <span class="caps-lock-warning" role="status">
-          <Icon name="alert-triangle" size={13} />
+          <Icon name="alert-triangle" size={14} />
           Caps Lock is on
         </span>
       {/if}
@@ -248,12 +248,12 @@
             disabled={working}
             onclick={() => (showConfirmPassword = !showConfirmPassword)}
           >
-            <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={16} />
+            <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={14} />
           </button>
         </div>
         {#if capsLockOn && focusedField === "confirm"}
           <span class="caps-lock-warning" role="status">
-            <Icon name="alert-triangle" size={13} />
+            <Icon name="alert-triangle" size={14} />
             Caps Lock is on
           </span>
         {/if}

@@ -85,7 +85,7 @@
           aria-label={item.label}
           aria-describedby={`entry-type-${item.type}-description`}
         >
-          <Icon name={item.icon} size={16} />
+          <Icon name={item.icon} size={14} />
           <span class="palette-item-text">
             <span class="palette-item-label">{item.label}</span>
             <span id={`entry-type-${item.type}-description`} class="palette-item-description">

@@ -98,7 +98,7 @@
           newMoveFolderError = "";
         }}
       >
-        <Icon name="folder-plus" size={13} />
+        <Icon name="folder-plus" size={14} />
         New folder
       </button>
     </div>

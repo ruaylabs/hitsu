@@ -416,7 +416,7 @@
         aria-label="Close settings"
         title="Close settings"
       >
-        <Icon name="x" size={16} />
+        <Icon name="x" size={14} />
       </button>
     </header>
 
@@ -498,7 +498,7 @@
             </div>
           {:else if importError}
             <div class="import-failure" role="alert">
-              <Icon name="alert-triangle" size={16} />
+              <Icon name="alert-triangle" size={18} />
               <div>
                 <strong>Import failed</strong>
                 <span>{importError}</span>
@@ -509,7 +509,7 @@
             {@const skippedItems = importReport.skippedItems - importReport.failedItems}
             <div class="import-summary">
               <div class="import-summary-heading" role="status">
-                <Icon name="circle-check" size={16} />
+                <Icon name="circle-check" size={18} />
                 <strong>Import complete</strong>
               </div>
               <dl class="import-counts">

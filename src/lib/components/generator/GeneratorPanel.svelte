@@ -115,7 +115,7 @@
         {/if}
         <IconButton
           icon="copy"
-          iconSize={16}
+          iconSize={14}
           disabled={!password}
           onclick={() => copied.run(() => clipboard.copyPlain(password), "Password copied")}
           aria-label="Copy password"
@@ -123,7 +123,7 @@
         />
         <IconButton
           icon="refresh"
-          iconSize={16}
+          iconSize={14}
           onclick={generate}
           aria-label="Regenerate"
           title="Regenerate"

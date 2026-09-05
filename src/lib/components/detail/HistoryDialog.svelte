@@ -88,7 +88,7 @@
   bodyFill
 >
   {#snippet titleContent()}
-    <Icon name="history" size={16} />
+    <Icon name="history" size={14} />
     Revision history
   {/snippet}
 
