@@ -190,8 +190,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
     margin-block: -6px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
@@ -213,8 +213,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
     margin-block: -6px;
     border-radius: var(--radius-sm);
     color: var(--text-muted);

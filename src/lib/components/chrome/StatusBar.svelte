@@ -159,13 +159,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 32px;
+    height: var(--icon-button-size);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
   }
 
   .settings-gear {
-    width: 32px;
+    width: var(--icon-button-size);
   }
 
   .lock-btn {

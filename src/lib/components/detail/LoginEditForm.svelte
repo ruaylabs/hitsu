@@ -90,8 +90,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface-1);
