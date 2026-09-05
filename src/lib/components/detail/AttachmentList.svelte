@@ -173,7 +173,7 @@
   }
 
   .attachment-name {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;

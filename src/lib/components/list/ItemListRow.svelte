@@ -92,7 +92,7 @@
   }
 
   .list-row-title {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;
@@ -101,7 +101,7 @@
   }
 
   .list-row-subtitle {
-    font-size: 12.5px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;

@@ -766,7 +766,7 @@
   }
 
   .settings-title {
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 500;
     color: var(--text-primary);
   }
@@ -805,7 +805,7 @@
     padding: 7px 10px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 12.5px;
+    font-size: var(--text-base);
   }
 
   .settings-nav a:hover,
@@ -855,12 +855,12 @@
   }
 
   .vault-path {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-primary);
   }
 
   .vault-path-sub {
-    font-size: 12.5px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -868,7 +868,7 @@
   }
 
   .vault-none {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     font-style: italic;
   }
@@ -886,7 +886,7 @@
     padding: 6px 12px;
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     background: var(--surface-1);
     transition: background 0.1s;
@@ -917,7 +917,7 @@
   .maintenance-title {
     margin: 0 0 2px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 
@@ -931,7 +931,7 @@
     flex-direction: column;
     gap: 10px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.5;
   }
 
@@ -965,7 +965,7 @@
   .import-progress strong,
   .import-failure strong {
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 
@@ -1021,7 +1021,7 @@
     align-items: center;
     gap: 7px;
     color: var(--success);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .import-counts {
@@ -1047,7 +1047,7 @@
   .import-counts dd {
     margin: 2px 0 0;
     color: var(--text-primary);
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 500;
   }
 
@@ -1065,7 +1065,7 @@
   .skipped-list {
     padding-left: 20px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .skipped-list li + li {
@@ -1105,7 +1105,7 @@
   }
 
   .empty-text {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     font-style: italic;
   }
@@ -1126,7 +1126,7 @@
     border-radius: var(--radius-sm);
     background: var(--surface-1);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
     text-align: left;
     transition: background 0.1s;
   }
@@ -1170,13 +1170,13 @@
   }
 
   .setting-label {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
   }
 
   .setting-description {
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .setting-select {
@@ -1239,7 +1239,7 @@
 
   .about-name {
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 

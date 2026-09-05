@@ -223,7 +223,7 @@
     align-items: center;
     gap: 8px;
     color: var(--text-primary);
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 500;
   }
 

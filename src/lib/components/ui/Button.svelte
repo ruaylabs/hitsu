@@ -40,12 +40,12 @@
   .button-sm {
     min-height: 32px;
     padding: 6px 14px;
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .button-md {
     padding: 10px 16px;
-    font-size: 14px;
+    font-size: var(--text-base);
   }
 
   .button-primary {

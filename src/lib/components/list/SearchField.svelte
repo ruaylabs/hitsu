@@ -165,7 +165,7 @@
 
   .entry-search-input {
     flex: 1;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     min-width: 0;
   }

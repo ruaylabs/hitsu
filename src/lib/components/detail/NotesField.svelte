@@ -23,7 +23,7 @@
     padding: 10px 12px;
     background: var(--surface-1);
     border-radius: var(--radius);
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.55;
     color: var(--text-primary);
     white-space: pre-wrap;

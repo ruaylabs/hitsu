@@ -60,6 +60,6 @@
     width: 70px;
     flex-shrink: 0;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 </style>

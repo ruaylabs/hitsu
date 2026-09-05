@@ -125,7 +125,7 @@
     width: 100%;
   }
   .control-error {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--danger);
   }
 </style>

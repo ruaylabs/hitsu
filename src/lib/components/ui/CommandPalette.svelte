@@ -120,7 +120,7 @@
 
   .search-input {
     flex: 1;
-    font-size: 14px;
+    font-size: var(--text-base);
     color: var(--text-primary);
   }
 
@@ -160,7 +160,7 @@
   }
 
   .palette-item-label {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 
@@ -178,7 +178,7 @@
   .palette-empty {
     padding: 20px;
     text-align: center;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-muted);
   }
 </style>

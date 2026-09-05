@@ -78,7 +78,7 @@
   }
 
   .shortcut-desc {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-secondary);
     text-align: right;
   }

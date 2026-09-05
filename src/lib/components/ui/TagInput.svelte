@@ -232,7 +232,7 @@
   .tag-input {
     flex: 1;
     min-width: 60px;
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     padding: 2px 4px;
   }
@@ -258,7 +258,7 @@
   .suggestion-item {
     padding: 5px 10px;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     cursor: pointer;
   }

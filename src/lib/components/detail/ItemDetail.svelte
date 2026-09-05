@@ -812,7 +812,7 @@
   }
 
   .edit-title-input {
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 500;
     padding: 6px 0;
     border-bottom: 1px solid var(--border);
@@ -853,7 +853,7 @@
 
   .error-msg {
     color: var(--danger);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .save-error {

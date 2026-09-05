@@ -113,7 +113,7 @@
 
 <style>
   .totp-code {
-    font-size: 16px;
+    font-size: var(--text-md);
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: 2px;
@@ -139,6 +139,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    /* Deliberately smaller than the text scale to fit inside the 20px timer ring. */
     font-size: 7px;
     font-weight: 500;
     color: var(--text-muted);

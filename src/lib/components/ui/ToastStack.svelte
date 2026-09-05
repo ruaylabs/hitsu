@@ -67,7 +67,7 @@
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);
     box-shadow: var(--shadow-dialog);
-    font-size: 12.5px;
+    font-size: var(--text-base);
     line-height: 1.4;
     color: var(--text-primary);
     text-align: left;

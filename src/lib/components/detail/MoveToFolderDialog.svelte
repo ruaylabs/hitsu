@@ -178,7 +178,7 @@
 
   .move-destination-heading label {
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
   }
 
@@ -186,7 +186,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-accent);
     padding: 2px 4px;
     border-radius: 4px;
@@ -203,7 +203,7 @@
   }
 
   .control-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
   }
 
@@ -222,7 +222,7 @@
 
   .control-error,
   .save-error {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--danger);
   }
 </style>

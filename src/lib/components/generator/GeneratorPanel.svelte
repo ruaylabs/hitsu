@@ -203,7 +203,7 @@
   .generator-error {
     flex: 1;
     font-family: var(--font-mono);
-    font-size: 14px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     word-break: break-all;
     min-width: 0;
@@ -212,7 +212,7 @@
   .generator-error {
     color: var(--danger);
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .options {
@@ -225,7 +225,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     cursor: pointer;
   }
@@ -238,7 +238,7 @@
     width: 30px;
     text-align: right;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .range-input {

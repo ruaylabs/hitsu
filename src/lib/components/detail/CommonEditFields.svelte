@@ -96,7 +96,7 @@
     margin-top: 12px;
   }
   .notes-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     font-weight: 600;
   }
@@ -118,7 +118,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-accent);
     padding: 2px 4px;
     border-radius: 4px;

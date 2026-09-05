@@ -10,7 +10,7 @@
   background: var(--surface-1);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .control::placeholder {
@@ -35,7 +35,7 @@
 
 .control--compact {
   padding: 6px 8px;
-  font-size: 13.5px;
+  font-size: var(--text-base);
 }
 
 .control--mono {

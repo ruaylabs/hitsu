@@ -290,7 +290,7 @@
   }
 
   .dialog-message {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-secondary);
     line-height: 1.5;
   }
@@ -307,7 +307,7 @@
     min-height: 30px;
     border-radius: calc(var(--radius-sm) - 2px);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .mode-switch button.active {
@@ -364,11 +364,11 @@
 
   .image-picker strong {
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 
   .image-picker span {
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 </style>

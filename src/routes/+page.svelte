@@ -109,6 +109,6 @@
     gap: 10px;
     color: var(--text-secondary);
     background: var(--surface-0);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 </style>

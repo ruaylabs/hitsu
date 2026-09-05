@@ -120,7 +120,7 @@
   }
 
   .detail-title {
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 500;
     color: var(--text-primary);
     line-height: 1.2;

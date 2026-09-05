@@ -162,7 +162,7 @@
     min-width: 0;
     flex: 1;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: var(--text-base);
   }
 
   .entry-palette-input::placeholder {
@@ -218,7 +218,7 @@
   }
 
   .entry-palette-title {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     font-weight: 500;
   }
 
@@ -243,7 +243,7 @@
     gap: 8px;
     padding: 28px 20px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   .entry-palette-footer {

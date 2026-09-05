@@ -376,7 +376,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     padding: 24px;
   }
@@ -439,7 +439,7 @@
   }
 
   .rev-title {
-    font-size: 12.5px;
+    font-size: var(--text-base);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -459,7 +459,7 @@
   }
 
   .detail-title {
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 16px;

@@ -84,7 +84,7 @@
     border-radius: var(--radius-sm);
     width: 100%;
     text-align: left;
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     transition: background 0.1s;
   }
@@ -107,7 +107,7 @@
   }
 
   .sidebar-count {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 

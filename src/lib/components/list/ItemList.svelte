@@ -588,7 +588,7 @@
     gap: 8px;
     padding: 32px 16px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-base);
     text-align: center;
   }
 
@@ -628,7 +628,7 @@
     padding: 7px 9px;
     color: var(--text-primary);
     border-radius: var(--radius-sm);
-    font-size: 12.5px;
+    font-size: var(--text-base);
     text-align: left;
   }
 

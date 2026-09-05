@@ -59,7 +59,7 @@
 
   .section-label {
     flex: 1;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 

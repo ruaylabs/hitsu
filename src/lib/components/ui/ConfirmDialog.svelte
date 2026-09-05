@@ -45,7 +45,7 @@
 
 <style>
   .dialog-message {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-secondary);
     line-height: 1.5;
   }

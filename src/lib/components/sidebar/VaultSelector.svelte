@@ -179,7 +179,7 @@
     padding: 7px 8px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
     text-align: left;
     transition: background var(--transition-fast);
@@ -220,7 +220,7 @@
     padding: 6px 8px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 12.5px;
+    font-size: var(--text-base);
     text-align: left;
   }
 

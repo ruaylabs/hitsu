@@ -54,7 +54,7 @@
 
 <style>
   .field-value {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-primary);
     flex: 1;
     min-width: 0;

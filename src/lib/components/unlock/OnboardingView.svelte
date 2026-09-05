@@ -197,20 +197,20 @@
   }
 
   .onboarding-title {
-    font-size: 22px;
+    font-size: var(--text-xl);
     font-weight: 500;
     color: var(--text-primary);
   }
 
   .onboarding-subtitle {
-    font-size: 13.5px;
+    font-size: var(--text-base);
     color: var(--text-muted);
     text-align: center;
     margin-bottom: 8px;
   }
 
   .onboarding-error {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--danger);
     text-align: center;
   }
@@ -225,7 +225,7 @@
   .recent-heading {
     margin-bottom: 2px;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -239,7 +239,7 @@
     padding: 7px 9px;
     color: var(--text-secondary);
     border-radius: var(--radius-sm);
-    font-size: 12.5px;
+    font-size: var(--text-base);
     text-align: left;
   }
 
@@ -269,7 +269,7 @@
     padding: 12px 18px;
     border: 0.5px solid var(--border-strong);
     border-radius: var(--radius);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 500;
     color: var(--text-primary);
     background: var(--surface-1);
