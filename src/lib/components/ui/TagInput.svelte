@@ -250,7 +250,7 @@
     background: var(--surface-2);
     border: 0.5px solid var(--border);
     border-radius: var(--radius-sm);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-dialog);
     padding: var(--space-1);
     z-index: 10;
   }
