@@ -75,7 +75,7 @@
   }
 
   .list-row:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .list-row.selected {

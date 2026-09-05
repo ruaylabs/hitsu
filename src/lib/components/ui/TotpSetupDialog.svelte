@@ -345,7 +345,7 @@
 
   .image-picker:hover:not(:disabled) {
     border-color: var(--accent);
-    background: var(--bg-accent);
+    background: var(--surface-hover);
   }
 
   .image-picker--success {

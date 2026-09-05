@@ -376,7 +376,7 @@
   .reveal-button:hover,
   .reveal-button:focus-visible {
     color: var(--text-primary);
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .reveal-button:focus-visible {

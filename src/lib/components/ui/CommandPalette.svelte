@@ -145,7 +145,10 @@
     text-align: left;
   }
 
-  .palette-item:hover,
+  .palette-item:hover {
+    background: var(--surface-hover);
+  }
+
   .palette-item.selected {
     background: var(--bg-accent);
     color: var(--text-accent);

@@ -193,7 +193,7 @@
   }
 
   .new-folder-button:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .new-folder-form {

@@ -100,7 +100,7 @@
   }
   .generate-btn:hover,
   .totp-setup-btn-small:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
   .totp-edit-wrap {
     display: flex;

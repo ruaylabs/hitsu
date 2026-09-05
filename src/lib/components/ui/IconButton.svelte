@@ -47,7 +47,7 @@
   }
 
   .icon-button:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .icon-button-danger:hover {

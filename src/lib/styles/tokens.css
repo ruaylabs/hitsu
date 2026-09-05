@@ -5,6 +5,7 @@
   --surface-0: #efede5;
   --surface-1: #f7f6f3;
   --surface-2: #ffffff;
+  --surface-hover: rgba(0, 0, 0, 0.05);
 
   /* Text */
   --text-primary: #1a1915;
@@ -89,6 +90,7 @@
     --surface-0: #1e1e1e;
     --surface-1: #252525;
     --surface-2: #2c2c2c;
+    --surface-hover: rgba(255, 255, 255, 0.06);
     --text-primary: #f0ede5;
     --text-secondary: #b8b6ae;
     --text-muted: #96958d;
@@ -107,6 +109,7 @@
   --surface-0: #1e1e1e;
   --surface-1: #252525;
   --surface-2: #2c2c2c;
+  --surface-hover: rgba(255, 255, 255, 0.06);
   --text-primary: #f0ede5;
   --text-secondary: #b8b6ae;
   --text-muted: #96958d;

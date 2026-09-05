@@ -71,6 +71,6 @@
     flex-shrink: 0;
   }
   .generate-btn:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 </style>

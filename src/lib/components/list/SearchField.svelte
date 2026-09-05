@@ -199,7 +199,7 @@
   }
 
   .search-clear:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .search-divider {
@@ -222,7 +222,7 @@
   }
 
   .add-btn:hover {
-    background: var(--border);
+    background: var(--surface-hover);
     color: var(--text-secondary);
   }
 
@@ -272,7 +272,7 @@
 
   .scope-chip button:hover {
     color: var(--text-primary);
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .search-all {
@@ -285,6 +285,6 @@
   }
 
   .search-all:hover {
-    background: var(--bg-accent);
+    background: var(--surface-hover);
   }
 </style>

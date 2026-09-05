@@ -245,7 +245,7 @@
 
   .recent-vault-btn:hover:not(:disabled) {
     color: var(--text-primary);
-    background: var(--surface-1);
+    background: var(--surface-hover);
   }
 
   .recent-vault-btn span {
@@ -277,7 +277,7 @@
   }
 
   .onboarding-btn:hover:not(:disabled) {
-    background: var(--bg-accent);
+    background: var(--surface-hover);
     border-color: var(--accent);
     color: var(--text-accent);
   }

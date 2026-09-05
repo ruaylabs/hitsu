@@ -415,7 +415,7 @@
   }
 
   .revision-row:hover {
-    background: var(--surface-1);
+    background: var(--surface-hover);
   }
 
   .revision-row.selected {

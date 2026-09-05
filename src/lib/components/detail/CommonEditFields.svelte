@@ -124,7 +124,7 @@
     border-radius: var(--radius-xs);
   }
   .add-custom-field:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
   .custom-field-edit-row {
     display: flex;
@@ -162,7 +162,7 @@
   }
   .remove-custom-field:hover {
     color: var(--danger);
-    background: var(--border);
+    background: var(--surface-hover);
   }
   .edit-textarea {
     min-height: 100px;

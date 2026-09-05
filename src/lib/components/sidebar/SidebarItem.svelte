@@ -90,7 +90,7 @@
   }
 
   .sidebar-item:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .sidebar-item.selected {
@@ -149,7 +149,7 @@
 
   .sidebar-actions button:hover {
     color: var(--text-primary);
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .sidebar-actions .action-delete:hover {

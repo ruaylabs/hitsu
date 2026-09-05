@@ -90,7 +90,7 @@
   .secret-reveal-button:hover,
   .secret-reveal-button:focus-visible {
     color: var(--text-primary);
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .secret-reveal-button:focus-visible {

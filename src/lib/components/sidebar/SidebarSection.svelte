@@ -77,7 +77,7 @@
   .section-action:hover,
   .collapse-button:hover {
     color: var(--text-secondary);
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .section-items {

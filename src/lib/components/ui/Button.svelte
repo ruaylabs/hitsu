@@ -78,6 +78,6 @@
   .button-secondary:hover:not(:disabled),
   .button-ghost:hover:not(:disabled),
   .button-outline:hover:not(:disabled) {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 </style>

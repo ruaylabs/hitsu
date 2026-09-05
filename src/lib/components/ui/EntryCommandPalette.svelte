@@ -196,7 +196,10 @@
     text-align: left;
   }
 
-  .entry-palette-item:hover,
+  .entry-palette-item:hover {
+    background: var(--surface-hover);
+  }
+
   .entry-palette-item.selected {
     color: var(--text-accent);
     background: var(--bg-accent);

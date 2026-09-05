@@ -601,7 +601,7 @@
   }
 
   .empty-action:hover {
-    background: var(--bg-accent);
+    background: var(--surface-hover);
   }
 
   .empty-action:focus-visible {
@@ -634,7 +634,7 @@
 
   .row-context-menu button:hover:not(:disabled),
   .row-context-menu button:focus-visible {
-    background: var(--border);
+    background: var(--surface-hover);
     outline: none;
   }
 

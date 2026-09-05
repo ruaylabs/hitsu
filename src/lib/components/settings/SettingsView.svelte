@@ -782,7 +782,7 @@
   }
 
   .close-btn:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .settings-content {
@@ -810,7 +810,7 @@
 
   .settings-nav a:hover,
   .settings-nav a:focus-visible {
-    background: var(--border);
+    background: var(--surface-hover);
     color: var(--text-primary);
   }
 
@@ -893,7 +893,7 @@
   }
 
   .settings-btn:hover:not(:disabled) {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .maintenance-card {
@@ -1132,7 +1132,7 @@
   }
 
   .recent-btn:hover:not(:disabled) {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .recent-btn.active {

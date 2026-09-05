@@ -147,7 +147,7 @@
   }
 
   .add-btn:hover {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .attachments-list {

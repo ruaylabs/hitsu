@@ -185,7 +185,10 @@
     transition: background var(--transition-fast);
   }
 
-  .vault-button:hover,
+  .vault-button:hover {
+    background: var(--surface-hover);
+  }
+
   .vault-button[aria-expanded="true"] {
     background: var(--bg-accent);
     color: var(--text-primary);
@@ -232,7 +235,7 @@
   }
 
   .menu-item:hover {
-    background: var(--bg-accent);
+    background: var(--surface-hover);
     color: var(--text-primary);
   }
 

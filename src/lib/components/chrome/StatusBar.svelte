@@ -182,7 +182,7 @@
 
   .lock-btn:hover,
   .settings-gear:hover {
-    background: var(--border);
+    background: var(--surface-hover);
     color: var(--text-secondary);
   }
 </style>

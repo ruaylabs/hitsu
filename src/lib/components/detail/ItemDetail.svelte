@@ -789,7 +789,7 @@
   }
 
   .toolbar-btn:hover:not(:disabled) {
-    background: var(--border);
+    background: var(--surface-hover);
   }
 
   .toolbar-save {

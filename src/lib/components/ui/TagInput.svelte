@@ -225,7 +225,7 @@
   }
 
   .chip-remove:hover {
-    background: var(--border);
+    background: var(--surface-hover);
     color: var(--danger);
   }
 
@@ -263,7 +263,10 @@
     cursor: pointer;
   }
 
-  .suggestion-item:hover,
+  .suggestion-item:hover {
+    background: var(--surface-hover);
+  }
+
   .suggestion-item.selected {
     background: var(--bg-accent);
     color: var(--text-accent);
