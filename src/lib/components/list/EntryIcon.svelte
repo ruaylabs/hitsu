@@ -45,7 +45,7 @@
   let brandKey = $derived(iconHint && brandIcons[iconHint] ? iconHint : null);
   let typeMetadata = $derived(ENTRY_TYPE_BY_TYPE[type]);
 
-  let bgColor = $derived(brandKey ? brandColors[brandKey] : typeMetadata.color);
+  let tileColor = $derived(brandKey ? brandColors[brandKey] : typeMetadata.color);
   let iconName = $derived(brandKey ? brandIcons[brandKey] : typeMetadata.icon);
 
   let lazyIconData = $state<string | null>(null);
@@ -78,9 +78,10 @@
 {:else}
   <div
     class="entry-icon"
+    class:entry-icon--brand={brandKey !== null}
+    style:--entry-icon-color={tileColor}
     style:width={`${size}px`}
     style:height={`${size}px`}
-    style:background={bgColor}
     style:border-radius={`${Math.round(size * 0.233)}px`}
   >
     <Icon name={iconName} size={Math.round(size * 0.53)} />
@@ -94,6 +95,13 @@
     justify-content: center;
     flex-shrink: 0;
     color: #fff;
+    background: var(--entry-icon-color);
+    border: 0.5px solid color-mix(in srgb, currentColor 20%, transparent);
+  }
+
+  .entry-icon--brand {
+    color: color-mix(in srgb, var(--entry-icon-color) 50%, var(--text-primary));
+    background: color-mix(in srgb, var(--entry-icon-color) 14%, transparent);
   }
 
   .entry-icon--image {

@@ -32,7 +32,7 @@ export const ENTRY_TYPES = [
     pluralLabel: "Notes",
     description: "Free-form private note or reference information",
     icon: "notes",
-    color: "#a1a09a",
+    color: "#6f6e68",
   },
   {
     type: "identity",

@@ -21,4 +21,8 @@ describe("entry type metadata", () => {
       expect(ENTRY_TYPE_BY_TYPE[metadata.type]).toBe(metadata);
     }
   });
+
+  it("uses an accessible note tile color", () => {
+    expect(ENTRY_TYPE_BY_TYPE.note.color).toBe("#6f6e68");
+  });
 });
