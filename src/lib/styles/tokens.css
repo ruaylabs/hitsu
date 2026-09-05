@@ -61,6 +61,8 @@
   --text-md: 15px;
   --text-lg: 18px;
   --text-xl: 22px;
+  --leading-tight: 1.2;
+  --leading-normal: 1.45;
 
   /* Spacing */
   --space-half: 2px;

@@ -499,6 +499,6 @@
   .kdf-message {
     color: var(--text-secondary);
     font-size: var(--text-base);
-    line-height: 1.5;
+    line-height: var(--leading-normal);
   }
 </style>

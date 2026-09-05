@@ -51,6 +51,6 @@
     border-radius: var(--radius-xs);
     box-shadow: 0 1px 0 var(--border);
     font: inherit;
-    line-height: 1.2;
+    line-height: var(--leading-tight);
   }
 </style>

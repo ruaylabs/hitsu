@@ -292,7 +292,7 @@
   .dialog-message {
     font-size: var(--text-base);
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: var(--leading-normal);
   }
 
   .mode-switch {

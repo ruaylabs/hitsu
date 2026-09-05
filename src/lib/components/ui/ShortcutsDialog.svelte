@@ -74,7 +74,7 @@
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: var(--leading-normal);
   }
 
   .shortcut-desc {

@@ -932,7 +932,7 @@
     gap: var(--space-3);
     color: var(--text-secondary);
     font-size: var(--text-base);
-    line-height: 1.5;
+    line-height: var(--leading-normal);
   }
 
   .import-confirm strong {

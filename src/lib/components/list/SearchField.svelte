@@ -182,7 +182,7 @@
     color: var(--text-muted);
     font-family: var(--font-sans);
     font-size: var(--text-xs);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
     opacity: 0.75;
   }
 
@@ -230,7 +230,7 @@
     margin-top: 7px;
     color: var(--warning);
     font-size: var(--text-sm);
-    line-height: 1.35;
+    line-height: var(--leading-normal);
   }
 
   .scope-row {

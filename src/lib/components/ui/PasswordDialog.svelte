@@ -324,7 +324,7 @@
     border: 0.5px solid var(--warning);
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);
-    line-height: 1.45;
+    line-height: var(--leading-normal);
   }
 
   .recovery-warning :global(.ti) {
@@ -342,7 +342,7 @@
   .strength-help {
     color: var(--text-muted);
     font-size: var(--text-sm);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
   }
 
   .password-field {

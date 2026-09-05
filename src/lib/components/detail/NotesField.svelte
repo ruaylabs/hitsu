@@ -24,7 +24,7 @@
     background: var(--surface-1);
     border-radius: var(--radius);
     font-size: var(--text-base);
-    line-height: 1.55;
+    line-height: var(--leading-normal);
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;

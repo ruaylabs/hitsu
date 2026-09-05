@@ -260,6 +260,6 @@
     color: var(--warning);
     border-top: 0.5px solid var(--border);
     font-size: var(--text-sm);
-    line-height: 1.35;
+    line-height: var(--leading-normal);
   }
 </style>

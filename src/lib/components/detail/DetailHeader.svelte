@@ -123,7 +123,7 @@
     font-size: var(--text-lg);
     font-weight: 500;
     color: var(--text-primary);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

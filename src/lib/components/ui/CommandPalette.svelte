@@ -167,7 +167,7 @@
   .palette-item-description {
     color: var(--text-muted);
     font-size: var(--text-sm);
-    line-height: 1.35;
+    line-height: var(--leading-normal);
   }
 
   .palette-item:hover .palette-item-description,

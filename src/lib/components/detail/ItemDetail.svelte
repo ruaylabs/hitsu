@@ -859,7 +859,7 @@
   .save-error {
     color: var(--danger);
     font-size: var(--text-sm);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
     margin-bottom: 12px;
   }
 

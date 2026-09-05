@@ -68,7 +68,7 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-dialog);
     font-size: var(--text-base);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
     color: var(--text-primary);
     text-align: left;
   }
