@@ -128,9 +128,11 @@ jobs:
         run: |
           PREVIOUS_TAG=$(git tag --sort=-creatordate | grep '^v' | sed -n '2p')
           if [ -z "$PREVIOUS_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --extended-regexp --invert-grep \
+              --grep='^[^(:]+\(ios\)!?:' HEAD)
           else
-            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --extended-regexp --invert-grep \
+              --grep='^[^(:]+\(ios\)!?:' "$PREVIOUS_TAG"..HEAD)
           fi
           {
             printf '%s\n' "## What's Changed"
