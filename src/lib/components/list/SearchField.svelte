@@ -178,7 +178,7 @@
     flex-shrink: 0;
     padding: var(--space-half) var(--space-1);
     border: 0.5px solid var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     color: var(--text-muted);
     font-family: var(--font-sans);
     font-size: var(--text-xs);

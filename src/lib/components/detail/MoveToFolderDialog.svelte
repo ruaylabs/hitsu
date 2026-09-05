@@ -189,7 +189,7 @@
     font-size: var(--text-sm);
     color: var(--text-accent);
     padding: var(--space-half) var(--space-1);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
 
   .new-folder-button:hover {

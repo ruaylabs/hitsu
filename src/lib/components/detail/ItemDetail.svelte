@@ -839,7 +839,7 @@
     color: var(--tag-color);
     background: color-mix(in srgb, var(--tag-color) 12%, transparent);
     border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     font-size: var(--text-sm);
   }
 

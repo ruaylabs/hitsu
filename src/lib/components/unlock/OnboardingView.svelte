@@ -191,7 +191,7 @@
     justify-content: center;
     width: 56px;
     height: 56px;
-    border-radius: 14px;
+    border-radius: var(--radius-card);
     background: var(--accent);
     color: #fff;
   }

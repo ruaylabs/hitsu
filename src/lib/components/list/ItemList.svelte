@@ -555,7 +555,7 @@
     flex-shrink: 0;
     padding: var(--space-1) var(--space-1);
     color: var(--danger);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
 
   .empty-trash-button:hover:not(:disabled) {

@@ -70,7 +70,7 @@
     justify-content: center;
     background: var(--surface-1);
     border: 0.5px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--text-secondary);

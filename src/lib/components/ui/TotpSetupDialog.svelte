@@ -305,7 +305,7 @@
 
   .mode-switch button {
     min-height: 30px;
-    border-radius: calc(var(--radius-sm) - 2px);
+    border-radius: var(--radius-xs);
     color: var(--text-secondary);
     font-size: var(--text-base);
   }

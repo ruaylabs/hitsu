@@ -209,7 +209,7 @@
     padding: var(--space-half) var(--space-1) var(--space-half) var(--space-2);
     background: var(--surface-2);
     border: 0.5px solid var(--border-strong);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     font-size: var(--text-sm);
     color: var(--text-primary);
   }
@@ -257,7 +257,7 @@
 
   .suggestion-item {
     padding: var(--space-1) var(--space-3);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     font-size: var(--text-base);
     color: var(--text-primary);
     cursor: pointer;

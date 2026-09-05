@@ -66,5 +66,5 @@ ol {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }

@@ -48,7 +48,7 @@
     color: var(--text-secondary);
     background: var(--surface-1);
     border: 0.5px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     box-shadow: 0 1px 0 var(--border);
     font: inherit;
     line-height: 1.2;

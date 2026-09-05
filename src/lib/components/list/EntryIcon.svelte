@@ -65,6 +65,7 @@
   let resolvedIcon = $derived(customIconData || lazyIconData);
 </script>
 
+<!-- Keep the tile's squircle ratio proportional at list and detail sizes. -->
 {#if resolvedIcon}
   <img
     class="entry-icon entry-icon--image"

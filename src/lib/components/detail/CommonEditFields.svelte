@@ -121,7 +121,7 @@
     font-size: var(--text-sm);
     color: var(--text-accent);
     padding: var(--space-half) var(--space-1);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
   .add-custom-field:hover {
     background: var(--border);
@@ -158,7 +158,7 @@
     justify-content: center;
     color: var(--text-secondary);
     padding: var(--space-half);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
   .remove-custom-field:hover {
     color: var(--danger);

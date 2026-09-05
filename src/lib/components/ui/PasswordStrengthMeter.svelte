@@ -46,13 +46,13 @@
     flex: 1;
     height: 6px;
     background: var(--border-strong);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     overflow: hidden;
   }
 
   .strength-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     transition:
       width 0.15s ease,
       background 0.15s ease;

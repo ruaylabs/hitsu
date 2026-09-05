@@ -1078,7 +1078,7 @@
     padding: var(--space-half) var(--space-1);
     color: var(--text-secondary);
     background: var(--surface-1);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     font-size: var(--text-xs);
     font-weight: 500;
     text-transform: uppercase;
