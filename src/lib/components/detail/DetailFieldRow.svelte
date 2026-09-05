@@ -23,7 +23,7 @@
   class:success={status === "success"}
   class:danger={status === "danger"}
 >
-  <span class="detail-field-label">{label}</span>
+  <span class="detail-field-label" title={label}>{label}</span>
   {@render children()}
 </div>
 
@@ -56,10 +56,16 @@
     border-color: var(--danger);
   }
 
+  /* Fixed so values line up down the pane. Custom field names are
+     user-supplied and unbounded, so clip rather than wrap — wrapping would
+     push the row past its 38px rhythm. The full name stays in the title. */
   .detail-field-label {
     width: 70px;
     flex-shrink: 0;
+    overflow: hidden;
     color: var(--text-muted);
     font-size: var(--text-sm);
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 </style>

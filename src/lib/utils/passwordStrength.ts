@@ -237,6 +237,11 @@ export function estimateStrength(password: string): StrengthResult {
   };
 }
 
+/** Every label `estimateStrength` can return, widest-first is not implied.
+ *  Exported so a meter can reserve room for the longest one instead of
+ *  hardcoding a pixel width sized to the English strings. */
+export const STRENGTH_LABELS: readonly string[] = [...Object.values(LABELS), "Very weak"];
+
 export function strengthColor(level: StrengthLevel): string {
   return COLORS[level];
 }

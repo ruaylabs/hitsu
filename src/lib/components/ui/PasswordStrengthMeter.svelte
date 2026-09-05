@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { estimateStrength, strengthColor } from "$lib/utils/passwordStrength";
+  import { estimateStrength, STRENGTH_LABELS, strengthColor } from "$lib/utils/passwordStrength";
 
   let {
     password,
@@ -27,7 +27,12 @@
     </div>
     {#if password}
       <span class="strength-label" style="color: {strengthColor(strength.level)}">
-        Strength: {strength.label}
+        <span>Strength: {strength.label}</span>
+        <!-- Reserves the width of the longest label so the bar doesn't
+             resize as the strength changes. -->
+        {#each STRENGTH_LABELS as label (label)}
+          <span class="strength-label-sizer" aria-hidden="true">Strength: {label}</span>
+        {/each}
       </span>
     {/if}
   </div>
@@ -59,10 +64,20 @@
   }
 
   .strength-label {
+    display: grid;
+    justify-items: end;
     font-size: var(--text-sm);
     font-weight: 500;
     white-space: nowrap;
-    min-width: 92px;
-    text-align: right;
+  }
+
+  /* Every label stacked in one grid cell: the column takes the width of the
+     widest, and only the live one is visible. */
+  .strength-label > span {
+    grid-area: 1 / 1;
+  }
+
+  .strength-label-sizer {
+    visibility: hidden;
   }
 </style>
