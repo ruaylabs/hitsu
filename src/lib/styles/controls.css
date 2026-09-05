@@ -27,8 +27,6 @@
 
 .control:disabled {
   color: var(--text-muted);
-  cursor: default;
-  opacity: 0.6;
 }
 
 .control[aria-invalid="true"] {

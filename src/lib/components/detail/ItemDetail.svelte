@@ -792,11 +792,6 @@
     background: var(--border);
   }
 
-  .toolbar-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
   .toolbar-save {
     color: #fff;
     background: var(--accent);

@@ -564,7 +564,6 @@
 
   .empty-trash-button:disabled {
     color: var(--text-muted);
-    opacity: 0.55;
   }
 
   .list-rows {
@@ -641,7 +640,6 @@
 
   .row-context-menu button:disabled {
     color: var(--text-muted);
-    opacity: 0.5;
   }
 
   .row-context-menu .danger-menu-item {

@@ -557,7 +557,6 @@
               </div>
               <button
                 class="settings-btn danger-btn"
-                class:loading={recycleBin.emptying}
                 onclick={() => recycleBin.requestEmpty()}
                 disabled={recycleBin.emptying || recycleBin.count === 0}
               >
@@ -897,11 +896,6 @@
     background: var(--border);
   }
 
-  .settings-btn:disabled {
-    cursor: wait;
-    opacity: 0.65;
-  }
-
   .maintenance-card {
     display: flex;
     flex-direction: column;
@@ -930,14 +924,6 @@
   .danger-btn {
     flex-shrink: 0;
     color: var(--danger);
-  }
-
-  .danger-btn:disabled {
-    cursor: not-allowed;
-  }
-
-  .danger-btn.loading:disabled {
-    cursor: wait;
   }
 
   .import-confirm {
@@ -1145,13 +1131,8 @@
     transition: background 0.1s;
   }
 
-  .recent-btn:hover {
+  .recent-btn:hover:not(:disabled) {
     background: var(--border);
-  }
-
-  .recent-btn:disabled {
-    cursor: default;
-    opacity: 0.7;
   }
 
   .recent-btn.active {

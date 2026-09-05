@@ -282,11 +282,6 @@
     color: var(--text-accent);
   }
 
-  .onboarding-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
   .onboarding-btn span {
     min-width: 0;
     overflow: hidden;

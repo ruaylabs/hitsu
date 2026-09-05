@@ -80,9 +80,4 @@
   .button-outline:hover:not(:disabled) {
     background: var(--border);
   }
-
-  .button:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
 </style>
