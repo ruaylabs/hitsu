@@ -923,7 +923,7 @@
 
   .danger-btn {
     flex-shrink: 0;
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .import-confirm {
@@ -1085,7 +1085,7 @@
   }
 
   .import-result-kind.failed {
-    color: var(--danger);
+    color: var(--danger-text);
     background: var(--danger-bg);
   }
 

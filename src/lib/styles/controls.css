@@ -53,7 +53,7 @@
 }
 
 .control-error {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }

@@ -75,12 +75,12 @@
 
   .toast-danger {
     border-color: var(--danger);
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .toast-warning {
     border-color: var(--warning);
-    color: var(--warning);
+    color: var(--warning-text);
   }
 
   .toast-success {

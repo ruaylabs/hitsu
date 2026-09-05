@@ -228,7 +228,7 @@
 
   .search-warning {
     margin-top: 7px;
-    color: var(--warning);
+    color: var(--warning-text);
     font-size: var(--text-sm);
     line-height: var(--leading-normal);
   }

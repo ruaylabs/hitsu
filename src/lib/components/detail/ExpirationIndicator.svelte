@@ -41,7 +41,7 @@
   }
 
   .expiration-indicator.due {
-    color: var(--danger);
+    color: var(--danger-text);
     background: var(--danger-bg);
   }
 </style>

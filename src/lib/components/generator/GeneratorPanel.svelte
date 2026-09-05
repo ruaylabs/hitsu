@@ -210,7 +210,7 @@
   }
 
   .generator-error {
-    color: var(--danger);
+    color: var(--danger-text);
     font-family: var(--font-sans);
     font-size: var(--text-base);
   }

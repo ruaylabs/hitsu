@@ -803,7 +803,7 @@
   }
 
   .toolbar-delete:hover {
-    color: var(--danger);
+    color: var(--danger-text);
     border-color: var(--danger);
   }
 
@@ -852,12 +852,12 @@
   }
 
   .error-msg {
-    color: var(--danger);
+    color: var(--danger-text);
     font-size: var(--text-base);
   }
 
   .save-error {
-    color: var(--danger);
+    color: var(--danger-text);
     font-size: var(--text-sm);
     line-height: var(--leading-normal);
     margin-bottom: 12px;
@@ -865,7 +865,7 @@
 
   .save-error-action {
     margin-left: 6px;
-    color: var(--danger);
+    color: var(--danger-text);
     font-size: inherit;
     text-decoration: underline;
   }

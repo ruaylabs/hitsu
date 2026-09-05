@@ -24,7 +24,9 @@
   /* Semantic */
   --success: #1d9e75;
   --warning: #ba7517;
+  --warning-text: #8a5510;
   --danger: #e24b4a;
+  --danger-text: #b3312f;
   --danger-bg: rgba(226, 75, 74, 0.1);
 
   /* Effects and interaction */
@@ -98,6 +100,8 @@
     --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.14);
     --bg-accent: #0c447c;
+    --warning-text: #e5a34a;
+    --danger-text: #ff9a99;
     --danger-bg: rgba(226, 75, 74, 0.16);
     --backdrop: rgba(0, 0, 0, 0.45);
     --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -117,6 +121,8 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
   --bg-accent: #0c447c;
+  --warning-text: #e5a34a;
+  --danger-text: #ff9a99;
   --danger-bg: rgba(226, 75, 74, 0.16);
   --backdrop: rgba(0, 0, 0, 0.45);
   --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.4);

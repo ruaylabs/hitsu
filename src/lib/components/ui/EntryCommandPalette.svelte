@@ -260,7 +260,7 @@
   .entry-palette-warning {
     flex-shrink: 0;
     padding: var(--space-2) var(--space-4);
-    color: var(--warning);
+    color: var(--warning-text);
     border-top: 0.5px solid var(--border);
     font-size: var(--text-sm);
     line-height: var(--leading-normal);

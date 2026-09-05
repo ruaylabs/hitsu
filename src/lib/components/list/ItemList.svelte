@@ -554,7 +554,7 @@
     gap: var(--space-1);
     flex-shrink: 0;
     padding: var(--space-1) var(--space-1);
-    color: var(--danger);
+    color: var(--danger-text);
     border-radius: var(--radius-xs);
   }
 
@@ -643,7 +643,7 @@
   }
 
   .row-context-menu .danger-menu-item {
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .context-separator {

@@ -123,7 +123,7 @@
   }
 
   .totp-code.expiring {
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   .totp-ring-container {
