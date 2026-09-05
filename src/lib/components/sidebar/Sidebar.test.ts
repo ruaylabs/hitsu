@@ -175,7 +175,7 @@ describe("Sidebar", () => {
     render(Sidebar);
 
     const dot = screen.getByRole("button", { name: "finance" }).querySelector(".tag-dot");
-    expect(dot).toHaveStyle(`background: ${tagColor("finance")}`);
+    expect(dot).toHaveStyle(`background: ${tagColor("finance").fill}`);
   });
 
   it("persists the collapsed tags state", async () => {

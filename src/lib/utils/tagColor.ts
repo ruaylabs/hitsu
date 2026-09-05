@@ -1,16 +1,21 @@
-const TAG_PALETTE = [
-  "var(--tag-blue)",
-  "var(--tag-green)",
-  "var(--tag-orange)",
-  "var(--tag-purple)",
-  "var(--tag-pink)",
-  "var(--tag-cyan)",
-  "var(--tag-yellow)",
-  "var(--tag-red)",
-] as const;
+export interface TagColors {
+  readonly fill: string;
+  readonly text: string;
+}
 
-/** Return a stable palette color for a tag without storing presentation data. */
-export function tagColor(tag: string): string {
+const TAG_PALETTE = [
+  { fill: "var(--tag-blue-fill)", text: "var(--tag-blue-text)" },
+  { fill: "var(--tag-green-fill)", text: "var(--tag-green-text)" },
+  { fill: "var(--tag-orange-fill)", text: "var(--tag-orange-text)" },
+  { fill: "var(--tag-purple-fill)", text: "var(--tag-purple-text)" },
+  { fill: "var(--tag-pink-fill)", text: "var(--tag-pink-text)" },
+  { fill: "var(--tag-cyan-fill)", text: "var(--tag-cyan-text)" },
+  { fill: "var(--tag-yellow-fill)", text: "var(--tag-yellow-text)" },
+  { fill: "var(--tag-red-fill)", text: "var(--tag-red-text)" },
+] as const satisfies readonly TagColors[];
+
+/** Return stable fill and text colors for a tag without storing presentation data. */
+export function tagColor(tag: string): TagColors {
   let hash = 2166136261;
   for (const character of tag.trim().toLocaleLowerCase()) {
     hash ^= character.codePointAt(0) ?? 0;

@@ -246,7 +246,9 @@ describe("tag colors", () => {
     render(ItemDetail);
 
     const badge = await screen.findByText("finance");
-    expect(badge).toHaveStyle(`--tag-color: ${tagColor("finance")}`);
+    const colors = tagColor("finance");
+    expect(badge).toHaveStyle(`--tag-fill: ${colors.fill}`);
+    expect(badge).toHaveStyle(`--tag-text: ${colors.text}`);
   });
 });
 

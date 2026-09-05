@@ -352,7 +352,13 @@
               {#if detailEntry.tags.length > 0}
                 <div class="tags-display">
                   {#each detailEntry.tags as tag}
-                    <span class="tag-badge" style={`--tag-color: ${tagColor(tag)}`}>{tag}</span>
+                    {@const colors = tagColor(tag)}
+                    <span
+                      class="tag-badge"
+                      style:--tag-fill={colors.fill}
+                      style:--tag-text={colors.text}
+                      >{tag}</span
+                    >
                   {/each}
                 </div>
               {/if}
@@ -477,9 +483,9 @@
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-half) var(--space-2);
-    color: var(--tag-color);
-    background: color-mix(in srgb, var(--tag-color) 12%, transparent);
-    border: 0.5px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
+    color: var(--tag-text);
+    background: color-mix(in srgb, var(--tag-fill) 12%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--tag-fill) 28%, transparent);
     border-radius: var(--radius-xs);
     font-size: var(--text-sm);
   }
@@ -487,7 +493,7 @@
   .tag-badge::before {
     width: 6px;
     height: 6px;
-    background: var(--tag-color);
+    background: var(--tag-fill);
     border-radius: 50%;
     content: "";
   }

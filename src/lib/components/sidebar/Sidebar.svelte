@@ -272,7 +272,7 @@
       {#each tags as tag}
         <SidebarItem
           label={tag}
-          tagColor={tagColor(tag)}
+          tagColor={tagColor(tag).fill}
           onclick={() => selectFilter({ kind: "tag", tag })}
           selected={isSelected("tag", tag)}
           onedit={() => openRenameTag(tag)}
