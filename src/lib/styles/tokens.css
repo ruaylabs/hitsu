@@ -30,6 +30,8 @@
   --backdrop: rgba(0, 0, 0, 0.3);
   --shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.15);
   --transition-fast: 0.1s;
+  --transition-base: 0.15s;
+  --transition-slow: 0.3s;
   --opacity-disabled: 0.45;
   --z-view-overlay: 100;
   --z-dialog: 200;

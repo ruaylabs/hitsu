@@ -54,8 +54,8 @@
     height: 100%;
     border-radius: var(--radius-xs);
     transition:
-      width 0.15s ease,
-      background 0.15s ease;
+      width var(--transition-base) ease,
+      background var(--transition-base) ease;
   }
 
   .strength-label {

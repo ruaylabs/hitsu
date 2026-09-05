@@ -71,7 +71,7 @@
     border-bottom: 0.5px solid var(--border);
     width: 100%;
     text-align: left;
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .list-row:hover {

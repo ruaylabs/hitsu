@@ -889,7 +889,7 @@
     font-size: var(--text-base);
     color: var(--text-primary);
     background: var(--surface-1);
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .settings-btn:hover:not(:disabled) {
@@ -1128,7 +1128,7 @@
     color: var(--text-primary);
     font-size: var(--text-base);
     text-align: left;
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .recent-btn:hover:not(:disabled) {

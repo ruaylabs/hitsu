@@ -143,7 +143,7 @@
     color: var(--text-secondary);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-sm);
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .add-btn:hover {

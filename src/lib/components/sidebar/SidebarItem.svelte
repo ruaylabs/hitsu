@@ -86,7 +86,7 @@
     text-align: left;
     font-size: var(--text-base);
     color: var(--text-primary);
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .sidebar-item:hover {

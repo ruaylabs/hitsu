@@ -45,7 +45,7 @@
     margin-bottom: 16px;
     border: 0.5px solid var(--border);
     border-radius: var(--radius);
-    transition: border-color 0.15s;
+    transition: border-color var(--transition-base);
   }
 
   .detail-field-row.success {

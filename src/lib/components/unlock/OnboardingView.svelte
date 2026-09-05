@@ -273,7 +273,7 @@
     font-weight: 500;
     color: var(--text-primary);
     background: var(--surface-1);
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .onboarding-btn:hover:not(:disabled) {

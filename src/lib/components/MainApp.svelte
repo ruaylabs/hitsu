@@ -488,7 +488,7 @@
     position: absolute;
     inset: 0;
     background: var(--border);
-    transition: background 0.1s;
+    transition: background var(--transition-fast);
   }
 
   .pane-resizer:hover::after,

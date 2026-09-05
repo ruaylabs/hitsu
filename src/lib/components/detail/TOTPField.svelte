@@ -119,7 +119,7 @@
     letter-spacing: 2px;
     font-weight: 500;
     color: var(--text-primary);
-    transition: color 0.3s;
+    transition: color var(--transition-slow);
   }
 
   .totp-code.expiring {
