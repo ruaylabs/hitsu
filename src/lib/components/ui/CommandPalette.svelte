@@ -49,7 +49,6 @@
   placement="top"
   topOffset="120px"
   width="400px"
-  maxWidth="calc(100vw - 32px)"
   maxHeight="min(480px, calc(100vh - 152px))"
   bodyPadding="none"
   bodyOverflow="hidden"

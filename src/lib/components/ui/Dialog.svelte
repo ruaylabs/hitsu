@@ -17,7 +17,9 @@
     size = "md",
     width,
     height,
-    maxWidth = "90vw",
+    // A fixed gutter rather than a percentage: `sm`/`md`/`lg` are pixel
+    // widths, so the pane must stay on screen at any window size.
+    maxWidth = "calc(100vw - var(--space-4) * 2)",
     maxHeight,
     bodyPadding = "normal",
     bodyOverflow = "visible",
