@@ -110,7 +110,8 @@
   });
 
   // Windowed rendering: only the rows intersecting the viewport (plus a
-  // small overscan) exist in the DOM. Must match .list-row's fixed height.
+  // small overscan) exist in the DOM. Must match --row-lg, which .list-row
+  // renders at — rowHeight.test.ts fails if the two drift apart.
   const ROW_HEIGHT = 50;
   const OVERSCAN = 5;
 

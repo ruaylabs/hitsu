@@ -65,8 +65,8 @@
     align-items: center;
     gap: var(--space-3);
     /* Fixed height: the virtualized list (ItemList) positions rows at
-       ROW_HEIGHT intervals, so this must stay in sync with that constant. */
-    height: 50px;
+       ROW_HEIGHT intervals, so --row-lg must stay in sync with that constant. */
+    height: var(--row-lg);
     padding: 0 var(--space-3);
     border-bottom: 0.5px solid var(--border);
     width: 100%;

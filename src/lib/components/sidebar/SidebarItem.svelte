@@ -79,7 +79,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: 32px;
+    min-height: var(--row-sm);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     width: 100%;

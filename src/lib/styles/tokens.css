@@ -65,6 +65,13 @@
   --tag-yellow-text: #8d5911;
   --tag-red-text: #ac3938;
 
+  /* Row heights — one scale for the app's horizontal rows.
+     --row-lg is load-bearing: ItemList's ROW_HEIGHT must match it for the
+     virtualized window to align (guarded by rowHeight.test.ts). */
+  --row-sm: 32px;
+  --row-md: 38px;
+  --row-lg: 50px;
+
   /* Sizing */
   --radius: 8px;
   --radius-sm: 6px;

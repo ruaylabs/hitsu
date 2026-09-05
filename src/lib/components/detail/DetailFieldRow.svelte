@@ -32,7 +32,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: 38px;
+    min-height: var(--row-md);
     padding: var(--space-3) var(--space-3);
     background: var(--surface-2);
   }
