@@ -398,7 +398,7 @@
   }
 
   .revision-list {
-    border-right: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--divider);
     overflow-y: auto;
     padding: var(--space-2);
   }

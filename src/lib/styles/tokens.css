@@ -18,6 +18,10 @@
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
 
+  /* Dividers — stronger than --border, for hairlines that must read on
+     their own rather than outline a shape that already has contrast. */
+  --divider: rgba(0, 0, 0, 0.14);
+
   /* Accent (used for selection, links) */
   --bg-accent: #e6f1fb;
   --accent: #378add;
@@ -110,6 +114,7 @@
     --text-accent: #85b7eb;
     --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.14);
+    --divider: rgba(255, 255, 255, 0.14);
     --bg-accent: #0c447c;
     --tag-blue-text: #73ade7;
     --tag-green-text: #61bb9e;
@@ -141,6 +146,7 @@
   --text-accent: #85b7eb;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
+  --divider: rgba(255, 255, 255, 0.14);
   --bg-accent: #0c447c;
   --tag-blue-text: #73ade7;
   --tag-green-text: #61bb9e;

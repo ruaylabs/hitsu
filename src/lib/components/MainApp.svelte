@@ -487,7 +487,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: var(--border);
+    background: var(--divider);
     transition: background var(--transition-fast);
   }
 
