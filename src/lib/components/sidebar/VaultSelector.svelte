@@ -123,7 +123,7 @@
 
       {#if otherVaults.length > 0}
         <div class="menu-separator" role="separator"></div>
-        <div class="menu-heading">Switch vault</div>
+        <div class="section-heading">Switch vault</div>
         {#each otherVaults as path (path)}
           <button
             type="button"
@@ -245,11 +245,7 @@
     background: var(--border);
   }
 
-  .menu-heading {
+  .section-heading {
     padding: var(--space-1) var(--space-2) var(--space-half);
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 </style>

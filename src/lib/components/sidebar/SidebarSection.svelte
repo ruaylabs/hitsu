@@ -21,7 +21,7 @@
 
 <div class="sidebar-section">
   <div class="section-header">
-    <span class="section-label">{label}</span>
+    <span class="section-heading">{label}</span>
     {#if onadd}
       <button class="section-action" type="button" aria-label={addLabel} onclick={onadd}>
         <Icon name="plus" size={14} />
@@ -57,10 +57,8 @@
     padding: var(--space-half) var(--space-2) var(--space-1) var(--space-3);
   }
 
-  .section-label {
+  .section-heading {
     flex: 1;
-    font-size: var(--text-sm);
-    color: var(--text-muted);
   }
 
   .section-action,

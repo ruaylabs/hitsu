@@ -134,7 +134,7 @@
 
     {#if rememberedVaults.length > 0}
       <div class="recent-vaults">
-        <span class="recent-heading">Recent vaults</span>
+        <span class="section-heading">Recent vaults</span>
         {#each rememberedVaults as path (path)}
           <Button
             variant="ghost"
@@ -236,13 +236,8 @@
     width: 100%;
   }
 
-  .recent-heading {
+  .section-heading {
     margin-bottom: 2px;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   /* Layout only — chrome comes from Button's `ghost` variant. */

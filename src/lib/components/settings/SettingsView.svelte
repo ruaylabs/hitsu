@@ -833,14 +833,6 @@
     gap: var(--space-3);
   }
 
-  .section-heading {
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
   .vault-info {
     display: flex;
     flex-direction: column;
