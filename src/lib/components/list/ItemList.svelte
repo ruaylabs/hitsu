@@ -14,6 +14,7 @@
   import { createEntrySearch } from "$lib/utils/entrySearch.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { openHttpUrl } from "$lib/utils/openHttpUrl";
+  import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
   import ItemListRow from "./ItemListRow.svelte";
   import SearchField from "./SearchField.svelte";
@@ -373,15 +374,17 @@
     </select>
     <Icon name="chevron-down" size={12} />
     {#if selection.filter.kind === "trash"}
-      <button
+      <Button
         type="button"
+        variant="ghost-danger"
+        size="xs"
         class="empty-trash-button"
         disabled={recycleBin.count === 0 || recycleBin.emptying}
         onclick={() => recycleBin.requestEmpty()}
       >
         <Icon name="trash-x" size={12} />
         {recycleBin.emptying ? "Emptying…" : "Empty…"}
-      </button>
+      </Button>
     {/if}
   </div>
   <div
@@ -548,22 +551,11 @@
     appearance: none;
   }
 
-  .empty-trash-button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
+  /* Tighter than `xs` — the sort bar is only 30px tall. */
+  .sort-bar :global(.empty-trash-button) {
     flex-shrink: 0;
-    padding: var(--space-1) var(--space-1);
-    color: var(--danger-text);
+    padding: var(--space-1);
     border-radius: var(--radius-xs);
-  }
-
-  .empty-trash-button:hover:not(:disabled) {
-    background: var(--danger-bg);
-  }
-
-  .empty-trash-button:disabled {
-    color: var(--text-muted);
   }
 
   .list-rows {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { HTMLButtonAttributes } from "svelte/elements";
+  import Button from "./Button.svelte";
   import Icon from "./Icon.svelte";
 
   type Variant = "ghost" | "outline" | "danger";
@@ -17,45 +18,11 @@
     variant?: Variant;
     active?: boolean;
   } = $props();
+
+  // IconButton is Button's `icon` size; only its danger tone differs in name.
+  const buttonVariant = $derived(variant === "danger" ? "ghost-danger" : variant);
 </script>
 
-<button
-  {...rest}
-  class={["icon-button", `icon-button-${variant}`, className].filter(Boolean).join(" ")}
-  class:active
->
+<Button {...rest} variant={buttonVariant} size="icon" {active} class={className}>
   <Icon name={icon} size={iconSize} />
-</button>
-
-<style>
-  .icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-button-size);
-    height: var(--icon-button-size);
-    flex-shrink: 0;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    transition:
-      background var(--transition-fast),
-      color var(--transition-fast);
-  }
-
-  .icon-button-outline {
-    border: 0.5px solid var(--border-strong);
-  }
-
-  .icon-button:hover {
-    background: var(--surface-hover);
-  }
-
-  .icon-button-danger:hover {
-    color: var(--danger);
-    background: var(--danger-bg);
-  }
-
-  .icon-button.active {
-    color: var(--warning);
-  }
-</style>
+</Button>

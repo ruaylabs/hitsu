@@ -448,35 +448,35 @@
           </div>
 
           <div class="settings-actions">
-            <button class="settings-btn" onclick={handleOpen}>
+            <Button variant="outline" onclick={handleOpen}>
               <Icon name="folder-open" size={14} />
               Open vault…
-            </button>
-            <button class="settings-btn" onclick={handleCreate}>
+            </Button>
+            <Button variant="outline" onclick={handleCreate}>
               <Icon name="plus" size={14} />
               Create new vault…
-            </button>
+            </Button>
             {#if vault.meta}
-              <button class="settings-btn" onclick={() => (dialog = { kind: "change-password" })}>
+              <Button variant="outline" onclick={() => (dialog = { kind: "change-password" })}>
                 <Icon name="exchange" size={14} />
                 Change master password…
-              </button>
-              <button
-                class="settings-btn"
+              </Button>
+              <Button
+                variant="outline"
                 onclick={() => (dialog = { kind: "favicon-confirm" })}
                 disabled={importing || downloadingFavicons}
               >
                 <Icon name="photo-down" size={14} />
                 {downloadingFavicons ? "Downloading icons…" : "Download website icons…"}
-              </button>
-              <button
-                class="settings-btn"
+              </Button>
+              <Button
+                variant="outline"
                 onclick={requestImport}
                 disabled={importing || downloadingFavicons}
               >
                 <Icon name="database-import" size={14} />
                 {importing ? "Importing…" : "Import 1Password 7 (.1pif)…"}
-              </button>
+              </Button>
             {/if}
           </div>
 
@@ -503,7 +503,7 @@
                 <strong>Import failed</strong>
                 <span>{importError}</span>
               </div>
-              <button class="details-btn" onclick={requestImport}>Try again</button>
+              <Button variant="link" onclick={requestImport}>Try again</Button>
             </div>
           {:else if importReport}
             {@const skippedItems = importReport.skippedItems - importReport.failedItems}
@@ -530,14 +530,14 @@
                   <dd>{importReport.failedItems}</dd>
                 </div>
               </dl>
-              <button class="details-btn" onclick={() => (dialog = { kind: "favicon-confirm" })}>
+              <Button variant="link" onclick={() => (dialog = { kind: "favicon-confirm" })}>
                 Download missing website icons
-              </button>
+              </Button>
               {#if skippedEntries.length > 0}
-                <button class="details-btn" onclick={() => (dialog = { kind: "import-details" })}>
+                <Button variant="link" onclick={() => (dialog = { kind: "import-details" })}>
                   Review {skippedEntries.length} item{skippedEntries.length === 1 ? "" : "s"}
                   not imported
-                </button>
+                </Button>
               {/if}
             </div>
           {/if}
@@ -555,14 +555,15 @@
                   : `${recycleBin.count} entr${recycleBin.count === 1 ? "y" : "ies"} will be permanently deleted.`}
                 </p>
               </div>
-              <button
-                class="settings-btn danger-btn"
+              <Button
+                variant="outline"
+                class="danger-btn"
                 onclick={() => recycleBin.requestEmpty()}
                 disabled={recycleBin.emptying || recycleBin.count === 0}
               >
                 <Icon name="trash" size={14} />
                 {recycleBin.emptying ? "Emptying…" : "Empty Recycle Bin…"}
-              </button>
+              </Button>
             </div>
           </section>
         {/if}
@@ -576,9 +577,9 @@
               {#each recentVaults as path}
                 {@const active = vault.meta?.path === path}
                 <li class="recent-item">
-                  <button
-                    class="recent-btn"
-                    class:active
+                  <Button
+                    variant="outline"
+                    class={active ? "recent-btn active" : "recent-btn"}
                     disabled={active}
                     title={active ? "Currently open" : "Open vault"}
                     onclick={async () => {
@@ -588,7 +589,7 @@
                   >
                     <Icon name={active ? "check" : "database"} size={14} />
                     <span class="recent-path">{path}</span>
-                  </button>
+                  </Button>
                 </li>
               {/each}
             </ul>
@@ -879,23 +880,6 @@
     flex-wrap: wrap;
   }
 
-  .settings-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-base);
-    color: var(--text-primary);
-    background: var(--surface-1);
-    transition: background var(--transition-fast);
-  }
-
-  .settings-btn:hover:not(:disabled) {
-    background: var(--surface-hover);
-  }
-
   .maintenance-card {
     display: flex;
     flex-direction: column;
@@ -921,7 +905,8 @@
     font-weight: 500;
   }
 
-  .danger-btn {
+  /* Tone only — the chrome comes from Button's `outline` variant. */
+  .danger-card :global(.danger-btn) {
     flex-shrink: 0;
     color: var(--danger-text);
   }
@@ -1051,17 +1036,6 @@
     font-weight: 500;
   }
 
-  .details-btn {
-    color: var(--accent);
-    font-size: var(--text-sm);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .details-btn:hover {
-    color: var(--text-accent);
-  }
-
   .skipped-list {
     padding-left: var(--space-5);
     color: var(--text-primary);
@@ -1116,32 +1090,20 @@
     gap: var(--space-1);
   }
 
-  .recent-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+  /* Layout and selected state only — chrome comes from Button's `outline`. */
+  .recent-list :global(.recent-btn) {
     width: 100%;
-    padding: var(--space-2) var(--space-3);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: var(--text-base);
+    justify-content: flex-start;
     text-align: left;
-    transition: background var(--transition-fast);
   }
 
-  .recent-btn:hover:not(:disabled) {
-    background: var(--surface-hover);
-  }
-
-  .recent-btn.active {
+  .recent-list :global(.recent-btn.active) {
     background: var(--surface-2);
     border-color: var(--accent);
     color: var(--accent);
   }
 
-  .recent-btn.active .recent-path {
+  :global(.recent-btn.active) .recent-path {
     color: var(--text-primary);
   }
 

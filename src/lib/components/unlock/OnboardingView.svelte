@@ -4,6 +4,7 @@
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
   import { pickVaultToCreate, pickVaultToOpen } from "$lib/utils/vaultFilePicker";
+  import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
   import PasswordDialog from "../ui/PasswordDialog.svelte";
 
@@ -135,7 +136,8 @@
       <div class="recent-vaults">
         <span class="recent-heading">Recent vaults</span>
         {#each rememberedVaults as path (path)}
-          <button
+          <Button
+            variant="ghost"
             class="recent-vault-btn"
             onclick={() => requestUnlock(path)}
             disabled={busy}
@@ -143,20 +145,32 @@
           >
             <Icon name="database" size={15} />
             <span>{vaultName(path)}</span>
-          </button>
+          </Button>
         {/each}
       </div>
     {/if}
 
     <div class="onboarding-actions">
-      <button class="onboarding-btn" onclick={handleOpen} disabled={busy}>
+      <Button
+        variant="outline"
+        size="lg"
+        class="onboarding-btn"
+        onclick={handleOpen}
+        disabled={busy}
+      >
         <Icon name="folder-open" size={18} />
         <span>Open existing vault…</span>
-      </button>
-      <button class="onboarding-btn" onclick={handleCreate} disabled={busy}>
+      </Button>
+      <Button
+        variant="outline"
+        size="lg"
+        class="onboarding-btn"
+        onclick={handleCreate}
+        disabled={busy}
+      >
         <Icon name="plus" size={18} />
         <span>Create new vault…</span>
-      </button>
+      </Button>
     </div>
   </div>
 </div>
@@ -231,24 +245,18 @@
     letter-spacing: 0.04em;
   }
 
-  .recent-vault-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+  /* Layout only — chrome comes from Button's `ghost` variant. */
+  .recent-vaults :global(.recent-vault-btn) {
     width: 100%;
-    padding: var(--space-2) var(--space-2);
-    color: var(--text-secondary);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-base);
+    justify-content: flex-start;
     text-align: left;
   }
 
-  .recent-vault-btn:hover:not(:disabled) {
+  .recent-vaults :global(.recent-vault-btn:hover:not(:disabled)) {
     color: var(--text-primary);
-    background: var(--surface-hover);
   }
 
-  .recent-vault-btn span {
+  :global(.recent-vault-btn) span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -261,28 +269,19 @@
     width: 100%;
   }
 
-  .onboarding-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
+  /* Layout and the accent hover only — chrome comes from Button `outline lg`. */
+  .onboarding-actions :global(.onboarding-btn) {
     width: 100%;
-    padding: var(--space-3) var(--space-5);
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius);
-    font-size: var(--text-base);
-    font-weight: 500;
-    color: var(--text-primary);
-    background: var(--surface-1);
-    transition: background var(--transition-fast);
+    justify-content: flex-start;
+    border-color: var(--border-strong);
   }
 
-  .onboarding-btn:hover:not(:disabled) {
-    background: var(--surface-hover);
+  .onboarding-actions :global(.onboarding-btn:hover:not(:disabled)) {
     border-color: var(--accent);
     color: var(--text-accent);
   }
 
-  .onboarding-btn span {
+  :global(.onboarding-btn) span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

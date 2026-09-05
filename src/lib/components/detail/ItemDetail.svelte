@@ -187,7 +187,7 @@
   }
 
   /** Reset everything the edit session accumulated: secret buffers and
-          card validation errors. */
+            card validation errors. */
   function resetEditState() {
     clearEditSecrets();
     clearCardErrors();
@@ -314,8 +314,8 @@
   }
 
   /** Drop a never-saved entry stub from the backend's in-memory database and
-          the entry list. Returns false when the backend call fails — the stub
-          then remains in memory and could persist on a later vault save. */
+            the entry list. Returns false when the backend call fails — the stub
+            then remains in memory and could persist on a later vault save. */
   async function discardNewEntry(id: string): Promise<boolean> {
     try {
       await entriesBridge.entryDiscard(id);
@@ -534,36 +534,41 @@
   <div class="detail-pane">
     <div class="detail-toolbar">
       {#if entry.trashed}
-        <button
-          class="toolbar-btn toolbar-save"
+        <Button
+          variant="primary"
+          size="xs"
           onclick={restoreEntry}
           aria-label="Restore"
           title="Restore"
         >
           <Icon name="restore" size={14} />
           <span>Restore</span>
-        </button>
-        <button
-          class="toolbar-btn toolbar-delete"
+        </Button>
+        <Button
+          variant="outline"
+          size="xs"
+          class="toolbar-delete"
           onclick={confirmDelete}
           aria-label="Delete permanently"
           title="Delete permanently"
         >
           <Icon name="trash-x" size={14} />
           <span>Delete permanently</span>
-        </button>
+        </Button>
       {:else if editing}
-        <button
-          class="toolbar-btn"
+        <Button
+          variant="outline"
+          size="xs"
           onclick={requestCancelEdit}
           aria-label="Cancel"
           title="Cancel (Esc)"
         >
           <Icon name="x" size={14} />
           <span>Cancel</span>
-        </button>
-        <button
-          class="toolbar-btn toolbar-save"
+        </Button>
+        <Button
+          variant="primary"
+          size="xs"
           onclick={saveEdit}
           aria-label="Save"
           title={`Save (${keyboardShortcut("S")})`}
@@ -571,16 +576,18 @@
         >
           <Icon name="check" size={14} />
           <span>Save</span>
-        </button>
-        <button
-          class="toolbar-btn toolbar-delete"
+        </Button>
+        <Button
+          variant="outline"
+          size="xs"
+          class="toolbar-delete"
           onclick={confirmDelete}
           aria-label="Delete"
           title="Delete"
         >
           <Icon name="trash" size={14} />
           <span>Delete</span>
-        </button>
+        </Button>
       {/if}
     </div>
 
@@ -779,33 +786,8 @@
     margin-bottom: 16px;
   }
 
-  .toolbar-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-3);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    background: var(--surface-1);
-  }
-
-  .toolbar-btn:hover:not(:disabled) {
-    background: var(--surface-hover);
-  }
-
-  .toolbar-save {
-    color: var(--text-on-accent);
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .toolbar-save:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .toolbar-delete:hover {
+  /* Tone only — the button chrome comes from Button's `outline` variant. */
+  .detail-toolbar :global(.toolbar-delete:hover:not(:disabled)) {
     color: var(--danger-text);
     border-color: var(--danger);
   }
