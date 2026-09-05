@@ -28,6 +28,12 @@
     if (filter.kind === "favorites") return "Favorites";
     if (filter.kind === "recent") return "Recent";
     if (filter.kind === "trash") return "Recycle Bin";
+    if (filter.kind === "health") {
+      return {
+        weak: "Weak passwords",
+        reused: "Reused passwords",
+      }[filter.issue];
+    }
     if (filter.kind === "type") return ENTRY_TYPE_BY_TYPE[filter.type].pluralLabel;
     if (filter.kind === "tag") return `#${filter.tag}`;
     return vault.folders.find((folder) => folder.id === filter.folderId)?.name ?? "Folder";

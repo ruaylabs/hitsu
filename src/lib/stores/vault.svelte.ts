@@ -5,6 +5,7 @@ import * as prefsBridge from "$lib/bridge/prefs";
 import type { EntrySummary, FolderSummary, VaultMeta } from "$lib/bridge/types";
 import * as vaultBridge from "$lib/bridge/vault";
 import { clipboard } from "$lib/stores/clipboard.svelte";
+import { health } from "$lib/stores/health.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { normalizeError } from "$lib/utils/errorMessage";
 
@@ -68,6 +69,7 @@ async function loadAndInstallVault(
 
 function clearUnlockedState() {
   clipboard.cancel();
+  health.reset();
   selection.selectedId = null;
   selection.search = "";
   editingId = null;

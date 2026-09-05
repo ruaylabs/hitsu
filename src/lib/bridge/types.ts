@@ -169,6 +169,13 @@ export interface VaultRefreshResult {
   vault: VaultMeta | null;
 }
 
+export type HealthIssue = "weak" | "reused";
+
+export interface EntryHealthReport {
+  weak: string[];
+  reused: string[];
+}
+
 export interface Toast {
   id: string;
   kind: "info" | "success" | "warning" | "danger";
@@ -185,6 +192,7 @@ export type SidebarFilter =
   | { kind: "favorites" }
   | { kind: "recent" }
   | { kind: "trash" }
+  | { kind: "health"; issue: HealthIssue }
   | { kind: "type"; type: ItemType }
   | { kind: "tag"; tag: string }
   | { kind: "folder"; folderId: string };

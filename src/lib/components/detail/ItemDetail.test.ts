@@ -12,6 +12,7 @@ import ItemDetail from "./ItemDetail.svelte";
 
 const mocks = vi.hoisted(() => ({
   entryGet: vi.fn(),
+  entriesHealthReport: vi.fn(),
   entryEditPayload: vi.fn(),
   entryRevealField: vi.fn(),
   entryUpdate: vi.fn(),
@@ -33,6 +34,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("$lib/bridge/entries", () => ({
   entryGet: mocks.entryGet,
+  entriesHealthReport: mocks.entriesHealthReport,
   entryEditPayload: mocks.entryEditPayload,
   entryRevealField: mocks.entryRevealField,
   entryUpdate: mocks.entryUpdate,
@@ -139,6 +141,10 @@ beforeEach(() => {
   vault.setEditingId(null);
   clipboard.defaultTimeoutSecs = 0;
   saveStatus.markSaved();
+  mocks.entriesHealthReport.mockResolvedValue({
+    weak: [],
+    reused: [],
+  });
   mocks.entryEditPayload.mockResolvedValue({
     password: "stored-password",
     totp: "",

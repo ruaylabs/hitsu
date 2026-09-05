@@ -6,6 +6,7 @@
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { features } from "$lib/stores/features.svelte";
+  import { health } from "$lib/stores/health.svelte";
   import { saveStatus } from "$lib/stores/saveStatus.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
@@ -66,6 +67,7 @@
       const refreshed = await entriesBridge.entryGet(id);
       if (thisFetch === fetchId && selection.selectedId === id) {
         installUpdatedEntry(refreshed);
+        void health.refresh();
       }
     } catch (error) {
       if (thisFetch === fetchId && selection.selectedId === id) {
@@ -256,6 +258,7 @@
         favorite: !_entry.favorite,
       });
       installUpdatedEntry(updated);
+      void health.refresh();
       saveStatus.markSaved();
     } catch (e) {
       const message = errorMessage(e);
@@ -273,6 +276,7 @@
     try {
       const updated = await entriesBridge.entryDownloadFavicon(_entry.id);
       installUpdatedEntry(updated);
+      void health.refresh();
       toast.success("Favicon downloaded");
     } catch (e) {
       console.error("Failed to download favicon", e);
@@ -288,6 +292,7 @@
       .entryDownloadFavicon(entryId)
       .then((withIcon) => {
         if (selection.selectedId === entryId) installUpdatedEntry(withIcon);
+        void health.refresh();
       })
       .catch((e) => {
         console.error("Failed to auto-download favicon", e);
@@ -361,6 +366,7 @@
     try {
       const updated = await entriesBridge.entryUpdate(_entry.id, patch);
       installUpdatedEntry(updated);
+      void health.refresh();
       const isNewEntry = newEntryId !== null;
       editing = false;
       newEntryId = null;
@@ -464,6 +470,7 @@
       vault.setEntries(
         vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: false } : entry)),
       );
+      void health.refresh();
       _entry = undefined;
       if (selection.selectedId === id) selection.selectedId = null;
       toast.success("Entry restored");
@@ -729,6 +736,7 @@
     onclose={() => (showMoveDialog = false)}
     onmove={(updated) => {
       installUpdatedEntry(updated);
+      void health.refresh();
       showMoveDialog = false;
     }}
   />
@@ -743,6 +751,7 @@
       try {
         const updated = await entriesBridge.entryUpdate(_entry.id, { totp: uri });
         installUpdatedEntry(updated);
+        void health.refresh();
         if (editing && selection.selectedId === updated.id) form.totp = uri;
         toast.success("TOTP configured successfully");
       } catch (e) {

@@ -4,6 +4,7 @@ import * as entriesBridge from "$lib/bridge/entries";
 import type { Entry, EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+import { health } from "$lib/stores/health.svelte";
 import { recycleBin } from "$lib/stores/recycleBin.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
@@ -13,6 +14,7 @@ import ItemList from "./ItemList.svelte";
 vi.mock("$lib/bridge/entries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("$lib/bridge/entries")>()),
   entriesSearch: vi.fn(),
+  entriesHealthReport: vi.fn(),
   entryDelete: vi.fn(),
   entryRestore: vi.fn(),
   entryUpdate: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("$lib/stores/clipboard.svelte", () => ({
 vi.mock("$lib/utils/openHttpUrl", () => ({ openHttpUrl: vi.fn() }));
 
 const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
+const entriesHealthReportMock = vi.mocked(entriesBridge.entriesHealthReport);
 const entryDeleteMock = vi.mocked(entriesBridge.entryDelete);
 const entryRestoreMock = vi.mocked(entriesBridge.entryRestore);
 const entryUpdateMock = vi.mocked(entriesBridge.entryUpdate);
@@ -83,6 +86,12 @@ beforeEach(() => {
   localStorage.clear();
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
+  entriesHealthReportMock.mockReset();
+  entriesHealthReportMock.mockResolvedValue({
+    weak: [],
+    reused: [],
+  });
+  health.reset();
   entryDeleteMock.mockReset();
   entryDeleteMock.mockResolvedValue(undefined);
   entryRestoreMock.mockReset();
@@ -169,6 +178,28 @@ describe("ItemList", () => {
     expect(await screen.findByRole("option", { name: /Entry 0/ })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /Client/ })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Root/ })).not.toBeInTheDocument();
+  });
+
+  it("filters entries by backend-computed health issue", async () => {
+    vault.setEntries(makeEntries(3));
+    entriesHealthReportMock.mockResolvedValue({
+      weak: ["id-1"],
+      reused: [],
+    });
+    await health.refresh();
+    selection.filter = { kind: "health", issue: "weak" };
+    render(ItemList);
+
+    expect(await screen.findByRole("option", { name: /Entry 1/ })).toBeInTheDocument();
+    expect(listRows()).toHaveLength(1);
+  });
+
+  it("shows a healthy empty state for health filters", async () => {
+    vault.setEntries(makeEntries(3));
+    selection.filter = { kind: "health", issue: "reused" };
+    render(ItemList);
+
+    expect(await screen.findByText("No reused passwords")).toBeInTheDocument();
   });
 
   it("clears the selection when the current category has no entries", async () => {

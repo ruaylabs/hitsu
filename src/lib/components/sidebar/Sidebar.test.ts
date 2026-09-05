@@ -4,6 +4,7 @@ import * as entriesBridge from "$lib/bridge/entries";
 import * as foldersBridge from "$lib/bridge/folders";
 import type { EntrySummary } from "$lib/bridge/types";
 import { features } from "$lib/stores/features.svelte";
+import { health } from "$lib/stores/health.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 import { tagColor } from "$lib/utils/tagColor";
@@ -21,6 +22,8 @@ beforeEach(() => {
   selection.selectedId = null;
   selection.search = "";
   selection.filter = { kind: "all" };
+  health.reset();
+  vault.setMeta(null);
   vault.setEntries(entries);
   vault.setFolders([]);
   features.hydrate({
@@ -46,6 +49,21 @@ describe("Sidebar", () => {
       "aria-current",
       "true",
     );
+  });
+
+  it("loads health counts and opens a health issue", async () => {
+    vi.spyOn(entriesBridge, "entriesHealthReport").mockResolvedValue({
+      weak: ["1"],
+      reused: ["2", "3"],
+    });
+    vault.setMeta({ path: "/vault.kdbx", name: "Vault", entries, folders: [] });
+    render(Sidebar);
+
+    const reused = await screen.findByRole("button", { name: "Reused passwords 2" });
+    await fireEvent.click(reused);
+
+    expect(selection.filter).toEqual({ kind: "health", issue: "reused" });
+    expect(reused).toHaveAttribute("aria-current", "true");
   });
 
   it("opens the recent entries view", async () => {

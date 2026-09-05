@@ -5,6 +5,7 @@ import { selection } from "./selection.svelte";
 import { vault } from "./vault.svelte";
 
 const mocks = vi.hoisted(() => ({
+  entriesHealthReport: vi.fn(),
   entryDelete: vi.fn(),
   entryDeletePermanent: vi.fn(),
   entryRestore: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("$lib/bridge/entries", () => ({
+  entriesHealthReport: mocks.entriesHealthReport,
   entryDelete: mocks.entryDelete,
   entryDeletePermanent: mocks.entryDeletePermanent,
   entryRestore: mocks.entryRestore,
@@ -38,6 +40,10 @@ const entry: EntrySummary = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.entriesHealthReport.mockResolvedValue({
+    weak: [],
+    reused: [],
+  });
   entryDeletion.cancel();
   vault.setEntries([entry]);
   selection.selectedId = entry.id;

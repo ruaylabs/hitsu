@@ -1,4 +1,5 @@
 import * as entriesBridge from "$lib/bridge/entries";
+import { health } from "$lib/stores/health.svelte";
 import { selection } from "$lib/stores/selection.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import { vault } from "$lib/stores/vault.svelte";
@@ -21,6 +22,7 @@ async function restoreEntry(id: string, title: string) {
     vault.setEntries(
       vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: false } : entry)),
     );
+    void health.refresh();
     toast.success(`Restored "${title}"`);
   } catch (error) {
     console.error("Failed to restore entry", error);
@@ -45,6 +47,7 @@ async function moveToRecycleBin(id: string, title: string, onDeleted?: () => voi
   vault.setEntries(
     vault.entries.map((entry) => (entry.id === id ? { ...entry, trashed: true } : entry)),
   );
+  void health.refresh();
   if (selection.selectedId === id) selection.selectedId = null;
   toast.info(`Moved "${title}" to Recycle Bin`, 8000, {
     label: "Undo",

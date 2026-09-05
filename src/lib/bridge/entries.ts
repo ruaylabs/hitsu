@@ -1,5 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AttachmentMeta, CustomField, Entry, EntrySummary, SecretField } from "./types";
+import type {
+  AttachmentMeta,
+  CustomField,
+  Entry,
+  EntryHealthReport,
+  EntrySummary,
+  SecretField,
+} from "./types";
 
 /** Convert a full Entry to its safe summary (for the list store). */
 export function toSummary(entry: Entry): EntrySummary {
@@ -35,6 +42,11 @@ export interface EntrySearchResult {
 
 export async function entriesSearch(query: string): Promise<EntrySearchResult> {
   return invoke<EntrySearchResult>("entries_search", { query });
+}
+
+/** Compute vault health in Rust so passwords never cross into the webview. */
+export async function entriesHealthReport(): Promise<EntryHealthReport> {
+  return invoke<EntryHealthReport>("entries_health_report");
 }
 
 export interface EntryEditPayload {

@@ -21,6 +21,7 @@
   import { app } from "$lib/stores/app.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
   import { features } from "$lib/stores/features.svelte";
+  import { health } from "$lib/stores/health.svelte";
   import { startIdleTimer, stopIdleTimer } from "$lib/stores/idle.svelte";
   import { createKdfPrompt } from "$lib/stores/kdfPrompt.svelte";
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
@@ -292,6 +293,7 @@
     try {
       const result = await vault.refreshIfChanged();
       if (result.reloaded) {
+        void health.refresh();
         toast.success("Vault reloaded with external changes");
       } else if (result.changed && !wasPending) {
         toast.info("Vault changed externally. Finish or discard your edit to reload it.", 8000);

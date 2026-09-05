@@ -3,6 +3,7 @@
   import type { FolderSummary, ItemType } from "$lib/bridge/types";
   import { ENTRY_TYPES } from "$lib/entryTypes";
   import { features } from "$lib/stores/features.svelte";
+  import { health } from "$lib/stores/health.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
@@ -145,6 +146,7 @@
   let tagsCollapsed = $state(false);
 
   onMount(() => {
+    if (vault.meta && !vault.locked) void health.refresh();
     try {
       tagsCollapsed = localStorage.getItem(TAGS_COLLAPSED_KEY) === "true";
     } catch {
@@ -168,12 +170,14 @@
   }
 
   function isSelected(kind: "all" | "favorites" | "recent" | "trash"): boolean;
+  function isSelected(kind: "health", issue: keyof typeof health.report): boolean;
   function isSelected(kind: "type", type: ItemType): boolean;
   function isSelected(kind: "tag", tag: string): boolean;
   function isSelected(kind: "folder", folderId: string): boolean;
   function isSelected(kind: string, value?: string): boolean {
     const f = selection.filter;
     if (!value) return f.kind === kind;
+    if (kind === "health") return f.kind === "health" && f.issue === value;
     if (kind === "type") return f.kind === "type" && f.type === value;
     if (kind === "tag") return f.kind === "tag" && f.tag === value;
     if (kind === "folder") return f.kind === "folder" && f.folderId === value;
@@ -214,6 +218,23 @@
       count={trashCount}
       selected={isSelected("trash")}
       onclick={() => selectFilter({ kind: "trash" })}
+    />
+  </SidebarSection>
+
+  <SidebarSection label="Health">
+    <SidebarItem
+      label="Weak passwords"
+      icon="shield-exclamation"
+      count={health.loading ? undefined : health.report.weak.length}
+      selected={isSelected("health", "weak")}
+      onclick={() => selectFilter({ kind: "health", issue: "weak" })}
+    />
+    <SidebarItem
+      label="Reused passwords"
+      icon="copy"
+      count={health.loading ? undefined : health.report.reused.length}
+      selected={isSelected("health", "reused")}
+      onclick={() => selectFilter({ kind: "health", issue: "reused" })}
     />
   </SidebarSection>
 

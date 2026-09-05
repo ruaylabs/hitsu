@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use keepass::db::{fields, CustomDataValue, EntryId, GroupId, Value};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::Semaphore;
@@ -20,6 +21,13 @@ use crate::state::{AppState, OpenVault};
 /// or force the frontend to allocate and filter an unbounded list of IDs.
 const SEARCH_RESULT_LIMIT: usize = 500;
 const FAVICON_FETCH_CONCURRENCY: usize = 8;
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryHealthReport {
+    pub weak: Vec<String>,
+    pub reused: Vec<String>,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +47,94 @@ pub struct FaviconBatchReport {
 struct FaviconFetchGroup {
     url: String,
     entries: Vec<String>,
+}
+
+fn is_sequential_run(value: &str) -> bool {
+    if value.len() < 4 || !value.is_ascii() {
+        return false;
+    }
+    let bytes = value.as_bytes();
+    let step = i16::from(bytes[1]) - i16::from(bytes[0]);
+    step.abs() == 1
+        && bytes
+            .windows(2)
+            .all(|pair| i16::from(pair[1]) - i16::from(pair[0]) == step)
+}
+
+/// Scores length and character-class diversity for the report without exposing
+/// the password over IPC. Repeated and sequential values are always weak.
+fn password_is_weak(password: &str) -> bool {
+    if password.is_empty() {
+        return false;
+    }
+
+    let length = password.chars().count();
+    let mut score = match length {
+        0..=7 => 0,
+        8..=11 => 1,
+        12..=15 => 2,
+        16..=19 => 3,
+        _ => 4,
+    };
+    let classes = [
+        password
+            .chars()
+            .any(|character| character.is_ascii_lowercase()),
+        password
+            .chars()
+            .any(|character| character.is_ascii_uppercase()),
+        password.chars().any(|character| character.is_ascii_digit()),
+        password
+            .chars()
+            .any(|character| !character.is_ascii_alphanumeric()),
+    ]
+    .into_iter()
+    .filter(|present| *present)
+    .count();
+
+    if classes >= 3 && length >= 8 {
+        score = score.max(2);
+    }
+    if classes >= 4 && length >= 12 {
+        score = score.max(3);
+    }
+    if classes >= 4 && length >= 20 {
+        score = 4;
+    }
+
+    let repeated = password
+        .chars()
+        .next()
+        .is_some_and(|first| password.chars().all(|character| character == first));
+    repeated || is_sequential_run(&password.to_ascii_lowercase()) || score <= 1
+}
+
+pub fn build_health_report(db: &keepass::Database) -> EntryHealthReport {
+    let mut report = EntryHealthReport::default();
+    let mut password_entries: HashMap<[u8; 32], Vec<String>> = HashMap::new();
+
+    for entry in db.iter_all_entries() {
+        if entry_is_trashed(db, &entry) {
+            continue;
+        }
+        let Some(password) = entry.get_password().filter(|password| !password.is_empty()) else {
+            continue;
+        };
+        let id = entry.id().uuid().to_string();
+
+        if password_is_weak(password) {
+            report.weak.push(id.clone());
+        }
+        let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+        password_entries.entry(hash).or_default().push(id);
+    }
+
+    for ids in password_entries.into_values().filter(|ids| ids.len() > 1) {
+        report.reused.extend(ids);
+    }
+    report.weak.sort();
+    report.reused.sort();
+    report
 }
 
 /// Which KDBX standard field names should be stored as Protected values.
@@ -691,6 +787,12 @@ pub async fn entries_search(
     }
 
     Ok(EntrySearchResult { ids, truncated })
+}
+
+#[tauri::command]
+pub async fn entries_health_report(state: State<'_, AppState>) -> HitsuResult<EntryHealthReport> {
+    let vault = state.open_vault()?;
+    Ok(build_health_report(&vault.db))
 }
 
 #[tauri::command]
@@ -1816,11 +1918,11 @@ pub async fn entry_attachment_remove(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_patch, build_entry_edit_payload, build_entry_summaries, ensure_recycle_bin,
-        entry_matches_search, map_entry_to_full, mask_card_number, parse_entry_id,
-        read_attachment_file, read_attachments, read_totp_seed, safe_attachment_file_name,
-        sort_history_revisions_newest_first, validate_custom_fields, validate_expiration,
-        write_attachment_file,
+        apply_patch, build_entry_edit_payload, build_entry_summaries, build_health_report,
+        ensure_recycle_bin, entry_matches_search, map_entry_to_full, mask_card_number,
+        parse_entry_id, password_is_weak, read_attachment_file, read_attachments, read_totp_seed,
+        safe_attachment_file_name, sort_history_revisions_newest_first, validate_custom_fields,
+        validate_expiration, write_attachment_file,
     };
     use crate::models::{CustomField, EntryPatch, HistoryEntrySummary, ItemType};
     use keepass::db::fields;
@@ -1908,6 +2010,44 @@ mod tests {
         let summaries = build_entry_summaries(&db);
         assert_eq!(summaries.len(), 1);
         assert!(summaries[0].trashed);
+    }
+
+    #[test]
+    fn password_health_strength_uses_length_and_character_classes() {
+        for password in ["short", "password", "aaaaaaaaaaaaaaaa"] {
+            assert!(password_is_weak(password), "expected weak: {password}");
+        }
+        for password in [
+            "Password123!",
+            "correct horse battery staple",
+            "Long-Unique-Passphrase-42!",
+        ] {
+            assert!(!password_is_weak(password), "expected healthy: {password}");
+        }
+    }
+
+    #[test]
+    fn health_report_groups_weak_and_reused_passwords() {
+        let mut db = keepass::Database::new();
+        let weak = entry_fixture(&mut db, "Weak", |entry| {
+            entry.set_protected(fields::PASSWORD, "password");
+        });
+        let reused_one = entry_fixture(&mut db, "Reused one", |entry| {
+            entry.set_protected(fields::PASSWORD, "Long-Shared-Passphrase-42!");
+        });
+        let reused_two = entry_fixture(&mut db, "Reused two", |entry| {
+            entry.set_protected(fields::PASSWORD, "Long-Shared-Passphrase-42!");
+        });
+
+        let report = build_health_report(&db);
+
+        assert_eq!(report.weak, vec![weak.uuid().to_string()]);
+        let mut expected_reused = [reused_one, reused_two]
+            .into_iter()
+            .map(|id| id.uuid().to_string())
+            .collect::<Vec<_>>();
+        expected_reused.sort();
+        assert_eq!(report.reused, expected_reused);
     }
 
     #[test]

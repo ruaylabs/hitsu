@@ -1,6 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { entriesSearch, entryCreate, entryEditPayload, entryMove, entryUpdate } from "./entries";
+import {
+  entriesHealthReport,
+  entriesSearch,
+  entryCreate,
+  entryEditPayload,
+  entryMove,
+  entryUpdate,
+} from "./entries";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -31,6 +38,15 @@ describe("entries bridge", () => {
     });
 
     expect(invokeMock).toHaveBeenCalledWith("entries_search", { query: "recovery note" });
+  });
+
+  it("requests the backend-only password health report", async () => {
+    const report = { weak: ["entry-1"], reused: [] };
+    invokeMock.mockResolvedValue(report);
+
+    await expect(entriesHealthReport()).resolves.toEqual(report);
+
+    expect(invokeMock).toHaveBeenCalledWith("entries_health_report");
   });
 
   it("requests one edit payload for all protected fields", async () => {

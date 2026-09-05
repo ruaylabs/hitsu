@@ -5,6 +5,7 @@
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
+  import { health } from "$lib/stores/health.svelte";
   import { recycleBin } from "$lib/stores/recycleBin.svelte";
   import { selection } from "$lib/stores/selection.svelte";
   import { toast } from "$lib/stores/toast.svelte";
@@ -22,6 +23,10 @@
   type SortMode = "vault" | "title" | "modified";
   const SORT_MODES: SortMode[] = ["vault", "title", "modified"];
   const SORT_MODE_KEY = "hitsu:list-sort";
+  const HEALTH_EMPTY_MESSAGES = {
+    weak: "No weak passwords",
+    reused: "No reused passwords",
+  } as const;
 
   function loadSortMode(): SortMode {
     try {
@@ -79,6 +84,9 @@
       items = items.filter((e) => e.favorite);
     } else if (f.kind === "recent") {
       items = [...items].sort(compareModified).slice(0, 20);
+    } else if (f.kind === "health") {
+      const ids = new Set(health.ids(f.issue));
+      items = items.filter((entry) => ids.has(entry.id));
     } else if (f.kind === "type") {
       items = items.filter((e) => e.type === f.type);
     } else if (f.kind === "tag") {
@@ -222,6 +230,7 @@
           summary.id === updated.id ? entriesBridge.toSummary(updated) : summary,
         ),
       );
+      void health.refresh();
     } catch (error) {
       reportActionError(error);
     }
@@ -411,6 +420,9 @@
         {:else if selection.filter.kind === "trash"}
           <Icon name="trash" size={18} />
           <p>Recycle Bin is empty</p>
+        {:else if selection.filter.kind === "health"}
+          <Icon name="shield-check" size={18} />
+          <p>{HEALTH_EMPTY_MESSAGES[selection.filter.issue]}</p>
         {:else if !hasActiveEntries}
           <Icon name="lock-open" size={18} />
           <p>No entries yet</p>
