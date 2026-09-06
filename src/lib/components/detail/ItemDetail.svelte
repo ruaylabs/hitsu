@@ -532,64 +532,66 @@
 {:else if _entry}
   {@const entry = _entry}
   <div class="detail-pane">
-    <div class="detail-toolbar">
-      {#if entry.trashed}
-        <Button
-          variant="primary"
-          size="xs"
-          onclick={restoreEntry}
-          aria-label="Restore"
-          title="Restore"
-        >
-          <Icon name="restore" size={14} />
-          <span>Restore</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="xs"
-          class="toolbar-delete"
-          onclick={confirmDelete}
-          aria-label="Delete permanently"
-          title="Delete permanently"
-        >
-          <Icon name="trash-x" size={14} />
-          <span>Delete permanently</span>
-        </Button>
-      {:else if editing}
-        <Button
-          variant="outline"
-          size="xs"
-          onclick={requestCancelEdit}
-          aria-label="Cancel"
-          title="Cancel (Esc)"
-        >
-          <Icon name="x" size={14} />
-          <span>Cancel</span>
-        </Button>
-        <Button
-          variant="primary"
-          size="xs"
-          onclick={saveEdit}
-          aria-label="Save"
-          title={`Save (${keyboardShortcut("S")})`}
-          disabled={!hasUnsavedChanges()}
-        >
-          <Icon name="check" size={14} />
-          <span>Save</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="xs"
-          class="toolbar-delete"
-          onclick={confirmDelete}
-          aria-label="Delete"
-          title="Delete"
-        >
-          <Icon name="trash" size={14} />
-          <span>Delete</span>
-        </Button>
-      {/if}
-    </div>
+    {#if entry.trashed || editing}
+      <div class="detail-toolbar">
+        {#if entry.trashed}
+          <Button
+            variant="primary"
+            size="xs"
+            onclick={restoreEntry}
+            aria-label="Restore"
+            title="Restore"
+          >
+            <Icon name="restore" size={14} />
+            <span>Restore</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            class="toolbar-delete"
+            onclick={confirmDelete}
+            aria-label="Delete permanently"
+            title="Delete permanently"
+          >
+            <Icon name="trash-x" size={14} />
+            <span>Delete permanently</span>
+          </Button>
+        {:else if editing}
+          <Button
+            variant="outline"
+            size="xs"
+            onclick={requestCancelEdit}
+            aria-label="Cancel"
+            title="Cancel (Esc)"
+          >
+            <Icon name="x" size={14} />
+            <span>Cancel</span>
+          </Button>
+          <Button
+            variant="primary"
+            size="xs"
+            onclick={saveEdit}
+            aria-label="Save"
+            title={`Save (${keyboardShortcut("S")})`}
+            disabled={!hasUnsavedChanges()}
+          >
+            <Icon name="check" size={14} />
+            <span>Save</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            class="toolbar-delete"
+            onclick={confirmDelete}
+            aria-label="Delete"
+            title="Delete"
+          >
+            <Icon name="trash" size={14} />
+            <span>Delete</span>
+          </Button>
+        {/if}
+      </div>
+    {/if}
 
     {#if editing && saveError}
       <p class="save-error">
