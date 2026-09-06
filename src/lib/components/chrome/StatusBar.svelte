@@ -85,7 +85,7 @@
     height: var(--statusbar-height);
     padding: 0 var(--space-4);
     background: var(--surface-1);
-    border-top: 0.5px solid var(--border);
+    border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;

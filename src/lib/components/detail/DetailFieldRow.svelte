@@ -42,8 +42,9 @@
   }
 
   .detail-field-row.standalone {
-    margin-bottom: 16px;
-    border: 0.5px solid var(--border);
+    margin-bottom: var(--space-6);
+    background: var(--bg-code);
+    border: 1px solid var(--border-code);
     border-radius: var(--radius);
     transition: border-color var(--transition-base);
   }

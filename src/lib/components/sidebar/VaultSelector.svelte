@@ -168,7 +168,7 @@
 <style>
   .vault-selector {
     position: relative;
-    margin: 0 2px 12px;
+    margin: 0 2px var(--space-5);
   }
 
   .vault-button {
@@ -176,8 +176,10 @@
     align-items: center;
     gap: var(--space-2);
     width: 100%;
-    padding: var(--space-2) var(--space-2);
-    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
     color: var(--text-secondary);
     font-size: var(--text-base);
     font-weight: 500;

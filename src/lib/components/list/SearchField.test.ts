@@ -24,7 +24,7 @@ describe("SearchField", () => {
 
     const search = screen.getByRole("textbox", { name: "Search in Favorites…" });
     expect(search).toHaveAttribute("placeholder", "Search in Favorites…");
-    expect(screen.getByText("Favorites")).toBeInTheDocument();
+    expect(screen.getByText("Favorites", { selector: ".scope-chip > span" })).toBeInTheDocument();
 
     await fireEvent.input(search, { target: { value: "vault" } });
     await fireEvent.click(screen.getByRole("button", { name: "Search all items" }));

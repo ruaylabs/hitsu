@@ -84,7 +84,7 @@
     border-radius: var(--radius-sm);
     width: 100%;
     text-align: left;
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     color: var(--text-primary);
     transition: background var(--transition-fast);
   }
@@ -94,8 +94,8 @@
   }
 
   .sidebar-item.selected {
-    background: var(--bg-accent);
-    color: var(--text-accent);
+    background: var(--sidebar-selected);
+    color: var(--text-primary);
     font-weight: 500;
   }
 
@@ -116,7 +116,7 @@
   }
 
   .sidebar-item.selected .sidebar-count {
-    color: var(--text-accent);
+    color: var(--text-muted);
   }
 
   .sidebar-actions {

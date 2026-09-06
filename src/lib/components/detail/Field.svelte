@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createCopyFeedback } from "$lib/utils/copyFeedback.svelte";
+  import Button from "../ui/Button.svelte";
+  import Icon from "../ui/Icon.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import DetailFieldRow from "./DetailFieldRow.svelte";
 
@@ -23,8 +25,7 @@
   const copied = createCopyFeedback();
 
   function handleCopy() {
-    onCopy?.();
-    copied.show();
+    if (onCopy) void copied.run(onCopy, `${label} copied`);
   }
 </script>
 
@@ -42,6 +43,11 @@
     </div>
   {:else if onCopy}
     <div class="field-actions">
+      {#if onOpenUrl}
+        <Button variant="ghost" size="xs" onclick={onOpenUrl} aria-label="Open {label}">
+          Open<Icon name="external-link" size={12} />
+        </Button>
+      {/if}
       <IconButton
         icon={copied.active ? "check" : "copy"}
         onclick={handleCopy}
@@ -58,9 +64,9 @@
     color: var(--text-primary);
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    user-select: text;
   }
 
   .field-value.mono {

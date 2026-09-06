@@ -15,6 +15,7 @@
     showDownloadFavicon = false,
     downloadingFavicon = false,
     readOnly = false,
+    folderName,
   }: {
     entry: Entry;
     onFavorite?: () => void;
@@ -27,16 +28,24 @@
     showDownloadFavicon?: boolean;
     downloadingFavicon?: boolean;
     readOnly?: boolean;
+    folderName?: string;
   } = $props();
 </script>
 
+{#if folderName}
+  <div class="detail-toolbar">
+    <div class="breadcrumb">
+      <span title={folderName}>{folderName}</span>
+    </div>
+  </div>
+{/if}
 <div class="detail-header">
   <div class="detail-header-left">
     <EntryIcon
       iconHint={entry.iconHint}
       type={entry.type}
       title={entry.title}
-      size={48}
+      size={49}
       hasCustomIcon={entry.hasCustomIcon}
       customIconData={entry.customIconData}
       entryId={entry.id}
@@ -80,8 +89,7 @@
       {/if}
       <IconButton
         icon="star"
-        iconSize={14}
-        variant="outline"
+        iconSize={18}
         active={entry.favorite}
         onclick={onFavorite}
         aria-label={entry.favorite ? "Unfavorite" : "Favorite"}
@@ -100,11 +108,36 @@
 </div>
 
 <style>
+  .detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding-bottom: var(--space-4);
+    margin-bottom: calc(var(--space-6) + var(--space-1));
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .breadcrumb {
+    display: flex;
+    gap: var(--space-2);
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .breadcrumb span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .detail-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: calc(var(--space-6) + var(--space-1));
     gap: var(--space-3);
   }
 
@@ -120,13 +153,13 @@
   }
 
   .detail-title {
-    font-size: var(--text-lg);
-    font-weight: 500;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.7px;
     color: var(--text-primary);
     line-height: var(--leading-tight);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    user-select: text;
   }
 
   .detail-header-actions {

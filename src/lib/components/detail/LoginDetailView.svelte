@@ -17,15 +17,13 @@
   );
 </script>
 
-{#if entry.type === "login" && entry.hasTotp}
-  <TOTPField entryId={entry.id} />
-{/if}
 {#if hasCredentialFields}
   <FieldGroup>
     {#if entry.username}
       <Field
         label="Username"
         value={entry.username}
+        mono
         onCopy={() => clipboard.copyPlain(entry.username!)}
       />
     {/if}
@@ -41,10 +39,13 @@
       <Field
         label="URL"
         value={entry.url}
-        mono={false}
+        mono
         onOpenUrl={() => openHttpUrl(entry.url!)}
         onCopy={() => clipboard.copyPlain(entry.url!)}
       />
     {/if}
   </FieldGroup>
+{/if}
+{#if entry.type === "login" && entry.hasTotp}
+  <TOTPField entryId={entry.id} />
 {/if}

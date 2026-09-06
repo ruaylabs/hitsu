@@ -80,13 +80,13 @@
 </script>
 
 <DetailFieldRow
-  label="TOTP"
+  label="One-time password"
   standalone
   status={expiring ? "danger" : flash ? "success" : "default"}
 >
   <span class="totp-code" class:expiring>{formattedCode}</span>
   <div class="totp-ring-container">
-    <svg width="20" height="20" viewBox="0 0 20 20">
+    <svg width="31" height="31" viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border-strong)" stroke-width="1.5" />
       <circle
         cx="10"
@@ -113,12 +113,14 @@
 
 <style>
   .totp-code {
-    font-size: var(--text-md);
+    font-size: 23px;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     font-weight: 500;
     color: var(--text-primary);
+    white-space: nowrap;
+    user-select: text;
     transition: color var(--transition-slow);
   }
 
@@ -129,8 +131,8 @@
   .totp-ring-container {
     position: relative;
     margin-left: auto;
-    width: 20px;
-    height: 20px;
+    width: 31px;
+    height: 31px;
     flex-shrink: 0;
   }
 
@@ -139,8 +141,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    /* Deliberately smaller than the text scale to fit inside the 20px timer ring. */
-    font-size: 7px;
+    font-size: var(--text-xs);
     font-weight: 500;
     color: var(--text-muted);
     font-family: var(--font-mono);

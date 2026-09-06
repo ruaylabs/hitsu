@@ -16,6 +16,7 @@
     flex-direction: column;
     gap: 1px;
     background: var(--divider);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
     margin-bottom: 16px;

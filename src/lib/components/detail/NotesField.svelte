@@ -9,7 +9,9 @@
 
 <style>
   .notes-section {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--divider);
   }
 
   .notes-label {
@@ -20,12 +22,10 @@
   }
 
   .notes-content {
-    padding: var(--space-3) var(--space-3);
-    background: var(--surface-1);
-    border-radius: var(--radius);
+    user-select: text;
     font-size: var(--text-base);
-    line-height: var(--leading-normal);
-    color: var(--text-primary);
+    line-height: 1.7;
+    color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
   }

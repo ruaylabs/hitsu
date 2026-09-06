@@ -161,7 +161,8 @@
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
-    background: var(--surface-1);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
   }
 
@@ -173,8 +174,9 @@
   }
 
   .attachment-name {
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     color: var(--text-primary);
+    user-select: text;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

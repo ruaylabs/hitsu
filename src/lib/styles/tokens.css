@@ -15,16 +15,18 @@
   --text-on-accent: #ffffff;
 
   /* Borders */
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
+  --border: #deddd6;
+  --border-strong: #c9c7bd;
 
-  /* Dividers — stronger than --border, for hairlines that must read on
-     their own rather than outline a shape that already has contrast. */
-  --divider: rgba(0, 0, 0, 0.14);
+  /* Quiet, visible hairlines separate panes and credential rows. */
+  --divider: #deddd6;
 
   /* Accent (used for selection, links) */
   --bg-accent: #e6f1fb;
-  --accent: #378add;
+  --accent: #185fa5;
+  --sidebar-selected: #e5e3dc;
+  --bg-code: #f3f8fc;
+  --border-code: #d3e3ed;
 
   /* Semantic */
   --success: #1d9e75;
@@ -70,7 +72,7 @@
      virtualized window to align (guarded by rowHeight.test.ts). */
   --row-sm: 32px;
   --row-md: 38px;
-  --row-lg: 50px;
+  --row-lg: 58px;
 
   /* Sizing */
   --radius: 8px;
@@ -101,9 +103,9 @@
   --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Layout — wireframe-derived */
-  --sidebar-width: 168px;
-  --list-width: 224px;
+  /* Wider navigation with a comfortable detail workspace. */
+  --sidebar-width: 190px;
+  --list-width: 270px;
   --resizer-width: 1px;
   --statusbar-height: 34px;
 }
@@ -123,6 +125,10 @@
     --border-strong: rgba(255, 255, 255, 0.14);
     --divider: rgba(255, 255, 255, 0.14);
     --bg-accent: #0c447c;
+    --accent: #378add;
+    --sidebar-selected: #383732;
+    --bg-code: #26343f;
+    --border-code: #3d5468;
     --tag-blue-text: #73ade7;
     --tag-green-text: #61bb9e;
     --tag-orange-text: #e48c6e;
@@ -155,6 +161,10 @@
   --border-strong: rgba(255, 255, 255, 0.14);
   --divider: rgba(255, 255, 255, 0.14);
   --bg-accent: #0c447c;
+  --accent: #378add;
+  --sidebar-selected: #383732;
+  --bg-code: #26343f;
+  --border-code: #3d5468;
   --tag-blue-text: #73ade7;
   --tag-green-text: #61bb9e;
   --tag-orange-text: #e48c6e;

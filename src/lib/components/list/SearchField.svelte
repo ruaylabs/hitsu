@@ -148,8 +148,8 @@
   .search-wrapper {
     position: relative;
     z-index: 1;
-    padding: var(--space-3) var(--space-3);
-    border-bottom: 0.5px solid var(--border);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border);
   }
 
   .search-pill {
@@ -158,9 +158,18 @@
     gap: var(--space-2);
     background: var(--surface-1);
     padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     isolation: isolate;
+  }
+
+  .search-pill:focus-within {
+    border-color: var(--accent);
+  }
+
+  .entry-search-input:focus-visible {
+    outline: none;
   }
 
   .entry-search-input {

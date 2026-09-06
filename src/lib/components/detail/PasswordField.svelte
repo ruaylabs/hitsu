@@ -111,9 +111,9 @@
     color: var(--text-primary);
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    user-select: text;
   }
 
   .field-value.mono {

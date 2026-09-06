@@ -35,11 +35,11 @@
   let showEntryCommandPalette = $state(false);
   let showShortcuts = $state(false);
 
-  const SIDEBAR_DEFAULT = 168;
-  const SIDEBAR_MIN = 140;
-  const LIST_DEFAULT = 224;
-  const LIST_MIN = 190;
-  const DETAIL_MIN = 360;
+  const SIDEBAR_DEFAULT = 190;
+  const SIDEBAR_MIN = 170;
+  const LIST_DEFAULT = 270;
+  const LIST_MIN = 235;
+  const DETAIL_MIN = 400;
   const RESIZER_WIDTH = 1;
   const PANE_WIDTHS_KEY = "hitsu:pane-widths";
 

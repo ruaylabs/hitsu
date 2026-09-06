@@ -148,6 +148,10 @@
     color: var(--text-accent);
   }
 
+  .button:active:not(:disabled) {
+    filter: brightness(0.92);
+  }
+
   .button.is-active {
     color: var(--warning);
   }

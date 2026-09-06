@@ -312,6 +312,28 @@ describe("ItemList", () => {
     expect(copySecretFieldMock).toHaveBeenCalledWith("id-0", "password");
   });
 
+  it("lets native Copy handle highlighted detail text", async () => {
+    vault.setEntries(makeEntries(2));
+    render(ItemList);
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
+    const note = document.createElement("p");
+    note.textContent = "Selected part of a note";
+    document.body.append(note);
+    const range = document.createRange();
+    range.selectNodeContents(note);
+    window.getSelection()?.addRange(range);
+
+    try {
+      const event = new KeyboardEvent("keydown", { key: "c", ctrlKey: true, cancelable: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(copyPlainMock).not.toHaveBeenCalled();
+    } finally {
+      window.getSelection()?.removeAllRanges();
+      note.remove();
+    }
+  });
+
   it("provides row actions in the context menu", async () => {
     vault.setEntries(makeEntries(2));
     render(ItemList);

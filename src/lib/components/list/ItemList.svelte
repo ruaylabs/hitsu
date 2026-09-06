@@ -112,7 +112,7 @@
   // Windowed rendering: only the rows intersecting the viewport (plus a
   // small overscan) exist in the DOM. Must match --row-lg, which .list-row
   // renders at — rowHeight.test.ts fails if the two drift apart.
-  const ROW_HEIGHT = 50;
+  const ROW_HEIGHT = 58;
   const OVERSCAN = 5;
 
   let scrollEl = $state<HTMLDivElement | undefined>();
@@ -301,6 +301,9 @@
     if (isTextEditable(document.activeElement)) return;
 
     if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "c") {
+      // Detail values are selectable; native Copy takes precedence over the
+      // selected-entry shortcut when the user has highlighted text.
+      if (!e.shiftKey && window.getSelection()?.toString()) return;
       const entry = vault.entries.find((item) => item.id === selection.selectedId);
       if (!entry || entry.trashed) return;
       if (e.shiftKey) {
@@ -366,14 +369,17 @@
     onSearchClear={restoreSearchContext}
   />
   <div class="sort-bar">
-    <Icon name="arrows-sort" size={14} />
-    <label for="entry-sort">Sort</label>
-    <select id="entry-sort" bind:value={sortMode} aria-label="Sort entries">
-      <option value="vault">Vault order</option>
-      <option value="title">Title A–Z</option>
-      <option value="modified">Recently modified</option>
-    </select>
-    <Icon name="chevron-down" size={14} />
+    <span class="item-count">{filtered.length} {filtered.length === 1 ? "item" : "items"}</span>
+    <div class="sort-control">
+      <Icon name="arrows-sort" size={14} />
+      <label for="entry-sort">Sort</label>
+      <select id="entry-sort" bind:value={sortMode} aria-label="Sort entries">
+        <option value="vault">Vault order</option>
+        <option value="title">Title A–Z</option>
+        <option value="modified">Recently modified</option>
+      </select>
+      <Icon name="chevron-down" size={14} />
+    </div>
     {#if selection.filter.kind === "trash"}
       <Button
         type="button"
@@ -529,23 +535,36 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    background: var(--surface-2);
   }
 
   .sort-bar {
     display: flex;
     align-items: center;
     gap: var(--space-1);
-    min-height: 30px;
-    padding: 0 var(--space-3);
+    min-height: 34px;
+    padding: 0 var(--space-4);
     color: var(--text-muted);
-    background: var(--surface-1);
-    border-bottom: 0.5px solid var(--border);
-    font-size: var(--text-sm);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-xs);
+  }
+
+  .item-count {
+    flex-shrink: 0;
+  }
+
+  .sort-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    margin-left: auto;
   }
 
   .sort-bar select {
-    flex: 1;
     min-width: 0;
+    max-width: 112px;
     color: var(--text-secondary);
     font-size: inherit;
     cursor: pointer;

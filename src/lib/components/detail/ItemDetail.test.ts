@@ -478,6 +478,23 @@ describe("passport workflow", () => {
 });
 
 describe("password entry workflow", () => {
+  it("shows a prominent title and explicit field actions", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+
+    expect(
+      await screen.findByRole("heading", { name: "Recovery password", level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("example.com")).not.toBeInTheDocument();
+    expect(screen.getByText("Original note")).toBeInTheDocument();
+    expect(mocks.entryRevealField).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Open URL" }));
+    expect(mocks.openUrl).toHaveBeenCalledWith("https://example.com");
+    await fireEvent.click(screen.getByRole("button", { name: "Copy URL" }));
+    expect(mocks.clipboardCopy).toHaveBeenCalledWith("https://example.com");
+  });
+
   it("shows password and URL editors for a new password entry", async () => {
     selectEntry(passwordEntry({ hasPassword: false, url: undefined }), true);
     render(ItemDetail);

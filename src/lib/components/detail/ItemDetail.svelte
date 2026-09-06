@@ -622,6 +622,9 @@
     {:else}
       <DetailHeader
         {entry}
+        folderName={features.foldersEnabled
+          ? vault.folders.find((folder) => folder.id === entry.folderId)?.name
+          : undefined}
         onFavorite={toggleFavorite}
         onEdit={startEdit}
         onMove={openMoveDialog}
@@ -775,7 +778,8 @@
 
 <style>
   .detail-pane {
-    padding: var(--space-6) var(--space-6);
+    padding-block: var(--space-6);
+    padding-inline: max(var(--space-6), calc((100% - 680px) / 2));
     min-width: 0;
     min-height: 0;
     overflow-y: auto;

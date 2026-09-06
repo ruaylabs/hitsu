@@ -82,6 +82,10 @@
     background: var(--bg-accent);
   }
 
+  .list-row:focus-visible {
+    outline-offset: -2px;
+  }
+
   .list-row.selected .list-row-title {
     color: var(--text-accent);
   }
@@ -101,7 +105,8 @@
   }
 
   .list-row-subtitle {
-    font-size: var(--text-base);
+    margin-top: var(--space-half);
+    font-size: var(--text-xs);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
