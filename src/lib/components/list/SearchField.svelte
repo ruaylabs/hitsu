@@ -168,6 +168,8 @@
     border-color: var(--accent);
   }
 
+  /* The pill's 1px accent border is the focus indicator — same weight as the
+     form-field borders — so a 2px outline on the inner input would double up. */
   .entry-search-input:focus-visible {
     outline: none;
   }

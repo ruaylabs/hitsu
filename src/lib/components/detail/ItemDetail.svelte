@@ -848,6 +848,11 @@
     border-bottom-color: var(--accent);
   }
 
+  /* The accent underline is this field's focus indicator. */
+  .edit-title-input:focus-visible {
+    outline: none;
+  }
+
   .tags-display {
     display: flex;
     flex-wrap: wrap;

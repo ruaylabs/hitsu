@@ -8,7 +8,7 @@
   padding: var(--space-2) var(--space-3);
   color: var(--text-primary);
   background: var(--surface-1);
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: var(--text-base);
 }
@@ -17,12 +17,21 @@
   color: var(--text-muted);
 }
 
-.control:hover:not(:disabled) {
+/* Focus wins over hover — clicking into a field must show the accent
+   border even though the pointer is still hovering it. */
+.control:hover:not(:disabled):not(:focus) {
   border-color: var(--border-strong);
 }
 
 .control:focus {
   border-color: var(--accent);
+}
+
+/* The 0.5px accent border — same weight as the search pill — is these
+   fields' focus indicator; a 2px outline on top would read as a heavier
+   border and make the fields look bigger. */
+.control:focus-visible {
+  outline: none;
 }
 
 .control:disabled {

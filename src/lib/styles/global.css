@@ -19,14 +19,12 @@ body {
   opacity: var(--opacity-disabled);
 }
 
-/* Selection and keyboard focus are distinct states. */
+/* Selection and keyboard focus are distinct states. Inputs that signal focus
+   through their own affordance (the .control border, the search pill, tag
+   chips) opt out in their own stylesheets; everything else gets the ring. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-input:focus-visible {
-  outline: none;
 }
 
 /* One treatment for the section-heading role, wherever it appears:

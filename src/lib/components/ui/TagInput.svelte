@@ -203,6 +203,11 @@
     border-color: var(--accent);
   }
 
+  /* The chip-area border is the focus indicator for the tag input. */
+  .tag-input:focus-visible {
+    outline: none;
+  }
+
   .chip {
     display: inline-flex;
     align-items: center;

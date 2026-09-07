@@ -162,6 +162,7 @@
     flex: 1;
     color: var(--text-primary);
     font-size: var(--text-base);
+    outline: none;
   }
 
   .entry-palette-input::placeholder {

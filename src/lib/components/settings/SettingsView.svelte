@@ -1179,6 +1179,7 @@
 
   .setting-switch:focus-visible {
     box-shadow: 0 0 0 2px var(--bg-accent);
+    outline: none;
   }
 
   .about-card {

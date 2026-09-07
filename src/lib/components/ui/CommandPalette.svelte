@@ -121,6 +121,7 @@
     flex: 1;
     font-size: var(--text-base);
     color: var(--text-primary);
+    outline: none;
   }
 
   .search-input::placeholder {
