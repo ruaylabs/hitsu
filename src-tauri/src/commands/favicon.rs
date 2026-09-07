@@ -97,16 +97,22 @@ pub(crate) fn extract_base_url(url_str: &str) -> Option<String> {
     Some(format!("{}://{}", parsed.scheme(), parsed.authority()))
 }
 
+fn find_ascii_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
+    haystack
+        .as_bytes()
+        .windows(needle.len())
+        .position(|window| window.eq_ignore_ascii_case(needle.as_bytes()))
+}
+
 /// Try to find a favicon URL from an HTML page body.
 pub(crate) fn find_favicon_in_html(base: &str, html: &str) -> Option<String> {
-    let lower = html.to_lowercase();
     for pattern in &[
         "rel=\"icon\"",
         "rel='icon'",
         "rel=\"shortcut icon\"",
         "rel='shortcut icon'",
     ] {
-        let Some(pos) = lower.find(pattern) else {
+        let Some(pos) = find_ascii_case_insensitive(html, pattern) else {
             continue;
         };
         let link_start = html[..pos].rfind("<link").unwrap_or(0);
@@ -124,9 +130,8 @@ pub(crate) fn find_favicon_in_html(base: &str, html: &str) -> Option<String> {
 
 /// Extract an attribute value from an HTML tag snippet.
 fn extract_html_attr(tag: &str, attr: &str) -> Option<String> {
-    let lower = tag.to_lowercase();
     let attr_eq = format!("{attr}=");
-    let pos = lower.find(&attr_eq)?;
+    let pos = find_ascii_case_insensitive(tag, &attr_eq)?;
     let after = &tag[pos + attr_eq.len()..];
     let delim = after.chars().next()?;
     if delim == '"' || delim == '\'' {
@@ -293,6 +298,19 @@ mod tests {
         assert_eq!(
             find_favicon_in_html("https://example.com", html).as_deref(),
             Some("https://example.com/brand.ico")
+        );
+    }
+
+    #[test]
+    fn handles_unicode_before_favicon_link() {
+        let html = format!(
+            "{}ẞﬁ<link rel=\"icon\" href=\"/favicon.ico\">",
+            "İ".repeat(40)
+        );
+
+        assert_eq!(
+            find_favicon_in_html("https://example.com", &html).as_deref(),
+            Some("https://example.com/favicon.ico")
         );
     }
 
