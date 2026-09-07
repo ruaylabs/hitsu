@@ -5,15 +5,17 @@
 //! it, since the socket widens the local attack surface described below.
 //!
 //! The Unix socket is owner-only, but on a shared machine "owner-only" means
-//! *every* process running as the same user — not just our native host. To
-//! keep an unrelated same-user process from blindly speaking this protocol and
-//! harvesting credentials, each request must carry a per-session token: the app
-//! writes a fresh random token to an owner-only file at startup, the native
-//! host (which the browser launches from a manifest we control) reads that file and
-//! injects the token into every request, and the backend verifies it in
-//! constant time before doing any work. This is not a hard boundary against a
-//! same-user attacker — such a process can also read the 0600 token file — but
-//! it stops naive enumeration by anything that doesn't know to look.
+//! *every* process running as the same user — not just our native host. Two
+//! gates sit in front of the protocol: release builds verify that the
+//! connecting process is the native-messaging host shipped beside this app
+//! (peer credentials + executable path, fail-closed), and each request must
+//! carry a per-session token: the app writes a fresh random token to an
+//! owner-only file at startup, the native host (which the browser launches
+//! from a manifest we control) reads that file and injects the token into
+//! every request, and the backend verifies it in constant time before doing
+//! any work. This is not a hard boundary against a same-user attacker — such
+//! a process can also read the 0600 token file — but it stops naive
+//! enumeration by anything that doesn't know to look.
 //!
 //! On top of that, requests are restricted to exact HTTP(S) host matches, and
 //! secret values are returned only for an explicitly chosen entry while the
@@ -133,6 +135,119 @@ fn generate_token() -> String {
 /// (fixed, public) length, so short-circuiting on it is fine.
 fn token_matches(provided: &str, expected: &str) -> bool {
     provided.as_bytes().ct_eq(expected.as_bytes()).into()
+}
+
+/// Path of the native-messaging host that ships beside this executable.
+/// `None` when it cannot be resolved — the peer check is fail-closed then.
+fn native_host_path_beside(executable: &Path) -> Option<PathBuf> {
+    executable
+        .parent()?
+        .join("hitsu-native-host")
+        .canonicalize()
+        .ok()
+}
+
+fn expected_native_host_path() -> Option<PathBuf> {
+    native_host_path_beside(&std::env::current_exe().ok()?)
+}
+
+/// Identity of the process on the other end of the socket, as the kernel
+/// reports it. On Linux the peer's uid must match ours (the 0600 socket
+/// already enforces this for connections, but verify anyway).
+#[cfg(target_os = "linux")]
+fn peer_pid(stream: &UnixStream) -> Option<u32> {
+    use std::os::fd::AsRawFd;
+
+    let mut credentials = libc::ucred {
+        pid: 0,
+        uid: 0,
+        gid: 0,
+    };
+    let mut length = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+    let result = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_PEERCRED,
+            std::ptr::from_mut(&mut credentials).cast(),
+            &mut length,
+        )
+    };
+    if result != 0 || credentials.uid != unsafe { libc::geteuid() } {
+        return None;
+    }
+    Some(credentials.pid as u32)
+}
+
+#[cfg(target_os = "macos")]
+fn peer_pid(stream: &UnixStream) -> Option<u32> {
+    use std::os::fd::AsRawFd;
+
+    let mut pid: libc::pid_t = 0;
+    let mut length = std::mem::size_of::<libc::pid_t>() as libc::socklen_t;
+    let result = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_LOCAL,
+            libc::LOCAL_PEERPID,
+            std::ptr::from_mut(&mut pid).cast(),
+            &mut length,
+        )
+    };
+    (result == 0 && pid > 0).then(|| pid as u32)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn peer_pid(_stream: &UnixStream) -> Option<u32> {
+    None
+}
+
+/// The kernel-resolved executable of the peer process: the actual binary that
+/// is running, even when launched through a symlink.
+fn peer_executable(pid: u32) -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        fs::read_link(format!("/proc/{pid}/exe")).ok()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        // libc::PROC_PIDPATHINFO_MAXSIZE is 4096.
+        let mut buffer = [0u8; 4096];
+        let written = unsafe {
+            libc::proc_pidpath(
+                pid as libc::pid_t,
+                buffer.as_mut_ptr().cast(),
+                buffer.len() as u32,
+            )
+        };
+        if written <= 0 {
+            return None;
+        }
+        let end = buffer.iter().position(|&byte| byte == 0)?;
+        Some(PathBuf::from(std::ffi::OsStr::from_bytes(&buffer[..end])))
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        None
+    }
+}
+
+/// Verify the connecting process is the native-messaging host shipped beside
+/// this app: compare the kernel's view of the peer's executable against the
+/// expected host path. Fail-closed — an unverifiable peer is rejected. The
+/// pid-to-exe lookup has a narrow PID-recycling window; the check runs
+/// immediately after accept and is defence-in-depth on top of the session
+/// token, not the only gate.
+fn peer_is_native_host(stream: &UnixStream) -> bool {
+    let Some(expected) = expected_native_host_path() else {
+        return false;
+    };
+    let Some(pid) = peer_pid(stream) else {
+        return false;
+    };
+    peer_executable(pid).and_then(|exe| exe.canonicalize().ok()) == Some(expected)
 }
 
 fn native_host_manifest_directories() -> std::io::Result<(Vec<PathBuf>, Vec<PathBuf>)> {
@@ -408,6 +523,18 @@ fn read_request(stream: &UnixStream) -> Result<Option<BrowserRequest>, String> {
 }
 
 fn handle_connection(app: &AppHandle, expected_token: &str, mut stream: UnixStream) {
+    // Release builds accept only the shipped native-messaging host as the
+    // peer. Debug builds also allow other executables (e.g. a dev-registered
+    // host from the target directory) and log them instead.
+    if !peer_is_native_host(&stream) {
+        if cfg!(debug_assertions) {
+            tracing::debug!("browser IPC peer is not the bundled native host (debug build)");
+        } else {
+            tracing::warn!("browser IPC rejected a connection from an unverified peer");
+            return;
+        }
+    }
+
     let request = match read_request(&stream) {
         Ok(Some(request)) => request,
         Ok(None) => return,
@@ -639,8 +766,9 @@ fn entry_host(raw: &str) -> Option<String> {
 mod tests {
     use super::{
         bind_owner_only, credential_fill_allowed, entry_host, generate_token, host_match,
-        origin_host, read_request, remove_stale_socket, runtime_dir_from, token_matches,
-        valid_entry_id, write_native_host_manifests, BrowserRequest, HostMatch, NATIVE_HOST_NAME,
+        native_host_path_beside, origin_host, read_request, remove_stale_socket, runtime_dir_from,
+        token_matches, valid_entry_id, write_native_host_manifests, BrowserRequest, HostMatch,
+        NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -702,6 +830,32 @@ mod tests {
             host_match(&unicode_host, &subdomain_host),
             Some(HostMatch::RegistrableDomain)
         );
+    }
+
+    #[test]
+    fn native_host_path_resolves_beside_the_executable() {
+        let root = std::env::temp_dir().join(format!("hitsu-peer-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("hitsu-native-host"), b"").unwrap();
+
+        let resolved = native_host_path_beside(&root.join("hitsu"));
+
+        assert_eq!(
+            resolved,
+            fs::canonicalize(root.join("hitsu-native-host")).ok()
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rejects_a_peer_that_is_not_the_native_host() {
+        let (server, _client) = UnixStream::pair().unwrap();
+
+        // The pair peer is this test process, whose executable is the test
+        // binary — never the bundled native host. The check must also fail
+        // closed when no expected host path can be resolved beside it.
+        assert!(!super::peer_is_native_host(&server));
     }
 
     #[test]
