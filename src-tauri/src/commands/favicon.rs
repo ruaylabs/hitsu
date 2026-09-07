@@ -1,10 +1,34 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use crate::error::{HitsuError, HitsuResult};
 
 const MAX_FAVICON_BYTES: usize = 1024 * 1024;
 const MAX_HTML_BYTES: usize = 2 * 1024 * 1024;
+
+fn is_special_use_ipv4(ip: Ipv4Addr) -> bool {
+    let [first, second, third, _] = ip.octets();
+
+    first == 0
+        || (first == 100 && (64..=127).contains(&second))
+        || (first == 192 && second == 0 && (third == 0 || third == 2))
+        || (first == 198 && (second == 18 || second == 19 || (second == 51 && third == 100)))
+        || (first == 203 && second == 0 && third == 113)
+        || first >= 240
+}
+
+fn is_special_use_ipv6(ip: Ipv6Addr) -> bool {
+    let segments = ip.segments();
+    let is_site_local = segments[0] & 0xffc0 == 0xfec0;
+    let is_nat64 = segments[0] == 0x0064
+        && segments[1] == 0xff9b
+        && segments[2] == 0
+        && segments[3] == 0
+        && segments[4] == 0
+        && segments[5] == 0;
+
+    is_site_local || is_nat64
+}
 
 fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
@@ -14,7 +38,8 @@ fn is_public_ip(ip: IpAddr) -> bool {
                 || ip.is_link_local()
                 || ip.is_broadcast()
                 || ip.is_multicast()
-                || ip.is_unspecified())
+                || ip.is_unspecified()
+                || is_special_use_ipv4(ip))
         }
         IpAddr::V6(ip) => {
             if let Some(ipv4) = ip.to_ipv4_mapped() {
@@ -24,7 +49,8 @@ fn is_public_ip(ip: IpAddr) -> bool {
                 || ip.is_unspecified()
                 || ip.is_unique_local()
                 || ip.is_unicast_link_local()
-                || ip.is_multicast())
+                || ip.is_multicast()
+                || is_special_use_ipv6(ip))
         }
     }
 }
@@ -283,6 +309,24 @@ mod tests {
             extract_base_url("https://example.com/login").as_deref(),
             Some("https://example.com")
         );
+    }
+
+    #[test]
+    fn rejects_special_use_ip_ranges() {
+        for url in [
+            "http://0.1.2.3/",
+            "http://100.64.0.1/",
+            "http://192.0.0.1/",
+            "http://192.0.2.1/",
+            "http://198.18.0.1/",
+            "http://198.51.100.1/",
+            "http://203.0.113.1/",
+            "http://240.0.0.1/",
+            "http://[fec0::1]/",
+            "http://[64:ff9b::c000:0201]/",
+        ] {
+            assert!(extract_base_url(url).is_none(), "{url} should be rejected");
+        }
     }
 
     #[test]
