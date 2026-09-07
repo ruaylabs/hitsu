@@ -34,6 +34,10 @@ export async function entryGet(id: string): Promise<Entry> {
   return invoke<Entry>("entry_get", { id });
 }
 
+export async function entryConvertToLogin(id: string): Promise<Entry> {
+  return invoke<Entry>("entry_convert_to_login", { id });
+}
+
 /** Search non-protected values in every entry field without loading them into the webview. */
 export interface EntrySearchResult {
   ids: string[];

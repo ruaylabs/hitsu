@@ -6,6 +6,7 @@ import { clipboard } from "$lib/stores/clipboard.svelte";
 import { features } from "$lib/stores/features.svelte";
 import { saveStatus } from "$lib/stores/saveStatus.svelte";
 import { selection } from "$lib/stores/selection.svelte";
+import { toast } from "$lib/stores/toast.svelte";
 import { vault } from "$lib/stores/vault.svelte";
 import { tagColor } from "$lib/utils/tagColor";
 import ItemDetail from "./ItemDetail.svelte";
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   entryEditPayload: vi.fn(),
   entryRevealField: vi.fn(),
   entryUpdate: vi.fn(),
+  entryConvertToLogin: vi.fn(),
   entryMove: vi.fn(),
   entryDiscard: vi.fn(),
   entryDelete: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock("$lib/bridge/entries", () => ({
   entryEditPayload: mocks.entryEditPayload,
   entryRevealField: mocks.entryRevealField,
   entryUpdate: mocks.entryUpdate,
+  entryConvertToLogin: mocks.entryConvertToLogin,
   entryMove: mocks.entryMove,
   entryDiscard: mocks.entryDiscard,
   entryDelete: mocks.entryDelete,
@@ -548,6 +551,28 @@ describe("password entry workflow", () => {
       url: "https://updated.example.com",
       notes: "Updated note",
     });
+  });
+
+  it("converts a password entry into a login entry", async () => {
+    const entry = passwordEntry();
+    const updated = { ...entry, type: "login" as const, username: "ada@example.com" };
+    selectEntry(entry);
+    mocks.entryConvertToLogin.mockResolvedValue(updated);
+    render(ItemDetail);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "Convert to login" }));
+    expect(await screen.findByRole("dialog", { name: "Convert to login?" })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Convert" }));
+
+    await waitFor(() => expect(mocks.entryConvertToLogin).toHaveBeenCalledOnce());
+    expect(mocks.entryConvertToLogin).toHaveBeenCalledWith("password-1");
+    expect(toast.all.at(-1)).toMatchObject({
+      kind: "success",
+      message: "Entry converted to login",
+    });
+    expect(selection.filter).toEqual({ kind: "type", type: "login" });
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
   });
 
   it("omits unchanged fields and secrets from the update patch", async () => {

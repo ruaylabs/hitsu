@@ -10,6 +10,7 @@
     onMove,
     onTotpSetup,
     onDownloadFavicon,
+    onConvertToLogin,
     showMove = false,
     showTotpSetup,
     showDownloadFavicon = false,
@@ -23,6 +24,7 @@
     onMove?: () => void;
     onTotpSetup?: () => void;
     onDownloadFavicon?: () => void;
+    onConvertToLogin?: () => void;
     showMove?: boolean;
     showTotpSetup?: boolean;
     showDownloadFavicon?: boolean;
@@ -56,6 +58,16 @@
   </div>
   {#if !readOnly}
     <div class="detail-header-actions">
+      {#if entry.type === "password" && onConvertToLogin}
+        <IconButton
+          icon="arrows-exchange"
+          iconSize={14}
+          variant="outline"
+          onclick={onConvertToLogin}
+          aria-label="Convert to login"
+          title="Convert to login"
+        />
+      {/if}
       {#if showDownloadFavicon}
         <IconButton
           icon="photo-down"

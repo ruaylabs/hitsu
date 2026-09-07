@@ -134,6 +134,7 @@
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
   let showMoveDialog = $state(false);
+  let showConvertToLogin = $state(false);
   let showGenerator = $state(false);
   let showTotpSetup = $state(false);
   let downloadingFavicon = $state(false);
@@ -266,6 +267,27 @@
       saveStatus.markError(message);
       toast.error(message);
       // No edit session here, so an external-change check may reload at once.
+      vault.refreshIfChanged().catch(() => {});
+    }
+  }
+
+  async function convertToLogin() {
+    showConvertToLogin = false;
+    if (!_entry || _entry.type !== "password") return;
+
+    saveStatus.markSaving();
+    try {
+      const updated = await entriesBridge.entryConvertToLogin(_entry.id);
+      installUpdatedEntry(updated);
+      selection.filter = { kind: "type", type: "login" };
+      void health.refresh();
+      saveStatus.markSaved();
+      toast.success("Entry converted to login");
+    } catch (e) {
+      const message = errorMessage(e);
+      console.error("Failed to convert entry to login", e);
+      saveStatus.markError(message);
+      toast.error(message);
       vault.refreshIfChanged().catch(() => {});
     }
   }
@@ -632,6 +654,7 @@
         onTotpSetup={() => (showTotpSetup = true)}
         showTotpSetup={entry.type === "login" && !entry.hasTotp}
         onDownloadFavicon={downloadFavicon}
+        onConvertToLogin={() => (showConvertToLogin = true)}
         showDownloadFavicon={Boolean(entry.url)}
         {downloadingFavicon}
         readOnly={entry.trashed}
@@ -725,6 +748,16 @@
   </div>
 {:else}
   <EmptyDetail />
+{/if}
+
+{#if showConvertToLogin}
+  <ConfirmDialog
+    title="Convert to login?"
+    message="This will change the entry type to Login so you can add a username and other login details."
+    confirmLabel="Convert"
+    onconfirm={convertToLogin}
+    oncancel={() => (showConvertToLogin = false)}
+  />
 {/if}
 
 {#if pendingNavigation}

@@ -890,6 +890,16 @@ pub async fn entry_create(
     })
 }
 
+fn validate_password_conversion(entry: &keepass::db::Entry) -> HitsuResult<()> {
+    if read_item_type(entry) == ItemType::Password {
+        Ok(())
+    } else {
+        Err(HitsuError::Custom(
+            "Only password entries can be converted to login".into(),
+        ))
+    }
+}
+
 #[tauri::command]
 pub async fn entry_update(
     state: State<'_, AppState>,
@@ -913,6 +923,43 @@ pub async fn entry_update(
             });
             // edit_tracking doesn't touch last_modification (apply_patch goes through
             // DerefMut → Entry::set_unprotected, not EntryTrack's tracked setters)
+            em.times.last_modification = Some(chrono::Utc::now().naive_utc());
+        }
+
+        let entry_ref = vault
+            .db
+            .entry(entry_id)
+            .ok_or(HitsuError::EntryNotFound(id))?;
+        let trashed = entry_is_trashed(&vault.db, &entry_ref);
+        let folder_id = entry_folder_id(&entry_ref, trashed);
+        let mut updated = map_entry_to_full(&entry_ref, trashed, folder_id);
+        updated.attachments = read_attachments(&entry_ref);
+        apply_custom_icon(&vault.db, &entry_ref, &mut updated);
+        Ok(updated)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn entry_convert_to_login(state: State<'_, AppState>, id: String) -> HitsuResult<Entry> {
+    mutate_and_save(&state, move |vault| {
+        let entry_id = parse_entry_id(&id)?;
+        {
+            let entry = vault
+                .db
+                .entry(entry_id)
+                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+            validate_password_conversion(&entry)?;
+        }
+
+        {
+            let mut em = vault
+                .db
+                .entry_mut(entry_id)
+                .ok_or_else(|| HitsuError::EntryNotFound(id.clone()))?;
+            em.edit_tracking(|tracked| {
+                set_custom_data(&mut *tracked, ITEM_TYPE_KEY, Some("login"));
+            });
             em.times.last_modification = Some(chrono::Utc::now().naive_utc());
         }
 
@@ -2210,6 +2257,32 @@ mod tests {
         let entry = db.entry(entry_id).unwrap();
         assert!(entry.custom_data.contains_key("hitsu.favorite"));
         assert!(!entry.custom_data.contains_key("kagi.favorite"));
+    }
+
+    #[test]
+    fn password_entries_can_be_converted_to_login() {
+        let mut db = keepass::Database::new();
+        let entry_id = entry_fixture(&mut db, "", |entry| {
+            super::set_custom_data(entry, "hitsu.itemType", Some("password"));
+        });
+
+        super::validate_password_conversion(&db.entry(entry_id).unwrap()).unwrap();
+        super::set_custom_data(
+            &mut db.entry_mut(entry_id).unwrap(),
+            "hitsu.itemType",
+            Some("login"),
+        );
+
+        let entry = db.entry(entry_id).unwrap();
+        assert_eq!(super::read_item_type(&entry), ItemType::Login);
+    }
+
+    #[test]
+    fn conversion_rejects_non_password_entries() {
+        let mut db = keepass::Database::new();
+        let entry_id = entry_fixture(&mut db, "", |_| {});
+
+        assert!(super::validate_password_conversion(&db.entry(entry_id).unwrap()).is_err());
     }
 
     #[test]

@@ -49,6 +49,7 @@ pub fn run() {
             commands::entries::entry_edit_payload,
             commands::entries::entry_create,
             commands::entries::entry_update,
+            commands::entries::entry_convert_to_login,
             commands::entries::entry_move,
             commands::entries::folder_create,
             commands::entries::folder_rename,

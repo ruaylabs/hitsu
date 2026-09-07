@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   entriesHealthReport,
   entriesSearch,
+  entryConvertToLogin,
   entryCreate,
   entryEditPayload,
   entryMove,
@@ -27,6 +28,14 @@ describe("entries bridge", () => {
     await entryCreate("login", draft);
 
     expect(invokeMock).toHaveBeenCalledWith("entry_create", { itemType: "login", draft });
+  });
+
+  it("converts a password entry through the backend", async () => {
+    invokeMock.mockResolvedValue({});
+
+    await entryConvertToLogin("entry-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("entry_convert_to_login", { id: "entry-1" });
   });
 
   it("searches entry fields in the backend", async () => {
