@@ -71,7 +71,6 @@
     class="entry-icon entry-icon--image"
     style:width={`${size}px`}
     style:height={`${size}px`}
-    style:border-radius={`${Math.round(size * 0.233)}px`}
     src={resolvedIcon}
     alt=""
   />
@@ -106,5 +105,6 @@
 
   .entry-icon--image {
     object-fit: cover;
+    border: 0;
   }
 </style>
