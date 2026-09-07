@@ -80,7 +80,7 @@
   .password-edit-row {
     display: flex;
     gap: var(--space-1);
-    align-items: flex-start;
+    align-items: stretch;
   }
   .password-edit-row :global(input) {
     flex: 1;
@@ -91,7 +91,9 @@
     align-items: center;
     justify-content: center;
     width: var(--icon-button-size);
-    height: var(--icon-button-size);
+    min-height: var(--icon-button-size);
+    height: auto;
+    align-self: stretch;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface-1);
@@ -105,7 +107,7 @@
   .totp-edit-wrap {
     display: flex;
     gap: var(--space-1);
-    align-items: flex-start;
+    align-items: stretch;
     width: 100%;
   }
   .totp-edit-wrap :global(input) {
