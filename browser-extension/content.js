@@ -226,7 +226,9 @@
     }
   }
 
-  function fillSuggestion(index) {
+  function fillSuggestion(index, event) {
+    if (!event?.isTrusted) return;
+
     const entry = suggestionEntries[index];
     const input = suggestionInput;
     if (!entry || !input) return;
@@ -287,8 +289,10 @@
       const username = document.createElement("span");
       username.textContent = entry.username || "No username";
       button.append(title, username);
-      button.addEventListener("pointerdown", (event) => event.preventDefault());
-      button.addEventListener("click", () => fillSuggestion(index));
+      button.addEventListener("pointerdown", (event) => {
+        if (event.isTrusted) event.preventDefault();
+      });
+      button.addEventListener("click", (event) => fillSuggestion(index, event));
       return button;
     });
     suggestionPanel.replaceChildren(...suggestionButtons);
@@ -471,6 +475,7 @@
     document.addEventListener(
       "focusin",
       (event) => {
+        if (!event.isTrusted) return;
         if (suppressSuggestions) {
           hideSuggestions();
           return;
@@ -487,6 +492,7 @@
     document.addEventListener(
       "pointerdown",
       (event) => {
+        if (!event.isTrusted) return;
         const path = event.composedPath();
         if (!path.includes(suggestionHost) && !path.includes(suggestionInput)) hideSuggestions();
       },
@@ -495,6 +501,7 @@
     document.addEventListener(
       "keydown",
       (event) => {
+        if (!event.isTrusted) return;
         if (focusedInput(event) !== suggestionInput || suggestionEntries.length === 0) {
           if (event.key === "Escape") hideSuggestions();
           return;
@@ -509,7 +516,7 @@
           );
         } else if (event.key === "Enter" && selectedSuggestion >= 0) {
           event.preventDefault();
-          fillSuggestion(selectedSuggestion);
+          fillSuggestion(selectedSuggestion, event);
         } else if (event.key === "Escape") {
           hideSuggestions();
         }
