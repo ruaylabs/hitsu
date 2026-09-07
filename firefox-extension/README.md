@@ -1,6 +1,6 @@
 # Hitsu Firefox Extension
 
-Minimal Manifest V3 extension for Firefox. It lists exact-host login matches from the unlocked
+Minimal Manifest V3 extension for Firefox. It lists login matches from the unlocked
 Hitsu desktop app and fills the first username/password form on the current page.
 
 ## Install for development
@@ -51,7 +51,7 @@ testing; release builds continue to require HTTPS.
 - The extension declares that it collects no user data.
 - Browser integration is opt-in and off by default. Until enabled, no socket listens and no
   native-messaging host manifest is registered.
-- Login metadata is returned only for exact HTTP(S) hostname matches.
+- Login metadata is returned only for the site's registrable domain (exact hosts first).
 - A password is returned only after selecting a matching entry, and trashed entries are excluded.
 - Credentials travel directly from the background script to the page content script; the popup
   never receives them.
@@ -61,6 +61,7 @@ testing; release builds continue to require HTTPS.
 ## Current limitations
 
 - macOS and Linux only; Windows support is not planned.
-- Exact hostname matching only; related subdomains are intentionally not inferred.
+- Subdomains of the same registrable domain are treated as the same site; unrelated domains are
+  never matched.
 - Fills the first writable password field and nearest preceding username-like field.
 - No save/update prompts, generated-password capture, or HTTP-auth support.

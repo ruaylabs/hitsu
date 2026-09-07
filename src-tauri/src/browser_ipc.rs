@@ -17,8 +17,8 @@
 //! a process can also read the 0600 token file — but it stops naive
 //! enumeration by anything that doesn't know to look.
 //!
-//! On top of that, requests are restricted to exact HTTP(S) host matches, and
-//! secret values are returned only for an explicitly chosen entry while the
+//! On top of that, requests are restricted to the page's registrable domain (exact host matches
+//! preferred), and secret values are returned only for an explicitly chosen entry while the
 //! vault is unlocked.
 
 #![cfg(unix)]

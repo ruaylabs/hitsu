@@ -1,7 +1,7 @@
 # Hitsu Chrome Extension
 
-Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge. It lists exact-host login
-matches from the unlocked Hitsu desktop app and fills the first username/password form on the current
+Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge. It lists login matches from
+the unlocked Hitsu desktop app and fills the first username/password form on the current
 page.
 
 ## Install for development
@@ -64,7 +64,7 @@ testing; release builds continue to require HTTPS.
 - The Unix account is the local trust boundary: another process running as the same user can connect
   directly to the socket while the vault is unlocked. Native Messaging restricts browser access to
   the configured extension ID, but it does not authenticate same-user processes to the socket.
-- Login metadata is returned only for exact hostname matches.
+- Login metadata is returned only for the site's registrable domain (exact hosts first).
 - A password is returned only after selecting a matching entry.
 - Trashed entries are never exposed.
 - Credentials are sent directly from the extension service worker to the page content script; the
@@ -74,7 +74,8 @@ testing; release builds continue to require HTTPS.
 ## Current limitations
 
 - macOS and Linux only; the local IPC transport does not yet support Windows.
-- Exact hostname matching only; related subdomains are intentionally not inferred.
+- Subdomains of the same registrable domain are treated as the same site; unrelated domains are
+  never matched.
 - Fills the first visible password field and nearest preceding username-like field.
 - No save/update prompts, generated-password capture, or HTTP-auth support.
 - A store archive can be created with `just chrome-extension-zip`; publishing and desktop release

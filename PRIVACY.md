@@ -25,7 +25,8 @@ When you focus an eligible login field or open the extension, it temporarily pro
 - The username and password of the login you explicitly select to fill.
 
 This information is used solely to fill the login you select. Credentials are matched against the
-exact active-site hostname, and nothing leaves your device: the extension communicates only with
+active site's registrable domain (entries stored on the exact hostname are preferred), and nothing
+leaves your device: the extension communicates only with
 the local desktop app through the browser's Native Messaging API. It does not collect browsing
 history or persist anything in browser storage.
 

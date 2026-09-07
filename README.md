@@ -104,7 +104,8 @@ The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylab
   Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
 - Firefox Manifest V3 extension with the same popup autofill workflow — [install it from
   Mozilla Add-ons](https://addons.mozilla.org/addon/hitsu-password-manager/)
-- Exact-host login lookup and popup-initiated username/password filling
+- Site-based login lookup (entries are matched by registrable domain, exact hosts first) and
+  popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
 - Owner-only local IPC, gated by a per-session token; trashed entries and
   non-matching origins are rejected
