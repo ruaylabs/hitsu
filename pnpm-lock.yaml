@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@tabler/icons-webfont':
-        specifier: ^3
-        version: 3.44.0(chokidar@3.6.0)(supports-color@8.1.1)
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.1
@@ -36,6 +33,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.0.0
         version: 5.1.1(supports-color@8.1.1)(svelte@5.56.4)(vite@6.4.3(@types/node@26.0.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
+      '@tabler/icons-webfont':
+        specifier: ^3
+        version: 3.46.0(chokidar@3.6.0)
       '@tauri-apps/cli':
         specifier: ^2.11.4
         version: 2.11.4
@@ -1040,11 +1040,11 @@ packages:
       svelte: ^5.0.0
       vite: ^6.0.0
 
-  '@tabler/icons-webfont@3.44.0':
-    resolution: {integrity: sha512-gN6SCXv88bL5Cehf10bVxBgi4q79WSzOrmjnKkSf6sxRdmRy27ZC+T5dXmqnU2PVGLLrBJqGkmMlHukNGFrl1A==}
+  '@tabler/icons-webfont@3.46.0':
+    resolution: {integrity: sha512-aQouIxJQb+F5cRsHo/FW5qSILDuU7pd7d86JjmSUCMgpJhBeRuyovnfJlQeyuug2gHz0jFaosl4GNYo3SLnjrQ==}
 
-  '@tabler/icons@3.44.0':
-    resolution: {integrity: sha512-Wn0AOZG9sg0L+bjfMqq4eNhC6pQjIrk94LvvWYNYkY8KH8wC3YILRzQlrnVJc4FUeMxH/AK97QsYCX35H3LndA==}
+  '@tabler/icons@3.46.0':
+    resolution: {integrity: sha512-f2RYFl3fzPwj5WO82x6en0dmkjefxEfOm16D1ByM6cj/McNiwOkL4VaPUoP9VVIrXAD9WnTSVFr70px703b//A==}
 
   '@tauri-apps/api@2.11.1':
     resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
@@ -1338,6 +1338,7 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@zip.js/zip.js@2.8.26':
     resolution: {integrity: sha512-RQ4h9F6DOiHxpdocUDrOl6xBM+yOtz+LkUol47AVWcfebGBDpZ7w7Xvz9PS24JgXvLGiXXzSAfdCdVy1tPlaFA==}
@@ -3245,8 +3246,8 @@ packages:
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
-  react-is@19.2.7:
-    resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
+  react-is@19.3.0:
+    resolution: {integrity: sha512-UpMYezM4v5/18F28aC66AEsjXIgE02kyEMH6yLdgLXu/UTfa1Ntwck/nNLrbqJsEXW7gPb0coNO9FQse9WTovA==}
 
   read-pkg-up@10.1.0:
     resolution: {integrity: sha512-aNtBq4jR8NawpKJQldrQcSW9y/d+KWH4v24HWkHljOZ7H0av+YTGANBzRh9A5pw7v/bLVsLVPpOhJ7gHNVy8lA==}
@@ -4847,17 +4848,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@tabler/icons-webfont@3.44.0(chokidar@3.6.0)(supports-color@8.1.1)':
+  '@tabler/icons-webfont@3.46.0(chokidar@3.6.0)':
     dependencies:
-      '@tabler/icons': 3.44.0
+      '@tabler/icons': 3.46.0
       svg-path-commander: 2.2.1
-      svgtofont: 6.5.2(chokidar@3.6.0)(supports-color@8.1.1)
+      svgtofont: 6.5.2(chokidar@3.6.0)
     transitivePeerDependencies:
       - '@types/svg2ttf'
       - chokidar
       - supports-color
 
-  '@tabler/icons@3.44.0': {}
+  '@tabler/icons@3.46.0': {}
 
   '@tauri-apps/api@2.11.1': {}
 
@@ -7200,7 +7201,7 @@ snapshots:
       '@jest/schemas': 30.4.1
       ansi-styles: 5.2.0
       react-is-18: react-is@18.3.1
-      react-is-19: react-is@19.2.7
+      react-is-19: react-is@19.3.0
 
   pretty-ms@9.3.0:
     dependencies:
@@ -7272,7 +7273,7 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-is@19.2.7: {}
+  react-is@19.3.0: {}
 
   read-pkg-up@10.1.0:
     dependencies:
@@ -7662,7 +7663,7 @@ snapshots:
       microbuffer: 1.0.0
       svgpath: 2.6.0
 
-  svgicons2svgfont@15.0.1(supports-color@8.1.1):
+  svgicons2svgfont@15.0.1:
     dependencies:
       '@types/sax': 1.2.7
       commander: 12.1.0
@@ -7687,7 +7688,7 @@ snapshots:
 
   svgpath@2.6.0: {}
 
-  svgtofont@6.5.2(chokidar@3.6.0)(supports-color@8.1.1):
+  svgtofont@6.5.2(chokidar@3.6.0):
     dependencies:
       auto-config-loader: 2.0.2
       cheerio: 1.0.0
@@ -7696,11 +7697,11 @@ snapshots:
       image2uri: 2.1.2
       nunjucks: 3.2.4(chokidar@3.6.0)
       svg2ttf: 6.1.0
-      svgicons2svgfont: 15.0.1(supports-color@8.1.1)
+      svgicons2svgfont: 15.0.1
       svgo: 3.3.3
       ttf2eot: 3.1.0
       ttf2woff: 3.0.0
-      ttf2woff2: 8.0.1(supports-color@8.1.1)
+      ttf2woff2: 8.0.1
       yargs: 17.7.3
     transitivePeerDependencies:
       - chokidar
@@ -7821,7 +7822,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  ttf2woff2@8.0.1(supports-color@8.1.1):
+  ttf2woff2@8.0.1:
     dependencies:
       bindings: 1.5.0
       bufferstreams: 4.0.0
