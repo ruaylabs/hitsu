@@ -108,7 +108,7 @@ describe("background integration", () => {
 
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
       "com.ruaylabs.hitsu.browser",
-      { type: "listLogins", origin: "https://accounts.example.com" },
+      { type: "listLogins", origin: "https://accounts.example.com", inline: false },
       expect.any(Function),
     );
     expect(sendResponse).toHaveBeenCalledWith({
@@ -140,7 +140,7 @@ describe("background integration", () => {
     expect(chromeMock.tabs.query).not.toHaveBeenCalled();
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
       "com.ruaylabs.hitsu.browser",
-      { type: "listLogins", origin: "https://example.com" },
+      { type: "listLogins", origin: "https://example.com", inline: true },
       expect.any(Function),
     );
     expect(sendResponse).toHaveBeenCalledWith({
@@ -208,7 +208,7 @@ describe("background integration", () => {
 
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
       "com.ruaylabs.hitsu.browser",
-      { type: "getCredentials", id: "entry", origin: "https://example.com" },
+      { type: "getCredentials", id: "entry", origin: "https://example.com", inline: false },
       expect.any(Function),
     );
     // First call: frame discovery (allFrames)
@@ -260,7 +260,7 @@ describe("background integration", () => {
     expect(chromeMock.scripting.executeScript).not.toHaveBeenCalled();
     expect(chromeMock.runtime.sendNativeMessage).toHaveBeenCalledWith(
       "com.ruaylabs.hitsu.browser",
-      { type: "getCredentials", id: "entry", origin: "https://example.com" },
+      { type: "getCredentials", id: "entry", origin: "https://example.com", inline: true },
       expect.any(Function),
     );
     expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(

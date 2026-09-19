@@ -18,8 +18,9 @@
 //! enumeration by anything that doesn't know to look.
 //!
 //! On top of that, requests are restricted to the page's registrable domain (exact host matches
-//! preferred), and secret values are returned only for an explicitly chosen entry while the
-//! vault is unlocked.
+//! preferred), secret values are returned only for an explicitly chosen entry while the
+//! vault is unlocked, and inline (page-rendered) requests are restricted to exact hostnames
+//! because page CSS can hide that UI from the user.
 
 #![cfg(unix)]
 
@@ -60,11 +61,16 @@ enum BrowserRequest {
     ListLogins {
         token: String,
         origin: String,
+        /// True when the request backs the inline suggestion menu rendered
+        /// into page DOM. Required so the matching policy below cannot
+        /// silently fall back to the broader popup matching.
+        inline: bool,
     },
     GetCredentials {
         token: String,
         id: String,
         origin: String,
+        inline: bool,
     },
     GetTotp {
         token: String,
@@ -570,6 +576,7 @@ fn validated_entry<'a>(
     vault: &'a keepass::Database,
     id: &str,
     origin: &str,
+    inline: bool,
     https_error: &str,
 ) -> Result<keepass::db::EntryRef<'a>, Value> {
     let Ok(host) = origin_host(origin) else {
@@ -589,12 +596,16 @@ fn validated_entry<'a>(
     if crate::commands::entries::entry_is_trashed(vault, &entry) {
         return Err(json!({ "ok": false, "code": "entry_not_found", "error": "Entry not found" }));
     }
-    let matches_origin = entry
+    let Some(match_quality) = entry
         .get_url()
         .and_then(entry_host)
         .and_then(|entry_host| host_match(&entry_host, &host))
-        .is_some();
-    if !matches_origin {
+    else {
+        return Err(
+            json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" }),
+        );
+    };
+    if !host_match_permitted(match_quality, inline) {
         return Err(
             json!({ "ok": false, "code": "no_match", "error": "Entry does not match this site" }),
         );
@@ -612,7 +623,7 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
     };
 
     match request {
-        BrowserRequest::ListLogins { origin, .. } => {
+        BrowserRequest::ListLogins { origin, inline, .. } => {
             let Ok(host) = origin_host(&origin) else {
                 return json!({ "ok": false, "code": "invalid_request", "error": "Invalid page origin" });
             };
@@ -630,7 +641,8 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                     let match_quality = entry
                         .get_url()
                         .and_then(entry_host)
-                        .and_then(|entry_host| host_match(&entry_host, &host))?;
+                        .and_then(|entry_host| host_match(&entry_host, &host))
+                        .filter(|quality| host_match_permitted(*quality, inline))?;
                     Some((
                         match_quality,
                         json!({
@@ -652,11 +664,14 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                 "entries": entries.into_iter().map(|(_, entry)| entry).collect::<Vec<_>>(),
             })
         }
-        BrowserRequest::GetCredentials { id, origin, .. } => {
+        BrowserRequest::GetCredentials {
+            id, origin, inline, ..
+        } => {
             let entry = match validated_entry(
                 &vault.db,
                 &id,
                 &origin,
+                inline,
                 "Hitsu will not fill passwords on HTTP pages",
             ) {
                 Ok(entry) => entry,
@@ -677,6 +692,8 @@ fn process_request(app: &AppHandle, request: BrowserRequest) -> Value {
                 &vault.db,
                 &id,
                 &origin,
+                // TOTP codes are requested only from the popup flow.
+                false,
                 "Hitsu will not provide one-time codes on HTTP pages",
             ) {
                 Ok(entry) => entry,
@@ -729,6 +746,15 @@ fn host_match(entry_host: &str, page_host: &str) -> Option<HostMatch> {
     }
 }
 
+/// The inline suggestion menu renders in page-controlled DOM, where page CSS
+/// can make a related-domain suggestion invisible yet clickable. Inline
+/// requests may therefore release credentials only for exact hostname
+/// matches; the browser-owned popup keeps the broader registrable-domain
+/// policy.
+fn host_match_permitted(match_quality: HostMatch, inline: bool) -> bool {
+    !inline || match_quality == HostMatch::Exact
+}
+
 fn valid_entry_id(id: &str) -> bool {
     uuid::Uuid::parse_str(id).is_ok()
 }
@@ -766,9 +792,9 @@ fn entry_host(raw: &str) -> Option<String> {
 mod tests {
     use super::{
         bind_owner_only, credential_fill_allowed, entry_host, generate_token, host_match,
-        native_host_path_beside, origin_host, read_request, remove_stale_socket, runtime_dir_from,
-        token_matches, valid_entry_id, write_native_host_manifests, BrowserRequest, HostMatch,
-        NATIVE_HOST_NAME,
+        host_match_permitted, native_host_path_beside, origin_host, read_request,
+        remove_stale_socket, runtime_dir_from, token_matches, valid_entry_id, validated_entry,
+        write_native_host_manifests, BrowserRequest, HostMatch, NATIVE_HOST_NAME,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -955,7 +981,7 @@ mod tests {
     #[test]
     fn rejects_unknown_request_fields_and_invalid_entry_ids() {
         assert!(serde_json::from_str::<BrowserRequest>(
-            r#"{"type":"listLogins","token":"t","origin":"https://example.com","extra":true}"#,
+            r#"{"type":"listLogins","token":"t","origin":"https://example.com","inline":true,"extra":true}"#,
         )
         .is_err());
         assert!(serde_json::from_str::<BrowserRequest>(r#"{"type":"unknown"}"#).is_err());
@@ -964,16 +990,34 @@ mod tests {
     }
 
     #[test]
+    fn requests_must_declare_whether_they_back_the_inline_menu() {
+        // Fail closed: without an explicit inline flag the request is
+        // rejected instead of falling back to popup semantics.
+        assert!(serde_json::from_str::<BrowserRequest>(
+            r#"{"type":"listLogins","token":"t","origin":"https://example.com"}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<BrowserRequest>(
+            r#"{"type":"getCredentials","token":"t","id":"abc123","origin":"https://example.com"}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<BrowserRequest>(
+            r#"{"type":"getCredentials","token":"t","id":"abc123","origin":"https://example.com","inline":true}"#,
+        )
+        .is_ok());
+    }
+
+    #[test]
     fn requests_require_a_token_and_expose_it() {
         let parsed: BrowserRequest = serde_json::from_str(
-            r#"{"type":"listLogins","token":"abc123","origin":"https://example.com"}"#,
+            r#"{"type":"listLogins","token":"abc123","origin":"https://example.com","inline":true}"#,
         )
         .unwrap();
         assert_eq!(parsed.token(), "abc123");
 
         // A request with no token is rejected outright.
         assert!(serde_json::from_str::<BrowserRequest>(
-            r#"{"type":"listLogins","origin":"https://example.com"}"#,
+            r#"{"type":"listLogins","origin":"https://example.com","inline":true}"#,
         )
         .is_err());
     }
@@ -1016,6 +1060,58 @@ mod tests {
             runtime_dir_from(Some("/nonexistent-hitsu-runtime-dir".into())),
             temp
         );
+    }
+
+    #[test]
+    fn related_domain_matches_are_rejected_for_inline_requests() {
+        assert!(host_match_permitted(HostMatch::Exact, true));
+        assert!(!host_match_permitted(HostMatch::RegistrableDomain, true));
+        // The popup flow keeps the broader registrable-domain policy.
+        assert!(host_match_permitted(HostMatch::Exact, false));
+        assert!(host_match_permitted(HostMatch::RegistrableDomain, false));
+    }
+
+    /// One entry stored for `login.example.com` with a password.
+    fn entry_database(url: &str) -> (keepass::Database, String) {
+        let id = uuid::Uuid::new_v4();
+        let mut db = keepass::Database::new();
+        {
+            let mut root = db.root_mut();
+            let mut entry = root
+                .add_entry_with_id(keepass::db::EntryId::from_uuid(id))
+                .expect("duplicate entry id");
+            entry.set_unprotected(keepass::db::fields::URL, url);
+            entry.set_unprotected(keepass::db::fields::PASSWORD, "secret");
+        }
+        (db, id.to_string())
+    }
+
+    #[test]
+    fn inline_credential_requests_reject_sibling_hosts() {
+        let (db, id) = entry_database("https://login.example.com");
+        const ERROR: &str = "Hitsu will not fill passwords on HTTP pages";
+
+        // Exact hostname works for both inline and popup requests.
+        assert!(validated_entry(&db, &id, "https://login.example.com", true, ERROR).is_ok());
+        assert!(validated_entry(&db, &id, "https://login.example.com", false, ERROR).is_ok());
+
+        // Sibling host: the popup keeps registrable-domain matching, while an
+        // inline request (page-rendered menu) must not receive the secret.
+        assert!(validated_entry(&db, &id, "https://evil.example.com", false, ERROR).is_ok());
+        let error = validated_entry(&db, &id, "https://evil.example.com", true, ERROR)
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!(error["code"], "no_match");
+
+        // Unrelated hosts never match on either path.
+        let error = validated_entry(&db, &id, "https://attacker.test", false, ERROR)
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!(error["code"], "no_match");
+        let error = validated_entry(&db, &id, "https://attacker.test", true, ERROR)
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!(error["code"], "no_match");
     }
 
     #[test]

@@ -87,9 +87,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
 
   if (message?.type === "list-logins") {
+    // Inline suggestions come from content scripts (which always have a
+    // sender tab); the popup uses the active tab. The flag tells the backend
+    // to restrict page-rendered inline requests to exact hostnames.
+    const inline = Boolean(sender.tab);
     Promise.resolve()
       .then(() => (sender.tab ? senderHttpFrame(sender) : activeHttpTab()))
-      .then(({ origin }) => nativeMessage({ type: "listLogins", origin }))
+      .then(({ origin }) => nativeMessage({ type: "listLogins", origin, inline }))
       .then((response) => sendResponse({ ok: true, entries: loginEntries(response) }))
       .catch((error) =>
         sendResponse({ ok: false, error: error.message, code: error.code ?? "unknown" }),
@@ -128,6 +132,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: "getCredentials",
             id: message.id,
             origin: frame.origin,
+            inline: true,
           }),
         );
         const fillResponse = await chrome.tabs.sendMessage(
@@ -163,6 +168,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: "getCredentials",
             id: message.id,
             origin: tab.origin,
+            inline: false,
           }),
         );
         const currentTab = await chrome.tabs.get(tab.id);

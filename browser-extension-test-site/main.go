@@ -79,6 +79,15 @@ var scenarios = map[string]scenario{
 		Description: "A page with an unrelated search field and no password field.",
 		Expected:    "The search field remains empty and Hitsu reports that it could not fill the page.",
 	},
+	"related-host": {
+		Slug: "related-host",
+		Name: "Related-host isolation",
+		Description: "Open this scenario via http://page.hitsu.localhost:8080 while a Hitsu login is " +
+			"stored for http://login.hitsu.localhost:8080. The two hostnames are siblings under the " +
+			"same registrable domain (hitsu.localhost).",
+		Expected: "Focusing the fields shows no inline suggestions on the sibling host, but the " +
+			"toolbar popup can still fill the login.",
+	},
 }
 
 type pageData struct {
