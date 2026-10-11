@@ -20,6 +20,44 @@ brew install --cask ruaylabs/tap/hitsu
 
 The cask is maintained in the [Ruaylabs Homebrew tap](https://github.com/ruaylabs/homebrew-tap).
 
+### NixOS (x86_64)
+
+The flake packages the published Linux release, including the browser native host, desktop entry,
+and icons. It patches the binaries to use Nix libraries; it does not build the app from source.
+Linux aarch64 is not currently supported by the release artifacts.
+
+Try it from a local checkout:
+
+```bash
+nix run .
+# Or build without launching:
+nix build .
+```
+
+For a flake-based NixOS configuration, add Hitsu as an input:
+
+```nix
+inputs.hitsu.url = "github:ruaylabs/hitsu";
+```
+
+Pass `inputs` to your modules with `specialArgs = { inherit inputs; };`, then install the package:
+
+```nix
+{ inputs, pkgs, ... }:
+{
+  environment.systemPackages = [
+    inputs.hitsu.packages.${pkgs.stdenv.hostPlatform.system}.default
+  ];
+}
+```
+
+Apply the configuration with `sudo nixos-rebuild switch --flake /path/to/your/config`.
+For Home Manager, use the same package in `home.packages` and pass inputs via `extraSpecialArgs`.
+Browser integration remains opt-in under Settings → Features.
+
+The package version and release checksum are maintained in [`nix/package.nix`](nix/package.nix).
+After changing them, run `nix flake check` on an x86_64 Linux machine to verify the package build.
+
 ## Features
 
 ### Vault management
