@@ -232,6 +232,8 @@
   const kdfPrompt = createKdfPrompt();
 
   onMount(() => {
+    document.querySelector<HTMLInputElement>(".entry-search-input")?.focus();
+
     try {
       const saved = JSON.parse(localStorage.getItem(PANE_WIDTHS_KEY) ?? "null");
       if (Number.isFinite(saved?.sidebarWidth)) sidebarWidth = saved.sidebarWidth;
