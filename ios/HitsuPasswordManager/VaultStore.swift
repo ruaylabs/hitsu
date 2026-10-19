@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import KDBXKit
 import Observation
@@ -24,12 +25,99 @@ private let vaultKDFLimits = KDFParameterLimits(
 /// eager fallback reads the whole file.
 private let maxVaultFileSize = 256 * 1024 * 1024
 
+/// Only encrypted KDBX bytes are persisted. Never writes back to the source.
+enum VaultFileCache {
+  static func cachedURL(for source: URL) throws -> URL {
+    let manager = FileManager.default
+    var directory = try manager.url(
+      for: .applicationSupportDirectory, in: .userDomainMask,
+      appropriateFor: nil, create: true
+    ).appendingPathComponent("OfflineVaults", isDirectory: true)
+    try manager.createDirectory(
+      at: directory, withIntermediateDirectories: true,
+      attributes: [.protectionKey: FileProtectionType.complete]
+    )
+    var values = URLResourceValues()
+    values.isExcludedFromBackup = true
+    try directory.setResourceValues(values)
+    let key = SHA256.hash(data: Data(source.standardizedFileURL.absoluteString.utf8))
+      .map { String(format: "%02x", $0) }.joined()
+    return directory.appendingPathComponent("\(key).kdbx")
+  }
+
+  /// Snapshot the coordinated source, or use the last successfully unlocked copy
+  /// if the provider is unavailable. Parsing/password failures never fall back.
+  static func snapshot(of source: URL) throws -> (url: URL, offline: Bool) {
+    let manager = FileManager.default
+    let snapshot = manager.temporaryDirectory
+      .appendingPathComponent("vault-\(UUID().uuidString).kdbx")
+    do {
+      do {
+        let values = try source.resourceValues(
+          forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
+        )
+        if values.isUbiquitousItem == true,
+          values.ubiquitousItemDownloadingStatus == .notDownloaded,
+          let cached = try? cachedURL(for: source), manager.fileExists(atPath: cached.path)
+        {
+          try? manager.startDownloadingUbiquitousItem(at: source)
+          throw CocoaError(.fileReadNoSuchFile)
+        }
+        var coordinationError: NSError?
+        var readError: Error?
+        NSFileCoordinator(filePresenter: nil).coordinate(
+          readingItemAt: source, options: [], error: &coordinationError
+        ) { coordinatedURL in
+          do {
+            try copyBounded(from: coordinatedURL, to: snapshot)
+          } catch {
+            readError = error
+          }
+        }
+        if let coordinationError { throw coordinationError }
+        if let readError { throw readError }
+        return (snapshot, false)
+      } catch {
+        try? manager.removeItem(at: snapshot)
+        // An oversized source is not an offline condition.
+        if (error as? CocoaError)?.code == .fileReadTooLarge { throw error }
+        try copyBounded(from: cachedURL(for: source), to: snapshot)
+        return (snapshot, true)
+      }
+    } catch {
+      try? manager.removeItem(at: snapshot)
+      throw error
+    }
+  }
+
+  static func refresh(from snapshot: URL, source: URL) throws {
+    // Atomic replacement preserves the previous good copy if the write fails.
+    let data = try Data(contentsOf: snapshot, options: [.mappedIfSafe])
+    try data.write(to: cachedURL(for: source), options: [.atomic, .completeFileProtection])
+  }
+
+  private static func copyBounded(from source: URL, to destination: URL) throws {
+    let size = try source.resourceValues(forKeys: [.fileSizeKey]).fileSize
+    guard let size, size <= maxVaultFileSize else { throw CocoaError(.fileReadTooLarge) }
+    try FileManager.default.copyItem(at: source, to: destination)
+    try FileManager.default.setAttributes(
+      [.protectionKey: FileProtectionType.complete], ofItemAtPath: destination.path
+    )
+    let copiedSize = try destination.resourceValues(forKeys: [.fileSizeKey]).fileSize
+    guard let copiedSize, copiedSize <= maxVaultFileSize else {
+      throw CocoaError(.fileReadTooLarge)
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class VaultStore {
   private(set) var entries: [VaultEntry] = []
   private(set) var isLoading = false
   private(set) var isUnlocked = false
+  private(set) var cacheNotice: String?
+  private var sessionSnapshot: URL?
   var errorMessage: String?
 
   /// Bumped on every lock; in-flight opens discard their results if a lock
@@ -46,7 +134,7 @@ final class VaultStore {
   /// `VaultAttachment.index`.
   private var attachmentSourcesByID: [UUID: [AttachmentSource]] = [:]
 
-  /// Security scope held for the session so previews can re-read the file.
+  /// Security scope for the source; attachment reads use the session snapshot.
   private var securityScopedURL: URL?
 
   /// Prior entry versions (oldest first), retained so history fields can be
@@ -74,56 +162,75 @@ final class VaultStore {
     let generation = lockGeneration
     isLoading = true
     errorMessage = nil
-    // Access is held until lock(): previews re-read the file.
+    cacheNotice = nil
+    // Hold access while the source is coordinated and copied.
     let hasSecurityScope = url.startAccessingSecurityScopedResource()
 
     Task { [weak self] in
-      let result = await Task.detached(priority: .userInitiated) {
-        do {
-          let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-          if let fileSize, fileSize > maxVaultFileSize {
-            return Result<VaultOpenResult, VaultOpenFailure>.failure(
-              .message("The database is too large to open on this device.")
-            )
-          }
+      let (result, snapshot, notice) = await Task.detached(priority: .userInitiated) {
+        var snapshot: URL?
+        var notice: String?
+        let result: Result<VaultOpenResult, VaultOpenFailure> = {
           do {
-            // 4.x: streaming open keeps only the XML resident.
-            return Result<VaultOpenResult, VaultOpenFailure>.success(
-              VaultOpenResult.lazy(
-                try KDBXReader.openMetadataStreaming(
-                  from: .file(url),
-                  unlockData: unlockData,
-                  kdfLimits: vaultKDFLimits
+            let prepared = try VaultFileCache.snapshot(of: url)
+            snapshot = prepared.url
+            let fileURL = prepared.url
+            if prepared.offline {
+              notice = "Using an offline vault copy. Changes from other devices may be missing."
+            }
+            do {
+              // 4.x: streaming open keeps only the XML resident.
+              return .success(
+                VaultOpenResult.lazy(
+                  try KDBXReader.openMetadataStreaming(
+                    from: .file(fileURL),
+                    unlockData: unlockData,
+                    kdfLimits: vaultKDFLimits
+                  )
                 )
               )
-            )
-          } catch KDBXReader.Error.unsupportedFormatVersion(let major, _) where major == 3 {
-            // 3.x binaries live inline in the XML body — no pool to stream past.
-            let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-            return Result<VaultOpenResult, VaultOpenFailure>.success(
-              VaultOpenResult.eager(
-                try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
+            } catch KDBXReader.Error.unsupportedFormatVersion(let major, _) where major == 3 {
+              // 3.x binaries live inline in the XML body — no pool to stream past.
+              let data = try Data(contentsOf: fileURL, options: [.mappedIfSafe])
+              return .success(
+                VaultOpenResult.eager(
+                  try KDBXReader.parse(data, unlockData: unlockData, kdfLimits: vaultKDFLimits)
+                )
               )
+            }
+          } catch let error as KDBXReader.Error {
+            return .failure(.message(userMessage(for: error)))
+          } catch let error as CocoaError where error.code == .fileReadTooLarge {
+            return .failure(.message("The database is too large to open on this device."))
+          } catch {
+            return .failure(
+              .message("The vault could not be read and no usable offline copy is available.")
             )
           }
-        } catch let error as KDBXReader.Error {
-          return Result<VaultOpenResult, VaultOpenFailure>.failure(
-            .message(userMessage(for: error))
-          )
-        } catch {
-          return Result<VaultOpenResult, VaultOpenFailure>.failure(
-            .message("The selected file could not be read.")
-          )
+        }()
+        if case .success = result, let snapshot {
+          if notice == nil {
+            do {
+              try VaultFileCache.refresh(from: snapshot, source: url)
+            } catch {
+              notice = "Vault opened, but the offline copy could not be refreshed."
+            }
+          }
+          return (result, Optional(snapshot), notice)
         }
+        if let snapshot { try? FileManager.default.removeItem(at: snapshot) }
+        return (result, Optional<URL>.none, notice)
       }.value
 
       guard let self else {
+        if let snapshot { try? FileManager.default.removeItem(at: snapshot) }
         if hasSecurityScope {
           url.stopAccessingSecurityScopedResource()
         }
         return
       }
       guard lockGeneration == generation else {
+        if let snapshot { try? FileManager.default.removeItem(at: snapshot) }
         if hasSecurityScope {
           url.stopAccessingSecurityScopedResource()
         }
@@ -133,6 +240,8 @@ final class VaultStore {
 
       switch result {
       case .success(let opened):
+        sessionSnapshot = snapshot
+        cacheNotice = notice
         let projection: VaultProjection
         switch opened {
         case .lazy(let lazy):
@@ -188,6 +297,9 @@ final class VaultStore {
     attachmentSourcesByID = [:]
     historyByID = [:]
     lazyContent = nil
+    if let sessionSnapshot { try? FileManager.default.removeItem(at: sessionSnapshot) }
+    sessionSnapshot = nil
+    cacheNotice = nil
     stopSecurityScope()
     isUnlocked = false
     errorMessage = nil

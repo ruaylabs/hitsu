@@ -193,6 +193,15 @@ struct ContentView: View {
         PrivacyShieldView()
       }
     }
+    .safeAreaInset(edge: .top) {
+      if store.isUnlocked, let notice = store.cacheNotice {
+        Label(notice, systemImage: "exclamationmark.icloud")
+          .font(.footnote)
+          .padding(10)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(.yellow.opacity(0.15))
+      }
+    }
     .onOpenURL { url in
       guard url.pathExtension.lowercased() == "kdbx" else {
         store.showError("Please choose a KeePass .kdbx database.")

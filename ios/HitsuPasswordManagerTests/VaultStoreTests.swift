@@ -42,6 +42,11 @@ final class VaultStoreTests: XCTestCase {
 
     let url = FileManager.default.temporaryDirectory
       .appendingPathComponent("test-\(UUID().uuidString).kdbx")
+    addTeardownBlock {
+      if let cached = try? VaultFileCache.cachedURL(for: url) {
+        try? FileManager.default.removeItem(at: cached)
+      }
+    }
     guard let stream = OutputStream(url: url, append: false) else {
       throw NSError(domain: "VaultStoreTests", code: 1)
     }
@@ -64,6 +69,99 @@ final class VaultStoreTests: XCTestCase {
       }
       try await Task.sleep(for: .milliseconds(20))
     }
+  }
+
+  func testOfflineCopyUnlocksWithAttachmentsAfterSourceDisappears() async throws {
+    let url = try makeVaultFile()
+    defer { try? FileManager.default.removeItem(at: url) }
+    let store = VaultStore()
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    XCTAssertNil(store.cacheNotice)
+    let cached = try VaultFileCache.cachedURL(for: url)
+    XCTAssertEqual(try Data(contentsOf: cached), try Data(contentsOf: url))
+    store.lock()
+    try FileManager.default.removeItem(at: url)
+
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    XCTAssertNotNil(store.cacheNotice)
+    let entry = try XCTUnwrap(store.entries.first)
+    let attachment = await store.attachmentData(for: entry.id, index: 0)
+    XCTAssertEqual(attachment, Self.attachmentPayload)
+    store.lock()
+    XCTAssertNil(store.cacheNotice)
+  }
+
+  func testAvailableSourceRefreshesOfflineCopy() async throws {
+    let url = try makeVaultFile()
+    let replacement = try makeVaultFile()
+    defer {
+      try? FileManager.default.removeItem(at: url)
+      try? FileManager.default.removeItem(at: replacement)
+    }
+    let store = VaultStore()
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    store.lock()
+    let newBytes = try Data(contentsOf: replacement)
+    try newBytes.write(to: url, options: [.atomic])
+
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    XCTAssertNil(store.cacheNotice)
+    XCTAssertEqual(try Data(contentsOf: VaultFileCache.cachedURL(for: url)), newBytes)
+    store.lock()
+  }
+
+  func testInvalidSourceDoesNotFallBackOrReplaceGoodCache() async throws {
+    let url = try makeVaultFile()
+    defer { try? FileManager.default.removeItem(at: url) }
+    let store = VaultStore()
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    store.lock()
+    let cached = try VaultFileCache.cachedURL(for: url)
+    let goodBytes = try Data(contentsOf: cached)
+    try Data("not a vault".utf8).write(to: url)
+
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertFalse(store.isUnlocked)
+    XCTAssertNotNil(store.errorMessage)
+    XCTAssertEqual(try Data(contentsOf: cached), goodBytes)
+  }
+
+  func testOfflineCopyStillRequiresCorrectPassword() async throws {
+    let url = try makeVaultFile()
+    defer { try? FileManager.default.removeItem(at: url) }
+    let store = VaultStore()
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertTrue(store.isUnlocked)
+    store.lock()
+    try FileManager.default.removeItem(at: url)
+
+    store.open(url: url, unlockData: UnlockData(masterPassword: "wrong password"))
+    try await waitForOpen(store)
+    XCTAssertFalse(store.isUnlocked)
+    XCTAssertNotNil(store.errorMessage)
+    XCTAssertNil(store.cacheNotice)
+  }
+
+  func testUnavailableSourceWithoutCacheFails() async throws {
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("missing-\(UUID().uuidString).kdbx")
+    let store = VaultStore()
+    store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+    try await waitForOpen(store)
+    XCTAssertFalse(store.isUnlocked)
+    XCTAssertNotNil(store.errorMessage)
   }
 
   func testOpenUnlocksAndLockClearsState() async throws {

@@ -17,6 +17,14 @@ security-scoped read URL, reads the database, and never writes to that URL. No
 CloudKit container or app-specific iCloud entitlement is required for this
 user-selected document flow.
 
+After a successful unlock, Hitsu keeps an encrypted offline copy in private app
+storage, protected by iOS file protection and excluded from backups. Available
+source files refresh this copy after successful unlock. If iCloud has evicted
+its local file, Hitsu uses the saved copy and requests a background download;
+reopen the vault after the download to load newer changes. An offline banner
+warns that other devices' changes may be missing. The copy still requires your
+master password or configured biometrics and is never written back to iCloud.
+
 ## Scope
 
 - KDBX 4.0, 4.1, and 3.1 read support comes from
