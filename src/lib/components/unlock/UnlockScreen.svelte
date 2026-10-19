@@ -10,6 +10,7 @@
     title,
     confirmLabel = "Unlock",
     showCancel = true,
+    autoTouchId = false,
     onunlock,
     oncancel,
   }: {
@@ -17,6 +18,7 @@
     title: string;
     confirmLabel?: string;
     showCancel?: boolean;
+    autoTouchId?: boolean;
     onunlock?: () => void;
     oncancel?: () => void;
   } = $props();
@@ -85,6 +87,7 @@
   alternateLabel={touchIdAvailable && touchIdEnabled ? "Unlock with Touch ID" : undefined}
   alternatePendingLabel="Waiting for Touch ID…"
   alternateIcon="fingerprint"
+  autoRunAlternate={autoTouchId && touchIdAvailable && touchIdEnabled}
   onalternate={touchIdAvailable && touchIdEnabled ? onTouchIdUnlock : undefined}
   transparentOverlay
   onconfirm={onSubmit}

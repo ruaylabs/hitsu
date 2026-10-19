@@ -58,6 +58,7 @@
   {#if startupDialog === "password"}
     <UnlockScreen
       path={startupPath}
+      autoTouchId
       title="Unlock vault"
       confirmLabel="Unlock"
       onunlock={() => (startupDialog = null)}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { errorMessage as getErrorMessage } from "$lib/utils/errorMessage";
   import { estimateStrength } from "$lib/utils/passwordStrength";
   import Button from "./Button.svelte";
@@ -15,6 +15,7 @@
     alternateLabel,
     alternatePendingLabel,
     alternateIcon,
+    autoRunAlternate = false,
     onalternate,
     showConfirm = true,
     showCancel = true,
@@ -39,6 +40,8 @@
     alternateLabel?: string;
     alternatePendingLabel?: string;
     alternateIcon?: string;
+    /** Run the alternate action once when it becomes available. */
+    autoRunAlternate?: boolean;
     onalternate?: () => void | Promise<void>;
     showConfirm?: boolean;
     showCancel?: boolean;
@@ -68,6 +71,14 @@
   let busy = $state(false);
   let alternateBusy = $state(false);
   let passwordInput: HTMLInputElement | undefined;
+  let alternateAutoStarted = false;
+
+  $effect(() => {
+    if (autoRunAlternate && onalternate && !alternateAutoStarted) {
+      alternateAutoStarted = true;
+      untrack(() => void runAlternate());
+    }
+  });
 
   const DEFAULT_PENDING_LABELS: Record<string, string> = {
     Unlock: "Unlocking…",

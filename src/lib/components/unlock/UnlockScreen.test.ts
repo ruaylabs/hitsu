@@ -24,6 +24,60 @@ beforeEach(() => {
 });
 
 describe("UnlockScreen", () => {
+  it("automatically requests Touch ID at startup when enabled", async () => {
+    const onunlock = vi.fn();
+    render(UnlockScreen, {
+      path: "/vaults/main.kdbx",
+      title: "Unlock vault",
+      autoTouchId: true,
+      onunlock,
+    });
+
+    await waitFor(() => expect(onunlock).toHaveBeenCalledOnce());
+    expect(mocks.unlockWithBiometric).toHaveBeenCalledExactlyOnceWith("/vaults/main.kdbx");
+  });
+
+  it("does not automatically request Touch ID when disabled or unavailable", async () => {
+    mocks.biometricStatus.mockResolvedValueOnce({ available: true, enabled: false });
+    const view = render(UnlockScreen, {
+      path: "/vaults/main.kdbx",
+      title: "Unlock vault",
+      autoTouchId: true,
+    });
+
+    await waitFor(() => expect(mocks.biometricStatus).toHaveBeenCalledOnce());
+    expect(mocks.unlockWithBiometric).not.toHaveBeenCalled();
+    view.unmount();
+
+    mocks.biometricStatus.mockResolvedValueOnce({ available: false, enabled: true });
+    render(UnlockScreen, {
+      path: "/vaults/main.kdbx",
+      title: "Unlock vault",
+      autoTouchId: true,
+    });
+
+    await waitFor(() => expect(mocks.biometricStatus).toHaveBeenCalledTimes(2));
+    expect(mocks.unlockWithBiometric).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the password after an automatic scan is canceled without retrying", async () => {
+    mocks.unlockWithBiometric.mockRejectedValueOnce(
+      Object.assign(new Error("Touch ID was canceled."), { kind: "biometric_canceled" }),
+    );
+    render(UnlockScreen, {
+      path: "/vaults/main.kdbx",
+      title: "Unlock vault",
+      autoTouchId: true,
+    });
+
+    await waitFor(() => expect(mocks.unlockWithBiometric).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByLabelText("Master password")).toHaveFocus());
+    expect(screen.getByLabelText("Master password")).toBeEnabled();
+    expect(screen.queryByText("Touch ID was canceled.")).not.toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Unlock with Touch ID" }));
+    expect(mocks.unlockWithBiometric).toHaveBeenCalledTimes(2);
+  });
+
   it("offers Touch ID when it is enabled for the vault", async () => {
     const onunlock = vi.fn();
     render(UnlockScreen, {
