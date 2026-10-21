@@ -1,6 +1,6 @@
 {
   "name": "hitsu",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "packageManager": "pnpm@11.5.2",
   "description": "",
   "type": "module",
