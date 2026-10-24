@@ -1077,10 +1077,12 @@ private struct EntryRow: View {
               .foregroundStyle(.secondary)
           }
         }
-        Text(entry.secondaryText)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+        if !entry.secondaryText.isEmpty {
+          Text(entry.secondaryText)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
         if !entry.groupPath.isEmpty {
           Text(entry.groupPath)
             .font(.caption)

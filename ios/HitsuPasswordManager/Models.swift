@@ -244,7 +244,7 @@ struct VaultEntry: Identifiable, Hashable, Sendable {
     if !username.isEmpty { return username }
     if isUsernameProtected { return "Protected username" }
     if !groupPath.isEmpty { return groupPath }
-    return "No username"
+    return category == .login ? "No username" : ""
   }
 
   var isExpired: Bool {
