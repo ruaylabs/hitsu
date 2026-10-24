@@ -912,6 +912,7 @@ private struct CategoryIconBadge: View {
 
 private struct EntryIconView: View {
   let icon: VaultEntryIcon
+  let category: VaultEntryCategory
   var tint: Color = .accentColor
   var size: CGFloat = 36
 
@@ -922,7 +923,7 @@ private struct EntryIconView: View {
           .resizable()
           .scaledToFit()
       } else {
-        Image(systemName: standardSystemImage)
+        Image(systemName: category.symbolName)
           .resizable()
           .scaledToFit()
           .padding(size * 0.22)
@@ -934,83 +935,6 @@ private struct EntryIconView: View {
     .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
   }
 
-  private var standardSystemImage: String {
-    let index = Int(icon.standardID)
-    guard Self.standardSymbols.indices.contains(index) else { return "key.fill" }
-    return Self.standardSymbols[index]
-  }
-
-  private static let standardSymbols = [
-    "key.fill",
-    "globe",
-    "exclamationmark.triangle.fill",
-    "server.rack",
-    "folder.badge.checkmark",
-    "bubble.left.and.bubble.right.fill",
-    "puzzlepiece.fill",
-    "note.text",
-    "network",
-    "person.crop.circle.fill",
-    "doc.fill",
-    "camera.fill",
-    "antenna.radiowaves.left.and.right",
-    "key.horizontal.fill",
-    "bolt.fill",
-    "scanner",
-    "globe.americas.fill",
-    "opticaldisc.fill",
-    "display",
-    "envelope.fill",
-    "gearshape.fill",
-    "clipboard.fill",
-    "doc.badge.plus",
-    "rectangle.on.rectangle",
-    "bolt.badge.clock",
-    "tray.full.fill",
-    "externaldrive.fill",
-    "internaldrive.fill",
-    "doc.text.magnifyingglass",
-    "lock.rectangle",
-    "terminal.fill",
-    "printer.fill",
-    "app.dashed",
-    "play.fill",
-    "slider.horizontal.3",
-    "desktopcomputer",
-    "archivebox.fill",
-    "building.columns.fill",
-    "externaldrive.fill",
-    "clock.fill",
-    "envelope.badge",
-    "flag.fill",
-    "memorychip.fill",
-    "trash.fill",
-    "note.text",
-    "clock.badge.exclamationmark",
-    "info.circle.fill",
-    "shippingbox.fill",
-    "folder.fill",
-    "folder.fill",
-    "folder.fill",
-    "lock.open.fill",
-    "doc.fill",
-    "checkmark.circle.fill",
-    "pencil",
-    "photo.fill",
-    "book.closed.fill",
-    "list.bullet",
-    "person.crop.circle.badge.checkmark",
-    "wrench.and.screwdriver.fill",
-    "house.fill",
-    "star.fill",
-    "desktopcomputer",
-    "feather",
-    "apple.logo",
-    "book.closed.fill",
-    "banknote.fill",
-    "checkmark.seal.fill",
-    "smartphone",
-  ]
 }
 
 private struct ExpirationIndicator: View {
@@ -1044,7 +968,7 @@ private struct EntryRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      EntryIconView(icon: entry.icon, tint: entry.category.tint)
+      EntryIconView(icon: entry.icon, category: entry.category, tint: entry.category.tint)
 
       VStack(alignment: .leading, spacing: 3) {
         HStack {
@@ -1262,7 +1186,9 @@ private struct EntryDetailView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
         HStack(alignment: .top, spacing: 14) {
-          EntryIconView(icon: entry.icon, tint: entry.category.tint, size: 56)
+          EntryIconView(
+            icon: entry.icon, category: entry.category, tint: entry.category.tint, size: 56
+          )
           VStack(alignment: .leading, spacing: 6) {
             if entry.isTitleProtected {
               protectedRow(label: "Title", field: "Title")
