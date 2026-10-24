@@ -561,6 +561,11 @@ struct ContentView: View {
 
   private var vaultView: some View {
     TabView {
+      categoriesView
+        .tabItem {
+          Label("Categories", systemImage: "square.grid.2x2.fill")
+        }
+
       favoritesView
         .tabItem {
           Label("Favorites", systemImage: "star.fill")
@@ -569,11 +574,6 @@ struct ContentView: View {
       recentView
         .tabItem {
           Label("Recent", systemImage: "clock.fill")
-        }
-
-      categoriesView
-        .tabItem {
-          Label("Categories", systemImage: "square.grid.2x2.fill")
         }
     }
   }
@@ -644,13 +644,26 @@ struct ContentView: View {
   private var categoriesView: some View {
     NavigationStack {
       List {
-        if categorySections.isEmpty && trashedEntries.isEmpty {
+        if categorySections.isEmpty && (!categoriesSearchText.isEmpty || trashedEntries.isEmpty) {
           ContentUnavailableView(
             categoriesSearchText.isEmpty ? "No categories" : "No results",
             systemImage: categoriesSearchText.isEmpty
               ? "square.grid.2x2"
               : "magnifyingglass"
           )
+        } else if !categoriesSearchText.isEmpty {
+          ForEach(categorySections) { section in
+            Section(section.category.title) {
+              ForEach(section.entries) { entry in
+                NavigationLink {
+                  EntryDetailView(entry: entry, store: store, clipboard: clipboard)
+                    .id(entry.id)
+                } label: {
+                  EntryRow(entry: entry)
+                }
+              }
+            }
+          }
         } else {
           ForEach(categorySections) { section in
             NavigationLink {
@@ -705,7 +718,7 @@ struct ContentView: View {
         }
       }
       .navigationTitle("Categories")
-      .searchable(text: $categoriesSearchText, prompt: "Search categories")
+      .searchable(text: $categoriesSearchText, prompt: "Search all items")
       .toolbar {
         LockToolbar(action: lockVault)
       }
