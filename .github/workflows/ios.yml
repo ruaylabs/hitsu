@@ -28,6 +28,15 @@ jobs:
           path: ios/DerivedData/SourcePackages
           key: spm-${{ hashFiles('ios/**/*.pbxproj') }}
 
+      - name: Check Swift formatting
+        run: |
+          xcrun swift-format lint \
+            --configuration ios/.swift-format \
+            --strict \
+            --recursive \
+            ios/HitsuPasswordManager \
+            ios/HitsuPasswordManagerTests
+
       - name: Boot simulator
         run: |
           xcrun simctl boot "iPhone 16 Pro" || true
