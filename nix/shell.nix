@@ -45,6 +45,7 @@ mkShell {
   };
   FONTCONFIG_PATH = "${pkgs.fontconfig.out}/etc/fonts";
   GIO_EXTRA_MODULES = "${pkgs.glib-networking}/lib/gio/modules";
+  GST_PLUGIN_PATH_1_0 = "${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0";
   RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
 
   shellHook = ''

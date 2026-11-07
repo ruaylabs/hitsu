@@ -82,7 +82,10 @@ pub async fn prefs_set_theme(
 ) -> HitsuResult<()> {
     update_preferences(&app, &state, |prefs| {
         prefs.theme = theme;
-    })
+    })?;
+    #[cfg(target_os = "linux")]
+    crate::native_menu::apply_theme(&app, theme);
+    Ok(())
 }
 
 #[tauri::command]

@@ -1754,6 +1754,7 @@ dependencies = [
  "block2",
  "chrono",
  "core-foundation",
+ "gtk",
  "keepass",
  "libc",
  "objc2-app-kit",

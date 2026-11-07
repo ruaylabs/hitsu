@@ -14,6 +14,8 @@ mod hardening;
 mod kdbx_fields;
 mod logging;
 pub mod models;
+#[cfg(target_os = "linux")]
+mod native_menu;
 mod session_lock;
 mod vault;
 
@@ -123,6 +125,11 @@ pub fn run() {
             app.set_menu(menu)?;
 
             let preferences = prefs::Preferences::load(app.handle());
+            #[cfg(target_os = "linux")]
+            {
+                native_menu::install_theme_css()?;
+                native_menu::apply_theme(app.handle(), preferences.theme);
+            }
             let state = app.state::<AppState>();
             state.configure_idle_lock(preferences.idle_lock_minutes);
             auto_lock::start(app.handle().clone());
