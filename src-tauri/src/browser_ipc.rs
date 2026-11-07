@@ -799,6 +799,7 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::os::unix::net::{UnixListener, UnixStream};
+    use std::path::Path;
     use std::time::{Duration, Instant};
 
     #[test]
@@ -928,7 +929,8 @@ mod tests {
 
     #[test]
     fn bound_socket_is_owner_only_even_with_a_permissive_umask() {
-        let root = std::env::temp_dir().join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
+        // macOS temp_dir() paths can exceed the Unix socket path limit.
+        let root = Path::new("/tmp").join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).unwrap();
         let path = root.join("browser.sock");
 
@@ -949,7 +951,8 @@ mod tests {
 
     #[test]
     fn stale_socket_is_removed_without_disrupting_a_live_listener() {
-        let root = std::env::temp_dir().join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
+        // macOS temp_dir() paths can exceed the Unix socket path limit.
+        let root = Path::new("/tmp").join(format!("hitsu-ipc-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).unwrap();
         let path = root.join("browser.sock");
 

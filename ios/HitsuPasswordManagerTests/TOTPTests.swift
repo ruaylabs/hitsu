@@ -106,6 +106,33 @@ final class TOTPTests: XCTestCase {
     }
   }
 
+  func testValidatesBase32BeforeDecoding() {
+    let date = Date(timeIntervalSince1970: 59)
+    for secret in [
+      "", "A", "AAA", "AAAAAA", "MZ", "MZ======", "MZXR", "MZXW7",
+      "MZXW6YR", "MY=", "MY=====", "MY=======", "M=Y=====", "========",
+      "MZXW6YTB=", "MZXW6YTB========", "M0", "M Y", "M-Y",
+    ] {
+      var components = URLComponents(string: "otpauth://totp/test")!
+      components.queryItems = [URLQueryItem(name: "secret", value: secret)]
+      XCTAssertNil(TOTPGenerator.code(from: components.string!, at: date))
+      XCTAssertNil(TOTPGenerator.code(fromLegacySecret: secret, settings: nil, at: date))
+    }
+    for secret in [
+      "MY", "MY======", "MZXQ", "MZXQ====", "MZXW6", "MZXW6===",
+      "MZXW6YQ", "MZXW6YQ=", "MZXW6YTB", "mzxw6ytb",
+    ] {
+      var components = URLComponents(string: "otpauth://totp/test")!
+      components.queryItems = [URLQueryItem(name: "secret", value: secret)]
+      let code = TOTPGenerator.code(from: components.string!, at: date)
+      XCTAssertNotNil(code)
+      XCTAssertEqual(
+        code, TOTPGenerator.code(fromLegacySecret: secret, settings: nil, at: date)
+      )
+    }
+    XCTAssertNil(TOTPGenerator.code(from: "otpauth://totp/test?secret=MY&secret=MY"))
+  }
+
   func testRejectsInvalidConfigurations() {
     XCTAssertNil(TOTPGenerator.code(from: "https://example.com"))
     XCTAssertNil(TOTPGenerator.code(from: "otpauth://hotp/Test?secret=JBSWY3DPEHPK3PXP"))

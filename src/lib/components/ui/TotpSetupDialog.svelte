@@ -32,7 +32,23 @@
   }
 
   function isValidBase32(value: string): boolean {
-    return value.length > 0 && BASE32_RE.test(value);
+    if (!BASE32_RE.test(value)) return false;
+    const data = value.replace(/=+$/, "");
+    const remainder = data.length % 8;
+    const unusedBits = new Map([
+      [0, 0],
+      [2, 2],
+      [4, 4],
+      [5, 1],
+      [7, 3],
+    ]).get(remainder);
+    if (unusedBits === undefined) return false;
+    const padding = value.length - data.length;
+    if (padding > 0 && (remainder === 0 || value.length % 8 !== 0 || padding !== 8 - remainder)) {
+      return false;
+    }
+    const last = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(data.at(-1) ?? "");
+    return last >= 0 && (last & ((1 << unusedBits) - 1)) === 0;
   }
 
   function integerParameter(

@@ -20,6 +20,37 @@ pub struct TotpCode {
     pub period: u64,
 }
 
+// RFC 4648: allow omitted padding, but never discard partial bytes or nonzero pad bits.
+fn valid_base32(secret: &str) -> bool {
+    let data = secret.trim_end_matches('=');
+    let remainder = data.len() % 8;
+    let unused_bits = match remainder {
+        0 => 0,
+        2 => 2,
+        4 => 4,
+        5 => 1,
+        7 => 3,
+        _ => return false,
+    };
+    if data.is_empty()
+        || (data.len() != secret.len()
+            && (remainder == 0
+                || !secret.len().is_multiple_of(8)
+                || secret.len() - data.len() != 8 - remainder))
+    {
+        return false;
+    }
+    let mut last = 0;
+    for byte in data.bytes() {
+        last = match byte.to_ascii_uppercase() {
+            b'A'..=b'Z' => byte.to_ascii_uppercase() - b'A',
+            b'2'..=b'7' => byte - b'2' + 26,
+            _ => return false,
+        };
+    }
+    last & ((1 << unused_bits) - 1) == 0
+}
+
 fn parse_totp(uri: &str) -> HitsuResult<keepass::db::TOTP> {
     let url =
         url::Url::parse(uri).map_err(|e| HitsuError::Custom(format!("Invalid TOTP URI: {e}")))?;
@@ -32,6 +63,13 @@ fn parse_totp(uri: &str) -> HitsuResult<keepass::db::TOTP> {
             "Unsupported OTP type; expected TOTP".into(),
         ));
     }
+    let secrets: Vec<_> = url
+        .query_pairs()
+        .filter(|(key, _)| key == "secret")
+        .collect();
+    if secrets.len() != 1 || !valid_base32(&secrets[0].1) {
+        return Err(HitsuError::Custom("Invalid TOTP Base32 secret".into()));
+    }
     for (key, value) in url.query_pairs() {
         if key.eq_ignore_ascii_case("encoder") && !value.eq_ignore_ascii_case("numeric") {
             return Err(HitsuError::Custom("Unsupported TOTP encoder".into()));
@@ -40,9 +78,26 @@ fn parse_totp(uri: &str) -> HitsuResult<keepass::db::TOTP> {
             return Err(HitsuError::Custom("HOTP counters are not supported".into()));
         }
     }
-    let mut totp: keepass::db::TOTP = uri.parse().map_err(|e: keepass::db::TOTPError| {
-        HitsuError::Custom(format!("Invalid TOTP URI: {e}"))
-    })?;
+    // KeePass's RFC 4648 decoder accepts uppercase only.
+    let mut normalized_url = url.clone();
+    normalized_url
+        .query_pairs_mut()
+        .clear()
+        .extend_pairs(url.query_pairs().map(|(key, value)| {
+            let value = if key == "secret" {
+                value.to_ascii_uppercase()
+            } else {
+                value.into_owned()
+            };
+            (key, value)
+        }));
+    let mut totp: keepass::db::TOTP =
+        normalized_url
+            .as_str()
+            .parse()
+            .map_err(|e: keepass::db::TOTPError| {
+                HitsuError::Custom(format!("Invalid TOTP URI: {e}"))
+            })?;
     // KeePass defaults to 8 digits; Key URI defaults to 6. Apply this at read
     // time so existing imports work without rewriting their stored secrets.
     if !url.query_pairs().any(|(key, _)| key == "digits") {
@@ -149,6 +204,45 @@ mod tests {
             );
             assert_eq!(parse_totp(&uri).unwrap().value_at(59).code, "287082");
         }
+    }
+
+    #[test]
+    fn validates_base32_before_decoding() {
+        for secret in [
+            "",
+            "A",
+            "AAA",
+            "AAAAAA",
+            "MZ",
+            "MZ======",
+            "MZXR",
+            "MZXW7",
+            "MZXW6YR",
+            "MY=",
+            "MY=====",
+            "MY=======",
+            "M=Y=====",
+            "========",
+            "MZXW6YTB=",
+            "MZXW6YTB========",
+            "M0",
+            "M Y",
+            "M-Y",
+        ] {
+            let uri = format!("otpauth://totp/test?secret={secret}");
+            assert!(parse_totp(&uri).is_err(), "accepted malformed Base32");
+        }
+        for secret in [
+            "MY", "MY======", "MZXQ", "MZXQ====", "MZXW6", "MZXW6===", "MZXW6YQ", "MZXW6YQ=",
+            "MZXW6YTB", "mzxw6ytb",
+        ] {
+            let uri = format!("otpauth://totp/test?secret={secret}");
+            let totp = parse_totp(&uri).expect("rejected canonical Base32");
+            let mut expected = secret.trim_end_matches('=').to_ascii_uppercase();
+            expected.push_str(&"=".repeat((8 - expected.len() % 8) % 8));
+            assert_eq!(totp.get_secret(), expected);
+        }
+        assert!(parse_totp("otpauth://totp/test?secret=MY&secret=MY").is_err());
     }
 
     #[test]

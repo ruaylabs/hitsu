@@ -107,6 +107,63 @@ describe("TotpSetupDialog", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  it.each([
+    "",
+    "A",
+    "AAA",
+    "AAAAAA",
+    "MZ",
+    "MZ======",
+    "MZXR",
+    "MZXW7",
+    "MZXW6YR",
+    "MY=",
+    "MY=====",
+    "MY=======",
+    "M=Y=====",
+    "========",
+    "MZXW6YTB=",
+    "MZXW6YTB========",
+    "M0",
+  ])("rejects malformed Base32 in QR secrets: %s", async (secret) => {
+    const onconfirm = vi.fn();
+    const { container } = render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });
+    await scanQr(container, `otpauth://totp/test?secret=${encodeURIComponent(secret)}`);
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid TOTP secret");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(onconfirm).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "MY",
+    "MY======",
+    "MZXQ",
+    "MZXQ====",
+    "MZXW6",
+    "MZXW6===",
+    "MZXW6YQ",
+    "MZXW6YQ=",
+    "MZXW6YTB",
+    "mzxw6ytb",
+  ])("accepts canonical padded or unpadded Base32: %s", async (secret) => {
+    const onconfirm = vi.fn();
+    const { container } = render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });
+    await scanQr(container, `otpauth://totp/test?secret=${encodeURIComponent(secret)}`);
+    await waitFor(() => expect(screen.getByText("QR code ready")).toBeInTheDocument());
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onconfirm).toHaveBeenCalledOnce();
+  });
+
+  it("rejects malformed manually entered Base32", async () => {
+    const onconfirm = vi.fn();
+    render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });
+    await fireEvent.click(screen.getByRole("tab", { name: "Seed code" }));
+    await fireEvent.input(screen.getByLabelText("Seed code"), { target: { value: "MZ" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid seed code");
+    expect(onconfirm).not.toHaveBeenCalled();
+  });
+
   it("still supports entering a seed code manually", async () => {
     const onconfirm = vi.fn();
     render(TotpSetupDialog, { onconfirm, oncancel: vi.fn() });

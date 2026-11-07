@@ -28,7 +28,8 @@ enum TOTPGenerator {
       }
       if item.name.caseInsensitiveCompare("counter") == .orderedSame { return nil }
     }
-    guard let secret = value(named: "secret", in: queryItems) else { return nil }
+    let secrets = queryItems.filter { $0.name.caseInsensitiveCompare("secret") == .orderedSame }
+    guard secrets.count == 1, let secret = secrets.first?.value else { return nil }
 
     let period = value(named: "period", in: queryItems).flatMap(Int.init) ?? 30
     let digits = value(named: "digits", in: queryItems).flatMap(Int.init) ?? 6
@@ -109,16 +110,23 @@ enum TOTPGenerator {
 
   private static func decodeBase32(_ encoded: String) -> Data? {
     let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
-    let normalized = encoded.uppercased().filter {
-      !$0.isWhitespace && $0 != "-" && $0 != "="
+    guard encoded.utf8.allSatisfy({ $0 < 128 }) else { return nil }
+    let normalized = encoded.uppercased()
+    let data = normalized.prefix { $0 != "=" }
+    let padding = normalized.count - data.count
+    let remainder = data.count % 8
+    guard !data.isEmpty, [0, 2, 4, 5, 7].contains(remainder) else { return nil }
+    if padding > 0 {
+      guard remainder != 0, normalized.suffix(padding).allSatisfy({ $0 == "=" }),
+        normalized.count % 8 == 0, padding == 8 - remainder
+      else { return nil }
     }
-    guard !normalized.isEmpty else { return nil }
 
     var result = Data()
     var buffer: UInt64 = 0
     var bitCount = 0
 
-    for character in normalized {
+    for character in data {
       guard let value = alphabet.firstIndex(of: character) else { return nil }
       buffer = (buffer << 5) | UInt64(value)
       bitCount += 5
@@ -130,6 +138,6 @@ enum TOTPGenerator {
       }
     }
 
-    return result.isEmpty ? nil : result
+    return result.isEmpty || buffer != 0 ? nil : result
   }
 }
