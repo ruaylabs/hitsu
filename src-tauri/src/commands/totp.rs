@@ -177,6 +177,33 @@ mod tests {
         assert_eq!(totp.value_at(119).code, "287082");
     }
 
+    #[test]
+    fn malformed_parameters_do_not_use_defaults() {
+        for parameter in [
+            "period",
+            "period=",
+            "period=abc",
+            "period=1.5",
+            "period=-1",
+            "period=0",
+            "period=999999999999999999999999999999",
+            "digits",
+            "digits=",
+            "digits=abc",
+            "digits=1.5",
+            "digits=-1",
+            "digits=0",
+            "digits=11",
+            "digits=999999999999999999999999999999",
+            "algorithm",
+            "algorithm=",
+            "algorithm=MD5",
+        ] {
+            let uri = format!("otpauth://totp/Test?secret={SECRET}&{parameter}");
+            assert!(parse_totp(&uri).is_err(), "{parameter}");
+        }
+    }
+
     const SECRET: &str = "JBSWY3DPEHPK3PXP";
 
     #[test]

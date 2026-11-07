@@ -133,6 +133,41 @@ final class TOTPTests: XCTestCase {
     XCTAssertNil(TOTPGenerator.code(from: "otpauth://totp/test?secret=MY&secret=MY"))
   }
 
+  func testRejectsMalformedParametersWithoutUsingDefaults() {
+    let uri = "otpauth://totp/Test?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+    for parameter in [
+      "period", "period=", "period=abc", "period=1.5", "period=-1", "period=0",
+      "period=999999999999999999999999999999", "digits", "digits=", "digits=abc",
+      "digits=1.5", "digits=-1", "digits=0", "digits=11",
+      "digits=999999999999999999999999999999", "algorithm", "algorithm=",
+      "algorithm=MD5", "period=30&period=60", "digits=6&digits=8",
+      "algorithm=SHA1&algorithm=SHA256",
+    ] {
+      XCTAssertNil(TOTPGenerator.code(from: "\(uri)&\(parameter)"), parameter)
+    }
+    let date = Date(timeIntervalSince1970: 59)
+    XCTAssertEqual(TOTPGenerator.code(from: uri, at: date)?.code, "287082")
+    XCTAssertEqual(
+      TOTPGenerator.code(from: "\(uri)&period=30&digits=8&algorithm=SHA1", at: date)?.code,
+      "94287082"
+    )
+  }
+
+  func testRejectsMalformedLegacySettingsWithoutUsingDefaults() {
+    let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+    for settings in ["", ";6", "30;", "abc;6", "30;abc", "0;6", "30;0", "30;6;8"] {
+      XCTAssertNil(TOTPGenerator.code(fromLegacySecret: secret, settings: settings), settings)
+    }
+    let date = Date(timeIntervalSince1970: 59)
+    XCTAssertEqual(
+      TOTPGenerator.code(fromLegacySecret: secret, settings: nil, at: date)?.code, "287082"
+    )
+    XCTAssertEqual(
+      TOTPGenerator.code(fromLegacySecret: secret, settings: "30;8", at: date)?.code,
+      "94287082"
+    )
+  }
+
   func testRejectsInvalidConfigurations() {
     XCTAssertNil(TOTPGenerator.code(from: "https://example.com"))
     XCTAssertNil(TOTPGenerator.code(from: "otpauth://hotp/Test?secret=JBSWY3DPEHPK3PXP"))

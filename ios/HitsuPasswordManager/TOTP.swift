@@ -31,8 +31,14 @@ enum TOTPGenerator {
     let secrets = queryItems.filter { $0.name.caseInsensitiveCompare("secret") == .orderedSame }
     guard secrets.count == 1, let secret = secrets.first?.value else { return nil }
 
-    let period = value(named: "period", in: queryItems).flatMap(Int.init) ?? 30
-    let digits = value(named: "digits", in: queryItems).flatMap(Int.init) ?? 6
+    for name in ["period", "digits", "algorithm"] {
+      let items = queryItems.filter { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+      guard items.count <= 1, items.allSatisfy({ $0.value != nil }) else { return nil }
+    }
+    guard
+      let period = positiveInteger(value(named: "period", in: queryItems), default: 30),
+      let digits = positiveInteger(value(named: "digits", in: queryItems), default: 6)
+    else { return nil }
     let algorithm: Algorithm
     switch value(named: "algorithm", in: queryItems)?.uppercased() ?? "SHA1" {
     case "SHA1", "SHA-1": algorithm = .sha1
@@ -50,8 +56,10 @@ enum TOTPGenerator {
     at date: Date = Date()
   ) -> TOTPCode? {
     let values = settings?.split(separator: ";", omittingEmptySubsequences: false) ?? []
-    let period = values.first.flatMap { Int($0) } ?? 30
-    let digits = values.dropFirst().first.flatMap { Int($0) } ?? 6
+    guard values.count <= 2,
+      let period = positiveInteger(values.first.map(String.init), default: 30),
+      let digits = positiveInteger(values.dropFirst().first.map(String.init), default: 6)
+    else { return nil }
     return code(secret: secret, period: period, digits: digits, algorithm: .sha1, at: date)
   }
 
@@ -102,6 +110,14 @@ enum TOTPGenerator {
     let elapsed = Int(timestamp % Int64(period))
 
     return TOTPCode(code: paddedCode, remaining: period - elapsed, period: period)
+  }
+
+  private static func positiveInteger(_ value: String?, default defaultValue: Int) -> Int? {
+    guard let value else { return defaultValue }
+    guard !value.isEmpty, value.utf8.allSatisfy({ (48...57).contains($0) }),
+      let number = Int(value), number > 0
+    else { return nil }
+    return number
   }
 
   private static func value(named name: String, in items: [URLQueryItem]) -> String? {
