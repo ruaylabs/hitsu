@@ -76,6 +76,36 @@ final class TOTPTests: XCTestCase {
     XCTAssertEqual(result?.remaining, 1)
   }
 
+  func testRejectsUnsupportedOTPFormats() {
+    let secret = "JBSWY3DPEHPK3PXP"
+    let uris = [
+      "otpauth://hotp/Test?secret=\(secret)&counter=0",
+      "otpauth://steam/Test?secret=\(secret)",
+      "https://totp/Test?secret=\(secret)",
+      "otpauth://totp/Test?secret=\(secret)&encoder=steam",
+      "otpauth://totp/Test?secret=\(secret)&encoder=unknown",
+      "otpauth://totp/Test?secret=\(secret)&encoder=",
+      "otpauth://totp/Test?secret=\(secret)&encoder=numeric&encoder=steam",
+      "otpauth://totp/Test?secret=\(secret)&Encoder=Steam",
+      "otpauth://totp/Test?secret=\(secret)&counter=0",
+    ]
+
+    for uri in uris {
+      XCTAssertNil(TOTPGenerator.code(from: uri))
+    }
+  }
+
+  func testExplicitNumericEncoderPreservesStandardCode() {
+    let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+    for encoder in ["numeric", "NUMERIC"] {
+      let uri = "otpauth://totp/Test?secret=\(secret)&encoder=\(encoder)"
+      XCTAssertEqual(
+        TOTPGenerator.code(from: uri, at: Date(timeIntervalSince1970: 59))?.code,
+        "287082"
+      )
+    }
+  }
+
   func testRejectsInvalidConfigurations() {
     XCTAssertNil(TOTPGenerator.code(from: "https://example.com"))
     XCTAssertNil(TOTPGenerator.code(from: "otpauth://hotp/Test?secret=JBSWY3DPEHPK3PXP"))

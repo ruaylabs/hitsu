@@ -21,11 +21,28 @@ pub struct TotpCode {
 }
 
 fn parse_totp(uri: &str) -> HitsuResult<keepass::db::TOTP> {
+    let url =
+        url::Url::parse(uri).map_err(|e| HitsuError::Custom(format!("Invalid TOTP URI: {e}")))?;
+    if url.scheme() != "otpauth"
+        || !url
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case("totp"))
+    {
+        return Err(HitsuError::Custom(
+            "Unsupported OTP type; expected TOTP".into(),
+        ));
+    }
+    for (key, value) in url.query_pairs() {
+        if key.eq_ignore_ascii_case("encoder") && !value.eq_ignore_ascii_case("numeric") {
+            return Err(HitsuError::Custom("Unsupported TOTP encoder".into()));
+        }
+        if key.eq_ignore_ascii_case("counter") {
+            return Err(HitsuError::Custom("HOTP counters are not supported".into()));
+        }
+    }
     let mut totp: keepass::db::TOTP = uri.parse().map_err(|e: keepass::db::TOTPError| {
         HitsuError::Custom(format!("Invalid TOTP URI: {e}"))
     })?;
-    let url =
-        url::Url::parse(uri).map_err(|e| HitsuError::Custom(format!("Invalid TOTP URI: {e}")))?;
     // KeePass defaults to 8 digits; Key URI defaults to 6. Apply this at read
     // time so existing imports work without rewriting their stored secrets.
     if !url.query_pairs().any(|(key, _)| key == "digits") {
@@ -106,6 +123,33 @@ mod tests {
     }
 
     const SECRET: &str = "JBSWY3DPEHPK3PXP";
+
+    #[test]
+    fn rejects_unsupported_otp_formats() {
+        for uri in [
+            format!("otpauth://hotp/test?secret={SECRET}&counter=0"),
+            format!("otpauth://steam/test?secret={SECRET}"),
+            format!("https://totp/test?secret={SECRET}"),
+            format!("otpauth://totp/test?secret={SECRET}&encoder=steam"),
+            format!("otpauth://totp/test?secret={SECRET}&encoder=unknown"),
+            format!("otpauth://totp/test?secret={SECRET}&encoder="),
+            format!("otpauth://totp/test?secret={SECRET}&encoder=numeric&encoder=steam"),
+            format!("otpauth://totp/test?secret={SECRET}&Encoder=Steam"),
+            format!("otpauth://totp/test?secret={SECRET}&counter=0"),
+        ] {
+            assert!(compute_totp(&uri).is_err());
+        }
+    }
+
+    #[test]
+    fn explicit_numeric_encoder_preserves_standard_code() {
+        for encoder in ["numeric", "NUMERIC"] {
+            let uri = format!(
+                "otpauth://totp/test?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&encoder={encoder}"
+            );
+            assert_eq!(parse_totp(&uri).unwrap().value_at(59).code, "287082");
+        }
+    }
 
     #[test]
     fn rejects_zero_period_before_code_generation() {

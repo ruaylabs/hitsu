@@ -200,7 +200,7 @@ fn peer_pid(stream: &UnixStream) -> Option<u32> {
             &mut length,
         )
     };
-    (result == 0 && pid > 0).then(|| pid as u32)
+    (result == 0 && pid > 0).then_some(pid as u32)
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]

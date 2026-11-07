@@ -22,6 +22,12 @@ enum TOTPGenerator {
     else { return nil }
 
     let queryItems = components.queryItems ?? []
+    for item in queryItems {
+      if item.name.caseInsensitiveCompare("encoder") == .orderedSame {
+        guard item.value?.lowercased() == "numeric" else { return nil }
+      }
+      if item.name.caseInsensitiveCompare("counter") == .orderedSame { return nil }
+    }
     guard let secret = value(named: "secret", in: queryItems) else { return nil }
 
     let period = value(named: "period", in: queryItems).flatMap(Int.init) ?? 30
