@@ -7,6 +7,7 @@ export interface Preferences {
   recentVaults: string[];
   idleLockMinutes: number;
   clipboardClearSeconds: number;
+  hideOnBlur?: boolean;
   theme?: ThemePreference;
   foldersEnabled: boolean;
   browserIntegrationEnabled: boolean;
@@ -24,8 +25,9 @@ export async function prefsSetLastVault(path: string): Promise<void> {
 export async function prefsSetSecurity(
   idleLockMinutes: number,
   clipboardClearSeconds: number,
+  hideOnBlur: boolean,
 ): Promise<void> {
-  return invoke<void>("prefs_set_security", { idleLockMinutes, clipboardClearSeconds });
+  return invoke<void>("prefs_set_security", { idleLockMinutes, clipboardClearSeconds, hideOnBlur });
 }
 
 export async function prefsSetTheme(theme: ThemePreference): Promise<void> {

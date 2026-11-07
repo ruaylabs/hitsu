@@ -31,7 +31,7 @@
   // Hitsu-owned native dialogs (file pickers) steal focus too; don't blank
   // the app behind a dialog the user just opened. True focus loss (switching
   // apps) still hides content instantly.
-  let concealed = $derived(!windowFocused && !nativeDialog.open);
+  let concealed = $derived(security.hideOnBlur && !windowFocused && !nativeDialog.open);
 
   onMount(() => {
     windowFocused = document.hasFocus();
@@ -54,7 +54,7 @@
 
 <svelte:window onfocus={() => (windowFocused = true)} onblur={() => (windowFocused = false)} />
 
-<div class="app-content" inert={!windowFocused} aria-hidden={concealed}>
+<div class="app-content" inert={security.hideOnBlur && !windowFocused} aria-hidden={concealed}>
   {#if startupDialog === "password"}
     <UnlockScreen
       path={startupPath}

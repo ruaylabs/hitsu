@@ -679,6 +679,24 @@
             </label>
           {/if}
           <div class="setting-row">
+            <label class="setting-label" for="setting-hide-on-blur"
+              >Hide content when unfocused</label
+            >
+            <input
+              id="setting-hide-on-blur"
+              class="setting-switch"
+              type="checkbox"
+              role="switch"
+              checked={security.hideOnBlur}
+              onchange={(event) =>
+                security.save(
+                  security.idleLockMinutes,
+                  security.clipboardClearSeconds,
+                  event.currentTarget.checked,
+                )}
+            />
+          </div>
+          <div class="setting-row">
             <label class="setting-label" for="setting-idle-lock">Lock on idle</label>
             <select
               id="setting-idle-lock"

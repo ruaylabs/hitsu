@@ -63,12 +63,16 @@ pub async fn prefs_set_security(
     state: State<'_, AppState>,
     idle_lock_minutes: u32,
     clipboard_clear_seconds: u32,
+    hide_on_blur: Option<bool>,
 ) -> HitsuResult<()> {
     // "Never" (0) exists only for development — a release build must lock.
     let idle_lock_minutes = clamp_idle_lock(idle_lock_minutes);
     update_preferences(&app, &state, |prefs| {
         prefs.idle_lock_minutes = idle_lock_minutes;
         prefs.clipboard_clear_seconds = clipboard_clear_seconds;
+        if let Some(enabled) = hide_on_blur {
+            prefs.hide_on_blur = enabled;
+        }
     })?;
     state.configure_idle_lock(idle_lock_minutes);
     Ok(())

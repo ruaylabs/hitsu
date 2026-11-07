@@ -29,6 +29,9 @@ pub struct Preferences {
     /// Clipboard auto-clear timeout in seconds. Default: 15.
     #[serde(default = "default_clipboard_clear")]
     pub clipboard_clear_seconds: u32,
+    /// Conceals window content when focus moves to another application.
+    #[serde(default = "default_hide_on_blur")]
+    pub hide_on_blur: bool,
     /// Color scheme override. System follows the operating-system preference.
     #[serde(default)]
     pub theme: ThemePreference,
@@ -54,12 +57,17 @@ impl Default for Preferences {
             recent_vaults: Vec::new(),
             idle_lock_minutes: default_idle_lock(),
             clipboard_clear_seconds: default_clipboard_clear(),
+            hide_on_blur: default_hide_on_blur(),
             theme: ThemePreference::default(),
             folders_enabled: false,
             browser_integration_enabled: false,
             kdf_upgrade_dismissed_vaults: Vec::new(),
         }
     }
+}
+
+fn default_hide_on_blur() -> bool {
+    true
 }
 
 fn default_idle_lock() -> u32 {

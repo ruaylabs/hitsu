@@ -8,16 +8,21 @@ import Page from "./+page.svelte";
 // +page.svelte is imported — not just from beforeEach.
 const mocks = vi.hoisted(() => ({
   loadSecurity: vi.fn().mockResolvedValue({}),
+  hideOnBlur: true,
 }));
 
 vi.mock("$lib/stores/security.svelte", () => ({
   security: {
     load: mocks.loadSecurity,
+    get hideOnBlur() {
+      return mocks.hideOnBlur;
+    },
   },
 }));
 
 beforeEach(() => {
   mocks.loadSecurity.mockResolvedValue({});
+  mocks.hideOnBlur = true;
   vi.spyOn(document, "hasFocus").mockReturnValue(true);
 });
 
@@ -26,6 +31,20 @@ afterEach(() => {
 });
 
 describe("privacy screen", () => {
+  it("keeps content visible and enabled when hiding on blur is disabled", async () => {
+    mocks.hideOnBlur = false;
+    const { container } = render(Page);
+    await tick();
+
+    window.dispatchEvent(new FocusEvent("blur"));
+    await tick();
+
+    expect(screen.queryByRole("status", { name: "Privacy screen" })).not.toBeInTheDocument();
+    const appContent = container.querySelector<HTMLElement>(".app-content");
+    expect(appContent?.inert).toBe(false);
+    expect(appContent).toHaveAttribute("aria-hidden", "false");
+  });
+
   it("covers and disables the app while the window is unfocused", async () => {
     const { container } = render(Page);
     await tick();
