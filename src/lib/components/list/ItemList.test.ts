@@ -134,6 +134,36 @@ describe("ItemList", () => {
     expect(listRows()).toHaveLength(1);
   });
 
+  it("keeps backend-only results and selection visible during summary refreshes", async () => {
+    const entries = makeEntries(3);
+    vault.setEntries(entries);
+    entriesSearchMock.mockResolvedValue({ ids: ["id-0", "id-1"], truncated: false });
+    render(ItemList);
+    selection.search = "buried note";
+    await waitFor(() => expect(listRows()).toHaveLength(2));
+    selection.select("id-1", "keyboard");
+
+    let resolveRefresh!: (result: { ids: string[]; truncated: boolean }) => void;
+    entriesSearchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+    const calls = entriesSearchMock.mock.calls.length;
+    vault.setEntries(entries.map((entry) => ({ ...entry })));
+    await waitFor(() => expect(entriesSearchMock).toHaveBeenCalledTimes(calls + 1));
+
+    expect(listRows()).toHaveLength(2);
+    expect(selection.selectedId).toBe("id-1");
+    resolveRefresh({ ids: ["id-0", "id-1"], truncated: false });
+    await waitFor(() => expect(listRows()).toHaveLength(2));
+    expect(selection.selectedId).toBe("id-1");
+
+    selection.search = "different query";
+    await waitFor(() => expect(listRows()).toHaveLength(0));
+  });
+
   it("uses backend matches for fields absent from entry summaries", async () => {
     vault.setEntries(makeEntries(20));
     entriesSearchMock.mockResolvedValue({ ids: ["id-7"], truncated: false });

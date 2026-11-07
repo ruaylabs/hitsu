@@ -30,12 +30,16 @@ export function createEntrySearch(
   let searchResult = $state<EntrySearchResult | null>(null);
   const matchIdSet = $derived(searchResult === null ? null : new Set(searchResult.ids));
   let searchRequest = 0;
+  let previousQuery = "";
 
   $effect(() => {
     refreshOn?.();
     const q = query().trim();
     const request = ++searchRequest;
-    searchResult = null;
+    // Detail loads update vault summaries; keep full-field matches visible
+    // while refreshing the same query instead of briefly hiding those rows.
+    if (q !== previousQuery || !q) searchResult = null;
+    previousQuery = q;
     if (!q) return;
 
     const run = () => {
@@ -45,7 +49,8 @@ export function createEntrySearch(
           if (request === searchRequest && query().trim() === q) searchResult = result;
         })
         .catch(() => {
-          // Keep the summary-field fallback when backend search is unavailable.
+          // Fall back to summaries if the current refresh fails.
+          if (request === searchRequest && query().trim() === q) searchResult = null;
         });
     };
 
