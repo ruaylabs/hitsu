@@ -415,6 +415,58 @@ describe("ItemList", () => {
     expect(onCreate).toHaveBeenCalledOnce();
   });
 
+  it("navigates filtered results with arrows while keeping search focused", async () => {
+    vault.setEntries(makeEntries(5));
+    selection.search = "Entry";
+    render(ItemList);
+    const search = screen.getByRole("textbox", { name: "Search all items…" });
+    search.focus();
+    await waitFor(() => expect(listRows()).toHaveLength(5));
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
+
+    await fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(selection.selectedId).toBe("id-1");
+    expect(search).toHaveFocus();
+    await fireEvent.keyDown(search, { key: "ArrowUp" });
+    expect(selection.selectedId).toBe("id-0");
+    await fireEvent.keyDown(search, { key: "ArrowUp" });
+    expect(selection.selectedId).toBe("id-0");
+
+    for (let i = 0; i < 6; i++) {
+      await fireEvent.keyDown(search, { key: "ArrowDown" });
+    }
+    expect(selection.selectedId).toBe("id-4");
+    expect(search).toHaveFocus();
+
+    await fireEvent.input(search, { target: { value: "Entry 2" } });
+    await waitFor(() => expect(listRows()).toHaveLength(1));
+    await fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(selection.selectedId).toBe("id-2");
+    expect(search).toHaveFocus();
+  });
+
+  it("preserves text-editing keys and composition in search", async () => {
+    vault.setEntries(makeEntries(3));
+    render(ItemList);
+    const search = screen.getByRole("textbox", { name: "Search all items…" });
+    search.focus();
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
+
+    for (const event of [
+      { key: "End" },
+      { key: "Home" },
+      { key: "ArrowDown", shiftKey: true },
+      { key: "ArrowDown", metaKey: true },
+      { key: "ArrowDown", ctrlKey: true },
+      { key: "ArrowDown", altKey: true },
+      { key: "ArrowDown", isComposing: true },
+    ]) {
+      expect(await fireEvent.keyDown(search, event)).toBe(true);
+      expect(selection.selectedId).toBe("id-0");
+    }
+    expect(search).toHaveFocus();
+  });
+
   it("moves selection with arrow keys", async () => {
     vault.setEntries(makeEntries(5));
     render(ItemList);

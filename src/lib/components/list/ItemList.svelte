@@ -298,7 +298,12 @@
   }
 
   async function onListKeydown(e: KeyboardEvent) {
-    if (isTextEditable(document.activeElement)) return;
+    const fromSearch = document.activeElement?.matches(".entry-search-input") ?? false;
+    if (e.isComposing) return;
+    if (isTextEditable(document.activeElement)) {
+      if (!fromSearch || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+      if (e.shiftKey) return;
+    }
 
     if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "c") {
       // Detail values are selectable; native Copy takes precedence over the
@@ -348,6 +353,7 @@
         // scroll it into range first, then focus after navigation is allowed
         // (immediately or after the unsaved-changes dialog is resolved).
         scrollIndexIntoView(nextIndex);
+        if (fromSearch) return;
         void tick().then(() => {
           document
             .querySelector<HTMLButtonElement>(`[data-entry-id="${nextEntry.id}"]`)
