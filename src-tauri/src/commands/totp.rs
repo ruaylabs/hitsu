@@ -20,10 +20,17 @@ pub struct TotpCode {
     pub period: u64,
 }
 
-pub(crate) fn compute_totp(uri: &str) -> HitsuResult<TotpCode> {
-    let totp: keepass::db::TOTP = uri.parse().map_err(|e: keepass::db::TOTPError| {
+fn parse_totp(uri: &str) -> HitsuResult<keepass::db::TOTP> {
+    let mut totp: keepass::db::TOTP = uri.parse().map_err(|e: keepass::db::TOTPError| {
         HitsuError::Custom(format!("Invalid TOTP URI: {e}"))
     })?;
+    let url =
+        url::Url::parse(uri).map_err(|e| HitsuError::Custom(format!("Invalid TOTP URI: {e}")))?;
+    // KeePass defaults to 8 digits; Key URI defaults to 6. Apply this at read
+    // time so existing imports work without rewriting their stored secrets.
+    if !url.query_pairs().any(|(key, _)| key == "digits") {
+        totp.digits = 6;
+    }
     if totp.period == 0 {
         return Err(HitsuError::Custom("Invalid TOTP period".into()));
     }
@@ -33,6 +40,11 @@ pub(crate) fn compute_totp(uri: &str) -> HitsuResult<TotpCode> {
         return Err(HitsuError::Custom("Invalid TOTP digit count".into()));
     }
 
+    Ok(totp)
+}
+
+pub(crate) fn compute_totp(uri: &str) -> HitsuResult<TotpCode> {
+    let totp = parse_totp(uri)?;
     let code = totp
         .value_now()
         .map_err(|e| HitsuError::Custom(format!("Clock error: {e}")))?;
@@ -61,7 +73,37 @@ pub async fn totp_compute(state: State<'_, AppState>, id: String) -> HitsuResult
 
 #[cfg(test)]
 mod tests {
-    use super::compute_totp;
+    use super::{compute_totp, parse_totp};
+
+    #[test]
+    fn imported_uri_without_digits_uses_six_digit_standard_default() {
+        let uri = "otpauth://totp/imported?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+        let totp = parse_totp(uri).unwrap();
+
+        assert_eq!(totp.digits, 6);
+        assert_eq!(totp.period, 30);
+        assert_eq!(totp.value_at(59).code, "287082");
+    }
+
+    #[test]
+    fn explicit_eight_digits_are_preserved() {
+        let uri = "otpauth://totp/imported?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8";
+        let totp = parse_totp(uri).unwrap();
+
+        assert_eq!(totp.digits, 8);
+        assert_eq!(totp.value_at(59).code, "94287082");
+    }
+
+    #[test]
+    fn explicit_six_digits_and_custom_period_are_preserved() {
+        let uri =
+            "otpauth://totp/imported?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&period=60";
+        let totp = parse_totp(uri).unwrap();
+
+        assert_eq!(totp.digits, 6);
+        assert_eq!(totp.period, 60);
+        assert_eq!(totp.value_at(119).code, "287082");
+    }
 
     const SECRET: &str = "JBSWY3DPEHPK3PXP";
 
