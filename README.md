@@ -201,6 +201,16 @@ cargo test --manifest-path src-tauri/Cargo.toml
 pnpm test:e2e
 ```
 
+### NixOS development
+
+On `x86_64-linux` with Nix flakes enabled:
+
+```bash
+nix develop
+pnpm install --frozen-lockfile
+pnpm tauri dev
+```
+
 ### Project structure
 
 ```
