@@ -979,18 +979,15 @@ pub async fn entry_convert_to_login(state: State<'_, AppState>, id: String) -> H
 
 /// Read the TOTP seed from an entry.
 ///
-/// Tries the KeePassXC standard `otp` field first (an `otpauth://` URI),
-/// then falls back to the legacy `TOTP Seed` + `TOTP Settings` fields.
+/// The KeePassXC `otp` field is authoritative, even when invalid or empty.
+/// Use legacy `TOTP Seed` + `TOTP Settings` only when `otp` is absent;
+/// validation during computation reports invalid primary configurations.
 pub(crate) fn read_totp_seed(entry: &keepass::db::Entry) -> Option<String> {
-    // 1. Try the modern `otp` field (full otpauth:// URI — KeePassXC convention)
     if let Some(otp_uri) = entry.get_raw_otp_value() {
-        // Validate that it parses as a valid TOTP URI
-        if otp_uri.parse::<keepass::db::TOTP>().is_ok() {
-            return Some(otp_uri.to_string());
-        }
+        return Some(otp_uri.to_string());
     }
 
-    // 2. Fall back to legacy TOTP Seed + Settings fields
+    // Only an absent primary field permits legacy fallback.
     let seed = entry.get("TOTP Seed")?;
     let settings = entry.get("TOTP Settings").unwrap_or("30;6");
     let mut parts = settings.split(';');
@@ -2470,6 +2467,38 @@ mod tests {
     #[test]
     fn test_mask_empty_is_none() {
         assert_eq!(mask_card_number(""), None);
+    }
+
+    #[test]
+    fn test_primary_otp_never_falls_back_to_legacy_seed() {
+        for primary in [
+            "not an OTP URI",
+            "",
+            "otpauth://hotp/Test?secret=JBSWY3DPEHPK3PXP&counter=1",
+            "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP",
+        ] {
+            let mut db = keepass::Database::new();
+            entry_fixture(&mut db, "Test", |entry| {
+                entry
+                    .fields
+                    .insert("otp".to_string(), keepass::db::Value::unprotected(primary));
+                entry.fields.insert(
+                    "TOTP Seed".to_string(),
+                    keepass::db::Value::unprotected("JBSWY3DPEHPK3PXP"),
+                );
+                entry.fields.insert(
+                    "TOTP Settings".to_string(),
+                    keepass::db::Value::unprotected("30;6"),
+                );
+            });
+            let entry = db.iter_all_entries().next().expect("entry should exist");
+            let uri = read_totp_seed(&entry).expect("primary field should be retained");
+            assert_eq!(uri, primary);
+            assert_eq!(
+                super::super::totp::compute_totp(&uri).is_ok(),
+                primary.contains("//totp/")
+            );
+        }
     }
 
     #[test]

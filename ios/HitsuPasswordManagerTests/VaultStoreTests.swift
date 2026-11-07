@@ -13,7 +13,7 @@ final class VaultStoreTests: XCTestCase {
   /// Writes a 4.x vault with one entry and one pool-referenced attachment to a
   /// temporary file. Uses a cheap KDF (8 MiB, 1 iteration) instead of the
   /// 64 MiB default so the tests don't pay real Argon2 cost per open.
-  private func makeVaultFile() throws -> URL {
+  private func makeVaultFile(extraFields: [KDBX.ProtectedString] = []) throws -> URL {
     var content = KDBXContent.makeEmpty(
       databaseName: "Test vault",
       kdf: .argon2id(
@@ -35,7 +35,7 @@ final class VaultStoreTests: XCTestCase {
         uuid: UUID(),
         strings: [
           KDBX.ProtectedString(key: "Title", value: .regular(SecureBytes("Test entry".utf8)))
-        ],
+        ] + extraFields,
         binaries: [.init(key: "f.bin", value: .ref(0))]
       )
     ]
@@ -68,6 +68,40 @@ final class VaultStoreTests: XCTestCase {
         return
       }
       try await Task.sleep(for: .milliseconds(20))
+    }
+  }
+
+  func testPrimaryOTPPrecedenceOverLegacyFields() async throws {
+    let validURI = "otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP"
+    let primaryValues: [String?] = [
+      nil, "", "not an OTP URI",
+      "otpauth://hotp/Test?secret=JBSWY3DPEHPK3PXP&counter=1", validURI,
+    ]
+    for primary in primaryValues {
+      var fields = [
+        KDBX.ProtectedString(
+          key: "TOTP Seed", value: .regular(SecureBytes("JBSWY3DPEHPK3PXP".utf8))),
+        KDBX.ProtectedString(
+          key: "TOTP Settings", value: .regular(SecureBytes("30;6".utf8))),
+      ]
+      if let primary {
+        fields.append(
+          KDBX.ProtectedString(key: "otp", value: .regular(SecureBytes(primary.utf8))))
+      }
+      let url = try makeVaultFile(extraFields: fields)
+      defer { try? FileManager.default.removeItem(at: url) }
+      let store = VaultStore()
+      store.open(url: url, unlockData: UnlockData(masterPassword: Self.masterPassword))
+      try await waitForOpen(store)
+      XCTAssertTrue(store.isUnlocked)
+      let entry = try XCTUnwrap(store.entries.first)
+      let code = store.totpCode(for: entry.id, at: Date(timeIntervalSince1970: 59))
+      if primary == nil || primary == validURI {
+        XCTAssertEqual(code?.code, "996554")
+      } else {
+        XCTAssertNil(code, "Invalid primary OTP must not use stale legacy fields")
+      }
+      store.lock()
     }
   }
 
