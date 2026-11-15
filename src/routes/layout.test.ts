@@ -23,6 +23,7 @@ afterEach(() => {
   clearToasts();
   delete document.documentElement.dataset.platform;
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("platform scrollbars", () => {
@@ -37,6 +38,73 @@ describe("platform scrollbars", () => {
     render(Layout);
 
     expect(document.documentElement.dataset.platform).toBe(expected);
+  });
+});
+
+describe("webview context menus", () => {
+  beforeEach(() => {
+    vi.stubEnv("DEV", false);
+  });
+
+  function contextMenu(target: Element) {
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  it("preserves the native menu on app chrome during development", () => {
+    vi.stubEnv("DEV", true);
+    render(Layout);
+    expect(contextMenu(document.body).defaultPrevented).toBe(false);
+  });
+
+  it("suppresses the native menu on app chrome", () => {
+    render(Layout);
+    expect(contextMenu(document.body).defaultPrevented).toBe(true);
+  });
+
+  it.each(["input", "textarea"])("preserves the native menu in %s elements", (tag) => {
+    render(Layout);
+    const element = document.createElement(tag);
+    document.body.append(element);
+    expect(contextMenu(element).defaultPrevented).toBe(false);
+    element.remove();
+  });
+
+  it.each(["text", "all"])("preserves menus for user-select: %s text and its children", (value) => {
+    render(Layout);
+    const element = document.createElement("div");
+    element.style.userSelect = value;
+    const child = element.appendChild(document.createElement("span"));
+    document.body.append(element);
+    expect(contextMenu(child).defaultPrevented).toBe(false);
+    element.remove();
+  });
+
+  it("preserves editable content menus", () => {
+    render(Layout);
+    const element = document.createElement("div");
+    Object.defineProperty(element, "isContentEditable", { value: true });
+    document.body.append(element);
+    expect(contextMenu(element).defaultPrevented).toBe(false);
+    element.remove();
+  });
+
+  it("leaves custom context-menu handlers intact", () => {
+    render(Layout);
+    const element = document.createElement("div");
+    const handler = vi.fn((event: Event) => event.preventDefault());
+    element.addEventListener("contextmenu", handler);
+    document.body.append(element);
+    expect(contextMenu(element).defaultPrevented).toBe(true);
+    expect(handler).toHaveBeenCalledOnce();
+    element.remove();
+  });
+
+  it("removes the global handler when unmounted", () => {
+    const { unmount } = render(Layout);
+    unmount();
+    expect(contextMenu(document.body).defaultPrevented).toBe(false);
   });
 });
 

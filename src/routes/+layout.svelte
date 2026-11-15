@@ -33,8 +33,30 @@
       toast.error(rejectionMessage(event.reason));
     };
 
+    const handleContextMenu = (event: MouseEvent) => {
+      if (import.meta.env.DEV || event.defaultPrevented || !(event.target instanceof Element))
+        return;
+      if (
+        event.target.closest("input, textarea") ||
+        (event.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+      for (let element: Element | null = event.target; element; element = element.parentElement) {
+        const style = getComputedStyle(element);
+        const selection = style.userSelect || style.getPropertyValue("-webkit-user-select");
+        if (selection === "text" || selection === "all") return;
+        if (selection === "none") break;
+      }
+      event.preventDefault();
+    };
+
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("contextmenu", handleContextMenu);
+    return () => {
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener("contextmenu", handleContextMenu);
+    };
   });
 </script>
 
