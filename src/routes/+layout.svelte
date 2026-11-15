@@ -8,6 +8,7 @@
   import ToastStack from "$lib/components/ui/ToastStack.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { errorMessage, isIpcErrorPayload } from "$lib/utils/errorMessage";
+  import { isMacPlatform } from "$lib/utils/keyboardShortcut";
 
   function rejectionMessage(reason: unknown) {
     if (reason instanceof Error || typeof reason === "string" || isIpcErrorPayload(reason)) {
@@ -18,6 +19,12 @@
   }
 
   onMount(() => {
+    document.documentElement.dataset.platform = isMacPlatform()
+      ? "macos"
+      : navigator.platform.toLowerCase().includes("linux")
+        ? "linux"
+        : "other";
+
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       // We report the rejection ourselves so it is visible to the user while
       // retaining the diagnostic in the developer console.

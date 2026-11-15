@@ -21,7 +21,23 @@ beforeEach(() => {
 
 afterEach(() => {
   clearToasts();
+  delete document.documentElement.dataset.platform;
   vi.restoreAllMocks();
+});
+
+describe("platform scrollbars", () => {
+  it.each([
+    ["MacIntel", "macos"],
+    ["Linux x86_64", "linux"],
+    ["Linux aarch64", "linux"],
+    ["Win32", "other"],
+    ["", "other"],
+  ])("identifies %s as %s", (platform, expected) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    render(Layout);
+
+    expect(document.documentElement.dataset.platform).toBe(expected);
+  });
 });
 
 describe("toast actions", () => {
