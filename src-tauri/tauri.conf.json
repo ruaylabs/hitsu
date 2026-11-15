@@ -13,11 +13,11 @@
     "windows": [
       {
         "title": "Hitsu",
+        "create": false,
         "width": 1100,
         "height": 720,
         "minWidth": 900,
-        "minHeight": 600,
-        "backgroundColor": [239, 237, 229, 255]
+        "minHeight": 600
       }
     ],
     "security": {

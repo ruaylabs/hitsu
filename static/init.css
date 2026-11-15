@@ -7,7 +7,11 @@ html {
 }
 
 @media (prefers-color-scheme: dark) {
-  html {
-    background: #1e1e1e;
+  html:not([data-theme]) {
+    background: #201f1d;
   }
+}
+
+html[data-theme="dark"] {
+  background: #201f1d;
 }

@@ -88,6 +88,41 @@ pub fn run() {
             logging::init(app.handle());
             hardening::apply();
             prefs::Preferences::migrate_legacy(app.handle())?;
+            let preferences = prefs::Preferences::load(app.handle());
+            let window_config = &app.config().app.windows[0];
+            // Create hidden so the native background is correct before the first frame.
+            let theme = match preferences.theme {
+                prefs::ThemePreference::System => None,
+                prefs::ThemePreference::Light => Some(tauri::Theme::Light),
+                prefs::ThemePreference::Dark => Some(tauri::Theme::Dark),
+            };
+            let saved_theme = serde_json::to_string(&preferences.theme)?;
+            let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                .visible(false)
+                .initialization_script(format!(
+                    r#"(() => {{
+                        const theme = {saved_theme};
+                        if (theme === "system") return;
+                        const apply = () => {{
+                            if (!document.documentElement) return false;
+                            document.documentElement.dataset.theme = theme;
+                            return true;
+                        }};
+                        if (!apply()) {{
+                            const observer = new MutationObserver(() => {{
+                                if (apply()) observer.disconnect();
+                            }});
+                            observer.observe(document, {{ childList: true }});
+                        }}
+                    }})();"#
+                ))
+                .build()?;
+            let dark = theme.unwrap_or(window.theme()?) == tauri::Theme::Dark;
+            let color = if dark { (32, 31, 29, 255) } else { (239, 237, 229, 255) };
+            window.set_background_color(Some(tauri::window::Color::from(color)))?;
+            if window_config.visible {
+                window.show()?;
+            }
 
             let settings = tauri::menu::MenuItemBuilder::with_id("settings", "Settings…")
                 .accelerator("CmdOrCtrl,+")
@@ -124,7 +159,6 @@ pub fn run() {
 
             app.set_menu(menu)?;
 
-            let preferences = prefs::Preferences::load(app.handle());
             #[cfg(target_os = "linux")]
             {
                 native_menu::install_theme_css()?;
