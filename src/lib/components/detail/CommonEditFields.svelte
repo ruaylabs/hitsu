@@ -143,7 +143,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
+    cursor: default;
     color: var(--text-secondary);
   }
   .protect-custom-field input {

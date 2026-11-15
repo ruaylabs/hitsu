@@ -31,7 +31,7 @@ a {
 button {
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
   font: inherit;
   color: inherit;
 }

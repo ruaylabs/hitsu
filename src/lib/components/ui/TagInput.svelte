@@ -266,7 +266,7 @@
     border-radius: var(--radius-xs);
     font-size: var(--text-base);
     color: var(--text-primary);
-    cursor: pointer;
+    cursor: default;
   }
 
   .suggestion-item:hover {

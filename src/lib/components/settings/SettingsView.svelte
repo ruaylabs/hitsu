@@ -1167,7 +1167,7 @@
     border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: var(--border-strong);
-    cursor: pointer;
+    cursor: default;
     transition:
       background var(--transition-fast),
       border-color var(--transition-fast);

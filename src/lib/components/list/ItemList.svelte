@@ -573,7 +573,7 @@
     max-width: 112px;
     color: var(--text-secondary);
     font-size: inherit;
-    cursor: pointer;
+    cursor: default;
     appearance: none;
   }
 
