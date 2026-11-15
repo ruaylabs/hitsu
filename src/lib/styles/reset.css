@@ -24,6 +24,7 @@ body {
 }
 
 a {
+  -webkit-user-drag: none;
   color: var(--text-accent);
   text-decoration: none;
 }
@@ -47,6 +48,7 @@ select {
 }
 
 img {
+  -webkit-user-drag: none;
   display: block;
   max-width: 100%;
 }
