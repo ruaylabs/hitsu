@@ -1,6 +1,6 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import { toSummary } from "$lib/bridge/entries";
   import * as prefsBridge from "$lib/bridge/prefs";
@@ -321,6 +321,23 @@
     const listeners = [
       listen("menu://settings", () => {
         selection.requestNavigation(() => app.toggleSettings());
+      }),
+      listen("menu://new-item", () => {
+        showEntryCommandPalette = false;
+        showCommandPalette = true;
+      }),
+      listen("menu://lock-vault", () => {
+        selection.requestNavigation(() => void vault.lock());
+      }),
+      listen("menu://find", () => {
+        selection.requestNavigation(async () => {
+          app.view = "main";
+          await tick();
+          document.querySelector<HTMLInputElement>(".entry-search-input")?.focus();
+        });
+      }),
+      listen("menu://keyboard-shortcuts", () => {
+        showShortcuts = true;
       }),
       listen("vault://session-locked", () => {
         vault.sessionLocked();

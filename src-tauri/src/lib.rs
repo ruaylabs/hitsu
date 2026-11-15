@@ -128,15 +128,31 @@ pub fn run() {
                 .accelerator("CmdOrCtrl,+")
                 .build(app)?;
 
+            let new_item = tauri::menu::MenuItemBuilder::with_id("new-item", "New Item…")
+                .accelerator("CmdOrCtrl+N")
+                .build(app)?;
+            let lock_vault = tauri::menu::MenuItemBuilder::with_id("lock-vault", "Lock Vault")
+                .accelerator("CmdOrCtrl+L")
+                .build(app)?;
+            let find = tauri::menu::MenuItemBuilder::with_id("find", "Find")
+                .accelerator("CmdOrCtrl+F")
+                .build(app)?;
+
             let app_menu = SubmenuBuilder::new(app, "Hitsu")
                 .about(None)
                 .separator()
                 .item(&settings)
-                .separator()
-                .quit()
-                .build()?;
+                .separator();
+            #[cfg(target_os = "macos")]
+            let app_menu = app_menu.hide().hide_others().show_all().separator();
+            let app_menu = app_menu.quit().build()?;
 
-            let file_menu = SubmenuBuilder::new(app, "File").close_window().build()?;
+            let file_menu = SubmenuBuilder::new(app, "File")
+                .item(&new_item)
+                .item(&lock_vault)
+                .separator()
+                .close_window()
+                .build()?;
 
             let edit_menu = SubmenuBuilder::new(app, "Edit")
                 .undo()
@@ -146,15 +162,24 @@ pub fn run() {
                 .copy()
                 .paste()
                 .select_all()
+                .separator()
+                .item(&find)
                 .build()?;
 
-            let window_menu = SubmenuBuilder::new(app, "Window").minimize().build()?;
+            let window_menu = SubmenuBuilder::new(app, "Window")
+                .minimize()
+                .maximize()
+                .build()?;
+            let help_menu = SubmenuBuilder::new(app, "Help")
+                .text("keyboard-shortcuts", "Keyboard Shortcuts")
+                .build()?;
 
             let menu = MenuBuilder::new(app)
                 .item(&app_menu)
                 .item(&file_menu)
                 .item(&edit_menu)
                 .item(&window_menu)
+                .item(&help_menu)
                 .build()?;
 
             app.set_menu(menu)?;
@@ -185,9 +210,15 @@ pub fn run() {
             Ok(())
         })
         .on_menu_event(|app, event| {
-            if event.id() == "settings" {
-                let _ = app.emit("menu://settings", ());
-            }
+            let event_name = match event.id().as_ref() {
+                "settings" => "menu://settings",
+                "new-item" => "menu://new-item",
+                "lock-vault" => "menu://lock-vault",
+                "find" => "menu://find",
+                "keyboard-shortcuts" => "menu://keyboard-shortcuts",
+                _ => return,
+            };
+            let _ = app.emit(event_name, ());
         })
         .manage(AppState::new())
         .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
