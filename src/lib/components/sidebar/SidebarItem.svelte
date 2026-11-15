@@ -95,7 +95,6 @@
   .sidebar-item.selected {
     background: var(--sidebar-selected);
     color: var(--text-primary);
-    font-weight: 500;
   }
 
   .sidebar-label {
