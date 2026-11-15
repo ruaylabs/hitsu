@@ -90,6 +90,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.3
 
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+
       - name: Install system dependencies (Tauri)
         run: |
           sudo apt-get update
@@ -142,6 +146,10 @@ jobs:
       - name: Test Hitsu
         working-directory: src-tauri
         run: cargo test
+
+      - name: Check browser/desktop protocol compatibility
+        working-directory: src-tauri
+        run: cargo test --locked --lib browser_protocol_compatibility -- --ignored --nocapture
 
       - name: Test native host
         working-directory: browser-extension/native-host

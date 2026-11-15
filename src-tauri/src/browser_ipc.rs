@@ -802,6 +802,70 @@ mod tests {
     use std::path::Path;
     use std::time::{Duration, Instant};
 
+    // Snapshot of the oldest supported desktop's actual serde request definition.
+    #[allow(dead_code)]
+    mod oldest_protocol {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../browser-extension/protocol/fixtures/desktop-0.7.1.rs"
+        ));
+    }
+
+    #[test]
+    #[ignore = "requires Node.js; run explicitly in the protocol compatibility CI step"]
+    fn browser_protocol_compatibility() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut failures = Vec::new();
+        for source in ["current", "chrome", "firefox"] {
+            let output = std::process::Command::new("node")
+                .arg(root.join("scripts/capture-browser-protocol.mjs"))
+                .arg(source)
+                .output()
+                .expect("Node.js is required for browser protocol compatibility tests");
+            assert!(
+                output.status.success(),
+                "{source} capture failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let captures: Vec<serde_json::Value> =
+                serde_json::from_slice(&output.stdout).expect("Invalid captured requests");
+            assert_eq!(captures.len(), 5, "Incomplete protocol coverage");
+            for capture in captures {
+                let label = format!("{source}/{}", capture["name"]);
+                let request = capture["request"].clone();
+                // Use the live desktop deserializer, not a duplicate JS schema.
+                if let Err(error) = serde_json::from_value::<BrowserRequest>(request.clone()) {
+                    failures.push(format!("{label} -> current desktop: {error}"));
+                }
+                if source == "current" {
+                    if let Err(error) =
+                        serde_json::from_value::<oldest_protocol::BrowserRequest>(request)
+                    {
+                        failures.push(format!("{label} -> desktop 0.7.1: {error}"));
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn protocol_rejects_missing_inline_flag() {
+        for request_type in ["listLogins", "getCredentials"] {
+            let request = serde_json::json!({
+                "type": request_type,
+                "token": "test",
+                "origin": "https://example.com",
+                "id": "entry"
+            });
+            let mut request = request.as_object().unwrap().clone();
+            if request_type == "listLogins" {
+                request.remove("id");
+            }
+            assert!(serde_json::from_value::<BrowserRequest>(request.into()).is_err());
+        }
+    }
+
     #[test]
     fn accepts_http_origins_and_bare_entry_urls() {
         assert_eq!(

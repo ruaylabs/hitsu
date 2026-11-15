@@ -1,0 +1,23 @@
+{
+  "chrome": {
+    "version": "0.2.1",
+    "source": "chrome-0.2.1-background.js.txt",
+    "sha256": "903c5cf84eaabf4d62f8db5f8679ec5e4c08af7dac32bf3f15bebcc117580256",
+    "packageSha256": "ed8d442998a9992297de35d4810c4a2430adb7033cb24733f6640715680797b9",
+    "url": "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=140.0&acceptformat=crx3&x=id%3Dpkickpkkbgpaffpdloplecfleckoopjc%26uc"
+  },
+  "firefox": {
+    "version": "0.2.1",
+    "source": "firefox-0.2.1-background.js.txt",
+    "sha256": "903c5cf84eaabf4d62f8db5f8679ec5e4c08af7dac32bf3f15bebcc117580256",
+    "packageSha256": "e547df81d17b8bb16e3b82ea20ef16b6597713cb1d3f814c17febf3c19fb84d8",
+    "url": "https://addons.mozilla.org/firefox/downloads/file/5256954/hitsu_password_manager-0.2.1.xpi"
+  },
+  "desktop": {
+    "version": "0.7.1",
+    "revision": "d151d777279d4bb2f8338dc2c38544141cd8a3a0",
+    "source": "desktop-0.7.1.rs",
+    "sha256": "1d183d362cac254643c3143d21e3e7526cde75b8cf4af53580720b569fdc26e8",
+    "url": "https://github.com/ruaylabs/hitsu/blob/d151d777279d4bb2f8338dc2c38544141cd8a3a0/src-tauri/src/browser_ipc.rs"
+  }
+}
