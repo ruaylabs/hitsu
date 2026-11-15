@@ -153,11 +153,9 @@ macos-touch-id-build:
     fi
 
     signing_dir=".touch-id-signing"
-    config="$signing_dir/tauri.touch-id.conf.json"
     app="src-tauri/target/release/bundle/macos/Hitsu.app"
 
-    node scripts/prepare-macos-touch-id-signing.mjs "$signing_dir"
-    pnpm tauri build --config "$config"
+    bash scripts/build-signed-macos.sh "$signing_dir"
 
     codesign --verify --deep --strict --verbose=2 "$app"
     codesign -d --entitlements :- "$app"
