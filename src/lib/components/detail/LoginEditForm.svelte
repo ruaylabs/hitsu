@@ -94,7 +94,7 @@
     min-height: var(--icon-button-size);
     height: auto;
     align-self: stretch;
-    border: 1px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface-1);
     color: var(--text-secondary);

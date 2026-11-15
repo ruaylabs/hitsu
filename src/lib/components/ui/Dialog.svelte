@@ -192,7 +192,7 @@
     display: flex;
     flex-direction: column;
     background: var(--surface-2);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-card);
     overflow: hidden;
     box-shadow: var(--shadow-dialog);
@@ -217,7 +217,7 @@
     justify-content: space-between;
     flex-shrink: 0;
     padding: var(--space-4) var(--space-5);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
   }
 
   .dialog-title {
@@ -252,6 +252,6 @@
     gap: var(--space-2);
     flex-shrink: 0;
     padding: var(--space-3) var(--space-5);
-    border-top: 0.5px solid var(--border);
+    border-top: var(--hairline) solid var(--border);
   }
 </style>

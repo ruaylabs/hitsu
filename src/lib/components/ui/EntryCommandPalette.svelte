@@ -154,7 +154,7 @@
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
     color: var(--text-muted);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
   }
 
   .entry-palette-input {
@@ -173,7 +173,7 @@
     padding: var(--space-half) var(--space-1);
     color: var(--text-muted);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-xs);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
@@ -253,7 +253,7 @@
     flex-shrink: 0;
     padding: var(--space-2) var(--space-4);
     color: var(--text-muted);
-    border-top: 0.5px solid var(--border);
+    border-top: var(--hairline) solid var(--border);
     font-size: var(--text-sm);
   }
 
@@ -261,7 +261,7 @@
     flex-shrink: 0;
     padding: var(--space-2) var(--space-4);
     color: var(--warning-text);
-    border-top: 0.5px solid var(--border);
+    border-top: var(--hairline) solid var(--border);
     font-size: var(--text-sm);
     line-height: var(--leading-normal);
   }

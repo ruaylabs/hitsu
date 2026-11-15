@@ -191,7 +191,7 @@
     gap: var(--space-4);
     padding: calc(var(--space-5) + var(--space-5)) calc(var(--space-6) + var(--space-6));
     background: var(--surface-2);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-dialog);
     width: min(380px, calc(100vw - 32px));

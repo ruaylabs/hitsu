@@ -64,7 +64,7 @@
     max-width: 440px;
     padding: var(--space-3) var(--space-4);
     background: var(--surface-2);
-    border: 0.5px solid var(--border-strong);
+    border: var(--hairline) solid var(--border-strong);
     border-radius: var(--radius);
     box-shadow: var(--shadow-popover);
     font-size: var(--text-base);

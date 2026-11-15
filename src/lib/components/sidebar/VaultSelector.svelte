@@ -178,7 +178,7 @@
     width: 100%;
     padding: var(--space-2);
     background: var(--surface-2);
-    border: 1px solid var(--border-strong);
+    border: var(--hairline) solid var(--border-strong);
     border-radius: var(--radius);
     color: var(--text-secondary);
     font-size: var(--text-base);
@@ -211,7 +211,7 @@
     min-width: 200px;
     padding: var(--space-1);
     background: var(--surface-2);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-popover);
   }
@@ -241,7 +241,7 @@
   }
 
   .menu-separator {
-    height: 0.5px;
+    height: var(--hairline);
     margin: 4px 6px;
     background: var(--border);
   }

@@ -68,7 +68,7 @@
        ROW_HEIGHT intervals, so --row-lg must stay in sync with that constant. */
     height: var(--row-lg);
     padding: 0 var(--space-3);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
     width: 100%;
     text-align: left;
   }

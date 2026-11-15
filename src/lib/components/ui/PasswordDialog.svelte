@@ -318,7 +318,7 @@
 
   .alternate-divider::before,
   .alternate-divider::after {
-    height: 0.5px;
+    height: var(--hairline);
     background: var(--border);
     content: "";
     flex: 1;
@@ -332,7 +332,7 @@
     padding: var(--space-3) var(--space-3);
     color: var(--text-secondary);
     background: var(--surface-1);
-    border: 0.5px solid var(--warning);
+    border: var(--hairline) solid var(--warning);
     border-radius: var(--radius-sm);
     font-size: var(--text-sm);
     line-height: var(--leading-normal);

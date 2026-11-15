@@ -113,7 +113,7 @@
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
     color: var(--text-muted);
   }
 

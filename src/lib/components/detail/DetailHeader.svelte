@@ -128,7 +128,7 @@
     gap: var(--space-2);
     padding-bottom: var(--space-4);
     margin-bottom: calc(var(--space-6) + var(--space-1));
-    border-bottom: 1px solid var(--divider);
+    border-bottom: var(--hairline) solid var(--divider);
   }
 
   .breadcrumb {

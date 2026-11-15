@@ -47,7 +47,7 @@
     padding: var(--space-half) var(--space-1);
     color: var(--text-secondary);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-xs);
     box-shadow: var(--shadow-raised);
     font: inherit;

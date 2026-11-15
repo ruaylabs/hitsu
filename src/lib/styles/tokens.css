@@ -14,7 +14,8 @@
   --text-accent: #185fa5;
   --text-on-accent: #ffffff;
 
-  /* Borders */
+  /* Borders — keep a full CSS pixel until the display can render half-pixels. */
+  --hairline: 1px;
   --border: #deddd6;
   --border-strong: #c9c7bd;
 
@@ -108,6 +109,12 @@
   --list-width: 270px;
   --resizer-width: 1px;
   --statusbar-height: 34px;
+}
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --hairline: 0.5px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

@@ -552,7 +552,7 @@
     padding: 0 var(--space-4);
     color: var(--text-muted);
     background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
     font-size: var(--text-xs);
   }
 
@@ -633,7 +633,7 @@
     width: 200px;
     padding: var(--space-1);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-popover);
   }
@@ -665,7 +665,7 @@
   }
 
   .context-separator {
-    height: 0.5px;
+    height: var(--hairline);
     margin: 4px 6px;
     background: var(--border);
   }

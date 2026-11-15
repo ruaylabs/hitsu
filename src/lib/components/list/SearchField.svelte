@@ -149,7 +149,7 @@
     position: relative;
     z-index: 1;
     padding: var(--space-4);
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
   }
 
   .search-pill {
@@ -158,7 +158,7 @@
     gap: var(--space-2);
     background: var(--surface-1);
     padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     isolation: isolate;
@@ -168,7 +168,7 @@
     border-color: var(--accent);
   }
 
-  /* The pill's 1px accent border is the focus indicator — same weight as the
+  /* The pill's hairline accent border is the focus indicator — same weight as the
      form-field borders — so a 2px outline on the inner input would double up. */
   .entry-search-input:focus-visible {
     outline: none;
@@ -188,7 +188,7 @@
   .search-shortcut {
     flex-shrink: 0;
     padding: var(--space-half) var(--space-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-xs);
     color: var(--text-muted);
     font-family: var(--font-sans);

@@ -839,7 +839,7 @@
     font-size: var(--text-lg);
     font-weight: 500;
     padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
     width: 100%;
     color: var(--text-primary);
   }
@@ -867,7 +867,7 @@
     padding: var(--space-half) var(--space-2);
     color: var(--tag-text);
     background: color-mix(in srgb, var(--tag-fill) 12%, transparent);
-    border: 0.5px solid color-mix(in srgb, var(--tag-fill) 28%, transparent);
+    border: var(--hairline) solid color-mix(in srgb, var(--tag-fill) 28%, transparent);
     border-radius: var(--radius-xs);
     font-size: var(--text-sm);
   }

@@ -11,7 +11,7 @@
   .notes-section {
     margin-bottom: var(--space-5);
     padding-top: var(--space-4);
-    border-top: 1px solid var(--divider);
+    border-top: var(--hairline) solid var(--divider);
   }
 
   .notes-label {

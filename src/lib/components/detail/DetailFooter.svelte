@@ -35,7 +35,7 @@
 <style>
   .detail-footer {
     padding-top: var(--space-3);
-    border-top: 0.5px solid var(--border);
+    border-top: var(--hairline) solid var(--border);
     display: grid;
     grid-template-columns: 1fr auto;
     gap: var(--space-1) var(--space-3);

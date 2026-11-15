@@ -195,7 +195,7 @@
     gap: var(--space-2);
     padding: var(--space-3) var(--space-3);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
   }
 

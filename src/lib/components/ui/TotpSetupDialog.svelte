@@ -351,7 +351,7 @@
     justify-content: center;
     gap: var(--space-2);
     padding: var(--space-5);
-    border: 1px solid var(--border-strong);
+    border: var(--hairline) solid var(--border-strong);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     background: var(--surface-1);

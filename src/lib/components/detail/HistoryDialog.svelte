@@ -398,7 +398,7 @@
   }
 
   .revision-list {
-    border-right: 0.5px solid var(--divider);
+    border-right: var(--hairline) solid var(--divider);
     overflow-y: auto;
     padding: var(--space-2);
   }
@@ -485,7 +485,7 @@
     padding: var(--space-half) var(--space-2);
     color: var(--tag-text);
     background: color-mix(in srgb, var(--tag-fill) 12%, transparent);
-    border: 0.5px solid color-mix(in srgb, var(--tag-fill) 28%, transparent);
+    border: var(--hairline) solid color-mix(in srgb, var(--tag-fill) 28%, transparent);
     border-radius: var(--radius-xs);
     font-size: var(--text-sm);
   }

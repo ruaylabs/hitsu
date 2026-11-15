@@ -44,7 +44,7 @@
   .detail-field-row.standalone {
     margin-bottom: var(--space-6);
     background: var(--bg-code);
-    border: 1px solid var(--border-code);
+    border: var(--hairline) solid var(--border-code);
     border-radius: var(--radius);
     transition: border-color var(--transition-base);
   }

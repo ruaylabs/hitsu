@@ -100,7 +100,7 @@
   .button-outline {
     color: var(--text-primary);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
   }
 
   .button-link {

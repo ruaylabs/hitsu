@@ -9,14 +9,14 @@
 </div>
 
 <style>
-  /* Dividers are the parent showing through a 1px gap between rows, so the
+  /* Dividers are the parent showing through a hairline gap between rows, so the
      colour has to carry the line on its own — hence --divider, not --border. */
   .field-group {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: var(--hairline);
     background: var(--divider);
-    border: 1px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
     margin-bottom: 16px;

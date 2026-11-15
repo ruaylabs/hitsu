@@ -768,7 +768,7 @@
     width: min(720px, calc(100vw - 40px));
     height: min(680px, 80vh);
     background: var(--surface-2);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius-card);
     display: flex;
     flex-direction: column;
@@ -781,7 +781,7 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4) var(--space-5);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: var(--hairline) solid var(--border);
   }
 
   .settings-title {
@@ -816,7 +816,7 @@
     flex-direction: column;
     gap: var(--space-1);
     padding: var(--space-4) var(--space-3);
-    border-right: 0.5px solid var(--divider);
+    border-right: var(--hairline) solid var(--divider);
     background: var(--surface-1);
   }
 
@@ -895,7 +895,7 @@
     flex-direction: column;
     gap: var(--space-2);
     padding: var(--space-3);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-1);
   }
@@ -939,7 +939,7 @@
   .import-summary {
     padding: var(--space-3);
     background: var(--surface-1);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
   }
 
@@ -1026,7 +1026,7 @@
 
   .import-counts div {
     padding: var(--space-2) var(--space-2);
-    border-right: 0.5px solid var(--border);
+    border-right: var(--hairline) solid var(--border);
     text-align: center;
   }
 
@@ -1164,7 +1164,7 @@
     flex-shrink: 0;
     appearance: none;
     -webkit-appearance: none;
-    border: 1px solid var(--border-strong);
+    border: var(--hairline) solid var(--border-strong);
     border-radius: 999px;
     background: var(--border-strong);
     cursor: default;
@@ -1205,7 +1205,7 @@
     align-items: baseline;
     justify-content: space-between;
     padding: var(--space-3);
-    border: 0.5px solid var(--border);
+    border: var(--hairline) solid var(--border);
     border-radius: var(--radius);
     background: var(--surface-1);
   }
