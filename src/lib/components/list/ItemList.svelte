@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { LogicalPosition } from "@tauri-apps/api/dpi";
+  import { Menu } from "@tauri-apps/api/menu";
+  import { onDestroy, tick } from "svelte";
   import * as entriesBridge from "$lib/bridge/entries";
   import type { EntrySummary } from "$lib/bridge/types";
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
@@ -57,19 +59,13 @@
     return modifiedTime(right) - modifiedTime(left);
   }
 
-  interface RowContextMenu {
-    entry: EntrySummary;
-    x: number;
-    y: number;
-  }
+  let contextMenu: Menu | null = null;
+  let contextMenuGeneration = 0;
 
-  // Used when the menu hasn't been rendered yet (first open) — the clamp
-  // re-runs against the real size on subsequent opens.
-  const MENU_FALLBACK_WIDTH = 208;
-  const MENU_FALLBACK_HEIGHT = 292;
-
-  let contextMenu = $state<RowContextMenu | null>(null);
-  let contextMenuEl = $state<HTMLDivElement | undefined>();
+  onDestroy(() => {
+    contextMenuGeneration++;
+    void contextMenu?.close().catch(reportActionError);
+  });
   const entrySearch = createEntrySearch(() => selection.search, {
     refreshOn: () => {
       void vault.entries;
@@ -238,63 +234,82 @@
     }
   }
 
-  const CONTEXT_MENU_MARGIN = 8;
+  async function showContextMenu(entry: EntrySummary, position: LogicalPosition) {
+    const generation = ++contextMenuGeneration;
+    const previous = contextMenu;
+    contextMenu = null;
+    try {
+      await previous?.close();
+      if (generation !== contextMenuGeneration) return;
+      const action = (run: () => void) => () => {
+        if (generation === contextMenuGeneration) run();
+      };
+      const menu = await Menu.new({
+        items: [
+          {
+            id: "copy-username",
+            text: "Copy username",
+            enabled: !!entry.username,
+            action: action(() => void copyUsername(entry)),
+          },
+          {
+            id: "copy-password",
+            text: "Copy password",
+            enabled: !!entry.hasPassword,
+            action: action(() => void copySecret(entry, "password", "Password")),
+          },
+          {
+            id: "copy-totp",
+            text: "Copy TOTP",
+            enabled: !!entry.hasTotp,
+            action: action(() => void copySecret(entry, "totp", "TOTP")),
+          },
+          {
+            id: "open-url",
+            text: "Open URL",
+            enabled: !!entry.url,
+            action: action(() => openHttpUrl(entry.url ?? "")),
+          },
+          { item: "Separator" },
+          {
+            id: "edit",
+            text: "Edit",
+            enabled: !entry.trashed,
+            action: action(() => vault.setEditingId(entry.id)),
+          },
+          {
+            id: "favorite",
+            text: entry.favorite ? "Remove from favorites" : "Add to favorites",
+            enabled: !entry.trashed,
+            action: action(() => void toggleFavorite(entry)),
+          },
+          {
+            id: "delete",
+            text: "Delete",
+            action: action(() => entryDeletion.request(entry.id, entry.title)),
+          },
+        ],
+      });
+      if (generation !== contextMenuGeneration) {
+        await menu.close();
+        return;
+      }
+      // Keep the resource alive until the next open or unmount: on Linux,
+      // popup() can resolve before the user has dismissed the native menu.
+      contextMenu = menu;
+      await menu.popup(position);
+    } catch (error) {
+      reportActionError(error);
+    }
+  }
 
   function openContextMenu(event: MouseEvent, entry: EntrySummary) {
     event.preventDefault();
-    const menuWidth = contextMenuEl?.offsetWidth ?? MENU_FALLBACK_WIDTH;
-    const menuHeight = contextMenuEl?.offsetHeight ?? MENU_FALLBACK_HEIGHT;
-    const x = Math.max(
-      CONTEXT_MENU_MARGIN,
-      Math.min(event.clientX, window.innerWidth - menuWidth - CONTEXT_MENU_MARGIN),
-    );
-    const y = Math.max(
-      CONTEXT_MENU_MARGIN,
-      Math.min(event.clientY, window.innerHeight - menuHeight - CONTEXT_MENU_MARGIN),
-    );
+    const position = new LogicalPosition(event.clientX, event.clientY);
     selection.requestNavigation(() => {
       selection.selectedId = entry.id;
-      contextMenu = { entry, x, y };
-      void tick().then(() => {
-        contextMenuEl?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-      });
+      void showContextMenu(entry, position);
     });
-  }
-
-  function closeContextMenu() {
-    contextMenu = null;
-  }
-
-  function runContextAction(action: () => void) {
-    action();
-    closeContextMenu();
-  }
-
-  function onContextMenuKeydown(event: KeyboardEvent) {
-    event.stopPropagation();
-    if (event.key === "Escape" || event.key === "Tab") {
-      closeContextMenu();
-      return;
-    }
-    const items = Array.from(
-      contextMenuEl?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [],
-    );
-    if (items.length === 0) return;
-    const current = items.indexOf(document.activeElement as HTMLButtonElement);
-    let next = current;
-    if (event.key === "ArrowDown") next = (current + 1) % items.length;
-    else if (event.key === "ArrowUp") next = (current - 1 + items.length) % items.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = items.length - 1;
-    else return;
-    event.preventDefault();
-    items[next]?.focus();
-  }
-
-  function onWindowClick(event: MouseEvent) {
-    if (contextMenu && !(event.target as Element | null)?.closest(".row-context-menu")) {
-      closeContextMenu();
-    }
   }
 
   async function onListKeydown(e: KeyboardEvent) {
@@ -364,7 +379,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onListKeydown} onclick={onWindowClick} onblur={closeContextMenu} />
+<svelte:window onkeydown={onListKeydown} />
 
 <div class="item-list">
   <SearchField
@@ -462,78 +477,6 @@
   </div>
 </div>
 
-{#if contextMenu}
-  {@const menuEntry = contextMenu.entry}
-  <div
-    class="row-context-menu"
-    role="menu"
-    tabindex="-1"
-    aria-label="Actions for {menuEntry.title}"
-    style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
-    bind:this={contextMenuEl}
-    onkeydown={onContextMenuKeydown}
-  >
-    <button
-      type="button"
-      role="menuitem"
-      disabled={!menuEntry.username}
-      onclick={() => runContextAction(() => void copyUsername(menuEntry))}
-    >
-      <Icon name="user" size={14} />Copy username
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      disabled={!menuEntry.hasPassword}
-      onclick={() => runContextAction(() => void copySecret(menuEntry, "password", "Password"))}
-    >
-      <Icon name="key" size={14} />Copy password
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      disabled={!menuEntry.hasTotp}
-      onclick={() => runContextAction(() => void copySecret(menuEntry, "totp", "TOTP"))}
-    >
-      <Icon name="clock-code" size={14} />Copy TOTP
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      disabled={!menuEntry.url}
-      onclick={() => runContextAction(() => openHttpUrl(menuEntry.url ?? ""))}
-    >
-      <Icon name="external-link" size={14} />Open URL
-    </button>
-    <div class="context-separator" role="separator"></div>
-    <button
-      type="button"
-      role="menuitem"
-      disabled={menuEntry.trashed}
-      onclick={() => runContextAction(() => vault.setEditingId(menuEntry.id))}
-    >
-      <Icon name="pencil" size={14} />Edit
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      disabled={menuEntry.trashed}
-      onclick={() => runContextAction(() => void toggleFavorite(menuEntry))}
-    >
-      <Icon name={menuEntry.favorite ? "star-off" : "star"} size={14} />
-      {menuEntry.favorite ? "Remove from favorites" : "Add to favorites"}
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      class="danger-menu-item"
-      onclick={() => runContextAction(() => entryDeletion.request(menuEntry.id, menuEntry.title))}
-    >
-      <Icon name="trash" size={14} />Delete
-    </button>
-  </div>
-{/if}
-
 <style>
   .item-list {
     width: 100%;
@@ -625,48 +568,5 @@
   .empty-action:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-  }
-
-  .row-context-menu {
-    position: fixed;
-    z-index: 1000;
-    width: 200px;
-    padding: var(--space-1);
-    background: var(--surface-1);
-    border: var(--hairline) solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-popover);
-  }
-
-  .row-context-menu button {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    padding: var(--space-2) var(--space-2);
-    color: var(--text-primary);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-base);
-    text-align: left;
-  }
-
-  .row-context-menu button:hover:not(:disabled),
-  .row-context-menu button:focus-visible {
-    background: var(--surface-hover);
-    outline: none;
-  }
-
-  .row-context-menu button:disabled {
-    color: var(--text-muted);
-  }
-
-  .row-context-menu .danger-menu-item {
-    color: var(--danger-text);
-  }
-
-  .context-separator {
-    height: var(--hairline);
-    margin: 4px 6px;
-    background: var(--border);
   }
 </style>

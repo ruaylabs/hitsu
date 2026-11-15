@@ -1,3 +1,4 @@
+import { type IconMenuItemOptions, Menu } from "@tauri-apps/api/menu";
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as entriesBridge from "$lib/bridge/entries";
@@ -28,6 +29,33 @@ vi.mock("$lib/stores/clipboard.svelte", () => ({
 }));
 
 vi.mock("$lib/utils/openHttpUrl", () => ({ openHttpUrl: vi.fn() }));
+vi.mock("@tauri-apps/api/menu", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tauri-apps/api/menu")>()),
+  Menu: { new: vi.fn() },
+}));
+
+const menuNewMock = vi.mocked(Menu.new);
+const menuPopupMock = vi.fn();
+const menuCloseMock = vi.fn();
+
+async function openRowMenu(row: HTMLElement) {
+  menuPopupMock.mockClear();
+  await fireEvent.contextMenu(row, { clientX: 50, clientY: 60 });
+  await waitFor(() => expect(menuPopupMock).toHaveBeenCalledOnce());
+}
+
+function nativeItem(text: string): IconMenuItemOptions {
+  const items = menuNewMock.mock.calls.at(-1)?.[0]?.items ?? [];
+  const item = items.find((item) => "text" in item && item.text === text);
+  if (!item) throw new Error(`Missing native menu item: ${text}`);
+  return item as IconMenuItemOptions;
+}
+
+function runNativeItem(text: string) {
+  const item = nativeItem(text);
+  expect(item.enabled).not.toBe(false);
+  item.action?.(item.id ?? "");
+}
 
 const entriesSearchMock = vi.mocked(entriesBridge.entriesSearch);
 const entriesHealthReportMock = vi.mocked(entriesBridge.entriesHealthReport);
@@ -83,6 +111,12 @@ function makeEntry(summary: EntrySummary): Entry {
 }
 
 beforeEach(() => {
+  menuPopupMock.mockReset().mockResolvedValue(undefined);
+  menuCloseMock.mockReset().mockResolvedValue(undefined);
+  menuNewMock.mockReset().mockResolvedValue({
+    popup: menuPopupMock,
+    close: menuCloseMock,
+  } as unknown as Menu);
   localStorage.clear();
   entriesSearchMock.mockReset();
   entriesSearchMock.mockRejectedValue(new Error("backend search unavailable"));
@@ -364,26 +398,54 @@ describe("ItemList", () => {
     }
   });
 
+  it.each([
+    "MacIntel",
+    "Linux x86_64",
+    "Win32",
+  ])("uses text-only context menus (%s)", async (platform) => {
+    const platformSpy = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    try {
+      vault.setEntries(makeEntries(1));
+      render(ItemList);
+      await openRowMenu(listRows()[0]);
+
+      expect(nativeItem("Open URL").icon).toBeUndefined();
+      expect(nativeItem("Add to favorites").icon).toBeUndefined();
+      expect(nativeItem("Delete").icon).toBeUndefined();
+      expect(nativeItem("Copy username").icon).toBeUndefined();
+      expect(nativeItem("Copy password").icon).toBeUndefined();
+      expect(nativeItem("Copy TOTP").icon).toBeUndefined();
+      expect(nativeItem("Edit").icon).toBeUndefined();
+    } finally {
+      platformSpy.mockRestore();
+    }
+  });
+
   it("provides row actions in the context menu", async () => {
     vault.setEntries(makeEntries(2));
     render(ItemList);
     const row = await screen.findByRole("option", { name: /Entry 0/ });
 
-    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
-    expect(screen.getByRole("menu", { name: "Actions for Entry 0" })).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Copy TOTP" }));
+    await openRowMenu(row);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(menuPopupMock).toHaveBeenCalledWith(expect.objectContaining({ x: 50, y: 60 }));
+    runNativeItem("Copy username");
+    expect(copyPlainMock).toHaveBeenCalledWith("user0@example.com");
+    runNativeItem("Copy password");
+    expect(copySecretFieldMock).toHaveBeenCalledWith("id-0", "password");
+    runNativeItem("Copy TOTP");
     expect(copySecretFieldMock).toHaveBeenCalledWith("id-0", "totp");
 
-    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Open URL" }));
+    await openRowMenu(row);
+    runNativeItem("Open URL");
     expect(openHttpUrlMock).toHaveBeenCalledWith("https://example.com");
 
-    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await openRowMenu(row);
+    runNativeItem("Edit");
     expect(vault.editingId).toBe("id-0");
 
-    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await openRowMenu(row);
+    runNativeItem("Delete");
     await waitFor(() => expect(entryDeleteMock).toHaveBeenCalledWith("id-0"));
     expect(entryDeletion.pending).toBeNull();
   });
@@ -395,11 +457,89 @@ describe("ItemList", () => {
     render(ItemList);
     const row = await screen.findByRole("option", { name: /Entry 0/ });
 
-    await fireEvent.contextMenu(row, { clientX: 50, clientY: 50 });
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Add to favorites" }));
+    await openRowMenu(row);
+    runNativeItem("Add to favorites");
 
     await waitFor(() => expect(entryUpdateMock).toHaveBeenCalledWith("id-0", { favorite: true }));
     expect(vault.entries[0].favorite).toBe(true);
+  });
+
+  it("disables unavailable native actions for trashed entries", async () => {
+    vault.setEntries([
+      {
+        ...makeEntries(1)[0],
+        trashed: true,
+        favorite: true,
+        username: undefined,
+        url: undefined,
+        hasPassword: false,
+        hasTotp: false,
+      },
+    ]);
+    selection.filter = { kind: "trash" };
+    render(ItemList);
+    await openRowMenu(await screen.findByRole("option", { name: /Entry 0/ }));
+
+    for (const text of [
+      "Copy username",
+      "Copy password",
+      "Copy TOTP",
+      "Open URL",
+      "Edit",
+      "Remove from favorites",
+    ]) {
+      expect(nativeItem(text).enabled).toBe(false);
+    }
+    expect(nativeItem("Delete").enabled).not.toBe(false);
+  });
+
+  it("respects the navigation guard before opening a native menu", async () => {
+    vault.setEntries(makeEntries(2));
+    render(ItemList);
+    const row = await screen.findByRole("option", { name: /Entry 1/ });
+    const clearGuard = selection.setNavigationGuard(() => false);
+    try {
+      await fireEvent.contextMenu(row);
+      expect(menuNewMock).not.toHaveBeenCalled();
+      expect(selection.selectedId).toBe("id-0");
+    } finally {
+      clearGuard();
+    }
+  });
+
+  it("releases native menus on replacement and unmount and ignores stale actions", async () => {
+    vault.setEntries(makeEntries(2));
+    const { unmount } = render(ItemList);
+    const row = await screen.findByRole("option", { name: /Entry 0/ });
+    await openRowMenu(row);
+    const staleEdit = nativeItem("Edit");
+    await openRowMenu(row);
+    expect(menuCloseMock).toHaveBeenCalledOnce();
+    staleEdit.action?.("edit");
+    expect(vault.editingId).toBeNull();
+    const currentEdit = nativeItem("Edit");
+    unmount();
+    expect(menuCloseMock).toHaveBeenCalledTimes(2);
+    currentEdit.action?.("edit");
+    expect(vault.editingId).toBeNull();
+  });
+
+  it("closes a menu that finishes creating after unmount", async () => {
+    let resolveMenu!: (menu: Menu) => void;
+    menuNewMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveMenu = resolve;
+        }),
+    );
+    vault.setEntries(makeEntries(1));
+    const { unmount } = render(ItemList);
+    await fireEvent.contextMenu(await screen.findByRole("option", { name: /Entry 0/ }));
+    await waitFor(() => expect(menuNewMock).toHaveBeenCalledOnce());
+    unmount();
+    resolveMenu({ popup: menuPopupMock, close: menuCloseMock } as unknown as Menu);
+    await waitFor(() => expect(menuCloseMock).toHaveBeenCalledOnce());
+    expect(menuPopupMock).not.toHaveBeenCalled();
   });
 
   it("persists the chosen sort mode", async () => {
