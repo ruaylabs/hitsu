@@ -31,20 +31,25 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.3
 
-      - name: Check KDBXKit for a newer release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check KDBXKit for a newer compatible version
         run: |
           resolved=ios/HitsuPasswordManager.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           pinned=$(jq -er '.pins[] | select(.identity == "kdbxkit") | .state.version' "$resolved")
-          latest=$(curl -fsSL \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            'https://api.github.com/repos/shadone/KDBXKit/tags?per_page=1' \
-            | jq -er '.[0].name')
-          echo "pinned=${pinned} latest=${latest}"
-          if [ "${pinned}" != "${latest#v}" ]; then
-            echo "::error::KDBXKit ${latest} is available but the app pins ${pinned}."
+          # Read all tags; GitHub's tag ordering is not semantic-version ordering.
+          versions=$(git ls-remote --tags --refs https://github.com/shadone/KDBXKit.git \
+            | jq -Rs 'split("\n") | map(split("\t")[1] // "")
+              | map(sub("^refs/tags/v?"; ""))
+              | map(select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$")))
+              | unique | sort_by(split(".") | map(tonumber))')
+          latest=$(jq -er 'last' <<< "$versions")
+          compatible=$(jq -er --arg major "${pinned%%.*}" \
+            'map(select(split(".")[0] == $major)) | last' <<< "$versions")
+          echo "pinned=${pinned} compatible=${compatible} latest=${latest}"
+          if [ "${latest%%.*}" -gt "${pinned%%.*}" ]; then
+            echo "::warning::KDBXKit ${latest} is available; review its breaking changes separately."
+          fi
+          if [ "${pinned}" != "${compatible}" ]; then
+            echo "::error::KDBXKit ${compatible} is available but the app pins ${pinned}."
             echo "::error::Review upstream changes (parser hardening) and bump the pin."
             exit 1
           fi

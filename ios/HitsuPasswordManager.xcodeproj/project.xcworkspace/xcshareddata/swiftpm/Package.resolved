@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shadone/KDBXKit.git",
       "state" : {
-        "revision" : "930fb977f0c565546ea94edde40386d6f26c1922",
-        "version" : "1.3.0"
+        "revision" : "8d4591b934f02d1f885129fbefc548a0a2cab166",
+        "version" : "1.4.0"
       }
     },
     {
