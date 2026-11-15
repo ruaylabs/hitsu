@@ -30,6 +30,33 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("inactive window state", () => {
+  it("tracks focus independently of the hide-on-blur preference", async () => {
+    mocks.hideOnBlur = false;
+    render(Page);
+    await tick();
+    expect(document.documentElement).not.toHaveAttribute("data-window-inactive");
+
+    window.dispatchEvent(new FocusEvent("blur"));
+    await tick();
+    expect(document.documentElement).toHaveAttribute("data-window-inactive");
+
+    window.dispatchEvent(new FocusEvent("focus"));
+    await tick();
+    expect(document.documentElement).not.toHaveAttribute("data-window-inactive");
+  });
+
+  it("initializes from document focus and removes the attribute on unmount", async () => {
+    vi.mocked(document.hasFocus).mockReturnValue(false);
+    const { unmount } = render(Page);
+    await tick();
+    expect(document.documentElement).toHaveAttribute("data-window-inactive");
+
+    unmount();
+    expect(document.documentElement).not.toHaveAttribute("data-window-inactive");
+  });
+});
+
 describe("privacy screen", () => {
   it("keeps content visible and enabled when hiding on blur is disabled", async () => {
     mocks.hideOnBlur = false;

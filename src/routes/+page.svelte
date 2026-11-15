@@ -33,6 +33,11 @@
   // apps) still hides content instantly.
   let concealed = $derived(security.hideOnBlur && !windowFocused && !nativeDialog.open);
 
+  $effect(() => {
+    document.documentElement.toggleAttribute("data-window-inactive", !windowFocused);
+    return () => document.documentElement.removeAttribute("data-window-inactive");
+  });
+
   onMount(() => {
     windowFocused = document.hasFocus();
 

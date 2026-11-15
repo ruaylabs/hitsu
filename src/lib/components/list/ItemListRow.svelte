@@ -89,6 +89,14 @@
     color: var(--text-accent);
   }
 
+  :global(html[data-window-inactive]) .list-row.selected {
+    background: var(--sidebar-selected);
+  }
+
+  :global(html[data-window-inactive]) .list-row.selected .list-row-title {
+    color: var(--text-primary);
+  }
+
   .list-row-text {
     flex: 1;
     min-width: 0;
