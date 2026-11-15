@@ -184,7 +184,6 @@
     font-size: var(--text-base);
     font-weight: 500;
     text-align: left;
-    transition: background var(--transition-fast);
   }
 
   .vault-button:hover {
