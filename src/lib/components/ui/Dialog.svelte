@@ -199,6 +199,34 @@
     outline: none;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .dialog-overlay {
+      animation: dialog-fade-in 120ms ease-out;
+    }
+
+    .dialog-pane {
+      animation: dialog-scale-in 120ms ease-out;
+    }
+  }
+
+  @keyframes dialog-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dialog-scale-in {
+    from {
+      transform: scale(0.98);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
   .dialog-sm {
     width: 360px;
   }
