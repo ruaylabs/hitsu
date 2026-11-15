@@ -186,6 +186,7 @@
 </script>
 
 <aside class="sidebar">
+  <div class="sidebar-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if vault.meta}
     <VaultSelector />
   {/if}
@@ -358,6 +359,15 @@
     background: var(--surface-1);
     padding: var(--space-4) var(--space-2);
     overflow-y: auto;
+  }
+
+  .sidebar-drag-region {
+    display: none;
+  }
+
+  :global(html[data-platform="macos"]) .sidebar-drag-region {
+    display: block;
+    height: 24px;
   }
 
   .folder-form {

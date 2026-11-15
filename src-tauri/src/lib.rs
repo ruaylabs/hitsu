@@ -97,7 +97,12 @@ pub fn run() {
                 prefs::ThemePreference::Dark => Some(tauri::Theme::Dark),
             };
             let saved_theme = serde_json::to_string(&preferences.theme)?;
-            let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+            let window_builder = tauri::WebviewWindowBuilder::from_config(app, window_config)?;
+            #[cfg(target_os = "macos")]
+            let window_builder = window_builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+            let window = window_builder
                 .visible(false)
                 .initialization_script(format!(
                     r#"(() => {{

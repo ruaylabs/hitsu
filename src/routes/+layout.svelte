@@ -60,5 +60,7 @@
   });
 </script>
 
+<!-- Transparent traffic-light drag target; never reserve a full-width title-bar row. -->
+<div class="window-titlebar" data-tauri-drag-region aria-hidden="true"></div>
 <slot />
 <ToastStack />

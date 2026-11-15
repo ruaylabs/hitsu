@@ -41,6 +41,17 @@ describe("platform scrollbars", () => {
   });
 });
 
+describe("overlay title bar", () => {
+  it("provides an empty drag region without making app controls draggable", () => {
+    const { container } = render(Layout);
+    const region = container.querySelector(".window-titlebar");
+    expect(region).toHaveAttribute("data-tauri-drag-region");
+    expect(region).toHaveAttribute("aria-hidden", "true");
+    expect(region).toBeEmptyDOMElement();
+    expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(1);
+  });
+});
+
 describe("webview context menus", () => {
   beforeEach(() => {
     vi.stubEnv("DEV", false);

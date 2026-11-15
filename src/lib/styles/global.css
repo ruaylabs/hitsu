@@ -8,6 +8,19 @@ body {
   flex-direction: column;
 }
 
+.window-titlebar {
+  display: none;
+}
+
+html[data-platform="macos"] .window-titlebar {
+  display: block;
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 78px;
+  height: 32px;
+  z-index: 1;
+}
+
 /* Tabler icons base sizing */
 .ti {
   font-size: 14px;
