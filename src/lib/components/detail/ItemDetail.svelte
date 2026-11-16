@@ -131,6 +131,7 @@
   });
 
   let editing = $state(false);
+  let cancelling = $state(false);
   let newEntryId = $state<string | null>(null);
   let showHistory = $state(false);
   let showMoveDialog = $state(false);
@@ -220,7 +221,7 @@
   // leak the stub to disk. Dropping it from memory here prevents that.
   $effect(() => {
     const selectedId = selection.selectedId;
-    if (newEntryId && selectedId !== newEntryId) {
+    if (!cancelling && newEntryId && selectedId !== newEntryId) {
       const id = newEntryId;
       newEntryId = null;
       // Exit edit mode immediately so the unsaved entry's edit form
@@ -354,20 +355,27 @@
     return true;
   }
 
-  async function cancelEdit() {
-    // Only discard when the entry on screen is the brand-new one we just
-    // created. Tracking the id (not a boolean) prevents accidentally
-    // discarding a real entry after the user navigated away mid-creation.
-    if (newEntryId && _entry && _entry.id === newEntryId) {
-      await discardNewEntry(newEntryId);
-      _entry = undefined;
-      selection.selectedId = null;
-      newEntryId = null;
+  async function cancelEdit(): Promise<boolean> {
+    if (cancelling) return false;
+    cancelling = true;
+    try {
+      // Removing a row can trigger list navigation before this async cleanup
+      // finishes. Keep that navigation from re-entering the discard flow.
+      if (newEntryId && _entry?.id === newEntryId) {
+        const id = newEntryId;
+        if (!(await discardNewEntry(id))) return false;
+        newEntryId = null;
+        if (_entry?.id === id) _entry = undefined;
+        if (selection.selectedId === id) selection.selectedId = null;
+      }
+      editing = false;
+      saveError = "";
+      resetEditState();
+      saveStatus.markSaved();
+      return true;
+    } finally {
+      cancelling = false;
     }
-    editing = false;
-    saveError = "";
-    resetEditState();
-    saveStatus.markSaved();
   }
 
   let saveError = $state("");
@@ -432,15 +440,7 @@
     const navigate = pendingNavigation;
     if (!navigate) return;
 
-    if (newEntryId && _entry?.id === newEntryId) {
-      if (!(await discardNewEntry(newEntryId))) return;
-      newEntryId = null;
-    }
-
-    editing = false;
-    saveError = "";
-    resetEditState();
-    saveStatus.markSaved();
+    if (!(await cancelEdit())) return;
     pendingNavigation = null;
     navigate();
   }
@@ -459,7 +459,14 @@
   $effect(() => {
     if (!editing) return;
     return selection.setNavigationGuard((navigate) => {
-      if (pendingNavigation) return false;
+      if (cancelling || pendingNavigation) return false;
+      if (!editing) return true;
+      if (newEntryId && initialEditForm !== null && editFormsMatch(form, initialEditForm)) {
+        void cancelEdit().then((cancelled) => {
+          if (cancelled) navigate();
+        });
+        return false;
+      }
       if (!hasUnsavedChanges()) {
         editing = false;
         clearEditSecrets();
@@ -507,7 +514,8 @@
   }
 
   function requestCancelEdit() {
-    if (!hasUnsavedChanges()) {
+    // An untouched new stub needs no confirmation, even though it is not saved yet.
+    if (initialEditForm !== null && editFormsMatch(form, initialEditForm)) {
       void cancelEdit();
       return;
     }

@@ -898,6 +898,154 @@ describe("password entry workflow", () => {
     expect(await screen.findAllByRole("button", { name: "https://example.com" })).toHaveLength(1);
   });
 
+  it.each(["Escape", "Cancel"])("discards an untouched new entry with %s", async (action) => {
+    const entry = passwordEntry();
+    selectEntry(entry, true);
+    render(ItemDetail);
+    await screen.findByPlaceholderText("Title");
+
+    if (action === "Escape") {
+      await fireEvent.keyDown(window, { key: "Escape" });
+    } else {
+      await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    }
+
+    await waitFor(() => expect(screen.queryByPlaceholderText("Title")).not.toBeInTheDocument());
+    expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+    expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+    expect(vault.entries).toEqual([]);
+  });
+
+  it.each([false, true])("guards navigation from a new entry with edits: %s", async (edited) => {
+    const entry = passwordEntry();
+    selectEntry(entry, true);
+    render(ItemDetail);
+    const title = await screen.findByPlaceholderText("Title");
+    if (edited) await fireEvent.input(title, { target: { value: "Changed title" } });
+    const navigate = vi.fn();
+
+    selection.requestNavigation(navigate);
+
+    if (edited) {
+      expect(await screen.findByRole("dialog", { name: "Save changes?" })).toBeInTheDocument();
+      expect(navigate).not.toHaveBeenCalled();
+      expect(mocks.entryDiscard).not.toHaveBeenCalled();
+    } else {
+      await waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+      expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+      expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
+      expect(mocks.entryUpdate).not.toHaveBeenCalled();
+      expect(vault.entries).toEqual([]);
+    }
+  });
+
+  it.each([
+    "Escape",
+    "Cancel",
+    "navigate",
+    "Discard",
+  ])("does not discard twice when list selection changes during %s", async (action) => {
+    const entry = passwordEntry();
+    selectEntry(entry, true);
+    render(ItemDetail);
+    await screen.findByPlaceholderText("Title");
+    mocks.entryDiscard
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new Error("Entry not found"));
+    const toastError = vi.spyOn(toast, "error");
+    const setEntries = vault.setEntries.bind(vault);
+    const navigate = vi.fn(() => {
+      selection.selectedId = null;
+    });
+    vi.spyOn(vault, "setEntries").mockImplementation((entries) => {
+      setEntries(entries);
+      // Model ItemList reconciling selection when the discarded row disappears.
+      if (entries.length === 0) selection.requestNavigation(navigate);
+    });
+
+    if (action === "Escape") {
+      await fireEvent.keyDown(window, { key: "Escape" });
+    } else if (action === "Cancel") {
+      await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    } else if (action === "Discard") {
+      await fireEvent.input(screen.getByPlaceholderText("Title"), {
+        target: { value: "Changed title" },
+      });
+      selection.requestNavigation(vi.fn());
+      await fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+    } else {
+      selection.requestNavigation(vi.fn());
+    }
+
+    await waitFor(() => expect(vault.entries).toEqual([]));
+    await waitFor(() => expect(screen.queryByPlaceholderText("Title")).not.toBeInTheDocument());
+    expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
+    expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("blocks repeated navigation while an untouched entry is being discarded", async () => {
+    const entry = passwordEntry();
+    selectEntry(entry, true);
+    render(ItemDetail);
+    await screen.findByPlaceholderText("Title");
+    let finishDiscard!: () => void;
+    mocks.entryDiscard.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishDiscard = resolve;
+      }),
+    );
+    const navigate = vi.fn();
+    const repeatedNavigate = vi.fn();
+
+    selection.requestNavigation(navigate);
+    selection.requestNavigation(repeatedNavigate);
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(mocks.entryDiscard).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(repeatedNavigate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+    finishDiscard();
+    await waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+    expect(repeatedNavigate).not.toHaveBeenCalled();
+    expect(mocks.entryDiscard).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the draft and does not navigate when discard fails", async () => {
+    const entry = passwordEntry();
+    selectEntry(entry, true);
+    render(ItemDetail);
+    await screen.findByPlaceholderText("Title");
+    mocks.entryDiscard.mockRejectedValue(new Error("Discard failed"));
+    const toastError = vi.spyOn(toast, "error");
+    const navigate = vi.fn();
+
+    selection.requestNavigation(navigate);
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Discard failed"));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(selection.selectedId).toBe(entry.id);
+    expect(vault.entries).toEqual([summary(entry)]);
+    expect(screen.getByPlaceholderText("Title")).toHaveValue(entry.title);
+    expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+  });
+
+  it("prompts before Escape discards an edited new entry", async () => {
+    selectEntry(passwordEntry(), true);
+    render(ItemDetail);
+    const title = await screen.findByPlaceholderText("Title");
+    await fireEvent.input(title, { target: { value: "My new password" } });
+
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(await screen.findByRole("dialog", { name: "Save changes?" })).toBeInTheDocument();
+    expect(title).toHaveValue("My new password");
+    expect(mocks.entryDiscard).not.toHaveBeenCalled();
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+  });
+
   it("prompts before Escape discards unsaved changes", async () => {
     selectEntry(passwordEntry());
     render(ItemDetail);
