@@ -194,7 +194,7 @@
       showEntryCommandPalette = false;
       showCommandPalette = true;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Backspace" && !isEditable) {
       e.preventDefault();
       deleteSelected();
     }
