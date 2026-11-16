@@ -127,13 +127,17 @@
 
   async function createEntry(type: ItemType) {
     showCommandPalette = false;
+    const context = selection.filter;
     try {
       const entry = await entriesBridge.entryCreate(type, {
         title: `New ${ENTRY_TYPE_BY_TYPE[type].label}`,
+        ...(context.kind === "folder" ? { folderId: context.folderId } : {}),
+        ...(context.kind === "tag" ? { tags: [context.tag] } : {}),
       });
       selection.search = "";
       vault.setEntries([...vault.entries, toSummary(entry)]);
-      selection.filter = { kind: "type", type };
+      selection.filter =
+        context.kind === "folder" || context.kind === "tag" ? context : { kind: "type", type };
       selection.selectedId = entry.id;
       vault.setCreatingId(entry.id);
       vault.setEditingId(entry.id);

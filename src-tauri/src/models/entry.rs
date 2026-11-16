@@ -26,6 +26,9 @@ impl std::fmt::Debug for EntryDraft {
 #[serde(rename_all = "camelCase")]
 pub struct EntryDraft {
     pub title: String,
+    pub folder_id: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub username: Option<String>,
     pub password: Option<String>,
     pub url: Option<String>,
@@ -493,6 +496,8 @@ mod tests {
     fn entrydraft_debug_redacts_secrets() {
         let draft = EntryDraft {
             title: "Gmail".into(),
+            folder_id: None,
+            tags: Vec::new(),
             username: Some("alice@example.com".into()),
             password: Some("hunter2-SECRET".into()),
             url: Some("https://gmail.com".into()),
@@ -653,6 +658,8 @@ mod tests {
         // still come through distinctly.
         let with_password = EntryDraft {
             title: "x".into(),
+            folder_id: None,
+            tags: Vec::new(),
             username: None,
             password: Some("p".into()),
             url: None,

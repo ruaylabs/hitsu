@@ -132,6 +132,8 @@ fn setup() -> TestVault {
 fn draft(title: &str) -> EntryDraft {
     EntryDraft {
         title: title.to_string(),
+        folder_id: None,
+        tags: Vec::new(),
         username: None,
         password: None,
         url: None,
@@ -157,6 +159,49 @@ async fn create_adds_to_memory_not_to_disk() {
 
     // …but the on-disk file still has zero entries (create does not save).
     assert_eq!(tv.disk_entry_count(), 0, "create must not touch disk");
+}
+
+#[tokio::test]
+async fn create_inherits_folder_and_tags_without_saving() {
+    let tv = setup();
+    let state = tv.state();
+    let folder_id = {
+        let mut vaults = state.vaults.lock();
+        let vault = vaults.values_mut().next().unwrap();
+        let mut root = vault.db.root_mut();
+        let mut parent = root.add_group();
+        parent.name = "Work".into();
+        parent.add_group().id().uuid().to_string()
+    };
+    let mut contextual_draft = draft("Client login");
+    contextual_draft.folder_id = Some(folder_id.clone());
+    contextual_draft.tags = vec!["Clients".into()];
+    let entry = entry_create(state.clone(), "login".into(), contextual_draft)
+        .await
+        .unwrap();
+    assert_eq!(entry.folder_id.as_deref(), Some(folder_id.as_str()));
+    assert_eq!(entry.tags, vec!["Clients"]);
+    let fetched = entry_get(state.clone(), entry.id.clone()).await.unwrap();
+    assert_eq!(fetched.folder_id, entry.folder_id);
+    assert_eq!(fetched.tags, entry.tags);
+    assert_eq!(tv.disk_entry_count(), 0);
+}
+
+#[tokio::test]
+async fn create_rejects_unknown_folder_without_adding_stub() {
+    let tv = setup();
+    let state = tv.state();
+    for folder_id in ["invalid".to_string(), uuid::Uuid::new_v4().to_string()] {
+        let mut contextual_draft = draft("Client login");
+        contextual_draft.folder_id = Some(folder_id);
+        assert!(
+            entry_create(state.clone(), "login".into(), contextual_draft)
+                .await
+                .is_err()
+        );
+        assert!(entries_list(state.clone()).is_empty());
+    }
+    assert_eq!(tv.disk_entry_count(), 0);
 }
 
 #[tokio::test]

@@ -99,6 +99,8 @@ export async function entryCopyField(
 
 interface EntryDraft {
   title: string;
+  folderId?: string;
+  tags?: string[];
   username?: string | null;
   password?: string | null;
   url?: string | null;

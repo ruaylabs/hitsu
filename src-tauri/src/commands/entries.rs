@@ -816,15 +816,21 @@ pub async fn entry_create(
 
     let (_vault_id, vault) = vaults.iter_mut().next().ok_or(HitsuError::NoOpenVault)?;
 
+    let destination = folder_destination(&vault.db, draft.folder_id.as_deref().unwrap_or(""))?;
+    let folder_id = (destination != vault.db.root().id()).then(|| destination.uuid().to_string());
     let entry_id = EntryId::from_uuid(uuid::Uuid::new_v4());
     let id = entry_id.uuid().to_string();
 
     {
-        let mut root = vault.db.root_mut();
-        let mut em = root
+        let mut group = vault
+            .db
+            .group_mut(destination)
+            .ok_or_else(|| HitsuError::Custom("Folder not found".into()))?;
+        let mut em = group
             .add_entry_with_id(entry_id)
             .map_err(|_| HitsuError::Custom("Duplicate entry ID (should not happen)".into()))?;
 
+        em.tags = draft.tags.clone();
         em.set_unprotected(fields::TITLE, &draft.title);
         if let Some(ref u) = draft.username {
             em.set_unprotected(fields::USERNAME, u);
@@ -869,10 +875,10 @@ pub async fn entry_create(
         has_password: draft.password.as_deref().is_some_and(|p| !p.is_empty()),
         has_totp: draft.totp.as_deref().is_some_and(|t| !t.is_empty()),
         notes: draft.notes.take(),
-        tags: Vec::new(),
+        tags: std::mem::take(&mut draft.tags),
         favorite: false,
         trashed: false,
-        folder_id: None,
+        folder_id,
         icon_hint: None,
         identity: None,
         card: None,
