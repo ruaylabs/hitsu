@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { svelteTesting } from "@testing-library/svelte/vite";
 import { defineConfig } from "vitest/config";
 
@@ -8,7 +11,18 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit(), svelteTesting()],
+  plugins: [
+    sveltekit({
+      preprocess: vitePreprocess(),
+      adapter: adapter({ fallback: "index.html" }),
+      version: { pollInterval: 0 },
+    }),
+    svelteTesting(),
+  ],
+
+  resolve: {
+    alias: { $lib: fileURLToPath(new URL("./src/lib", import.meta.url)) },
+  },
 
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(packageJson.version),
