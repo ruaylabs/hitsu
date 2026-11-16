@@ -1,6 +1,8 @@
 import { cleanup, render, waitFor } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as entriesBridge from "$lib/bridge/entries";
+import type { Entry, ItemType } from "$lib/bridge/types";
 import { app } from "$lib/stores/app.svelte";
 import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
 import { selection } from "$lib/stores/selection.svelte";
@@ -10,8 +12,11 @@ const mocks = vi.hoisted(() => ({
   listeners: new Map<string, () => void>(),
   unlisten: vi.fn(),
   lock: vi.fn(),
-  newItem: vi.fn(),
+  newItem: vi.fn((_anchor: unknown, _props: { onSelect: (type: ItemType) => void }) => {}),
   shortcuts: vi.fn(),
+  setEntries: vi.fn(),
+  setCreatingId: vi.fn(),
+  setEditingId: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
@@ -22,7 +27,15 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 vi.mock("$lib/bridge/prefs", () => ({ prefsGet: vi.fn(async () => ({})) }));
 vi.mock("$lib/stores/vault.svelte", () => ({
-  vault: { locked: true, meta: null, lock: mocks.lock },
+  vault: {
+    locked: true,
+    meta: null,
+    lock: mocks.lock,
+    entries: [],
+    setEntries: mocks.setEntries,
+    setCreatingId: mocks.setCreatingId,
+    setEditingId: mocks.setEditingId,
+  },
 }));
 vi.mock("$lib/components/chrome/StatusBar.svelte", () => ({ default: () => {} }));
 vi.mock("$lib/components/detail/ItemDetail.svelte", () => ({ default: () => {} }));
@@ -36,8 +49,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.listeners.clear();
   app.view = "main";
+  selection.search = "";
+  selection.selectedId = null;
+  selection.filter = { kind: "all" };
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("delete keyboard shortcut", () => {
   it.each(["metaKey", "ctrlKey"])("preserves text editing with %s", (modifier) => {
@@ -106,6 +125,40 @@ describe("delete keyboard shortcut", () => {
     } finally {
       input.remove();
     }
+  });
+});
+
+describe("creating entries during search", () => {
+  it.each(["", "git", "zzz"])("clears search %j and selects the new draft", async (query) => {
+    const entry: Entry = {
+      id: "new-login",
+      type: "login",
+      title: "New Login",
+      subtitle: "",
+      hasPassword: false,
+      hasTotp: false,
+      tags: [],
+      favorite: false,
+      attachments: [],
+      customFields: [],
+      modifiedAt: "",
+      createdAt: "",
+      historyCount: 0,
+      hasCustomIcon: false,
+    };
+    const create = vi.spyOn(entriesBridge, "entryCreate").mockResolvedValue(entry);
+    selection.search = query;
+    render(MainApp);
+    mocks.listeners.get("menu://new-item")?.();
+    await tick();
+    mocks.newItem.mock.calls[0][1].onSelect("login");
+    await waitFor(() => expect(selection.selectedId).toBe(entry.id));
+    expect(create).toHaveBeenCalledExactlyOnceWith("login", { title: "New Login" });
+    expect(selection.search).toBe("");
+    expect(selection.filter).toEqual({ kind: "type", type: "login" });
+    expect(mocks.setEntries).toHaveBeenCalledWith([entriesBridge.toSummary(entry)]);
+    expect(mocks.setCreatingId).toHaveBeenCalledWith(entry.id);
+    expect(mocks.setEditingId).toHaveBeenCalledWith(entry.id);
   });
 });
 

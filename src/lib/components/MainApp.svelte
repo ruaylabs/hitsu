@@ -131,6 +131,7 @@
       const entry = await entriesBridge.entryCreate(type, {
         title: `New ${ENTRY_TYPE_BY_TYPE[type].label}`,
       });
+      selection.search = "";
       vault.setEntries([...vault.entries, toSummary(entry)]);
       selection.filter = { kind: "type", type };
       selection.selectedId = entry.id;
