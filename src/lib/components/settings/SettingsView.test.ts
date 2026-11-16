@@ -151,6 +151,23 @@ describe("SettingsView", () => {
     expect(mocks.setTheme).toHaveBeenCalledWith("dark");
   });
 
+  it("shows a toast for each repeated settings failure", async () => {
+    mocks.setTheme.mockRejectedValue(new Error("Could not save theme"));
+    render(SettingsView);
+
+    const select = await screen.findByRole("combobox", { name: "Theme" });
+    await waitFor(() => expect(select).toHaveValue("system"));
+    await fireEvent.change(select, { target: { value: "dark" } });
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+
+    await fireEvent.change(select, { target: { value: "light" } });
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(2));
+    expect(mocks.toastError.mock.calls).toEqual([
+      ["Could not save theme"],
+      ["Could not save theme"],
+    ]);
+  });
+
   it("enables optional folder support", async () => {
     render(SettingsView);
 

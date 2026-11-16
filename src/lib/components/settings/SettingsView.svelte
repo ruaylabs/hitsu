@@ -36,8 +36,6 @@
     | { kind: "favicon-confirm" }
     | null = $state(null);
 
-  let statusMsg = $state("");
-  let statusError = $state(false);
   let importing = $state(false);
   let downloadingFavicons = $state(false);
   let importReport = $state<ImportReport | null>(null);
@@ -47,18 +45,6 @@
   let vaultItemCount = $derived(vault.entries.length);
   let biometric = $state<BiometricStatus>({ available: false, enabled: false });
   let biometricBusy = $state(false);
-  let lastStatusToast = "";
-
-  $effect(() => {
-    if (!statusMsg) {
-      lastStatusToast = "";
-      return;
-    }
-    if (statusMsg === lastStatusToast) return;
-    lastStatusToast = statusMsg;
-    if (statusError) toast.error(statusMsg);
-    else toast.success(statusMsg);
-  });
 
   async function handleOpen() {
     try {
@@ -67,8 +53,7 @@
       selectedPath = result;
       dialog = { kind: "open" };
     } catch (e) {
-      statusError = true;
-      statusMsg = String(e);
+      toast.error(String(e));
     }
   }
 
@@ -80,8 +65,7 @@
       features.hydrate(prefs);
       recentVaults = prefs.recentVaults ?? [];
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     }
 
     const path = vault.meta?.path;
@@ -108,8 +92,7 @@
     try {
       await theme.save(value);
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     }
   }
 
@@ -123,8 +106,7 @@
         });
       }
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     }
   }
 
@@ -133,8 +115,7 @@
     try {
       await features.setBrowserIntegrationEnabled(enabled);
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     }
   }
 
@@ -153,11 +134,9 @@
     try {
       await biometricBridge.biometricDisable(path);
       biometric = { ...biometric, enabled: false };
-      statusError = false;
-      statusMsg = "Touch ID disabled";
+      toast.success("Touch ID disabled");
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     } finally {
       biometricBusy = false;
     }
@@ -169,8 +148,7 @@
     await biometricBridge.biometricEnable(path, password);
     biometric = { available: true, enabled: true };
     dialog = null;
-    statusError = false;
-    statusMsg = "Touch ID enabled";
+    toast.success("Touch ID enabled");
   }
 
   async function doOpen(password: string) {
@@ -195,8 +173,7 @@
       selectedPath = result;
       dialog = { kind: "create" };
     } catch (e) {
-      statusError = true;
-      statusMsg = String(e);
+      toast.error(String(e));
     }
   }
 
@@ -212,8 +189,7 @@
     pendingOldPw = "";
     biometric = { ...biometric, enabled: false };
     dialog = null;
-    statusError = false;
-    statusMsg = "Password changed successfully";
+    toast.success("Password changed successfully");
   }
 
   function requestImport() {
@@ -244,30 +220,27 @@
         vaultBridge.importReportExport(skippedReportCsv()),
       );
       if (!written) return;
-      statusError = false;
-      statusMsg = "Import report exported.";
+      toast.success("Import report exported.");
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     }
   }
 
   async function downloadFavicons() {
     dialog = null;
     downloadingFavicons = true;
-    statusMsg = "";
     try {
       const report = await entriesBridge.entriesDownloadFavicons();
       vault.setEntries(report.entries);
       if (vault.meta) {
         vault.setMeta({ ...vault.meta, entries: report.entries });
       }
-      statusError = false;
       const failed = report.failed ? ` ${report.failed} failed.` : "";
-      statusMsg = `Downloaded ${report.downloaded} website icon${report.downloaded === 1 ? "" : "s"}.${failed}`;
+      toast.success(
+        `Downloaded ${report.downloaded} website icon${report.downloaded === 1 ? "" : "s"}.${failed}`,
+      );
     } catch (error) {
-      statusError = true;
-      statusMsg = errorMessage(error);
+      toast.error(errorMessage(error));
     } finally {
       downloadingFavicons = false;
     }
@@ -277,7 +250,6 @@
     dialog = null;
     importing = true;
     importError = "";
-    statusMsg = "";
     try {
       // The backend opens the 1PIF file picker; keep the privacy screen away.
       const report = await nativeDialog.during(() => vaultBridge.vaultImport1pif());
@@ -286,17 +258,17 @@
       if (vault.meta) {
         vault.setMeta({ ...vault.meta, entries: report.entries });
       }
-      statusError = false;
       importReport = report;
       skippedEntries = report.skippedEntries;
       const skippedItems = report.skippedItems - report.failedItems;
       const skipped = skippedItems ? ` ${skippedItems} skipped.` : "";
       const failed = report.failedItems ? ` ${report.failedItems} failed.` : "";
-      statusMsg = `Imported ${report.importedItems} item${report.importedItems === 1 ? "" : "s"}.${skipped}${failed}`;
+      toast.success(
+        `Imported ${report.importedItems} item${report.importedItems === 1 ? "" : "s"}.${skipped}${failed}`,
+      );
     } catch (error) {
       importError = errorMessage(error);
-      statusError = true;
-      statusMsg = importError;
+      toast.error(importError);
     } finally {
       importing = false;
     }
