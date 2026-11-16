@@ -183,6 +183,10 @@
     );
   }
 
+  function focusTitle(input: HTMLInputElement) {
+    input.focus();
+  }
+
   function clearCardErrors() {
     cardErrors = NO_CARD_ERRORS;
   }
@@ -628,12 +632,11 @@
 
     {#if editing}
       <div class="edit-title">
-        <!-- svelte-ignore a11y_autofocus -->
         <input
           class="edit-title-input"
           type="text"
           placeholder="Title"
-          autofocus
+          use:focusTitle
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"

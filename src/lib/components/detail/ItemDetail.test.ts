@@ -181,6 +181,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("focuses the new entry title when search already has focus", async () => {
+  const search = document.createElement("input");
+  search.type = "search";
+  document.body.append(search);
+  try {
+    search.focus();
+    expect(search).toHaveFocus();
+    selectEntry(passwordEntry(), true);
+    render(ItemDetail);
+
+    const title = await screen.findByPlaceholderText("Title");
+    await waitFor(() => expect(title).toHaveFocus());
+  } finally {
+    search.remove();
+  }
+});
+
 describe("detail window dragging", () => {
   it.each([
     "MacIntel",
