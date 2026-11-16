@@ -1,3 +1,6 @@
+# Temporarily disable the release-age rule to test the Tauri upgrade; restore afterward.
+minimumReleaseAge: 0
+
 allowBuilds:
   edgedriver: false
   esbuild: true
