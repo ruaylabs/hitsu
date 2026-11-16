@@ -55,8 +55,6 @@ jobs:
           sed -i '' 's/^version = ".*"/version = "'"${VERSION}"'"/' src-tauri/Cargo.toml
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11.5.2
 
       - uses: actions/setup-node@v6.4.0
         with:
@@ -126,8 +124,6 @@ jobs:
           sed -i 's/^version = ".*"/version = "'"${VERSION}"'"/' src-tauri/Cargo.toml
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11.5.2
 
       - uses: actions/setup-node@v6.4.0
         with:
