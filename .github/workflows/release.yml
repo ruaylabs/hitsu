@@ -160,3 +160,65 @@ jobs:
             --notes-file release-notes.md \
             $PRERELEASE_FLAG \
             "${ASSETS[@]}"
+
+  update-nix-package:
+    runs-on: ubuntu-24.04
+    needs: publish
+    permissions:
+      contents: write
+    concurrency:
+      group: update-nix-package
+      cancel-in-progress: false
+    steps:
+      - name: Check stable release tag
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v6.0.3
+        if: steps.release.outputs.stable == 'true'
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/download-artifact@v8
+        if: steps.release.outputs.stable == 'true'
+        with:
+          name: linux
+          path: ${{ runner.temp }}/hitsu-linux
+
+      - name: Update package version and checksum
+        if: steps.release.outputs.stable == 'true'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          ARTIFACT_DIR: ${{ runner.temp }}/hitsu-linux
+        run: python3 scripts/update-nix-package.py
+
+      - uses: cachix/install-nix-action@v31
+        if: steps.release.outputs.stable == 'true'
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Validate Nix package
+        if: steps.release.outputs.stable == 'true'
+        run: nix build .#default --no-link
+
+      - name: Commit package update
+        if: steps.release.outputs.stable == 'true'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git diff --quiet -- nix/package.nix; then
+            echo "Nix package is already up to date."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add nix/package.nix
+          git commit -m "chore(nix): update package to ${RELEASE_TAG#v}"
+          git push origin "HEAD:$DEFAULT_BRANCH"
