@@ -367,7 +367,9 @@
 
   :global(html[data-platform="macos"]) .sidebar-drag-region {
     display: block;
-    height: 24px;
+    /* Include the sidebar padding beside the traffic lights without moving its controls. */
+    height: calc(var(--space-4) + 24px);
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-2)) 0;
   }
 
   .folder-form {

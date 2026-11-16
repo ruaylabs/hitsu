@@ -4,7 +4,7 @@
   import { ENTRY_TYPE_BY_TYPE } from "$lib/entryTypes";
   import { selection } from "$lib/stores/selection.svelte";
   import { vault } from "$lib/stores/vault.svelte";
-  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
+  import { isMacPlatform, keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 
   let {
@@ -83,8 +83,8 @@
   }
 </script>
 
-<div class="search-wrapper">
-  <div class="search-pill">
+<div class="search-wrapper" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
+  <div class="search-pill" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
     <Icon name="search" size={14} />
     <input
       type="text"

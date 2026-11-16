@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
+  import { isMacPlatform, keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import Icon from "../ui/Icon.svelte";
 </script>
 
-<div class="empty-detail">
+<div class="empty-detail" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
   <Icon name="list-details" size={18} />
   <p>Select an item to view its details</p>
   <div class="shortcut-hints" aria-label="Keyboard shortcuts">

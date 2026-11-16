@@ -178,6 +178,84 @@ afterEach(() => {
   vault.setCreatingId(null);
   vault.setEditingId(null);
   clipboard.cancel();
+  vi.restoreAllMocks();
+});
+
+describe("detail window dragging", () => {
+  it.each([
+    "MacIntel",
+    "Linux x86_64",
+  ])("makes detail padding and nested header space draggable only on macOS (%s)", async (platform) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    selectEntry(passwordEntry());
+    const { container } = render(ItemDetail);
+    const title = await screen.findByRole("heading", { name: "Recovery password" });
+
+    if (platform === "MacIntel") {
+      expect(container.querySelector(".detail-pane")).toHaveAttribute("data-tauri-drag-region", "");
+      expect(container.querySelector(".detail-header")).toHaveAttribute(
+        "data-tauri-drag-region",
+        "deep",
+      );
+      expect(container.querySelector(".detail-header-left")).not.toHaveAttribute(
+        "data-tauri-drag-region",
+      );
+      expect(title).toHaveAttribute("data-tauri-drag-region", "false");
+    } else {
+      expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
+    }
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).not.toHaveAttribute("data-tauri-drag-region");
+    }
+    expect(screen.getByText("Original note")).not.toHaveAttribute("data-tauri-drag-region");
+  });
+
+  it.each([
+    "MacIntel",
+    "Linux x86_64",
+  ])("supports an empty detail background without making its text draggable (%s)", (platform) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    const { container } = render(ItemDetail);
+    const message = screen.getByText("Select an item to view its details");
+
+    if (platform === "MacIntel") {
+      expect(container.querySelector(".empty-detail")).toHaveAttribute(
+        "data-tauri-drag-region",
+        "",
+      );
+    } else {
+      expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
+    }
+    expect(message).not.toHaveAttribute("data-tauri-drag-region");
+  });
+
+  it("keeps edit toolbar whitespace draggable while leaving form controls alone", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    selectEntry(passwordEntry());
+    const { container } = render(ItemDetail);
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    const input = await screen.findByPlaceholderText("Title");
+
+    expect(container.querySelector(".detail-toolbar")).toHaveAttribute(
+      "data-tauri-drag-region",
+      "deep",
+    );
+    expect(input).not.toHaveAttribute("data-tauri-drag-region");
+    expect(screen.getByRole("button", { name: "Save" })).not.toHaveAttribute(
+      "data-tauri-drag-region",
+    );
+  });
+
+  it.each(["loading", "error"])("keeps %s detail padding draggable", async (state) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    selectEntry(passwordEntry());
+    if (state === "loading") mocks.entryGet.mockReturnValue(new Promise(() => {}));
+    else mocks.entryGet.mockRejectedValue(new Error("Entry unavailable"));
+    const { container } = render(ItemDetail);
+    await screen.findByText(state === "loading" ? "Loading…" : "Entry unavailable");
+
+    expect(container.querySelector(".detail-pane")).toHaveAttribute("data-tauri-drag-region", "");
+  });
 });
 
 describe("ItemDetail errors", () => {

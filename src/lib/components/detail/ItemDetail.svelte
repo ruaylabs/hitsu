@@ -12,7 +12,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { vault } from "$lib/stores/vault.svelte";
   import { errorMessage } from "$lib/utils/errorMessage";
-  import { keyboardShortcut } from "$lib/utils/keyboardShortcut";
+  import { isMacPlatform, keyboardShortcut } from "$lib/utils/keyboardShortcut";
   import { tagColor } from "$lib/utils/tagColor";
   import GeneratorPanel from "../generator/GeneratorPanel.svelte";
   import Button from "../ui/Button.svelte";
@@ -540,22 +540,22 @@
 {/if}
 
 {#if entryLoading && !_entry}
-  <div class="detail-pane">
+  <div class="detail-pane" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
     <div class="empty-detail">
       <p>Loading…</p>
     </div>
   </div>
 {:else if entryError}
-  <div class="detail-pane">
+  <div class="detail-pane" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
     <div class="empty-detail">
       <p class="error-msg">{entryError}</p>
     </div>
   </div>
 {:else if _entry}
   {@const entry = _entry}
-  <div class="detail-pane">
+  <div class="detail-pane" data-tauri-drag-region={isMacPlatform() ? "" : undefined}>
     {#if entry.trashed || editing}
-      <div class="detail-toolbar">
+      <div class="detail-toolbar" data-tauri-drag-region={isMacPlatform() ? "deep" : undefined}>
         {#if entry.trashed}
           <Button
             variant="primary"

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/svelte";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selection } from "$lib/stores/selection.svelte";
 import SearchField from "./SearchField.svelte";
 
@@ -8,7 +8,22 @@ beforeEach(() => {
   selection.filter = { kind: "all" };
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("SearchField", () => {
+  it.each(["MacIntel", "Linux x86_64"])("limits header dragging to macOS (%s)", (platform) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    const { container } = render(SearchField);
+
+    expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(
+      platform === "MacIntel" ? 2 : 0,
+    );
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("data-tauri-drag-region");
+    expect(screen.getByRole("button", { name: "Add entry" })).not.toHaveAttribute(
+      "data-tauri-drag-region",
+    );
+  });
+
   it("shows the search shortcut while the field is empty", async () => {
     render(SearchField);
 

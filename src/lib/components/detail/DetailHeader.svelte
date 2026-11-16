@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Entry } from "$lib/bridge/types";
+  import { isMacPlatform } from "$lib/utils/keyboardShortcut";
   import EntryIcon from "../list/EntryIcon.svelte";
   import IconButton from "../ui/IconButton.svelte";
 
@@ -35,13 +36,14 @@
 </script>
 
 {#if folderName}
-  <div class="detail-toolbar">
+  <div class="detail-toolbar" data-tauri-drag-region={isMacPlatform() ? "deep" : undefined}>
     <div class="breadcrumb">
       <span title={folderName}>{folderName}</span>
     </div>
   </div>
 {/if}
-<div class="detail-header">
+<!-- Deep regions include nested header whitespace; buttons still block native dragging. -->
+<div class="detail-header" data-tauri-drag-region={isMacPlatform() ? "deep" : undefined}>
   <div class="detail-header-left">
     <EntryIcon
       iconHint={entry.iconHint}
@@ -53,7 +55,13 @@
       entryId={entry.id}
     />
     <div class="detail-header-text">
-      <h1 class="detail-title" title={entry.title}>{entry.title}</h1>
+      <h1
+        class="detail-title"
+        title={entry.title}
+        data-tauri-drag-region={isMacPlatform() ? "false" : undefined}
+      >
+        {entry.title}
+      </h1>
     </div>
   </div>
   {#if !readOnly}
