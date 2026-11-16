@@ -799,14 +799,10 @@
     onconfirm={async (uri) => {
       showTotpSetup = false;
       if (!_entry) return;
-      try {
-        const updated = await entriesBridge.entryUpdate(_entry.id, { totp: uri });
-        installUpdatedEntry(updated);
-        void health.refresh();
-        if (editing && selection.selectedId === updated.id) form.totp = uri;
-        toast.success("TOTP configured successfully");
-      } catch (e) {
-        toast.error(errorMessage(e));
+      const entryId = _entry.id;
+      if (!editing) await startEdit();
+      if (editing && _entry?.id === entryId && selection.selectedId === entryId) {
+        form.totp = uri;
       }
     }}
   />

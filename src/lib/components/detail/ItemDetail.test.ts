@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Entry, EntrySummary } from "$lib/bridge/types";
@@ -196,6 +196,76 @@ it("focuses the new entry title when search already has focus", async () => {
   } finally {
     search.remove();
   }
+});
+
+describe("TOTP draft setup", () => {
+  const uri = "otpauth://totp/entry?secret=JBSWY3DPEHPK3PXP&period=30&digits=6";
+
+  async function configureTotp(buttonName = "Setup TOTP from seed") {
+    await fireEvent.click(await screen.findByRole("button", { name: buttonName }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Setup TOTP" }));
+    await fireEvent.click(dialog.getByRole("tab", { name: "Seed code" }));
+    await fireEvent.input(dialog.getByLabelText("Seed code"), {
+      target: { value: "JBSWY3DPEHPK3PXP" },
+    });
+    await fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByPlaceholderText("otpauth:// URI")).toHaveValue(uri));
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+  }
+
+  it.each([true, false])("persists TOTP only on entry Save (new: %s)", async (creating) => {
+    const entry = passwordEntry({ type: "login", hasPassword: false, url: "" });
+    selectEntry(entry, creating);
+    mocks.entryUpdate.mockResolvedValue({ ...entry, hasTotp: true });
+    render(ItemDetail);
+    if (!creating) {
+      await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    }
+    await configureTotp();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mocks.entryUpdate).toHaveBeenCalledExactlyOnceWith(entry.id, { totp: uri }),
+    );
+    expect(await screen.findByRole("button", { name: "Edit entry" })).toBeInTheDocument();
+    expect(mocks.entryDiscard).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])("discards staged TOTP without saving (new: %s)", async (creating) => {
+    const entry = passwordEntry({ type: "login", hasPassword: false });
+    selectEntry(entry, creating);
+    render(ItemDetail);
+    if (!creating) {
+      await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    }
+    await configureTotp();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Save changes?" }));
+    await fireEvent.click(dialog.getByRole("button", { name: "Discard" }));
+
+    await waitFor(() => expect(screen.queryByPlaceholderText("Title")).not.toBeInTheDocument());
+    expect(mocks.entryUpdate).not.toHaveBeenCalled();
+    if (creating) {
+      expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
+      expect(vault.entries).toEqual([]);
+    } else {
+      expect(mocks.entryDiscard).not.toHaveBeenCalled();
+      await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+      expect(await screen.findByPlaceholderText("otpauth:// URI")).toHaveValue("");
+    }
+  });
+
+  it("stages setup from the detail view in a new edit session", async () => {
+    selectEntry(passwordEntry({ type: "login", hasPassword: false }));
+    render(ItemDetail);
+
+    await configureTotp("Setup TOTP");
+
+    expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    expect(saveStatus.state).toBe("dirty");
+  });
 });
 
 describe("detail window dragging", () => {
