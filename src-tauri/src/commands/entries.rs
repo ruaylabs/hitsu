@@ -297,7 +297,7 @@ fn entry_expiration_date(entry: &keepass::db::Entry) -> Option<String> {
     if !entry.times.expires.unwrap_or(false) {
         return None;
     }
-    entry.times.expiry.map(|expiry| expiry.date().to_string())
+    Some(entry.times.expiry.date().to_string())
 }
 
 fn mask_card_number(num: &str) -> Option<String> {
@@ -1114,10 +1114,12 @@ fn apply_patch(entry: &mut keepass::db::Entry, patch: &EntryPatch) {
     if let Some(expires_at) = &patch.expires_at {
         if expires_at.is_empty() {
             entry.times.expires = Some(false);
-            entry.times.expiry = None;
-        } else if let Ok(date) = chrono::NaiveDate::parse_from_str(expires_at, "%Y-%m-%d") {
+        } else if let Some(expiry) = chrono::NaiveDate::parse_from_str(expires_at, "%Y-%m-%d")
+            .ok()
+            .and_then(|date| date.and_hms_opt(23, 59, 59))
+        {
             entry.times.expires = Some(true);
-            entry.times.expiry = date.and_hms_opt(23, 59, 59);
+            entry.times.expiry = expiry;
         }
     }
 
@@ -2205,10 +2207,7 @@ mod tests {
 
         let entry = db.entry(entry_id).unwrap();
         assert_eq!(entry.times.expires, Some(true));
-        assert_eq!(
-            entry.times.expiry.unwrap().to_string(),
-            "2030-05-20 23:59:59"
-        );
+        assert_eq!(entry.times.expiry.to_string(), "2030-05-20 23:59:59");
         assert_eq!(
             map_entry_to_full(&entry, false, None).expires_at.as_deref(),
             Some("2030-05-20")
@@ -2218,7 +2217,8 @@ mod tests {
         apply_patch(&mut db.entry_mut(entry_id).unwrap(), &patch);
         let entry = db.entry(entry_id).unwrap();
         assert_eq!(entry.times.expires, Some(false));
-        assert!(entry.times.expiry.is_none());
+        // A disabled expiration retains its timestamp; `expires` controls whether it applies.
+        assert_eq!(entry.times.expiry.date().to_string(), "2030-05-20");
         assert!(map_entry_to_full(&entry, false, None).expires_at.is_none());
 
         patch.expires_at = Some("05/20/2030".into());

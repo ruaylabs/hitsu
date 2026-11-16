@@ -1332,7 +1332,7 @@ fn apply_import(
         entry.times.last_modification = Some(item.updated_at.unwrap_or(now));
         if let Some(expires_at) = item.expires_at {
             entry.times.expires = Some(true);
-            entry.times.expiry = Some(expires_at);
+            entry.times.expiry = expires_at;
         }
         imported_items += 1;
     }
@@ -1872,10 +1872,7 @@ mod tests {
             .is_protected());
         assert!(!entry.fields.contains_key("custom.duplicate password"));
         assert_eq!(entry.times.expires, Some(true));
-        assert_eq!(
-            entry.times.expiry.unwrap().to_string(),
-            "2030-01-01 23:59:59"
-        );
+        assert_eq!(entry.times.expiry.to_string(), "2030-01-01 23:59:59");
     }
 
     #[test]

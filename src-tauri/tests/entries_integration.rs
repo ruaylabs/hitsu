@@ -404,10 +404,7 @@ async fn entry_expiration_persists_and_clears() {
     let disk = tv.reload_disk();
     let disk_entry = disk.iter_all_entries().next().unwrap();
     assert_eq!(disk_entry.times.expires, Some(true));
-    assert_eq!(
-        disk_entry.times.expiry.unwrap().to_string(),
-        "2030-05-20 23:59:59"
-    );
+    assert_eq!(disk_entry.times.expiry.to_string(), "2030-05-20 23:59:59");
 
     let cleared = entry_update(
         state.clone(),
@@ -421,7 +418,7 @@ async fn entry_expiration_persists_and_clears() {
     let disk = tv.reload_disk();
     let disk_entry = disk.iter_all_entries().next().unwrap();
     assert_eq!(disk_entry.times.expires, Some(false));
-    assert!(disk_entry.times.expiry.is_none());
+    assert_eq!(disk_entry.times.expiry.date().to_string(), "2030-05-20");
 }
 
 #[tokio::test]
