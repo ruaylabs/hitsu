@@ -72,7 +72,8 @@
 
 <style>
   .sidebar-row {
-    position: relative;
+    display: flex;
+    align-items: center;
   }
 
   .sidebar-item {
@@ -82,7 +83,8 @@
     min-height: var(--row-sm);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     text-align: left;
     font-size: var(--text-sm);
     color: var(--text-primary);
@@ -105,12 +107,9 @@
   }
 
   .sidebar-count {
+    flex-shrink: 0;
     font-size: var(--text-sm);
     color: var(--text-muted);
-  }
-
-  .sidebar-row.has-actions:hover .sidebar-count {
-    opacity: 0;
   }
 
   .sidebar-item.selected .sidebar-count {
@@ -118,14 +117,11 @@
   }
 
   .sidebar-actions {
-    position: absolute;
-    top: 50%;
-    right: 4px;
     display: flex;
+    flex-shrink: 0;
+    margin-right: 4px;
     gap: var(--space-half);
-    padding-left: var(--space-3);
     opacity: 0;
-    transform: translateY(-50%);
     pointer-events: none;
   }
 
