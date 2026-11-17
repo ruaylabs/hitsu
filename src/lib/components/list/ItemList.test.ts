@@ -398,28 +398,27 @@ describe("ItemList", () => {
     }
   });
 
-  it.each([
-    "MacIntel",
-    "Linux x86_64",
-    "Win32",
-  ])("uses text-only context menus (%s)", async (platform) => {
-    const platformSpy = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
-    try {
-      vault.setEntries(makeEntries(1));
-      render(ItemList);
-      await openRowMenu(listRows()[0]);
+  it.each(["MacIntel", "Linux x86_64", "Win32"])(
+    "uses text-only context menus (%s)",
+    async (platform) => {
+      const platformSpy = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      try {
+        vault.setEntries(makeEntries(1));
+        render(ItemList);
+        await openRowMenu(listRows()[0]);
 
-      expect(nativeItem("Open URL").icon).toBeUndefined();
-      expect(nativeItem("Add to favorites").icon).toBeUndefined();
-      expect(nativeItem("Delete").icon).toBeUndefined();
-      expect(nativeItem("Copy username").icon).toBeUndefined();
-      expect(nativeItem("Copy password").icon).toBeUndefined();
-      expect(nativeItem("Copy TOTP").icon).toBeUndefined();
-      expect(nativeItem("Edit").icon).toBeUndefined();
-    } finally {
-      platformSpy.mockRestore();
-    }
-  });
+        expect(nativeItem("Open URL").icon).toBeUndefined();
+        expect(nativeItem("Add to favorites").icon).toBeUndefined();
+        expect(nativeItem("Delete").icon).toBeUndefined();
+        expect(nativeItem("Copy username").icon).toBeUndefined();
+        expect(nativeItem("Copy password").icon).toBeUndefined();
+        expect(nativeItem("Copy TOTP").icon).toBeUndefined();
+        expect(nativeItem("Edit").icon).toBeUndefined();
+      } finally {
+        platformSpy.mockRestore();
+      }
+    },
+  );
 
   it("provides row actions in the context menu", async () => {
     vault.setEntries(makeEntries(2));

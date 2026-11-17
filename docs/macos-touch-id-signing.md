@@ -11,8 +11,7 @@ References:
 - [Tauri macOS code signing][tauri-signing]
 - [Tauri `bundle.macOS.files` and `entitlements` configuration][tauri-config]
 
-[apple-tn3137]:
-  https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains
+[apple-tn3137]: https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains
 [tauri-signing]: https://v2.tauri.app/distribute/sign/macos/
 [tauri-config]: https://v2.tauri.app/reference/config/#macconfig
 

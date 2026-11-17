@@ -15,4 +15,4 @@
   let aria = $derived(label ? { "aria-label": label } : { "aria-hidden": "true" as const });
 </script>
 
-<i class="ti ti-{name}" style="font-size: {size}px; {style ?? ''}" {...aria} {...rest}></i>
+<i class="ti ti-{name}" style="font-size: {size}px; {style ?? ""}" {...aria} {...rest}></i>

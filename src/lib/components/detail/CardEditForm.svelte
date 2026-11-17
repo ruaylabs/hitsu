@@ -39,7 +39,7 @@
 <DetailFieldRow label="Type">
   <select class="control control--compact control--select" bind:value={form.cardType}>
     <option value="">Select brand</option>
-    {#each Object.entries(CARD_BRANDS) as [ key, name ]}
+    {#each Object.entries(CARD_BRANDS) as [key, name]}
       <option value={key}>{name}</option>
     {/each}
   </select>
@@ -56,7 +56,11 @@
       maxlength="2"
       autocomplete="off"
       bind:value={form.cardExpMonth}
-      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, '').slice(0, 2); form.cardExpMonth = el.value; }}
+      oninput={(e) => {
+        const el = e.currentTarget;
+        el.value = el.value.replace(/\D/g, "").slice(0, 2);
+        form.cardExpMonth = el.value;
+      }}
     />
     {#if cardErrors.cardExpMonth}
       <span class="control-error">{cardErrors.cardExpMonth}</span>
@@ -75,7 +79,11 @@
       maxlength="4"
       autocomplete="off"
       bind:value={form.cardExpYear}
-      oninput={(e) => { const el = e.currentTarget; el.value = el.value.replace(/\D/g, ''); form.cardExpYear = el.value; }}
+      oninput={(e) => {
+        const el = e.currentTarget;
+        el.value = el.value.replace(/\D/g, "");
+        form.cardExpYear = el.value;
+      }}
     />
     {#if cardErrors.cardExpYear}
       <span class="control-error">{cardErrors.cardExpYear}</span>

@@ -51,14 +51,13 @@ describe("active tab origin validation", () => {
     });
   });
 
-  it.each([
-    "chrome://extensions",
-    "file:///tmp/login.html",
-    "javascript:alert(1)",
-  ])("rejects non-web tab URL %s", async (url) => {
-    chromeMock.tabs.query.mockResolvedValue([{ id: 42, url }]);
-    await expect(activeHttpTab()).rejects.toThrow("Hitsu can only fill HTTP and HTTPS pages");
-  });
+  it.each(["chrome://extensions", "file:///tmp/login.html", "javascript:alert(1)"])(
+    "rejects non-web tab URL %s",
+    async (url) => {
+      chromeMock.tabs.query.mockResolvedValue([{ id: 42, url }]);
+      await expect(activeHttpTab()).rejects.toThrow("Hitsu can only fill HTTP and HTTPS pages");
+    },
+  );
 
   it("rejects a tab without a usable ID or URL", async () => {
     chromeMock.tabs.query.mockResolvedValue([{}]);

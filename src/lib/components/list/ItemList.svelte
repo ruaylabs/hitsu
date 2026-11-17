@@ -420,7 +420,9 @@
     role="listbox"
     bind:this={scrollEl}
     bind:clientHeight={viewportHeight}
-    onscroll={() => { scrollTop = scrollEl?.scrollTop ?? 0; }}
+    onscroll={() => {
+      scrollTop = scrollEl?.scrollTop ?? 0;
+    }}
   >
     {#if filtered.length > 0}
       <div
@@ -437,7 +439,10 @@
             <ItemListRow
               {entry}
               selected={entry.id === selection.selectedId}
-              onclick={() => selection.requestNavigation(() => { selection.selectedId = entry.id; })}
+              onclick={() =>
+                selection.requestNavigation(() => {
+                  selection.selectedId = entry.id;
+                })}
               oncontextmenu={(event) => openContextMenu(event, entry)}
             />
           {/each}

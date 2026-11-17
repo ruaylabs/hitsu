@@ -22,7 +22,9 @@
     <div class="strength-bar" aria-hidden="true">
       <div
         class="strength-fill"
-        style="width: {password ? strength.fraction * 100 : 0}%; background: {strengthColor(strength.level)};"
+        style="width: {password ? strength.fraction * 100 : 0}%; background: {strengthColor(
+          strength.level,
+        )};"
       ></div>
     </div>
     {#if password}

@@ -269,52 +269,55 @@ describe("TOTP draft setup", () => {
 });
 
 describe("detail window dragging", () => {
-  it.each([
-    "MacIntel",
-    "Linux x86_64",
-  ])("makes detail padding and nested header space draggable only on macOS (%s)", async (platform) => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
-    selectEntry(passwordEntry());
-    const { container } = render(ItemDetail);
-    const title = await screen.findByRole("heading", { name: "Recovery password" });
+  it.each(["MacIntel", "Linux x86_64"])(
+    "makes detail padding and nested header space draggable only on macOS (%s)",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      selectEntry(passwordEntry());
+      const { container } = render(ItemDetail);
+      const title = await screen.findByRole("heading", { name: "Recovery password" });
 
-    if (platform === "MacIntel") {
-      expect(container.querySelector(".detail-pane")).toHaveAttribute("data-tauri-drag-region", "");
-      expect(container.querySelector(".detail-header")).toHaveAttribute(
-        "data-tauri-drag-region",
-        "deep",
-      );
-      expect(container.querySelector(".detail-header-left")).not.toHaveAttribute(
-        "data-tauri-drag-region",
-      );
-      expect(title).toHaveAttribute("data-tauri-drag-region", "false");
-    } else {
-      expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
-    }
-    for (const button of screen.getAllByRole("button")) {
-      expect(button).not.toHaveAttribute("data-tauri-drag-region");
-    }
-    expect(screen.getByText("Original note")).not.toHaveAttribute("data-tauri-drag-region");
-  });
+      if (platform === "MacIntel") {
+        expect(container.querySelector(".detail-pane")).toHaveAttribute(
+          "data-tauri-drag-region",
+          "",
+        );
+        expect(container.querySelector(".detail-header")).toHaveAttribute(
+          "data-tauri-drag-region",
+          "deep",
+        );
+        expect(container.querySelector(".detail-header-left")).not.toHaveAttribute(
+          "data-tauri-drag-region",
+        );
+        expect(title).toHaveAttribute("data-tauri-drag-region", "false");
+      } else {
+        expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
+      }
+      for (const button of screen.getAllByRole("button")) {
+        expect(button).not.toHaveAttribute("data-tauri-drag-region");
+      }
+      expect(screen.getByText("Original note")).not.toHaveAttribute("data-tauri-drag-region");
+    },
+  );
 
-  it.each([
-    "MacIntel",
-    "Linux x86_64",
-  ])("supports an empty detail background without making its text draggable (%s)", (platform) => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
-    const { container } = render(ItemDetail);
-    const message = screen.getByText("Select an item to view its details");
+  it.each(["MacIntel", "Linux x86_64"])(
+    "supports an empty detail background without making its text draggable (%s)",
+    (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      const { container } = render(ItemDetail);
+      const message = screen.getByText("Select an item to view its details");
 
-    if (platform === "MacIntel") {
-      expect(container.querySelector(".empty-detail")).toHaveAttribute(
-        "data-tauri-drag-region",
-        "",
-      );
-    } else {
-      expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
-    }
-    expect(message).not.toHaveAttribute("data-tauri-drag-region");
-  });
+      if (platform === "MacIntel") {
+        expect(container.querySelector(".empty-detail")).toHaveAttribute(
+          "data-tauri-drag-region",
+          "",
+        );
+      } else {
+        expect(container.querySelectorAll("[data-tauri-drag-region]")).toHaveLength(0);
+      }
+      expect(message).not.toHaveAttribute("data-tauri-drag-region");
+    },
+  );
 
   it("keeps edit toolbar whitespace draggable while leaving form controls alone", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
@@ -940,50 +943,48 @@ describe("password entry workflow", () => {
     }
   });
 
-  it.each([
-    "Escape",
-    "Cancel",
-    "navigate",
-    "Discard",
-  ])("does not discard twice when list selection changes during %s", async (action) => {
-    const entry = passwordEntry();
-    selectEntry(entry, true);
-    render(ItemDetail);
-    await screen.findByPlaceholderText("Title");
-    mocks.entryDiscard
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValue(new Error("Entry not found"));
-    const toastError = vi.spyOn(toast, "error");
-    const setEntries = vault.setEntries.bind(vault);
-    const navigate = vi.fn(() => {
-      selection.selectedId = null;
-    });
-    vi.spyOn(vault, "setEntries").mockImplementation((entries) => {
-      setEntries(entries);
-      // Model ItemList reconciling selection when the discarded row disappears.
-      if (entries.length === 0) selection.requestNavigation(navigate);
-    });
-
-    if (action === "Escape") {
-      await fireEvent.keyDown(window, { key: "Escape" });
-    } else if (action === "Cancel") {
-      await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    } else if (action === "Discard") {
-      await fireEvent.input(screen.getByPlaceholderText("Title"), {
-        target: { value: "Changed title" },
+  it.each(["Escape", "Cancel", "navigate", "Discard"])(
+    "does not discard twice when list selection changes during %s",
+    async (action) => {
+      const entry = passwordEntry();
+      selectEntry(entry, true);
+      render(ItemDetail);
+      await screen.findByPlaceholderText("Title");
+      mocks.entryDiscard
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValue(new Error("Entry not found"));
+      const toastError = vi.spyOn(toast, "error");
+      const setEntries = vault.setEntries.bind(vault);
+      const navigate = vi.fn(() => {
+        selection.selectedId = null;
       });
-      selection.requestNavigation(vi.fn());
-      await fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
-    } else {
-      selection.requestNavigation(vi.fn());
-    }
+      vi.spyOn(vault, "setEntries").mockImplementation((entries) => {
+        setEntries(entries);
+        // Model ItemList reconciling selection when the discarded row disappears.
+        if (entries.length === 0) selection.requestNavigation(navigate);
+      });
 
-    await waitFor(() => expect(vault.entries).toEqual([]));
-    await waitFor(() => expect(screen.queryByPlaceholderText("Title")).not.toBeInTheDocument());
-    expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
-    expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
-    expect(toastError).not.toHaveBeenCalled();
-  });
+      if (action === "Escape") {
+        await fireEvent.keyDown(window, { key: "Escape" });
+      } else if (action === "Cancel") {
+        await fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      } else if (action === "Discard") {
+        await fireEvent.input(screen.getByPlaceholderText("Title"), {
+          target: { value: "Changed title" },
+        });
+        selection.requestNavigation(vi.fn());
+        await fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+      } else {
+        selection.requestNavigation(vi.fn());
+      }
+
+      await waitFor(() => expect(vault.entries).toEqual([]));
+      await waitFor(() => expect(screen.queryByPlaceholderText("Title")).not.toBeInTheDocument());
+      expect(mocks.entryDiscard).toHaveBeenCalledExactlyOnceWith(entry.id);
+      expect(screen.queryByRole("dialog", { name: "Save changes?" })).not.toBeInTheDocument();
+      expect(toastError).not.toHaveBeenCalled();
+    },
+  );
 
   it("blocks repeated navigation while an untouched entry is being discarded", async () => {
     const entry = passwordEntry();

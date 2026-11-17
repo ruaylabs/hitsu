@@ -169,7 +169,10 @@
           class:selected={i === selectedIndex}
           role="option"
           aria-selected={i === selectedIndex}
-          onmousedown={(e) => { e.preventDefault(); selectSuggestion(tag); }}
+          onmousedown={(e) => {
+            e.preventDefault();
+            selectSuggestion(tag);
+          }}
           onmouseenter={() => (selectedIndex = i)}
         >
           {tag}

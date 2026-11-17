@@ -523,8 +523,8 @@
                 <h3 class="maintenance-title">Recycle Bin</h3>
                 <p class="setting-description">
                   {recycleBin.count === 0
-                  ? "The Recycle Bin is empty."
-                  : `${recycleBin.count} entr${recycleBin.count === 1 ? "y" : "ies"} will be permanently deleted.`}
+                    ? "The Recycle Bin is empty."
+                    : `${recycleBin.count} entr${recycleBin.count === 1 ? "y" : "ies"} will be permanently deleted.`}
                 </p>
               </div>
               <Button
@@ -555,9 +555,9 @@
                     disabled={active}
                     title={active ? "Currently open" : "Open vault"}
                     onclick={async () => {
-                    selectedPath = path;
-                    dialog = { kind: "open" };
-                  }}
+                      selectedPath = path;
+                      dialog = { kind: "open" };
+                    }}
                   >
                     <Icon name={active ? "check" : "database"} size={14} />
                     <span class="recent-path">{path}</span>
@@ -615,7 +615,8 @@
             <span class="setting-label-group">
               <span class="setting-label">Browser integration</span>
               <span class="setting-description"
-                >Let the Hitsu browser extension fill logins from this app (developer preview).</span
+                >Let the Hitsu browser extension fill logins from this app (developer
+                preview).</span
               >
             </span>
             <input
@@ -676,14 +677,14 @@
               onchange={onIdleChange}
             >
               {#each [
-              ...(import.meta.env.DEV ? [{ value: 0, label: "Never (dev)" }] : []),
-              { value: 1, label: "1 minute" },
-              { value: 2, label: "2 minutes" },
-              { value: 5, label: "5 minutes" },
-              { value: 10, label: "10 minutes" },
-              { value: 30, label: "30 minutes" },
-              { value: 60, label: "1 hour" },
-            ] as opt}
+                ...(import.meta.env.DEV ? [{ value: 0, label: "Never (dev)" }] : []),
+                { value: 1, label: "1 minute" },
+                { value: 2, label: "2 minutes" },
+                { value: 5, label: "5 minutes" },
+                { value: 10, label: "10 minutes" },
+                { value: 30, label: "30 minutes" },
+                { value: 60, label: "1 hour" },
+              ] as opt}
                 <option value={opt.value} selected={security.idleLockMinutes === opt.value}>
                   {opt.label}
                 </option>
@@ -698,13 +699,13 @@
               onchange={onClipboardChange}
             >
               {#each [
-              { value: 5, label: "5 seconds" },
-              { value: 10, label: "10 seconds" },
-              { value: 15, label: "15 seconds" },
-              { value: 30, label: "30 seconds" },
-              { value: 60, label: "1 minute" },
-              { value: 0, label: "Never" },
-            ] as opt}
+                { value: 5, label: "5 seconds" },
+                { value: 10, label: "10 seconds" },
+                { value: 15, label: "15 seconds" },
+                { value: 30, label: "30 seconds" },
+                { value: 60, label: "1 minute" },
+                { value: 0, label: "Never" },
+              ] as opt}
                 <option value={opt.value} selected={security.clipboardClearSeconds === opt.value}>
                   {opt.label}
                 </option>

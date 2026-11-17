@@ -23,7 +23,9 @@
     <button
       type="button"
       class="add-custom-field"
-      onclick={() => { form.customFields = [...form.customFields, { name: "", value: "", protected: false }]; }}
+      onclick={() => {
+        form.customFields = [...form.customFields, { name: "", value: "", protected: false }];
+      }}
     >
       <Icon name="plus" size={14} />
       Add field
@@ -64,7 +66,9 @@
         class="remove-custom-field"
         aria-label="Remove custom field"
         title="Remove custom field"
-        onclick={() => { form.customFields = form.customFields.filter((_, i) => i !== index); }}
+        onclick={() => {
+          form.customFields = form.customFields.filter((_, i) => i !== index);
+        }}
       >
         <Icon name="x" size={14} />
       </button>

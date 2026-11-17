@@ -452,9 +452,7 @@
     message={recycleBin.count === 1
       ? "Permanently delete 1 entry from the Recycle Bin? This cannot be undone."
       : `Permanently delete ${recycleBin.count} entries from the Recycle Bin? This cannot be undone.`}
-    confirmLabel={recycleBin.count === 1
-      ? "Delete 1 entry"
-      : `Delete ${recycleBin.count} entries`}
+    confirmLabel={recycleBin.count === 1 ? "Delete 1 entry" : `Delete ${recycleBin.count} entries`}
     danger={true}
     onconfirm={() => recycleBin.confirm()}
     oncancel={() => recycleBin.cancel()}

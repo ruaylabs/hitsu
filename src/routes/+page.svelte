@@ -83,7 +83,7 @@
       oncancel={() => vault.setMeta(null)}
     />
   {:else if !startupChecked}
-  <!-- Waiting for startup check — show blank -->
+    <!-- Waiting for startup check — show blank -->
   {:else if !vault.meta}
     <OnboardingView />
   {:else if MainApp}

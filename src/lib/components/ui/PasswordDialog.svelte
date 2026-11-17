@@ -198,7 +198,9 @@
           disabled={working}
           bind:this={passwordInput}
           bind:value={password}
-          oninput={() => { localError = ""; }}
+          oninput={() => {
+            localError = "";
+          }}
           onkeydown={updateCapsLock}
           onkeyup={updateCapsLock}
           onfocus={() => (focusedField = "password")}
@@ -245,7 +247,9 @@
             spellcheck="false"
             disabled={working}
             bind:value={confirmPassword}
-            oninput={() => { localError = ""; }}
+            oninput={() => {
+              localError = "";
+            }}
             onkeydown={updateCapsLock}
             onkeyup={updateCapsLock}
             onfocus={() => (focusedField = "confirm")}
@@ -254,7 +258,9 @@
           <button
             type="button"
             class="reveal-button"
-            aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+            aria-label={showConfirmPassword
+              ? "Hide confirmation password"
+              : "Show confirmation password"}
             aria-pressed={showConfirmPassword}
             disabled={working}
             onclick={() => (showConfirmPassword = !showConfirmPassword)}

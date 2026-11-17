@@ -139,9 +139,9 @@ After changing them, run `nix flake check` on an x86_64 Linux machine to verify 
 - **Opt-in, off by default** — enable it in Settings → Features; nothing listens
   and no native-messaging host is registered until you do
 - Minimal Manifest V3 extension for Chrome, Chromium, Brave, and Edge — [install it from the Chrome
-  Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
+Web Store](https://chromewebstore.google.com/detail/hitsu-password-manager/pkickpkkbgpaffpdloplecfleckoopjc)
 - Firefox Manifest V3 extension with the same popup autofill workflow — [install it from
-  Mozilla Add-ons](https://addons.mozilla.org/addon/hitsu-password-manager/)
+Mozilla Add-ons](https://addons.mozilla.org/addon/hitsu-password-manager/)
 - Site-based login lookup (entries are matched by registrable domain, exact hosts first) and
   popup-initiated username/password filling
 - Native Messaging bridge to the unlocked desktop app on macOS and Linux
@@ -156,12 +156,12 @@ After changing them, run `nix flake check` on an x86_64 Linux machine to verify 
 
 ## Formats supported
 
-| Format  | Read | Write                  |
-|---------|------|------------------------|
-| KDBX4.1 | ✅   | ✅                     |
-| KDBX4.0 | ✅   | ✅ (upgraded on save)  |
-| KDBX3   | ❌   | ❌                     |
-| KDB     | ❌   | ❌                     |
+| Format  | Read | Write                 |
+| ------- | ---- | --------------------- |
+| KDBX4.1 | ✅   | ✅                    |
+| KDBX4.0 | ✅   | ✅ (upgraded on save) |
+| KDBX3   | ❌   | ❌                    |
+| KDB     | ❌   | ❌                    |
 
 KDBX4.0 vaults are upgraded to KDBX4.1 on first save. Hitsu currently requires an
 Argon2/Argon2id KDF; legacy AES-KDF vaults must be upgraded in KeePassXC first.
@@ -169,15 +169,15 @@ Written vaults remain compatible with KeePassXC and KeePass 2.x.
 
 ## Tech stack
 
-|Layer   |Technology                                                     |
-|--------|---------------------------------------------------------------|
-|Frontend|Svelte 5 (runes), TypeScript                                   |
-|Desktop |Tauri 2                                                        |
-|Backend |Rust                                                           |
-|KDBX    |[keepass](https://github.com/sseemayer/keepass-rs) 0.13        |
-|TOTP    |[totp-lite](https://crates.io/crates/totp-lite) (SHA-1/256/512)|
-|Icons   |[Tabler Icons](https://tabler.io/icons)                        |
-|Font    |OS default (system-ui fallback)                                |
+| Layer    | Technology                                                      |
+| -------- | --------------------------------------------------------------- |
+| Frontend | Svelte 5 (runes), TypeScript                                    |
+| Desktop  | Tauri 2                                                         |
+| Backend  | Rust                                                            |
+| KDBX     | [keepass](https://github.com/sseemayer/keepass-rs) 0.13         |
+| TOTP     | [totp-lite](https://crates.io/crates/totp-lite) (SHA-1/256/512) |
+| Icons    | [Tabler Icons](https://tabler.io/icons)                         |
+| Font     | OS default (system-ui fallback)                                 |
 
 ## Development
 
@@ -248,7 +248,7 @@ src-tauri/         # Rust backend
   written to swap. Use encrypted swap or full-disk encryption.
 - The CSP keeps `style-src-attr 'unsafe-inline'` (plus `style-src 'unsafe-inline'`
   as a fallback for older WebKit): Svelte's dynamic `style=` bindings require it.
-  Style *elements* are restricted to `'self'`, and with `script-src 'self'` the
+  Style _elements_ are restricted to `'self'`, and with `script-src 'self'` the
   residual style-injection risk is low.
 - The browser integration's local socket lives in `$XDG_RUNTIME_DIR` (per-user,
   mode 0700) when available, so other users can never pre-bind its predictable

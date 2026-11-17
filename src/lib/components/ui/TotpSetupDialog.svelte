@@ -278,7 +278,9 @@
           autocapitalize="characters"
           spellcheck="false"
           bind:value={seed}
-          oninput={() => { error = ""; }}
+          oninput={() => {
+            error = "";
+          }}
         />
       {/if}
 

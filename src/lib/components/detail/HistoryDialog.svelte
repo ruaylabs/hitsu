@@ -263,8 +263,18 @@
                     {#key selectedVersion}
                       <PasswordField
                         label="License key"
-                        reveal={() => entriesBridge.entryRevealField(entryId, "licenseKey", selectedVersion ?? undefined)}
-                        copy={() => clipboard.copySecretField(entryId, "licenseKey", selectedVersion ?? undefined)}
+                        reveal={() =>
+                          entriesBridge.entryRevealField(
+                            entryId,
+                            "licenseKey",
+                            selectedVersion ?? undefined,
+                          )}
+                        copy={() =>
+                          clipboard.copySecretField(
+                            entryId,
+                            "licenseKey",
+                            selectedVersion ?? undefined,
+                          )}
                       />
                     {/key}
                   {/if}
@@ -317,8 +327,18 @@
                     {#key selectedVersion}
                       <PasswordField
                         label="Number"
-                        reveal={() => entriesBridge.entryRevealField(entryId, "passportNumber", selectedVersion ?? undefined)}
-                        copy={() => clipboard.copySecretField(entryId, "passportNumber", selectedVersion ?? undefined)}
+                        reveal={() =>
+                          entriesBridge.entryRevealField(
+                            entryId,
+                            "passportNumber",
+                            selectedVersion ?? undefined,
+                          )}
+                        copy={() =>
+                          clipboard.copySecretField(
+                            entryId,
+                            "passportNumber",
+                            selectedVersion ?? undefined,
+                          )}
                       />
                     {/key}
                   {/if}

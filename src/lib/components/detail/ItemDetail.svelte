@@ -546,7 +546,10 @@
 
 {#if showGenerator}
   <GeneratorPanel
-    onUse={(pw) => { form.password = pw; showGenerator = false; }}
+    onUse={(pw) => {
+      form.password = pw;
+      showGenerator = false;
+    }}
     oncancel={() => (showGenerator = false)}
   />
 {/if}

@@ -100,32 +100,32 @@ describe("delete keyboard shortcut", () => {
     }
   });
 
-  it.each([
-    "metaKey",
-    "ctrlKey",
-  ])("keeps Find and New available from search with %s", async (modifier) => {
-    render(MainApp);
-    const input = document.createElement("input");
-    input.className = "entry-search-input";
-    document.body.append(input);
-    try {
-      for (const key of ["f", "n"]) {
-        const event = new KeyboardEvent("keydown", {
-          key,
-          [modifier]: true,
-          bubbles: true,
-          cancelable: true,
-        });
-        input.dispatchEvent(event);
-        expect(event.defaultPrevented).toBe(true);
-        if (key === "f") expect(input).toHaveFocus();
+  it.each(["metaKey", "ctrlKey"])(
+    "keeps Find and New available from search with %s",
+    async (modifier) => {
+      render(MainApp);
+      const input = document.createElement("input");
+      input.className = "entry-search-input";
+      document.body.append(input);
+      try {
+        for (const key of ["f", "n"]) {
+          const event = new KeyboardEvent("keydown", {
+            key,
+            [modifier]: true,
+            bubbles: true,
+            cancelable: true,
+          });
+          input.dispatchEvent(event);
+          expect(event.defaultPrevented).toBe(true);
+          if (key === "f") expect(input).toHaveFocus();
+        }
+        await tick();
+        expect(mocks.newItem).toHaveBeenCalled();
+      } finally {
+        input.remove();
       }
-      await tick();
-      expect(mocks.newItem).toHaveBeenCalled();
-    } finally {
-      input.remove();
-    }
-  });
+    },
+  );
 });
 
 describe("creating entries during search", () => {
