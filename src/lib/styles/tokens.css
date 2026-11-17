@@ -29,6 +29,12 @@
   --bg-code: #f3f8fc;
   --border-code: #d3e3ed;
 
+  /* Opaque filled buttons: white labels meet 4.5:1 in both themes. */
+  --button-primary-bg: #185fa5;
+  --button-primary-hover: #14528f;
+  --button-danger-bg: #b3312f;
+  --button-danger-hover: #9c2a28;
+
   /* Semantic */
   --success: #1d9e75;
   --warning: #ba7517;

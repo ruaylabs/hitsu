@@ -78,12 +78,12 @@
   /* Variants — declared after the sizes so a variant can reset size metrics. */
   .button-primary {
     color: var(--text-on-accent);
-    background: var(--accent);
+    background: var(--button-primary-bg);
   }
 
   .button-danger {
     color: var(--text-on-accent);
-    background: var(--danger);
+    background: var(--button-danger-bg);
   }
 
   .button-secondary,
@@ -125,9 +125,12 @@
     color: var(--text-secondary);
   }
 
-  .button-primary:hover:not(:disabled),
+  .button-primary:hover:not(:disabled) {
+    background: var(--button-primary-hover);
+  }
+
   .button-danger:hover:not(:disabled) {
-    opacity: 0.9;
+    background: var(--button-danger-hover);
   }
 
   .button-secondary:hover:not(:disabled),
@@ -152,7 +155,7 @@
     filter: brightness(0.92);
   }
 
-  .button.is-active {
+  .button.is-active:not(.button-primary):not(.button-danger) {
     color: var(--warning);
   }
 </style>
