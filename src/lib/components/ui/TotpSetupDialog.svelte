@@ -378,7 +378,7 @@
   }
 
   .image-picker--success :global(.ti) {
-    color: var(--success);
+    color: var(--success-text);
   }
 
   .image-picker strong {

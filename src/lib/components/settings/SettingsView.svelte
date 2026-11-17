@@ -988,7 +988,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    color: var(--success);
+    color: var(--success-text);
     font-size: var(--text-base);
   }
 

@@ -37,6 +37,7 @@
 
   /* Semantic */
   --success: #1d9e75;
+  --success-text: #147653;
   --warning: #ba7517;
   --warning-text: #8a5510;
   --danger: #e24b4a;
@@ -150,6 +151,7 @@
     --tag-cyan-text: #57aeaf;
     --tag-yellow-text: #cf9e5d;
     --tag-red-text: #eb8180;
+    --success-text: #66d4ac;
     --warning-text: #e5a34a;
     --danger-text: #ff9a99;
     --danger-bg: rgba(226, 75, 74, 0.16);
@@ -186,6 +188,7 @@
   --tag-cyan-text: #57aeaf;
   --tag-yellow-text: #cf9e5d;
   --tag-red-text: #eb8180;
+  --success-text: #66d4ac;
   --warning-text: #e5a34a;
   --danger-text: #ff9a99;
   --danger-bg: rgba(226, 75, 74, 0.16);
