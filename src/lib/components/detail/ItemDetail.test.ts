@@ -181,6 +181,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("shows read-only folder context when folder controls are disabled", async () => {
+  vault.setFolders([
+    { id: "work", name: "Work" },
+    { id: "clients", name: "Clients", parentId: "work" },
+  ]);
+  selectEntry(passwordEntry({ folderId: "clients" }));
+  render(ItemDetail);
+
+  expect(await screen.findByTitle("Clients")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Move entry" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Work")).not.toBeInTheDocument();
+});
+
+it.each([undefined, "missing-folder"])(
+  "omits folder context when the entry folder is unavailable (%s)",
+  async (folderId) => {
+    vault.setFolders([{ id: "work", name: "Work" }]);
+    selectEntry(passwordEntry({ folderId }));
+    const { container } = render(ItemDetail);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(container.querySelector(".breadcrumb")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move entry" })).not.toBeInTheDocument();
+  },
+);
+
 it("focuses the new entry title when search already has focus", async () => {
   const search = document.createElement("input");
   search.type = "search";

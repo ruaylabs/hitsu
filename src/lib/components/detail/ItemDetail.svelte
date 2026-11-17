@@ -658,9 +658,7 @@
     {:else}
       <DetailHeader
         {entry}
-        folderName={features.foldersEnabled
-          ? vault.folders.find((folder) => folder.id === entry.folderId)?.name
-          : undefined}
+        folderName={vault.folders.find((folder) => folder.id === entry.folderId)?.name}
         onFavorite={toggleFavorite}
         onEdit={startEdit}
         onMove={openMoveDialog}
