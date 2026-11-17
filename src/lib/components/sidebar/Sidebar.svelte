@@ -207,7 +207,7 @@
       onclick={() => selectFilter({ kind: "favorites" })}
     />
     <SidebarItem
-      label="Recent"
+      label="Recently modified"
       icon="clock"
       count={recentCount}
       selected={isSelected("recent")}

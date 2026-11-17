@@ -48,6 +48,26 @@ describe("SearchField", () => {
     expect(screen.getByRole("textbox", { name: "Search all items…" })).toBeInTheDocument();
   });
 
+  it("labels the recent filter as recently modified in search and its scope chip", async () => {
+    selection.filter = { kind: "recent" };
+    render(SearchField);
+
+    expect(screen.getByRole("textbox", { name: "Search in Recently modified…" })).toHaveAttribute(
+      "placeholder",
+      "Search in Recently modified…",
+    );
+    expect(
+      screen.getByText("Recently modified", { selector: ".scope-chip > span" }),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Remove Recently modified search scope" }),
+    );
+
+    expect(selection.filter).toEqual({ kind: "all" });
+    expect(screen.getByRole("textbox", { name: "Search all items…" })).toBeInTheDocument();
+  });
+
   it("opens the shared new-entry picker from the add button", async () => {
     const onCreate = vi.fn();
     render(SearchField, { onCreate });

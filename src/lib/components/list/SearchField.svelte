@@ -26,7 +26,7 @@
   function getScopeName(filter: SidebarFilter): string {
     if (filter.kind === "all") return "All items";
     if (filter.kind === "favorites") return "Favorites";
-    if (filter.kind === "recent") return "Recent";
+    if (filter.kind === "recent") return "Recently modified";
     if (filter.kind === "trash") return "Recycle Bin";
     if (filter.kind === "health") {
       return {

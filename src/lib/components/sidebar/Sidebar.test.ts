@@ -66,8 +66,8 @@ describe("Sidebar", () => {
     expect(reused).toHaveAttribute("aria-current", "true");
   });
 
-  it("opens the recent entries view", async () => {
-    const recent = render(Sidebar).getByRole("button", { name: "Recent 3" });
+  it("opens the recently modified entries view", async () => {
+    const recent = render(Sidebar).getByRole("button", { name: "Recently modified 3" });
 
     await fireEvent.click(recent);
 
