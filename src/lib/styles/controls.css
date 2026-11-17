@@ -61,6 +61,12 @@
   background-position: right 8px center;
 }
 
+.control-error,
+.save-error,
+.generator-error {
+  user-select: text;
+}
+
 .control-error {
   color: var(--danger-text);
   font-size: var(--text-sm);

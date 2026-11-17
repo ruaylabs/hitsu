@@ -410,6 +410,7 @@
   }
 
   .vault-path {
+    user-select: text;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--text-muted);

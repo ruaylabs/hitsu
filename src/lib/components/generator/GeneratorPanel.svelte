@@ -201,6 +201,7 @@
 
   .generated-pw,
   .generator-error {
+    user-select: text;
     flex: 1;
     font-family: var(--font-mono);
     font-size: var(--text-base);

@@ -844,6 +844,7 @@
   }
 
   .vault-path-sub {
+    user-select: text;
     font-size: var(--text-base);
     color: var(--text-muted);
     overflow: hidden;
