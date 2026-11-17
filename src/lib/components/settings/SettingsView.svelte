@@ -53,7 +53,7 @@
       selectedPath = result;
       dialog = { kind: "open" };
     } catch (e) {
-      toast.error(String(e));
+      toast.error(errorMessage(e));
     }
   }
 
@@ -173,7 +173,7 @@
       selectedPath = result;
       dialog = { kind: "create" };
     } catch (e) {
-      toast.error(String(e));
+      toast.error(errorMessage(e));
     }
   }
 

@@ -5,6 +5,8 @@ import { vault } from "$lib/stores/vault.svelte";
 import SettingsView from "./SettingsView.svelte";
 
 const mocks = vi.hoisted(() => ({
+  pickOpen: vi.fn(),
+  pickCreate: vi.fn(),
   import1pif: vi.fn(),
   exportImportReport: vi.fn(),
   saveDialog: vi.fn(),
@@ -16,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   biometricStatus: vi.fn(),
   biometricEnable: vi.fn(),
   biometricDisable: vi.fn(),
+}));
+
+vi.mock("$lib/utils/vaultFilePicker", () => ({
+  pickVaultToOpen: mocks.pickOpen,
+  pickVaultToCreate: mocks.pickCreate,
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -98,6 +105,30 @@ describe("SettingsView", () => {
           favorite: false,
         },
       ],
+    });
+  });
+
+  describe.each([
+    ["Open vault…", mocks.pickOpen],
+    ["Create new vault…", mocks.pickCreate],
+  ] as const)("%s errors", (label, picker) => {
+    it.each([
+      { kind: "io", message: "Could not choose vault" },
+      new Error("Could not choose vault"),
+      "Could not choose vault",
+    ])("formats repeated %s failures", async (error) => {
+      picker.mockRejectedValue(error);
+      render(SettingsView);
+
+      const button = screen.getByRole("button", { name: label });
+      await fireEvent.click(button);
+      await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+      await fireEvent.click(button);
+      await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(2));
+      expect(mocks.toastError.mock.calls).toEqual([
+        ["Could not choose vault"],
+        ["Could not choose vault"],
+      ]);
     });
   });
 

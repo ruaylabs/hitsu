@@ -51,7 +51,7 @@
       if (!result) return;
       requestUnlock(result, "open");
     } catch (e) {
-      error = String(e);
+      error = errorMessage(e);
     }
   }
 
@@ -75,7 +75,7 @@
       pendingPath = result;
       dialog = "create";
     } catch (e) {
-      error = String(e);
+      error = errorMessage(e);
     }
   }
 

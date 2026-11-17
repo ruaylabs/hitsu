@@ -2,7 +2,17 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OnboardingView from "./OnboardingView.svelte";
 
-const mocks = vi.hoisted(() => ({ prefsGet: vi.fn(), vaultOpen: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  prefsGet: vi.fn(),
+  vaultOpen: vi.fn(),
+  pickOpen: vi.fn(),
+  pickCreate: vi.fn(),
+}));
+
+vi.mock("$lib/utils/vaultFilePicker", () => ({
+  pickVaultToOpen: mocks.pickOpen,
+  pickVaultToCreate: mocks.pickCreate,
+}));
 
 vi.mock("$lib/bridge/prefs", () => ({ prefsGet: mocks.prefsGet }));
 vi.mock("$lib/bridge/vault", () => ({ vaultOpen: mocks.vaultOpen }));
@@ -23,6 +33,24 @@ beforeEach(() => {
 });
 
 describe("OnboardingView", () => {
+  describe.each([
+    ["Open existing vault…", mocks.pickOpen],
+    ["Create new vault…", mocks.pickCreate],
+  ] as const)("%s errors", (label, picker) => {
+    it.each([
+      { kind: "io", message: "Could not choose vault" },
+      new Error("Could not choose vault"),
+      "Could not choose vault",
+    ])("formats %s", async (error) => {
+      picker.mockRejectedValue(error);
+      render(OnboardingView);
+
+      await fireEvent.click(screen.getByRole("button", { name: label }));
+
+      expect(await screen.findByText("Could not choose vault")).toBeInTheDocument();
+    });
+  });
+
   it("lists unique recent vaults and opens the selected unlock dialog", async () => {
     render(OnboardingView);
 
