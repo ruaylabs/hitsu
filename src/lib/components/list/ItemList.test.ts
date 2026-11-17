@@ -636,6 +636,73 @@ describe("ItemList", () => {
     expect(search).toHaveFocus();
   });
 
+  it("exposes full filtered positions even when earlier results are virtualized", async () => {
+    vault.setEntries(makeEntries(40));
+    selection.filter = { kind: "tag", tag: "even" };
+    render(ItemList);
+    const list = screen.getByRole("listbox", { name: "Entries" });
+    await waitFor(() => expect(listRows()[0]).toHaveAttribute("aria-posinset", "1"));
+    expect(listRows()[0]).toHaveAttribute("aria-setsize", "20");
+
+    list.scrollTop = 580;
+    await fireEvent.scroll(list);
+    await waitFor(() => expect(listRows()[0]).toHaveAttribute("data-entry-id", "id-10"));
+    expect(listRows()[0]).toHaveAttribute("aria-posinset", "6");
+    expect(listRows()[0]).toHaveAttribute("aria-setsize", "20");
+
+    // Tab can still enter the list when the selected option was scrolled away.
+    expect(list).toHaveAttribute("tabindex", "0");
+    list.focus();
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /Entry/, selected: true })).toHaveFocus(),
+    );
+    expect(list).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("announces accepted search navigation without moving focus or exposing subtitles", async () => {
+    vault.setEntries(makeEntries(3));
+    render(ItemList);
+    const search = screen.getByRole("textbox");
+    search.focus();
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
+    const status = screen.getByRole("status");
+    expect(status.textContent).toBe("");
+    const releaseGuard = selection.setNavigationGuard(() => false);
+    try {
+      await fireEvent.keyDown(search, { key: "ArrowDown" });
+      expect(status.textContent).toBe("");
+      expect(selection.selectedId).toBe("id-0");
+    } finally {
+      releaseGuard();
+    }
+    await fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(status).toHaveTextContent(/^Entry 1, 2 of 3$/);
+    expect(search).toHaveFocus();
+    expect(screen.getByRole("option", { name: /Entry/, selected: true })).toHaveAttribute(
+      "data-entry-id",
+      "id-1",
+    );
+    await fireEvent.input(search, { target: { value: "Entry 2" } });
+    await waitFor(() => expect(status.textContent).toBe(""));
+  });
+
+  it("focuses and describes the selected option after jumping past the rendered window", async () => {
+    vault.setEntries(makeEntries(40));
+    render(ItemList);
+    await waitFor(() => expect(selection.selectedId).toBe("id-0"));
+    await fireEvent.keyDown(window, { key: "End" });
+    const last = await screen.findByRole("option", { name: /Entry/, selected: true });
+    await waitFor(() => expect(last).toHaveFocus());
+    expect(last).toHaveAttribute("aria-posinset", "40");
+    expect(last).toHaveAttribute("aria-setsize", "40");
+    expect(screen.getByRole("status").textContent).toBe("");
+    await fireEvent.keyDown(last, { key: "Home" });
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /Entry/, selected: true })).toHaveFocus(),
+    );
+    expect(selection.selectedId).toBe("id-0");
+  });
+
   it("moves selection with arrow keys", async () => {
     vault.setEntries(makeEntries(5));
     render(ItemList);

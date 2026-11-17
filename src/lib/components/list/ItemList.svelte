@@ -113,6 +113,7 @@
 
   let scrollEl = $state<HTMLDivElement | undefined>();
   let scrollTop = $state(0);
+  let searchAnnouncement = $state("");
   let viewportHeight = $state(0);
   let searchContext: {
     selectedId: string | null;
@@ -151,6 +152,25 @@
     Math.min(filtered.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN),
   );
   let visible = $derived(filtered.slice(startIndex, endIndex));
+  let selectedIsRendered = $derived(visible.some((entry) => entry.id === selection.selectedId));
+
+  async function focusSelectedRow() {
+    const index = filtered.findIndex((entry) => entry.id === selection.selectedId);
+    if (index < 0) return;
+    scrollIndexIntoView(index);
+    await tick();
+    scrollEl
+      ?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+      ?.focus({ preventScroll: true });
+  }
+
+  // Search keeps DOM focus; announce only its accepted keyboard navigation,
+  // without reading usernames or other entry fields into a live region.
+  $effect(() => {
+    void selection.search;
+    void selection.filter;
+    searchAnnouncement = "";
+  });
 
   // When the list shrinks or the viewport grows, the browser clamps the
   // container's scrollTop without necessarily firing a scroll event;
@@ -368,7 +388,10 @@
         // scroll it into range first, then focus after navigation is allowed
         // (immediately or after the unsaved-changes dialog is resolved).
         scrollIndexIntoView(nextIndex);
-        if (fromSearch) return;
+        if (fromSearch) {
+          searchAnnouncement = `${nextEntry.title}, ${nextIndex + 1} of ${filtered.length}`;
+          return;
+        }
         void tick().then(() => {
           document
             .querySelector<HTMLButtonElement>(`[data-entry-id="${nextEntry.id}"]`)
@@ -418,6 +441,11 @@
   <div
     class="list-rows"
     role="listbox"
+    aria-label="Entries"
+    tabindex={selectedIsRendered ? -1 : 0}
+    onfocus={(event) => {
+      if (event.target === scrollEl) void focusSelectedRow();
+    }}
     bind:this={scrollEl}
     bind:clientHeight={viewportHeight}
     onscroll={() => {
@@ -435,10 +463,12 @@
           role="presentation"
           style="transform: translateY({startIndex * ROW_HEIGHT}px)"
         >
-          {#each visible as entry (entry.id)}
+          {#each visible as entry, index (entry.id)}
             <ItemListRow
               {entry}
               selected={entry.id === selection.selectedId}
+              position={startIndex + index + 1}
+              setSize={filtered.length}
               onclick={() =>
                 selection.requestNavigation(() => {
                   selection.selectedId = entry.id;
@@ -480,9 +510,22 @@
       </div>
     {/if}
   </div>
+  <span class="selection-announcement" role="status" aria-atomic="true">{searchAnnouncement}</span>
 </div>
 
 <style>
+  .selection-announcement {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .item-list {
     width: 100%;
     display: flex;

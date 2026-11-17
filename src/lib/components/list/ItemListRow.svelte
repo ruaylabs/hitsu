@@ -6,11 +6,15 @@
   let {
     entry,
     selected = false,
+    position,
+    setSize,
     onclick,
     oncontextmenu,
   }: {
     entry: EntrySummary;
     selected?: boolean;
+    position?: number;
+    setSize?: number;
     onclick?: () => void;
     oncontextmenu?: (event: MouseEvent) => void;
   } = $props();
@@ -23,6 +27,8 @@
   {oncontextmenu}
   role="option"
   aria-selected={selected}
+  aria-posinset={position}
+  aria-setsize={setSize}
   tabindex={selected ? 0 : -1}
   data-entry-id={entry.id}
 >
