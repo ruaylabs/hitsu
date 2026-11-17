@@ -8,6 +8,7 @@
     entry,
     onFavorite,
     onEdit,
+    onDelete,
     onMove,
     onTotpSetup,
     onDownloadFavicon,
@@ -22,6 +23,7 @@
     entry: Entry;
     onFavorite?: () => void;
     onEdit?: () => void;
+    onDelete?: () => void;
     onMove?: () => void;
     onTotpSetup?: () => void;
     onDownloadFavicon?: () => void;
@@ -123,6 +125,16 @@
         aria-label="Edit entry"
         title="Edit entry"
       />
+      {#if onDelete}
+        <IconButton
+          icon="trash"
+          iconSize={14}
+          variant="danger"
+          onclick={onDelete}
+          aria-label="Delete"
+          title="Delete"
+        />
+      {/if}
     </div>
   {/if}
 </div>

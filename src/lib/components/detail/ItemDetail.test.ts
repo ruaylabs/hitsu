@@ -3,6 +3,7 @@ import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Entry, EntrySummary } from "$lib/bridge/types";
 import { clipboard } from "$lib/stores/clipboard.svelte";
+import { entryDeletion } from "$lib/stores/entryDeletion.svelte";
 import { features } from "$lib/stores/features.svelte";
 import { saveStatus } from "$lib/stores/saveStatus.svelte";
 import { selection } from "$lib/stores/selection.svelte";
@@ -407,6 +408,38 @@ describe("ItemDetail errors", () => {
 });
 
 describe("edit actions", () => {
+  it("offers a direct read-mode Delete button through the shared confirmation flow", async () => {
+    selectEntry(passwordEntry());
+    const request = vi.spyOn(entryDeletion, "request").mockResolvedValue(undefined);
+    render(ItemDetail);
+    const deleteButton = await screen.findByRole("button", { name: "Delete" });
+    expect(deleteButton).not.toHaveAttribute("aria-haspopup");
+    expect(screen.queryByRole("button", { name: "More entry actions" })).not.toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
+    await fireEvent.click(deleteButton);
+    expect(request).toHaveBeenCalledWith("password-1", "Recovery password", expect.any(Function));
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockRestore();
+  });
+
+  it("keeps Delete out of the edit toolbar", async () => {
+    selectEntry(passwordEntry());
+    render(ItemDetail);
+    await fireEvent.click(await screen.findByRole("button", { name: "Edit entry" }));
+    await screen.findByRole("button", { name: "Save" });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More entry actions" })).not.toBeInTheDocument();
+  });
+
+  it("keeps permanent deletion in the recycle-bin toolbar", async () => {
+    selectEntry(passwordEntry({ trashed: true }));
+    render(ItemDetail);
+    await screen.findByRole("button", { name: "Delete permanently" });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More entry actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit entry" })).not.toBeInTheDocument();
+  });
+
   it("enables Save only after the form changes", async () => {
     selectEntry(passwordEntry());
     render(ItemDetail);

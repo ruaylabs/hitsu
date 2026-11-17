@@ -103,8 +103,7 @@ describe("standalone vault lifecycle", () => {
     await unlock();
     await $("h1=E2E password updated").waitForDisplayed();
 
-    await $('[aria-label="Edit entry"]').click();
-    await (await button("Delete")).click();
+    await $('[aria-label="Delete"]').click();
 
     await (await button("Undo")).waitForDisplayed();
     await $("p=No entries yet").waitForDisplayed();

@@ -615,17 +615,6 @@
             <Icon name="check" size={14} />
             <span>Save</span>
           </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            class="toolbar-delete"
-            onclick={confirmDelete}
-            aria-label="Delete"
-            title="Delete"
-          >
-            <Icon name="trash" size={14} />
-            <span>Delete</span>
-          </Button>
         {/if}
       </div>
     {/if}
@@ -661,6 +650,7 @@
         folderName={vault.folders.find((folder) => folder.id === entry.folderId)?.name}
         onFavorite={toggleFavorite}
         onEdit={startEdit}
+        onDelete={confirmDelete}
         onMove={openMoveDialog}
         showMove={features.foldersEnabled && !entry.trashed}
         onTotpSetup={() => (showTotpSetup = true)}
