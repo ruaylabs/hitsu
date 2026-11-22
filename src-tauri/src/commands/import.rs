@@ -1,4 +1,6 @@
 use std::collections::{HashMap, HashSet};
+#[cfg(unix)]
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -16,6 +18,7 @@ use crate::state::AppState;
 
 const MAX_1PIF_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES: u64 = 100 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_INDEXED_FILES: usize = 20_000;
 const MAX_IMPORT_REPORT_BYTES: usize = 1024 * 1024;
 
@@ -115,7 +118,7 @@ struct ParsedImport {
 struct AttachmentSpec {
     name: Option<String>,
     locator: Option<String>,
-    embedded: Option<Vec<u8>>,
+    embedded: Option<String>,
 }
 
 struct ImportSource {
@@ -172,7 +175,20 @@ fn import_source(path: &Path) -> HitsuResult<ImportSource> {
 }
 
 fn parse_1pif(path: &Path) -> HitsuResult<ParsedImport> {
-    let source = import_source(path)?;
+    // Resolve aliases in the selected location (e.g. /var on macOS), not in
+    // discovered attachment paths, which must never follow symlinks.
+    let selected = if path.is_dir() {
+        path.canonicalize()?
+    } else if let Some(name) = path.file_name() {
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .canonicalize()?
+            .join(name)
+    } else {
+        path.to_path_buf()
+    };
+    let source = import_source(&selected)?;
     let size = std::fs::metadata(&source.data_file)?.len();
     if size > MAX_1PIF_BYTES {
         return Err(HitsuError::Custom(
@@ -222,8 +238,9 @@ fn parse_1pif(path: &Path) -> HitsuResult<ParsedImport> {
     let files = index_attachment_files(&source)?;
     let mut items = Vec::new();
     let mut skipped_entries = Vec::new();
+    let mut attachment_budget = MAX_TOTAL_ATTACHMENT_BYTES;
     for record in records {
-        match parse_record(&record, &folders, &files) {
+        match parse_record(&record, &folders, &files, &mut attachment_budget) {
             Some(item) => items.push(item),
             None => {
                 let type_name = string_at(&record, &["typeName"]).unwrap_or_default();
@@ -350,6 +367,7 @@ fn parse_record(
     record: &JsonValue,
     folders: &HashMap<String, String>,
     files: &[PathBuf],
+    attachment_budget: &mut u64,
 ) -> Option<ImportedItem> {
     if bool_at(record, &["trashed"]).unwrap_or(false)
         || string_at(record, &["category"]).as_deref() == Some("099")
@@ -454,8 +472,11 @@ fn parse_record(
     // item's JSON, so associate them by the item's UUID before processing
     // the less common inline/reference attachment representations.
     if let Some(source_id) = item.source_id.as_deref() {
-        item.attachments
-            .extend(load_packaged_attachments(source_id, files));
+        item.attachments.extend(load_packaged_attachments(
+            source_id,
+            files,
+            attachment_budget,
+        ));
     }
 
     if let Some(folder_id) = first_string(record, &["folderUuid", "folderUUID"]).or_else(|| {
@@ -472,7 +493,7 @@ fn parse_record(
     }
 
     for spec in attachment_specs(record, content, &item) {
-        if let Some(attachment) = load_attachment(spec, files) {
+        if let Some(attachment) = load_attachment(spec, files, attachment_budget) {
             if !item
                 .attachments
                 .iter()
@@ -970,14 +991,85 @@ fn remove_custom_fields_duplicating_regular_fields(item: &mut ImportedItem) {
         .retain(|field| !regular_values.contains(field.value.trim()));
 }
 
-fn load_packaged_attachments(source_id: &str, files: &[PathBuf]) -> Vec<ImportedAttachment> {
+fn consume_attachment_budget(data: Vec<u8>, budget: &mut u64) -> Option<Vec<u8>> {
+    let len = data.len() as u64;
+    if len > MAX_ATTACHMENT_BYTES || len > *budget {
+        return None;
+    }
+    *budget -= len;
+    Some(data)
+}
+
+#[cfg(unix)]
+fn open_attachment_file(path: &Path) -> Option<std::fs::File> {
+    use std::ffi::CString;
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Component;
+
+    let mut components = path.components().peekable();
+    if components.next()? != Component::RootDir {
+        return None;
+    }
+    let mut file = std::fs::File::open("/").ok()?;
+    while let Some(component) = components.next() {
+        let Component::Normal(name) = component else {
+            return None;
+        };
+        let name = CString::new(name.as_bytes()).ok()?;
+        // Walk from open directory handles; O_NOFOLLOW on just the last component
+        // would still allow a replaced parent directory to redirect the read.
+        let mut flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK;
+        if components.peek().is_some() {
+            flags |= libc::O_DIRECTORY;
+        }
+        // SAFETY: the directory descriptor and NUL-terminated name are live for the call.
+        let fd = unsafe { libc::openat(file.as_raw_fd(), name.as_ptr(), flags) };
+        if fd < 0 {
+            return None;
+        }
+        // SAFETY: openat returned a new owned descriptor.
+        file = unsafe { std::fs::File::from_raw_fd(fd) };
+    }
+    Some(file)
+}
+
+#[cfg(unix)]
+fn read_bounded_attachment(reader: impl Read, limit: u64) -> Option<Vec<u8>> {
+    let mut data = Vec::new();
+    reader.take(limit + 1).read_to_end(&mut data).ok()?;
+    (data.len() as u64 <= limit).then_some(data)
+}
+
+#[cfg(unix)]
+fn read_attachment_file(path: &Path, budget: &mut u64) -> Option<Vec<u8>> {
+    let limit = (*budget).min(MAX_ATTACHMENT_BYTES);
+    let file = open_attachment_file(path)?;
+    let metadata = file.metadata().ok()?;
+    if !metadata.is_file() || metadata.len() > limit {
+        return None;
+    }
+    consume_attachment_budget(read_bounded_attachment(file, limit)?, budget)
+}
+
+#[cfg(not(unix))]
+fn read_attachment_file(_path: &Path, _budget: &mut u64) -> Option<Vec<u8>> {
+    // Don't fall back to following links on unsupported desktop platforms.
+    None
+}
+
+fn load_packaged_attachments(
+    source_id: &str,
+    files: &[PathBuf],
+    budget: &mut u64,
+) -> Vec<ImportedAttachment> {
     let source_id = normalize_id(source_id);
     files
         .iter()
         .filter(|path| attachment_belongs_to_item(path, &source_id))
         .filter_map(|path| {
             let name = path.file_name()?.to_str()?.to_string();
-            let data = std::fs::read(path).ok()?;
+            let data = read_attachment_file(path, budget)?;
             Some(ImportedAttachment { name, data })
         })
         .collect()
@@ -1028,15 +1120,7 @@ fn attachment_specs(
 fn attachment_spec(value: &JsonValue) -> Option<AttachmentSpec> {
     let name = first_string(value, &["fileName", "filename", "name", "title"]);
     let locator = first_string(value, &["documentId", "fileId", "uuid", "id", "path"]);
-    let embedded = first_string(value, &["dataBase64", "base64", "data"]).and_then(|data| {
-        let encoded = data
-            .split_once(",")
-            .map_or(data.as_str(), |(_, value)| value);
-        base64::engine::general_purpose::STANDARD
-            .decode(encoded)
-            .ok()
-            .filter(|bytes| bytes.len() as u64 <= MAX_ATTACHMENT_BYTES)
-    });
+    let embedded = first_string(value, &["dataBase64", "base64", "data"]);
     (name.is_some() || locator.is_some() || embedded.is_some()).then_some(AttachmentSpec {
         name,
         locator,
@@ -1044,8 +1128,23 @@ fn attachment_spec(value: &JsonValue) -> Option<AttachmentSpec> {
     })
 }
 
-fn load_attachment(spec: AttachmentSpec, files: &[PathBuf]) -> Option<ImportedAttachment> {
-    let data = if let Some(data) = spec.embedded {
+fn load_attachment(
+    spec: AttachmentSpec,
+    files: &[PathBuf],
+    budget: &mut u64,
+) -> Option<ImportedAttachment> {
+    let embedded = spec.embedded.as_deref().and_then(|data| {
+        let encoded = data.split_once(',').map_or(data, |(_, value)| value);
+        let limit = (*budget).min(MAX_ATTACHMENT_BYTES);
+        if encoded.len() as u64 > limit.div_ceil(3) * 4 {
+            return None;
+        }
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .ok()?;
+        consume_attachment_budget(decoded, budget)
+    });
+    let data = if let Some(data) = embedded {
         data
     } else {
         let candidates = [spec.locator.as_deref(), spec.name.as_deref()];
@@ -1062,7 +1161,7 @@ fn load_attachment(spec: AttachmentSpec, files: &[PathBuf]) -> Option<ImportedAt
                 file_name.eq_ignore_ascii_case(candidate)
             })
         })?;
-        std::fs::read(path).ok()?
+        read_attachment_file(path, budget)?
     };
     let fallback = spec.locator.as_deref().unwrap_or("attachment");
     let name = spec
@@ -1759,6 +1858,57 @@ mod tests {
             std::fs::write(dir.join("attachments").join(name), bytes).unwrap();
         }
         path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_attachments_require_regular_files_and_link_free_paths() {
+        use std::os::unix::fs::symlink;
+
+        let export = write_export(&[], Some(("proof.txt", b"proof")));
+        let root = export.parent().unwrap().canonicalize().unwrap();
+        let directory = root.join("attachments");
+        let file = directory.join("proof.txt");
+        let file_link = directory.join("link.txt");
+        let directory_link = root.join("linked-directory");
+        symlink(&file, &file_link).unwrap();
+        symlink(&directory, &directory_link).unwrap();
+
+        let mut budget = 8;
+        assert!(read_attachment_file(&directory, &mut budget).is_none());
+        assert!(read_attachment_file(&file_link, &mut budget).is_none());
+        assert!(read_attachment_file(&directory_link.join("proof.txt"), &mut budget).is_none());
+        assert_eq!(budget, 8);
+        assert_eq!(read_attachment_file(&file, &mut budget).unwrap(), b"proof");
+        assert_eq!(budget, 3);
+        assert!(read_attachment_file(&file, &mut budget).is_none());
+        assert_eq!(budget, 3);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn attachment_stream_cannot_exceed_the_read_limit() {
+        assert_eq!(read_bounded_attachment(&b"abc"[..], 3).unwrap(), b"abc");
+        assert!(read_bounded_attachment(std::io::repeat(0), 3).is_none());
+    }
+
+    #[test]
+    fn embedded_attachments_share_the_import_budget() {
+        let spec = AttachmentSpec {
+            name: Some("proof.txt".into()),
+            locator: None,
+            embedded: Some("YWJj".into()),
+        };
+        let mut budget = 5;
+        assert_eq!(
+            load_attachment(spec.clone(), &[], &mut budget)
+                .unwrap()
+                .data,
+            b"abc"
+        );
+        assert!(load_attachment(spec, &[], &mut budget).is_none());
+        assert_eq!(budget, 2);
     }
 
     #[test]
