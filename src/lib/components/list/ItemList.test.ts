@@ -210,20 +210,26 @@ describe("ItemList", () => {
     expect(listRows()).toHaveLength(1);
   });
 
-  it("warns when the backend finds more than 500 full-field matches", async () => {
+  it("explains the entry-detail match limit without hiding summary matches", async () => {
     vault.setEntries(makeEntries(20));
     entriesSearchMock.mockResolvedValue({ ids: [], truncated: true });
     render(ItemList);
 
     await fireEvent.input(screen.getByRole("textbox"), {
-      target: { value: "buried note" },
+      target: { value: "Entry 7" },
     });
 
     expect(
       await screen.findByText(
-        "More than 500 full-field matches were found; keep typing to narrow the search.",
+        "Matches from notes and other entry details are limited to 500. Keep typing to narrow your search.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Entry 7/ })).toBeInTheDocument();
+
+    await fireEvent.input(screen.getByRole("textbox"), { target: { value: "" } });
+    expect(
+      screen.queryByText(/Matches from notes and other entry details/),
+    ).not.toBeInTheDocument();
   });
 
   it("filters a folder recursively", async () => {

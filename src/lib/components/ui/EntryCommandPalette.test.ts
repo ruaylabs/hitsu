@@ -64,19 +64,27 @@ describe("EntryCommandPalette", () => {
     expect(screen.queryByRole("option", { name: /Travel card/ })).not.toBeInTheDocument();
   });
 
-  it("warns when the backend finds more than 500 full-field matches", async () => {
+  it("explains the entry-detail match limit without hiding summary matches", async () => {
     entriesSearchMock.mockResolvedValue({ ids: [], truncated: true });
     render(EntryCommandPalette, { entries, onSelect: vi.fn(), onClose: vi.fn() });
 
     await fireEvent.input(screen.getByRole("textbox", { name: "Search entries" }), {
-      target: { value: "buried note" },
+      target: { value: "Hitsu" },
     });
 
     expect(
       await screen.findByText(
-        "More than 500 full-field matches were found; keep typing to narrow the search.",
+        "Matches from notes and other entry details are limited to 500. Keep typing to narrow your search.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Hitsu/ })).toBeInTheDocument();
+
+    await fireEvent.input(screen.getByRole("textbox", { name: "Search entries" }), {
+      target: { value: "" },
+    });
+    expect(
+      screen.queryByText(/Matches from notes and other entry details/),
+    ).not.toBeInTheDocument();
   });
 
   it("supports Ctrl+N and Ctrl+P navigation", async () => {

@@ -133,7 +133,8 @@
     {/if}
     {#if search && entrySearch.truncated}
       <div class="entry-palette-warning" role="status">
-        More than 500 full-field matches were found; keep typing to narrow the search.
+        Matches from notes and other entry details are limited to 500. Keep typing to narrow your
+        search.
       </div>
     {/if}
   </div>
