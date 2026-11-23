@@ -19,12 +19,12 @@
 
 stdenv.mkDerivation rec {
   pname = "hitsu";
-  version = "0.13.0";
+  version = "0.13.1";
 
   # Upstream currently publishes Linux binaries only for x86_64.
   src = fetchurl {
     url = "https://github.com/ruaylabs/hitsu/releases/download/v${version}/Hitsu_${version}_amd64.deb";
-    sha256 = "c5357124aae8820173be97baace0dea7bb18b1e9aef185a35590cc88e7549bde";
+    sha256 = "564300ac1ffa8d18462107eebd1ad6d709b7d4da750951665a6fcf208b583d9b";
   };
 
   nativeBuildInputs = [
